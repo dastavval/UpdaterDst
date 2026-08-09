@@ -419,9 +419,19 @@ export default function DynamicPresentation({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-emerald-500/15 to-teal-500/10 border border-emerald-500/30 shadow-[0_8px_32px_rgba(16,185,129,0.08)] flex items-center gap-2 group hover:scale-[1.02] transition-all duration-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span className="text-xs font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-800 via-teal-900 to-emerald-900 pr-1 select-none">
+            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-[#bf953f] via-[#fcf6ba] via-[#b38728] via-[#fbf5b7] to-[#aa771c] border-2 border-[#ffebad] shadow-[0_4px_20px_rgba(191,149,63,0.35),inset_0_1px_1px_rgba(255,255,255,0.8)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
+              {/* Dynamic light reflection sweep (specular shine) */}
+              <motion.div 
+                animate={{ x: ["-150%", "250%"] }} 
+                transition={{ repeat: Infinity, duration: 3.5, ease: "linear" }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent -skew-x-20 pointer-events-none" 
+              />
+              
+              {/* Subtle inner ambient glow */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-white/10 pointer-events-none" />
+              
+              <Sparkles size={14} className="text-[#5c4008] fill-[#9e7011]/40 shrink-0 relative z-10 animate-pulse" />
+              <span className="text-[11px] sm:text-xs font-black tracking-wide text-[#4a3203] pr-0.5 select-none relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]">
                 « برکت در صدق معامله است »
               </span>
             </div>
