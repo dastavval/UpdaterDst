@@ -425,21 +425,20 @@ export default function Navbar({
                 <span>🍏 سیب سلامت و طبیعی</span>
               </button>
 
-              {user?.role === 'admin' ? (
-                <button
-                  onClick={() => {
-                    setActiveTab?.('admin');
-                  }}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'admin'
-                      ? "bg-amber-500 text-slate-950 shadow-sm font-black"
-                      : "text-slate-700 hover"
-                  }`}
-                >
-                  <ShieldAlert size={15} />
-                  <span>{t.admin}</span>
-                </button>
-              ) : (
+              <button
+                onClick={() => {
+                  setActiveTab?.('admin');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'admin'
+                    ? "bg-slate-900 text-amber-400 shadow-md font-black ring-2 ring-amber-400/50"
+                    : "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                }`}
+                title="ورود به پنل مدیریت سرور و بروزرسانی گیت‌هاب"
+              >
+                <ShieldAlert size={15} className="text-amber-500" />
+                <span>پنل مدیریت و گیت‌هاب</span>
+              </button>
                 <button
                   onClick={() => {
                     if (user) {
@@ -457,7 +456,7 @@ export default function Navbar({
                   <User size={15} />
                   <span>{user ? t.myPanel : "ورود / عضویت"}</span>
                 </button>
-              )}
+
 
               {onOpenCatalog && (
                 <button
@@ -700,6 +699,16 @@ export default function Navbar({
                     
                     {user.role === 'admin' ? (
                       <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            if (setActiveTab) setActiveTab('admin');
+                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'system' } }));
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="col-span-2 text-center py-2.5 bg-gradient-to-r from-slate-900 to-purple-950 text-amber-400 rounded-xl text-[10px] font-black cursor-pointer border border-purple-900/40 shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                          🚀 بروزرسانی هوشمند سیستم (گیت‌هاب)
+                        </button>
                         <button
                           onClick={() => {
                             if (setActiveTab) setActiveTab('admin');

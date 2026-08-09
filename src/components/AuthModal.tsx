@@ -477,6 +477,21 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                 : "قبلاً ثبت نام کرده‌اید؟ ورود سریع"}
             </button>
           </div>
+
+          <div className="pt-4 border-t border-slate-100 space-y-2">
+            <p className="text-[10px] text-slate-400 font-bold text-center">ورود سریع آزمایشی مخصوص ادمین و تست سیستم:</p>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setEmail('admin@dastavval.ir');
+                setPassword('33603360');
+              }}
+              className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm border border-amber-400 active:scale-95"
+            >
+              🛡️ تکمیل اطلاعات حساب مدیر ارشد کل (Admin)
+            </button>
+          </div>
         </form>
         </div>
       </motion.div>

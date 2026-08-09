@@ -3333,7 +3333,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         )}
 
         {/* UNIFIED ADVANCED TOP NAVIGATION BAR */}
-        <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-2 rounded-2xl shadow-sm overflow-x-auto custom-scrollbar flex items-center gap-1.5">
+        <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-3 rounded-[1.5rem] shadow-sm flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
             className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -3468,14 +3468,14 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
           <button
             onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer border-2 ${
               activeSubTab === 'system'
-                ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                : "text-slate-600 hover:bg-slate-100"
+                ? "bg-slate-900 text-white border-purple-500 shadow-lg shadow-purple-900/30"
+                : "bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100"
             }`}
           >
-            <Server size={15} />
-            <span>تنظیمات و بروزرسانی سیستم (گیت‌هاب)</span>
+            <Server size={15} className="text-amber-400 animate-pulse" />
+            <span>🚀 بروزرسانی هوشمند سیستم (گیت‌هاب)</span>
           </button>
 
           <div className="flex flex-col sm:flex-row items-center gap-2">
@@ -5611,17 +5611,6 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             </div>
           </div>
         </div>
-      )}
-
-      {/* --- TAB: SYSTEM CONFIG & GITHUB AUTO-UPDATE --- */}
-      {activeSubTab === 'system' && (
-        <AdminSystemConfig
-          b2bConfig={b2bConfig}
-          onUpdateB2bConfig={onUpdateB2bConfig}
-          products={products}
-          articles={articles}
-          onRefreshProducts={onRefreshProducts}
-        />
       )}
 
       {/* --- TAB: REPRESENTATIVES MANAGEMENT --- */}
@@ -9254,201 +9243,14 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       {/* --- TAB: SYSTEM MANAGEMENT --- */}
       {activeSubTab === 'system' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-right" dir="rtl">
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl p-8 space-y-8">
-            <div className="flex items-center gap-3 border-b border-gray-100 pb-4 mb-2">
-              <ShieldCheck className="text-rose-600" size={20} />
-              <div>
-                <h3 className="text-base font-black text-slate-900">مدیریت زیرساخت، دسته‌ها و سطوح تجاری</h3>
-                <p className="text-[10px] text-gray-400 font-bold">تنظیمات اصلی سامانه، کمیسیون‌ها و ساختار عضویت بنکداران را از اینجا کنترل کنید.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* API Integration Section */}
-              <div className="md:col-span-2 space-y-4">
-                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <Cpu size={16} className="text-rose-600" />
-                  مستندات API و یکپارچه‌سازی (برای توسعه‌دهندگان Android/JS)
-                </h4>
-                <div className="p-6 bg-white rounded-[2rem] border border-slate-800 space-y-4 text-left font-mono" dir="ltr">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase">Get All Products</span>
-                      <span className="text-[10px] text-slate-500">GET /api/v1/products</span>
-                    </div>
-                    <div className="bg-slate-100/50 p-3 rounded-xl text-[9px] text-slate-300 overflow-x-auto whitespace-pre">
-                      {"{ \"success\": true, \"products\": [...] }"}
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase">Get Categories</span>
-                      <span className="text-[10px] text-slate-500">GET /api/v1/categories</span>
-                    </div>
-                    <div className="bg-slate-100/50 p-3 rounded-xl text-[9px] text-slate-300 overflow-x-auto whitespace-pre">
-                      {"{ \"success\": true, \"categories\": [...] }"}
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-slate-800">
-                    <p className="text-[10px] text-slate-500 font-sans text-right" dir="rtl">
-                      * از این نقاط دسترسی می‌توانید برای نمایش زنده محصولات در اپلیکیشن موبایل یا سایت‌های همکار استفاده کنید.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Shipping Policy (Ex-works) */}
-              <div className="md:col-span-2 space-y-4">
-                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <MapPin size={16} className="text-rose-600" />
-                  سیاست تحویل بار و لجستیک (Ex-works)
-                </h4>
-                <div className="p-6 bg-rose-50 rounded-2xl border border-rose-100 space-y-3">
-                  <p className="text-xs text-rose-900 font-black leading-relaxed">
-                    تعهد پلتفرم دست‌اول در تمامی فاکتورها، تحویل کالا **درب انبار شبستر** یا **درب کارخانه** می‌باشد.
-                  </p>
-                  <p className="text-[10px] text-rose-700 font-bold leading-relaxed">
-                    مسئولیت و هزینه حمل از انبار شبستر تا مقصد نهایی بر عهده خریدار است. در صورت انتخاب روش‌های ارسال سیستمی (باربری/پیک/دکا)، دست‌اول صرفاً فرآیند تحویل به متصدی حمل را مدیریت می‌کند و هزینه حمل بصورت پس‌کرایه محاسبه می‌شود.
-                  </p>
-                </div>
-              </div>
-
-              {/* Commission Rate */}
-              <div className="space-y-4">
-                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <Percent size={16} className="text-rose-600" />
-                  نرخ کمیسیون پلتفرم (درصد)
-                </h4>
-                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                  <input 
-                    type="number"
-                    value={commissionRate}
-                    onChange={e => setCommissionRate(Number(e.target.value))}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-lg font-black font-mono text-center"
-                  />
-                  <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                    این درصد به صورت خودکار در محاسبات سود و زیان و تراز مالی سامانه برای هر تراکنش لحاظ می‌شود.
-                  </p>
-                </div>
-              </div>
-
-              {/* User Levels */}
-              <div className="md:col-span-2 space-y-4">
-                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <UserPlus size={16} className="text-rose-600" />
-                  تعریف سطوح کاربری و تخفیف‌های وفاداری
-                </h4>
-                <div className="overflow-hidden border border-slate-100 rounded-2xl">
-                  <table className="w-full text-right text-xs">
-                    <thead className="bg-slate-50">
-                      <tr className="text-slate-500 font-black">
-                        <th className="p-4">نام سطح</th>
-                        <th className="p-4">درصد تخفیف پیش‌فرض</th>
-                        <th className="p-4">عملیات</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {userLevels.map((level, idx) => (
-                        <tr key={idx} className="font-bold">
-                          <td className="p-4">{level.name}</td>
-                          <td className="p-4 font-mono">{level.discountRate}٪</td>
-                          <td className="p-4">
-                            <button 
-                              onClick={() => setUserLevels(userLevels.filter((_, i) => i !== idx))}
-                              className="text-rose-500 hover p-1.5 rounded-lg transition-all"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="bg-slate-50/30">
-                        <td className="p-4">
-                          <input 
-                            id="level-name-input"
-                            type="text" 
-                            placeholder="مثلا: طلایی"
-                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px]"
-                          />
-                        </td>
-                        <td className="p-4">
-                          <input 
-                            id="level-discount-input"
-                            type="number" 
-                            placeholder="مثلا: ۵"
-                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
-                          />
-                        </td>
-                        <td className="p-4">
-                          <button 
-                            onClick={() => {
-                              const nameInput = document.getElementById('level-name-input') as HTMLInputElement;
-                              const discInput = document.getElementById('level-discount-input') as HTMLInputElement;
-                              if (nameInput.value && discInput.value) {
-                                setUserLevels([...userLevels, { id: Date.now().toString(), name: nameInput.value, discountRate: Number(discInput.value) }]);
-                                nameInput.value = '';
-                                discInput.value = '';
-                              }
-                            }}
-                            className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black"
-                          >
-                            افزودن سطح
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              {/* Maintenance Tools */}
-              <div className="md:col-span-2 space-y-4 pt-6 border-t border-gray-100">
-                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <RefreshCw size={16} className="text-rose-600" />
-                  عملیات نگهداری و مدیریت داده‌های کلان
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button 
-                    onClick={handleBackupSite}
-                    className="p-6 bg-slate-50 hover border border-slate-200 rounded-[2rem] transition-all text-right group"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Download size={20} />
-                      </div>
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">توصیه شده</span>
-                    </div>
-                    <h5 className="text-xs font-black text-slate-800">تهیه نسخه پشتیبان (Backup)</h5>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1 leading-relaxed">دریافت تمامی محصولات، مقالات و تنظیمات سامانه بصورت فایل JSON فشرده.</p>
-                  </button>
-
-                  <button 
-                    onClick={handleResetSite}
-                    className="p-6 bg-rose-50 hover border border-rose-100 rounded-[2rem] transition-all text-right group"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center group-hover:animate-pulse">
-                        <Trash2 size={20} />
-                      </div>
-                      <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">خطرناک</span>
-                    </div>
-                    <h5 className="text-xs font-black text-slate-800">ریست کلی سامانه (Reset)</h5>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1 leading-relaxed">حذف آنی تمامی محصولات انبار و مقالات خبری جهت شروع دوباره با دیتای جدید.</p>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-            <div className="flex justify-end pt-6 border-t border-gray-100">
-              <button
-                onClick={handleBrandingSubmit}
-                className="px-8 py-3 bg-rose-600 hover text-white font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-rose-600/10"
-              >
-                <Save size={16} />
-                ذخیره تنظیمات زیرساختی سامانه
-              </button>
-            </div>
-          </div>
+          <AdminSystemConfig
+            b2bConfig={b2bConfig}
+            onUpdateB2bConfig={onUpdateB2bConfig}
+            products={products}
+            orders={orders}
+            articles={articles}
+            onRefreshProducts={onRefreshProducts}
+          />
         </div>
       )}
 

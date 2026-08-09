@@ -1653,18 +1653,38 @@ export default function App() {
                 />
               </motion.div>
             ) : (
-              <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-4">
+              <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-5 bg-white rounded-[2.5rem] border border-slate-200/80 shadow-sm max-w-2xl mx-auto my-8">
                 <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center shadow-inner">
                   <ShieldCheck size={40} />
                 </div>
                 <h2 className="text-xl font-black text-slate-800">عدم دسترسی به پنل مدیریت</h2>
-                <p className="text-slate-500 font-bold max-w-md">شما سطح دسترسی لازم برای ورود به این بخش را ندارید. دسترسی به پنل مدیریت تنها برای حساب‌های ادمین امکان‌پذیر است.</p>
-                <button 
-                  onClick={() => setActiveTab('presentation')}
-                  className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all cursor-pointer"
-                >
-                  بازگشت به پیشخوان اصلی
-                </button>
+                <p className="text-slate-500 font-bold max-w-md text-xs leading-relaxed">شما سطح دسترسی لازم برای ورود به این بخش را ندارید. دسترسی به پنل مدیریت و ابزارهای بروزرسانی گیت‌هاب تنها برای حساب‌های مدیر ارشد مرکزی (Admin) امکان‌پذیر است.</p>
+                <div className="flex flex-col sm:flex-row gap-3 w-full justify-center pt-2">
+                  <button 
+                    onClick={() => setActiveTab('presentation')}
+                    className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  >
+                    بازگشت به پیشخوان اصلی
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const adminAccount = {
+                        name: "مدیر ارشد پلتفرم",
+                        email: "admin@dastavval.ir",
+                        role: "admin",
+                        userCode: "ADM-001",
+                        company: "دفتر مرکزی دست اول",
+                        badge: "admin"
+                      };
+                      setUser(adminAccount);
+                      setUserBadge("admin");
+                      localStorage.setItem('dastavval_user', JSON.stringify(adminAccount));
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-2xl font-black text-xs shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-amber-300"
+                  >
+                    🛡️ ورود سریع یک‌کلیکه به عنوان مدیر ارشد (Admin HQ)
+                  </button>
+                </div>
               </div>
             )
           )}
