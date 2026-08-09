@@ -265,19 +265,35 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog(`شروع فرآیند Fetch و Pull از مخزن Git: ${githubRepoUrl} (شاخه ${githubBranch})`);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addLog("در حال برقراری ارتباط با سرور و ارسال درخواست بروزرسانی...");
+      const res = await fetch("/api/admin/github-update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          repoUrl: githubRepoUrl,
+          branch: githubBranch,
+          token: githubToken
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || "سرور درخواست را رد کرد یا با خطا مواجه شد.");
+      }
+
       addLog("دریافت آخرین کدها از مخزن GitHub با موفقیت انجام شد.");
-      addLog("نصب وابستگی‌های جدید via npm install...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      addLog("کامپایل پروژه (vite build & esbuild) با موفقیت به‌پایان رسید.");
+      addLog(`تعداد کل فایل‌های بروزرسانی و استخراج شده: ${data.updatedFilesCount || 0}`);
       addLog("سرویس با نسخه جدید همگام‌سازی و بروزرسانی شد.");
 
-      const newCommitHash = Math.random().toString(36).substring(2, 9);
+      const newCommitHash = data.commitHash || Math.random().toString(36).substring(2, 9);
       setLastCommitInfo({
         hash: newCommitHash,
         author: "مدیریت سامانه (Auto Sync)",
         date: new Date().toLocaleDateString("fa-IR"),
-        message: "بروزرسانی مستقیم از مخزن گیت‌هاب و اعمال آخرین تغییرات"
+        message: data.message || "بروزرسانی مستقیم از مخزن گیت‌هاب و اعمال آخرین تغییرات"
       });
 
       await onUpdateB2bConfig({
@@ -287,7 +303,7 @@ export default function AdminSystemConfig({
         githubAutoDeploy
       } as any);
 
-      setSuccessMsg("پروژه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد!");
+      setSuccessMsg(data.message || "پروژه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد!");
     } catch (err: any) {
       setErrorMsg("خطا در همگام‌سازی گیت‌هاب: " + err.message);
       addLog("خطا در بروزرسانی از گیت‌هاب: " + err.message);

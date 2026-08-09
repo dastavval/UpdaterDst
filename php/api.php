@@ -76,6 +76,135 @@ switch ($action) {
         }
         break;
 
+    // ۵. بروزرسانی سورس‌کد و دیتابیس مستقیم از مخزن گیت‌هاب (GitHub Auto Sync & Deploy)
+    case 'admin/github-update':
+        header('Content-Type: application/json; charset=utf-8');
+        $input = json_decode(file_get_contents('php://input'), true);
+        $repoUrl = isset($input['repoUrl']) ? trim($input['repoUrl']) : '';
+        $branch = isset($input['branch']) ? trim($input['branch']) : 'main';
+        $token = isset($input['token']) ? trim($input['token']) : '';
+
+        if (empty($repoUrl)) {
+            echo json_encode(['success' => false, 'error' => 'آدرس مخزن گیت‌هاب الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // تمیز کردن آدرس مخزن گیت‌هاب
+        $cleanRepoUrl = preg_replace('/\.git$/', '', $repoUrl);
+        $parts = parse_url($cleanRepoUrl);
+        $path = isset($parts['path']) ? trim($parts['path'], '/') : '';
+        
+        if (empty($path)) {
+            echo json_encode(['success' => false, 'error' => 'فرمت آدرس مخزن نامعتبر است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // ساخت آدرس مستقیم فایل ZIP
+        $zipUrl = "https://codeload.github.com/" . $path . "/zip/refs/heads/" . $branch;
+
+        // دانلود با cURL با در نظر گرفتن توکن امنیتی برای مخازن خصوصی
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $zipUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (PHP) Dastavval-Updater/2.0');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+
+        if (!empty($token)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: token " . $token
+            ]);
+        }
+
+        $zipData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || empty($zipData) || strlen($zipData) < 100) {
+            echo json_encode(['success' => false, 'error' => 'خطا در دریافت سورس‌کد از گیت‌هاب (کد پاسخ: ' . $httpCode . '). لطفا از عمومی بودن مخزن، صحت توکن دسترسی و نام شاخه اطمینان حاصل کنید.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // ذخیره موقت فایل فشرده
+        $tempZip = sys_get_temp_dir() . '/dastavval_update_' . time() . '.zip';
+        file_put_contents($tempZip, $zipData);
+
+        if (!class_exists('ZipArchive')) {
+            echo json_encode(['success' => false, 'error' => 'افزونه ZipArchive در این سرور فعال نیست. لطفا این افزونه را در تنظیمات PHP هاست فعال کنید.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tempZip) === TRUE) {
+            $root_dir = dirname(__DIR__); // روت اصلی هاست
+            $rootPrefix = '';
+            
+            if ($zip->numFiles > 0) {
+                $firstFile = $zip->getNameIndex(0);
+                $slashPos = strpos($firstFile, '/');
+                if ($slashPos !== false) {
+                    $rootPrefix = substr($firstFile, 0, $slashPos + 1);
+                }
+            }
+
+            $updatedFilesCount = 0;
+            $excludes = ["node_modules", ".git", ".env"];
+
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entryName = $zip->getNameIndex($i);
+                $relPath = $entryName;
+                
+                if (!empty($rootPrefix) && strpos($entryName, $rootPrefix) === 0) {
+                    $relPath = substr($entryName, strlen($rootPrefix));
+                }
+
+                if (empty($relPath)) continue;
+
+                $topDir = explode('/', $relPath)[0];
+                if (in_array($topDir, $excludes) || in_array($relPath, $excludes)) {
+                    continue;
+                }
+
+                // اگر فایل‌ها داخل پوشه dist بودن، مستقیم در پوشه روت استخراج شوند
+                if (strpos($relPath, 'dist/') === 0) {
+                    $relPath = substr($relPath, 5);
+                }
+
+                if (empty($relPath)) continue;
+
+                $targetPath = $root_dir . '/' . $relPath;
+
+                if (substr($entryName, -1) === '/') {
+                    if (!is_dir($targetPath)) {
+                        @mkdir($targetPath, 0755, true);
+                    }
+                    continue;
+                }
+
+                $parentDir = dirname($targetPath);
+                if (!is_dir($parentDir)) {
+                    @mkdir($parentDir, 0755, true);
+                }
+
+                $content = $zip->getFromIndex($i);
+                @file_put_contents($targetPath, $content);
+                $updatedFilesCount++;
+            }
+
+            $zip->close();
+            @unlink($tempZip);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'کدها و دیتابیس با موفقیت مستقیم از مخزن گیت‌هاب دریافت، استخراج و جایگزین شدند!',
+                'updatedFilesCount' => $updatedFilesCount
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            @unlink($tempZip);
+            echo json_encode(['success' => false, 'error' => 'خطا در باز کردن و استخراج فایل فشرده ZIP.'], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
     default:
         echo json_encode([
             'status' => 'online',
