@@ -120,8 +120,8 @@ export default function AdminSystemConfig({
   );
   const [maintenanceMode, setMaintenanceMode] = useState(!!(b2bConfig as any).maintenanceMode);
   const [rateLimitReq, setRateLimitReq] = useState((b2bConfig as any).rateLimitReq || 120);
-  const [baseRepsCount, setBaseRepsCount] = useState<number>((b2bConfig as any).baseRepsCount || 5420);
-  const [baseProductsCount, setBaseProductsCount] = useState<number>((b2bConfig as any).baseProductsCount || 10250);
+  const [baseRepsCount, setBaseRepsCount] = useState<number>((b2bConfig as any).baseRepsCount || 100);
+  const [baseProductsCount, setBaseProductsCount] = useState<number>((b2bConfig as any).baseProductsCount || 100);
   const [dbProvider, setDbProvider] = useState<"firestore" | "postgresql" | "cloudsql" | "sqlite">(
     (b2bConfig as any).dbProvider || "firestore"
   );

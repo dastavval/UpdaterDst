@@ -304,16 +304,16 @@ export default function DynamicPresentation({
 
   const activeColors = colorConfig[primaryColor] || colorConfig.emerald;
 
-  const baseReps = (b2bConfig as any)?.baseRepsCount || 5420;
-  const baseProducts = ((b2bConfig as any)?.baseProductsCount || 10250) + (products?.length || 0);
+  const baseReps = (b2bConfig as any)?.baseRepsCount || 100;
+  const baseProducts = ((b2bConfig as any)?.baseProductsCount || 100) + (products?.length || 0);
 
   const [liveReps, setLiveReps] = useState(() => {
-    const saved = sessionStorage.getItem("dastavval_live_reps");
+    const saved = localStorage.getItem("dastavval_live_reps");
     return saved ? parseInt(saved, 10) : baseReps;
   });
 
   const [liveProducts, setLiveProducts] = useState(() => {
-    const saved = sessionStorage.getItem("dastavval_live_products");
+    const saved = localStorage.getItem("dastavval_live_products");
     return saved ? parseInt(saved, 10) : baseProducts;
   });
 
@@ -365,7 +365,7 @@ export default function DynamicPresentation({
     const repsInterval = setInterval(() => {
       setLiveReps(prev => {
         const next = prev + 1;
-        sessionStorage.setItem("dastavval_live_reps", next.toString());
+        localStorage.setItem("dastavval_live_reps", next.toString());
         return next;
       });
     }, 40000);
@@ -374,7 +374,7 @@ export default function DynamicPresentation({
     const productsInterval = setInterval(() => {
       setLiveProducts(prev => {
         const next = prev + 1;
-        sessionStorage.setItem("dastavval_live_products", next.toString());
+        localStorage.setItem("dastavval_live_products", next.toString());
         return next;
       });
     }, 25000);
