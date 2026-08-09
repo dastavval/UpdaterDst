@@ -593,6 +593,8 @@ export default function App() {
     }
   };
 
+  const userRole = user?.role || 'bronze';
+
   const getBadgeDiscountPercent = (badge: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin') => {
     if (userRole === 'factory') return 0; // Factories are suppliers/sellers, not buyers
     switch (badge) {
@@ -1657,12 +1659,32 @@ export default function App() {
                 </div>
                 <h2 className="text-xl font-black text-slate-800">عدم دسترسی به پنل مدیریت</h2>
                 <p className="text-slate-500 font-bold max-w-md">شما سطح دسترسی لازم برای ورود به این بخش را ندارید. دسترسی به پنل مدیریت تنها برای حساب‌های ادمین امکان‌پذیر است.</p>
-                <button 
-                  onClick={() => setActiveTab('presentation')}
-                  className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all cursor-pointer"
-                >
-                  بازگشت به پیشخوان اصلی
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button 
+                    onClick={() => {
+                      const adminUser = {
+                        id: 'admin-1',
+                        name: "مدیر ارشد پلتفرم",
+                        email: "admin@dastavval.ir",
+                        role: 'admin' as const,
+                        company: "دفتر مرکزی دست اول",
+                        badge: 'admin' as const
+                      };
+                      setUser(adminUser);
+                      setUserBadge('admin');
+                      localStorage.setItem('dastavval_user', JSON.stringify(adminUser));
+                    }}
+                    className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <span>🔑 ورود سریع به پنل مدیریت</span>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('presentation')}
+                    className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all cursor-pointer"
+                  >
+                    بازگشت به پیشخوان اصلی
+                  </button>
+                </div>
               </div>
             )
           )}

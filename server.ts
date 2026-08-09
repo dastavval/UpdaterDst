@@ -384,6 +384,165 @@ app.post("/api/admin/ai-config", (req, res) => {
   res.json({ success: true });
 });
 
+// --- GITHUB AUTO UPDATE ENDPOINT ---
+app.post("/api/admin/github-update", async (req, res) => {
+  const repoUrl = req.body.repoUrl || "https://github.com/dastavval/UpdaterDst";
+  const branch = req.body.branch || "main";
+
+  console.log(`[GitHub Updater] Initiating update from repository: ${repoUrl} (branch: ${branch})`);
+
+  try {
+    let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/, "");
+    if (!cleanRepoUrl.startsWith("http://") && !cleanRepoUrl.startsWith("https://")) {
+      cleanRepoUrl = "https://" + cleanRepoUrl;
+    }
+
+    // Prepare candidate download URLs
+    const zipUrls = [
+      `${cleanRepoUrl}/archive/refs/heads/${branch}.zip`,
+      `${cleanRepoUrl}/archive/refs/heads/main.zip`,
+      `${cleanRepoUrl}/archive/refs/heads/master.zip`,
+      `https://codeload.github.com/${cleanRepoUrl.replace("https://github.com/", "")}/zip/refs/heads/${branch}`
+    ];
+
+    let zipResponse: any = null;
+    let successfulUrl = "";
+
+    for (const url of zipUrls) {
+      try {
+        console.log(`[GitHub Updater] Attempting download: ${url}`);
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Node.js) Dastavval-Updater/1.0"
+          }
+        });
+
+        if (response.ok) {
+          zipResponse = response;
+          successfulUrl = url;
+          console.log(`[GitHub Updater] Successfully fetched zip from ${url}`);
+          break;
+        }
+      } catch (fetchErr: any) {
+        console.log(`[GitHub Updater] Failed ${url}:`, fetchErr.message);
+      }
+    }
+
+    if (!zipResponse) {
+      return res.status(400).json({
+        success: false,
+        error: `امکان دریافت فایل فشرده سورس‌کد و دیتابیس از مخزن ${repoUrl} میسر نشد. لطفاً از عمومی (Public) بودن مخزن یا صحت نام شاخه مطمئن شوید.`
+      });
+    }
+
+    const arrayBuffer = await zipResponse.arrayBuffer();
+    const zipBuffer = Buffer.from(arrayBuffer);
+
+    if (zipBuffer.length < 100) {
+      return res.status(400).json({
+        success: false,
+        error: "فایل دریافتی از مخزن گیت‌هاب معتبر نمی‌باشد (حجم فایل بسیار ناچیز است)."
+      });
+    }
+
+    const zip = new AdmZip(zipBuffer);
+    const zipEntries = zip.getEntries();
+
+    if (zipEntries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "فایل فشرده دریافتی از گیت‌هاب خالی است."
+      });
+    }
+
+    // Determine root prefix inside the zip archive (e.g. "UpdaterDst-main/")
+    let rootPrefix = "";
+    const firstEntryName = zipEntries[0].entryName;
+    const slashPos = firstEntryName.indexOf("/");
+    if (slashPos !== -1) {
+      rootPrefix = firstEntryName.substring(0, slashPos + 1);
+    }
+
+    let updatedFilesCount = 0;
+    let databaseUpdated = false;
+    const updatedFileList: string[] = [];
+
+    const excludes = ["node_modules", ".git", ".env"];
+
+    for (const entry of zipEntries) {
+      if (entry.isDirectory) continue;
+
+      let relPath = entry.entryName;
+      if (rootPrefix && relPath.startsWith(rootPrefix)) {
+        relPath = relPath.substring(rootPrefix.length);
+      }
+
+      if (!relPath) continue;
+
+      const topDir = relPath.split("/")[0];
+      if (excludes.includes(topDir) || excludes.includes(relPath)) {
+        continue;
+      }
+
+      const targetPath = path.join(process.cwd(), relPath);
+      const targetDir = path.dirname(targetPath);
+
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      fs.writeFileSync(targetPath, entry.getData());
+      updatedFilesCount++;
+      updatedFileList.push(relPath);
+
+      if (relPath.endsWith("database.sql") || relPath.endsWith("b2b-config.json") || relPath.endsWith("local-products.json")) {
+        databaseUpdated = true;
+      }
+    }
+
+    // Reload b2bConfig if b2b-config.json was updated
+    if (fs.existsSync(B2B_CONFIG_FILE)) {
+      try {
+        const raw = fs.readFileSync(B2B_CONFIG_FILE, "utf-8");
+        const parsed = JSON.parse(raw);
+        b2bConfig = {
+          ...DEFAULT_B2B_CONFIG,
+          ...parsed,
+          categories: (parsed.categories && parsed.categories.length > 0) ? parsed.categories : DEFAULT_B2B_CONFIG.categories,
+          factories: (parsed.factories && parsed.factories.length > 0) ? parsed.factories : DEFAULT_B2B_CONFIG.factories,
+          brands: (parsed.brands && parsed.brands.length > 0) ? parsed.brands : DEFAULT_B2B_CONFIG.brands
+        };
+      } catch (e) {
+        console.error("Failed to reload b2b-config.json:", e);
+      }
+    }
+
+    // Rebuild project
+    console.log("[GitHub Updater] Executing build command (npm run build)...");
+    try {
+      execSync("npm run build", { stdio: "inherit" });
+      console.log("[GitHub Updater] Build completed successfully.");
+    } catch (buildErr: any) {
+      console.warn("[GitHub Updater] Build warning:", buildErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: "کدها و دیتابیس سامانه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد!",
+      downloadUrl: successfulUrl,
+      updatedFilesCount,
+      databaseUpdated,
+      updatedFiles: updatedFileList.slice(0, 20)
+    });
+  } catch (error: any) {
+    console.error("[GitHub Updater Exception]:", error);
+    return res.status(500).json({
+      success: false,
+      error: "خطا در فرآیند دریافت و اعمال بروزرسانی: " + error.message
+    });
+  }
+});
+
 app.get("/api/b2b/config", (req, res) => res.json(b2bConfig));
 
 app.post("/api/b2b/config", (req, res) => {

@@ -94,7 +94,7 @@ export default function AdminSystemConfig({
 
   // --- 2. GITHUB AUTO UPDATE STATES ---
   const [githubRepoUrl, setGithubRepoUrl] = useState(
-    (b2bConfig as any).githubRepoUrl || "https://github.com/dastavval/b2b-distributor-platform.git"
+    (b2bConfig as any).githubRepoUrl || "https://github.com/dastavval/UpdaterDst"
   );
   const [githubBranch, setGithubBranch] = useState((b2bConfig as any).githubBranch || "main");
   const [githubToken, setGithubToken] = useState((b2bConfig as any).githubToken || "");
@@ -261,21 +261,37 @@ export default function AdminSystemConfig({
   // Handler: GitHub Live Pull & Sync
   const handleGitHubSync = async () => {
     setLoading(true);
-    addLog(`شروع فرآیند Fetch و Pull از مخزن Git: ${githubRepoUrl} (شاخه ${githubBranch})`);
+    addLog(`شروع فرآیند بروزرسانی اتوماتیک از مخزن گیت‌هاب: ${githubRepoUrl} (شاخه ${githubBranch})`);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      addLog("دریافت آخرین کدها از مخزن GitHub با موفقیت انجام شد.");
-      addLog("نصب وابستگی‌های جدید via npm install...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      addLog("کامپایل پروژه (vite build & esbuild) با موفقیت به‌پایان رسید.");
-      addLog("سرویس با نسخه جدید همگام‌سازی و بروزرسانی شد.");
+      addLog("اتصال به سرور و ارسال درخواست بروزرسانی کامل کدها و دیتابیس...");
+      const res = await fetch("/api/admin/github-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repoUrl: githubRepoUrl,
+          branch: githubBranch
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "خطا در برقراری ارتباط با مخزن گیت‌هاب");
+      }
+
+      addLog(`دریافت و استخراج ${data.updatedFilesCount || 0} فایل از سورس‌کد.`);
+      if (data.databaseUpdated) {
+        addLog("دیتابیس و فایل‌های کانفیگ اصلی سامانه با موفقیت بروزرسانی شدند.");
+      }
+      addLog("کامپایل مجدد سورس‌کد و ساخت فایل‌های اجرایی انجام شد.");
+      addLog("سرویس با نسخه جدید مخزن UpdaterDst با موفقیت همگام‌سازی شد.");
 
       const newCommitHash = Math.random().toString(36).substring(2, 9);
       setLastCommitInfo({
         hash: newCommitHash,
-        author: "مدیریت سامانه (Auto Sync)",
+        author: "UpdaterDst (Auto Sync)",
         date: new Date().toLocaleDateString("fa-IR"),
-        message: "بروزرسانی مستقیم از مخزن گیت‌هاب و اعمال آخرین تغییرات"
+        message: "بروزرسانی مستقیم کدها و دیتابیس از مخزن UpdaterDst"
       });
 
       await onUpdateB2bConfig({
@@ -285,7 +301,7 @@ export default function AdminSystemConfig({
         githubAutoDeploy
       } as any);
 
-      setSuccessMsg("پروژه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد!");
+      setSuccessMsg(data.message || "کدها و دیتابیس پروژه با موفقیت از گیت‌هاب بروزرسانی شدند!");
     } catch (err: any) {
       setErrorMsg("خطا در همگام‌سازی گیت‌هاب: " + err.message);
       addLog("خطا در بروزرسانی از گیت‌هاب: " + err.message);

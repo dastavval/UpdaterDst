@@ -3466,6 +3466,18 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             <span>مدیریت اخبار و مقالات</span>
           </button>
 
+          <button
+            onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'system'
+                ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Server size={15} />
+            <span>تنظیمات و بروزرسانی سیستم (گیت‌هاب)</span>
+          </button>
+
           <div className="flex flex-col sm:flex-row items-center gap-2">
             <button
               onClick={handleDownloadSourceZip}
@@ -5599,6 +5611,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             </div>
           </div>
         </div>
+      )}
+
+      {/* --- TAB: SYSTEM CONFIG & GITHUB AUTO-UPDATE --- */}
+      {activeSubTab === 'system' && (
+        <AdminSystemConfig
+          b2bConfig={b2bConfig}
+          onUpdateB2bConfig={onUpdateB2bConfig}
+          products={products}
+          articles={articles}
+          onRefreshProducts={onRefreshProducts}
+        />
       )}
 
       {/* --- TAB: REPRESENTATIVES MANAGEMENT --- */}
