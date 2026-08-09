@@ -1,0 +1,45 @@
+# ============================================================
+# DASTAVVAL B2B PLATFORM - Apache .htaccess for cPanel / LAMP
+# پشتیبانی کامل از ساب‌دامنه (Subdomain)، دامنه اصلی و ساب‌دایرکتوری
+# ============================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # ۱. هدایت درخواست‌های API به فایل PHP به صورت نسبی
+  RewriteRule ^api/index\.php$ php/api.php [L,QSA]
+  RewriteRule ^api/(.*)$ php/api.php?action=$1 [L,QSA]
+
+  # ۲. اگر درخواست فایل یا پوشه واقعی بود، دست‌نخورده سرو شود
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # ۳. هدایت تمام مسیرهای React SPA به index.html بصورت نسبی (مخصوص ساب‌دامنه)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# تنظیم کدرشتگی UTF-8 برای زبان فارسی
+AddDefaultCharset UTF-8
+
+# غیرفعال کردن نمایش پوشه‌ها جهت امنیت
+Options -Indexes
+
+# تنظیم پسوندها و MIME types
+<IfModule mod_mime.c>
+  AddType application/javascript .js
+  AddType text/css .css
+  AddType application/json .json
+</IfModule>
+
+# تنظیمات هدرهای CORS برای ارتباط بی‌دردسر
+<IfModule mod_headers.c>
+  Header set Access-Control-Allow-Origin "*"
+  Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+# فعال‌سازی فشرده‌سازی جهت افزایش سرعت بارگذاری روی هاست‌های ایران
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>

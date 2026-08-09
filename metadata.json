@@ -1,0 +1,8 @@
+{
+  "name": "DastAvval",
+  "description": "سامانه توزیع مستقیم و بی‌واسطه محصولات صنایع غذایی از کارخانه به مغازه",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

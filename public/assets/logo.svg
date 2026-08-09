@@ -1,0 +1,7 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M96 24L32 68V132L96 176V112L64 90L96 68V24Z" fill="#828892"/>
+  <path d="M96 112L32 132V68L96 112Z" fill="#626873" opacity="0.25"/>
+  <path d="M104 24L168 68V132L104 176V112L136 90L104 68V24Z" fill="#16A34A"/>
+  <path d="M104 24L168 68L104 112V68Z" fill="#22C55E"/>
+  <path d="M104 68L136 90L104 112V68Z" fill="#FFFFFF"/>
+</svg>
