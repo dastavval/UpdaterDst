@@ -120,6 +120,8 @@ export default function AdminSystemConfig({
   );
   const [maintenanceMode, setMaintenanceMode] = useState(!!(b2bConfig as any).maintenanceMode);
   const [rateLimitReq, setRateLimitReq] = useState((b2bConfig as any).rateLimitReq || 120);
+  const [baseRepsCount, setBaseRepsCount] = useState<number>((b2bConfig as any).baseRepsCount || 5420);
+  const [baseProductsCount, setBaseProductsCount] = useState<number>((b2bConfig as any).baseProductsCount || 10250);
   const [dbProvider, setDbProvider] = useState<"firestore" | "postgresql" | "cloudsql" | "sqlite">(
     (b2bConfig as any).dbProvider || "firestore"
   );
@@ -298,7 +300,7 @@ export default function AdminSystemConfig({
   const handleSaveConfigs = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    addLog("ذخیره پیکربندی دامنه و دیتابیس در سامانه...");
+    addLog("ذخیره پیکربندی دامنه، دیتابیس و آمار زنده در سامانه...");
     try {
       await onUpdateB2bConfig({
         domain: siteDomain,
@@ -308,10 +310,12 @@ export default function AdminSystemConfig({
         dbProvider,
         dbConnectionString,
         dbMaxPool,
-        dbEncryptionEnabled
+        dbEncryptionEnabled,
+        baseRepsCount,
+        baseProductsCount
       } as any);
-      addLog("تنظیمات دیتابیس و دامنه با موفقیت اعمال گردید.");
-      setSuccessMsg("تنظیمات دیتابیس و کانفیگ سایت با موفقیت ذخیره شدند.");
+      addLog("تنظیمات دیتابیس، دامنه و آمار زنده با موفقیت اعمال گردید.");
+      setSuccessMsg("تنظیمات دیتابیس، کانفیگ سایت و آمار زنده با موفقیت ذخیره شدند.");
     } catch (e: any) {
       setErrorMsg("خطا در ذخیره کانفیگ.");
     } finally {
@@ -1238,6 +1242,37 @@ export default function AdminSystemConfig({
                   dir="ltr"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono font-bold text-slate-800"
                 />
+              </div>
+
+              <div className="bg-indigo-50/50 p-5 rounded-3xl border border-indigo-100/50 space-y-4">
+                <span className="text-xs font-black text-indigo-950 block">📊 مدیریت آمار زنده و هوشمند صفحه اصلی</span>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-700 mb-1.5">تعداد پایه نمایندگان فروش:</label>
+                    <input
+                      type="number"
+                      value={baseRepsCount}
+                      onChange={(e) => setBaseRepsCount(Number(e.target.value))}
+                      dir="ltr"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-700 mb-1.5">تعداد پایه محصولات:</label>
+                    <input
+                      type="number"
+                      value={baseProductsCount}
+                      onChange={(e) => setBaseProductsCount(Number(e.target.value))}
+                      dir="ltr"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 font-bold block mt-1 leading-relaxed">
+                  * تعداد پایه محصولات با تعداد کل کالاهای فعال در سیستم (در حال حاضر {products?.length || 0} کالا) جمع شده و به صورت کاملاً پویا و زنده نمایش داده می‌شود.
+                </span>
               </div>
 
               <label className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-200 cursor-pointer">

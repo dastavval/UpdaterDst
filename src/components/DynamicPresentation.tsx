@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { HeroGlobeWidget } from "./NetworkGlobePowerhouse";
 import { SupplyChainLifecycleAnimation } from "./SupplyChainLifecycleAnimation";
 import {
@@ -304,6 +304,87 @@ export default function DynamicPresentation({
 
   const activeColors = colorConfig[primaryColor] || colorConfig.emerald;
 
+  const baseReps = (b2bConfig as any)?.baseRepsCount || 5420;
+  const baseProducts = ((b2bConfig as any)?.baseProductsCount || 10250) + (products?.length || 0);
+
+  const [liveReps, setLiveReps] = useState(() => {
+    const saved = sessionStorage.getItem("dastavval_live_reps");
+    return saved ? parseInt(saved, 10) : baseReps;
+  });
+
+  const [liveProducts, setLiveProducts] = useState(() => {
+    const saved = sessionStorage.getItem("dastavval_live_products");
+    return saved ? parseInt(saved, 10) : baseProducts;
+  });
+
+  const [displayedReps, setDisplayedReps] = useState(0);
+  const [displayedProducts, setDisplayedProducts] = useState(0);
+
+  const prevRepsRef = useRef(0);
+  const prevProductsRef = useRef(0);
+
+  // Counter animation from 0 or previous values
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    const isFirstLoad = prevRepsRef.current === 0;
+    const duration = isFirstLoad ? 1500 : 800; // 1.5 seconds on initial load, 0.8 seconds on small tick updates
+    const startReps = prevRepsRef.current;
+    const startProducts = prevProductsRef.current;
+    const diffReps = liveReps - startReps;
+    const diffProducts = liveProducts - startProducts;
+
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      
+      // Easing outQuad
+      const ease = progress * (2 - progress);
+
+      setDisplayedReps(Math.floor(startReps + ease * diffReps));
+      setDisplayedProducts(Math.floor(startProducts + ease * diffProducts));
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setDisplayedReps(liveReps);
+        setDisplayedProducts(liveProducts);
+        prevRepsRef.current = liveReps;
+        prevProductsRef.current = liveProducts;
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [liveReps, liveProducts]);
+
+  // Periodic automatic additions (live ticker counters)
+  useEffect(() => {
+    // Add 1 representative every 40 seconds
+    const repsInterval = setInterval(() => {
+      setLiveReps(prev => {
+        const next = prev + 1;
+        sessionStorage.setItem("dastavval_live_reps", next.toString());
+        return next;
+      });
+    }, 40000);
+
+    // Add 1 product every 25 seconds
+    const productsInterval = setInterval(() => {
+      setLiveProducts(prev => {
+        const next = prev + 1;
+        sessionStorage.setItem("dastavval_live_products", next.toString());
+        return next;
+      });
+    }, 25000);
+
+    return () => {
+      clearInterval(repsInterval);
+      clearInterval(productsInterval);
+    };
+  }, []);
+
   const rubikaUrl = (b2bConfig as any)?.rubikaChannelUrl || "https://rubika.ir/dastavval_official";
   const telegramUrl = (b2bConfig as any)?.telegramChannelUrl || "https://t.me/dastavval_official";
   const whatsappUrl = (b2bConfig as any)?.whatsappGroupUrl || "https://chat.whatsapp.com/dastavval_official";
@@ -332,7 +413,7 @@ export default function DynamicPresentation({
                 </span>
               </div>
               <h3 className="text-sm sm:text-base font-black text-slate-900 mt-1 leading-snug">
-                تامین معتبر و مستقیم محموله‌های بالک و عمده از درب کارخانجات و تولیدکنندگان معتبر کشور
+                {(b2bConfig as any).appName || "دست اول"}؛ با بیش از {toPersianNum(displayedReps)} نماینده فروش و {toPersianNum(displayedProducts)} محصول در سراسر کشور
               </h3>
             </div>
           </div>
