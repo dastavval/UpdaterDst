@@ -388,8 +388,9 @@ app.post("/api/admin/ai-config", (req, res) => {
 app.post("/api/admin/github-update", async (req, res) => {
   const repoUrl = req.body.repoUrl || "https://github.com/dastavval/UpdaterDst";
   const branch = req.body.branch || "main";
+  const token = req.body.token || "";
 
-  console.log(`[GitHub Updater] Initiating update from repository: ${repoUrl} (branch: ${branch})`);
+  console.log(`[GitHub Updater] Initiating update from repository: ${repoUrl} (branch: ${branch}, token: ${token ? "Provided" : "None"})`);
 
   try {
     let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/, "");
@@ -397,12 +398,15 @@ app.post("/api/admin/github-update", async (req, res) => {
       cleanRepoUrl = "https://" + cleanRepoUrl;
     }
 
+    const ownerRepo = cleanRepoUrl.replace("https://github.com/", "");
+
     // Prepare candidate download URLs
     const zipUrls = [
+      `https://api.github.com/repos/${ownerRepo}/zipball/${branch}`,
       `${cleanRepoUrl}/archive/refs/heads/${branch}.zip`,
       `${cleanRepoUrl}/archive/refs/heads/main.zip`,
       `${cleanRepoUrl}/archive/refs/heads/master.zip`,
-      `https://codeload.github.com/${cleanRepoUrl.replace("https://github.com/", "")}/zip/refs/heads/${branch}`
+      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${branch}`
     ];
 
     let zipResponse: any = null;
@@ -411,11 +415,16 @@ app.post("/api/admin/github-update", async (req, res) => {
     for (const url of zipUrls) {
       try {
         console.log(`[GitHub Updater] Attempting download: ${url}`);
-        const response = await fetch(url, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Node.js) Dastavval-Updater/1.0"
-          }
-        });
+        const headers: Record<string, string> = {
+          "User-Agent": "Mozilla/5.0 (Node.js) Dastavval-Updater/1.0",
+          "Accept": "application/vnd.github+json"
+        };
+
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers });
 
         if (response.ok) {
           zipResponse = response;

@@ -99,29 +99,61 @@ switch ($action) {
             exit();
         }
 
-        // ساخت آدرس مستقیم فایل ZIP
-        $zipUrl = "https://codeload.github.com/" . $path . "/zip/refs/heads/" . $branch;
+        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP
+        $zipUrls = [
+            "https://api.github.com/repos/" . $path . "/zipball/" . $branch,
+            "https://codeload.github.com/" . $path . "/zip/refs/heads/" . $branch,
+            "https://github.com/" . $path . "/archive/refs/heads/" . $branch . ".zip"
+        ];
 
-        // دانلود با cURL با در نظر گرفتن توکن امنیتی برای مخازن خصوصی
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $zipUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (PHP) Dastavval-Updater/2.0');
-        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        $zipData = '';
+        $httpCode = 0;
+        $attemptedUrls = [];
+        $successfulUrl = '';
 
-        if (!empty($token)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                "Authorization: token " . $token
-            ]);
+        foreach ($zipUrls as $url) {
+            $attemptedUrls[] = $url;
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (PHP) Dastavval-Updater/2.0');
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // عدم نیاز به تایید SSL برای اطمینان بالا روی سرورهای با SSL قدیمی یا محدود
+
+            $headers = [
+                'Accept: application/vnd.github+json',
+                'User-Agent: Dastavval-Updater/2.0'
+            ];
+
+            if (!empty($token)) {
+                $headers[] = "Authorization: Bearer " . $token;
+            }
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            $data = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($code === 200 && !empty($data) && strlen($data) > 100) {
+                // بررسی ابتدایی هدر فایل zip (شروع با PK\x03\x04)
+                if (substr($data, 0, 4) === "PK\x03\x04") {
+                    $zipData = $data;
+                    $httpCode = $code;
+                    $successfulUrl = $url;
+                    break;
+                }
+            }
+            $httpCode = $code;
         }
 
-        $zipData = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 || empty($zipData) || strlen($zipData) < 100) {
-            echo json_encode(['success' => false, 'error' => 'خطا در دریافت سورس‌کد از گیت‌هاب (کد پاسخ: ' . $httpCode . '). لطفا از عمومی بودن مخزن، صحت توکن دسترسی و نام شاخه اطمینان حاصل کنید.'], JSON_UNESCAPED_UNICODE);
+        if (empty($zipData)) {
+            echo json_encode([
+                'success' => false, 
+                'error' => 'خطا در دریافت فایل فشرده معتبر سورس‌کد از گیت‌هاب (کد آخرین پاسخ: ' . $httpCode . '). لطفا مطمئن شوید که مخزن شما عمومی (Public) است، یا توکن دسترسی معتبر (PAT) وارد کرده‌اید، و نام شاخه (Branch) کاملاً درست است.',
+                'attempted_urls' => $attemptedUrls
+            ], JSON_UNESCAPED_UNICODE);
             exit();
         }
 
@@ -194,10 +226,39 @@ switch ($action) {
             $zip->close();
             @unlink($tempZip);
 
+            // همگام‌سازی اتوماتیک دیتابیس در صورت وجود فایل database.sql
+            $databaseUpdated = false;
+            $databaseError = '';
+            $dbFile = $root_dir . '/database.sql';
+            if (file_exists($dbFile)) {
+                try {
+                    $sqlContent = file_get_contents($dbFile);
+                    // حذف کامنت‌ها برای جلوگیری از بروز خطا در سرویس PDO
+                    $sqlContent = preg_replace('/--.*\n/', '', $sqlContent);
+                    $sqlContent = preg_replace('/\/\*.*?\*\//s', '', $sqlContent);
+                    
+                    // تکه‌تکه کردن دستورات بر اساس سمی‌کالن (;) جهت اجرای خط به خط و دقیق‌تر
+                    $queries = explode(';', $sqlContent);
+                    foreach ($queries as $query) {
+                        $query = trim($query);
+                        if (!empty($query)) {
+                            $pdo->exec($query);
+                        }
+                    }
+                    $databaseUpdated = true;
+                } catch (PDOException $e) {
+                    $databaseError = $e->getMessage();
+                }
+            }
+
             echo json_encode([
                 'success' => true,
-                'message' => 'کدها و دیتابیس با موفقیت مستقیم از مخزن گیت‌هاب دریافت، استخراج و جایگزین شدند!',
-                'updatedFilesCount' => $updatedFilesCount
+                'message' => $databaseUpdated 
+                    ? 'کدها و ساختار دیتابیس MySQL با موفقیت مستقیم از مخزن گیت‌هاب دریافت، همگام‌سازی و جایگزین شدند!'
+                    : 'کدها با موفقیت دریافت و اعمال شدند. (دیتابیس بدون تغییر یا با خطا مواجه شد)',
+                'updatedFilesCount' => $updatedFilesCount,
+                'databaseUpdated' => $databaseUpdated,
+                'databaseError' => $databaseError
             ], JSON_UNESCAPED_UNICODE);
         } else {
             @unlink($tempZip);
