@@ -11,9 +11,10 @@ interface WholesaleCatalogViewProps {
   onAddToCart: (product: Product, quantityCartons: number) => void;
   userBadge?: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin';
   onViewDetails?: (product: Product) => void;
+  interfaceMode?: 'simple' | 'advanced';
 }
 
-export default function WholesaleCatalogView({ products, activeCategory, onAddToCart, userBadge, onViewDetails }: WholesaleCatalogViewProps) {
+export default function WholesaleCatalogView({ products, activeCategory, onAddToCart, userBadge, onViewDetails, interfaceMode }: WholesaleCatalogViewProps) {
   // Store ordered carton quantities per product in local state
   const [cartonQuantities, setCartonQuantities] = useState<Record<string, number>>({});
 
@@ -107,6 +108,7 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
             onAddToCart={onAddToCart}
             onViewDetails={onViewDetails}
             toPersianNum={toPersianNum}
+            interfaceMode={interfaceMode}
           />
         ))}
       </div>
@@ -123,6 +125,7 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
             onAddToCart={onAddToCart}
             onViewDetails={onViewDetails}
             toPersianNum={toPersianNum}
+            interfaceMode={interfaceMode}
           />
         ))}
       </div>

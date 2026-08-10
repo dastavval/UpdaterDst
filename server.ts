@@ -317,7 +317,10 @@ app.all("/api/admin/download-source", (req, res) => {
       ".git",
       ".cache",
       "ai-cache.json",
-      "bun.lock"
+      "bun.lock",
+      ".env",
+      ".DS_Store",
+      "npm-debug.log"
     ];
 
     const addLocalFiles = (dirPath: string, zipPath: string = "") => {

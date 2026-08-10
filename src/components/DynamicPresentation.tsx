@@ -440,7 +440,7 @@ export default function DynamicPresentation({
       )}
 
       {/* --- GLASSMORPHIC LIGHT HERO BANNER WITH CONNECTED BUBBLE NETWORK --- */}
-      <section className="relative rounded-3xl p-5 sm:p-7 border border-emerald-100 bg-white/80 backdrop-blur-xl shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6">
+      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-4 sm:py-6">
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
 
@@ -468,13 +468,13 @@ export default function DynamicPresentation({
       </section>
 
       {/* --- 4 HIGH-IMPACT COMPACT & ANIMATED ACTION BUTTONS --- */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4 border-y border-slate-100/60 my-2">
         {/* Button 1: Wholesale Orders */}
         <motion.button
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => setActiveTab?.('order')}
-          className="group relative overflow-hidden bg-white hover:bg-slate-50 text-slate-800 p-2.5 rounded-2xl border border-slate-200/90 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:border-emerald-400"
+          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:bg-emerald-500 group-hover:text-white transition-all shrink-0">
@@ -494,7 +494,7 @@ export default function DynamicPresentation({
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={onEnterPanel}
-          className="group relative overflow-hidden bg-white hover:bg-slate-50 text-slate-800 p-2.5 rounded-2xl border border-slate-200/90 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:border-blue-400"
+          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
@@ -520,7 +520,7 @@ export default function DynamicPresentation({
               window.dispatchEvent(new CustomEvent("open-catalog-modal"));
             }
           }}
-          className="group relative overflow-hidden bg-white hover:bg-slate-50 text-slate-800 p-2.5 rounded-2xl border border-slate-200/90 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:border-teal-400"
+          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 group-hover:scale-105 group-hover:bg-teal-500 group-hover:text-white transition-all shrink-0">
@@ -542,7 +542,7 @@ export default function DynamicPresentation({
           onClick={() => {
             setActiveTab?.('factories');
           }}
-          className="group relative overflow-hidden bg-white hover:bg-slate-50 text-slate-800 p-2.5 rounded-2xl border border-slate-200/90 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:border-amber-400"
+          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 group-hover:scale-105 group-hover:bg-amber-500 group-hover:text-white transition-all shrink-0">
@@ -597,11 +597,11 @@ export default function DynamicPresentation({
           href={rubikaUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative overflow-hidden bg-white hover:bg-purple-50/70 border border-slate-200/90 hover:border-purple-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-sm hover:shadow-md"
+          className="group relative overflow-hidden bg-white hover:bg-purple-50/70 hover:border-purple-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-              ر
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+              💎
             </div>
             <div className="min-w-0 text-right">
               <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-purple-700 block truncate">
@@ -622,11 +622,11 @@ export default function DynamicPresentation({
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 border border-slate-200/90 hover:border-emerald-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-sm hover:shadow-md"
+          className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 hover:border-emerald-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-              و
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+              💬
             </div>
             <div className="min-w-0 text-right">
               <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-emerald-700 block truncate">
@@ -647,11 +647,11 @@ export default function DynamicPresentation({
           href={instagramUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative overflow-hidden bg-white hover:bg-pink-50/70 border border-slate-200/90 hover:border-pink-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-sm hover:shadow-md"
+          className="group relative overflow-hidden bg-white hover:bg-pink-50/70 hover:border-pink-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer hover:shadow-md"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-              این
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+              📸
             </div>
             <div className="min-w-0 text-right">
               <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-pink-700 block truncate">
@@ -667,7 +667,7 @@ export default function DynamicPresentation({
       </section>
 
       {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}
-      <section className="bg-white border border-slate-200/80 rounded-2xl p-3.5 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-sm">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-b border-slate-100/60 mb-2">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-slate-100 text-slate-800 rounded-lg flex items-center justify-center shrink-0">
             <Factory size={18} />
@@ -745,7 +745,7 @@ export default function DynamicPresentation({
                 className={`group relative rounded-2xl overflow-hidden border transition-all text-right flex flex-col justify-between cursor-pointer p-3 space-y-2.5 ${
                   isSelected
                     ? "bg-gradient-to-b from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-xl shadow-emerald-900/20 scale-[1.02]"
-                    : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50 hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1"
+                    : "bg-white text-slate-800 border-slate-200 hover:bg-white hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1"
                 }`}
               >
                 <div className="relative w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
@@ -849,7 +849,7 @@ export default function DynamicPresentation({
             ))}
           </div>
         ) : (
-          <div className="p-6 text-center bg-white border border-slate-200 rounded-xl space-y-1">
+          <div className="p-6 text-center bg-white rounded-xl space-y-1">
             <div className="text-xl">🔍</div>
             <h4 className="font-black text-xs text-slate-800">کالایی یافت نشد</h4>
           </div>
@@ -890,7 +890,7 @@ export default function DynamicPresentation({
         const sortedDisplayFactories = configFactories.sort((a, b) => b.rating - a.rating);
 
         return (
-          <section className="bg-white border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 space-y-6 shadow-xs relative overflow-hidden text-right" dir="rtl">
+          <section className="space-y-6 relative overflow-hidden text-right py-4 border-b border-slate-100/60" dir="rtl">
             {/* Elegant Atmospheric Glow */}
             <div className="absolute top-0 left-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-0 right-0 w-36 h-36 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -1029,7 +1029,7 @@ export default function DynamicPresentation({
                         </div>
 
                         {/* Real-life metrics to prove platform authenticity */}
-                        <div className="bg-slate-50/80 rounded-xl p-2.5 space-y-1.5 text-[10px] text-slate-600 border border-slate-100">
+                        <div className="bg-white/80 rounded-xl p-2.5 space-y-1.5 text-[10px] text-slate-600 border border-slate-100">
                           <div className="flex justify-between items-center">
                             <span className="font-bold text-slate-400">عاملیت‌های فعال:</span>
                             <span className="font-black text-slate-700">{dealershipCount} نماینده فعال</span>
@@ -1128,7 +1128,7 @@ export default function DynamicPresentation({
                 {/* Body details */}
                 <div className="mt-6 space-y-4 text-xs font-medium text-slate-600 leading-relaxed">
                   {selectedHomeFactory.description || selectedHomeFactory.desc ? (
-                    <p className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-[11px] text-slate-500 font-bold leading-relaxed">
+                    <p className="bg-white p-3.5 rounded-2xl border border-slate-100 text-[11px] text-slate-500 font-bold leading-relaxed">
                       {selectedHomeFactory.description || selectedHomeFactory.desc}
                     </p>
                   ) : (
@@ -1136,7 +1136,7 @@ export default function DynamicPresentation({
                   )}
 
                   <div className="grid grid-cols-2 gap-3.5 pt-2">
-                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-100">
                       <span className="text-base">📍</span>
                       <div className="min-w-0">
                         <p className="text-[9px] text-slate-400 font-bold">موقعیت کارخانه</p>
@@ -1144,7 +1144,7 @@ export default function DynamicPresentation({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-100">
                       <span className="text-base">🗓️</span>
                       <div className="min-w-0">
                         <p className="text-[9px] text-slate-400 font-bold">سال تاسیس خط تولید</p>
@@ -1154,7 +1154,7 @@ export default function DynamicPresentation({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-100">
                       <span className="text-base">📦</span>
                       <div className="min-w-0">
                         <p className="text-[9px] text-slate-400 font-bold">ظرفیت تولید / تنوع اقلام</p>
@@ -1162,7 +1162,7 @@ export default function DynamicPresentation({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-100">
                       <span className="text-base">⭐</span>
                       <div className="min-w-0">
                         <p className="text-[9px] text-slate-400 font-bold">رتبه و ارزیابی کیفی</p>
@@ -1191,7 +1191,7 @@ export default function DynamicPresentation({
                     const isVIP = userBadge === 'vip' || userBadge === 'admin';
                     return (
                       <div className="mt-2 space-y-2">
-                        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/60 rounded-2xl relative overflow-hidden">
+                        <div className="flex items-center justify-between p-3 bg-white border border-slate-200/60 rounded-2xl relative overflow-hidden">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">📞</span>
                             <div>
@@ -1271,7 +1271,7 @@ export default function DynamicPresentation({
             }));
 
         return (
-          <section className="bg-white border border-slate-100 rounded-2xl p-3 space-y-2 shadow-xs">
+          <section className="space-y-2 py-3 border-b border-slate-100/60 mb-2">
             <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
               <span className="text-[11px] sm:text-xs font-black text-slate-800 flex items-center gap-1.5">
                 <Building2 size={14} className={activeColors.brandIconText} />
@@ -1283,7 +1283,7 @@ export default function DynamicPresentation({
             </div>
 
             {activeBrands.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-4 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-3">
+              <div className="flex flex-col items-center justify-center py-4 text-center bg-white rounded-xl border border-dashed border-slate-200 p-3">
                 <span className="text-xl mb-1">🏭</span>
                 <p className="text-xs font-bold text-slate-600">هنوز هیچ برندی ثبت نشده است</p>
               </div>
@@ -1298,7 +1298,7 @@ export default function DynamicPresentation({
                         window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
                         if (setActiveTab) setActiveTab('order');
                       }}
-                      className="snap-start shrink-0 w-[72px] sm:w-[95px] flex flex-col items-center justify-center p-1 rounded-xl bg-slate-50/70 hover:bg-emerald-50 transition-all duration-200 cursor-pointer group text-center relative"
+                      className="snap-start shrink-0 w-[72px] sm:w-[95px] flex flex-col items-center justify-center p-1 rounded-xl bg-white/70 hover:bg-emerald-50 transition-all duration-200 cursor-pointer group text-center relative"
                       title={`مشاهده کاتالوگ و اقلام برند ${brand.name}`}
                     >
                       {/* Logo Container - Borderless, Clean & Prominent */}

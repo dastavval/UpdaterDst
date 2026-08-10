@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Info, BookOpen, TrendingUp, Mail, MapPin, Phone, MessageSquare, BrainCircuit, Lightbulb, Users, BarChart3, Download, Grid, FileText, ShieldCheck, DollarSign, Percent, Gavel, Clock, Send, CheckCircle2, ArrowLeft, Calendar, X, Eye, Search, Building2, ExternalLink, ChevronRight, ChevronLeft, ArrowRight, Scale, ShieldAlert, Leaf } from "lucide-react";
 import { addCallbackRequest } from "../lib/callback-helper";
+import { NetworkDiamondWidget } from "./NetworkDiamondWidget";
 
 export function AboutUsSection({ theme }: { articles?: any[]; theme: 'light' | 'dark' | 'classic' }) {
   return (
     <div id="about-us" className="py-6 md:py-10 text-right" dir="rtl">
-      <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 rounded-3xl p-6 sm:p-10 shadow-xl shadow-slate-200/50 space-y-8">
+      <div className="space-y-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="max-w-3xl space-y-3">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-800 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
@@ -250,42 +251,47 @@ export function CatalogueSection({ theme }: { theme: 'light' | 'dark' | 'classic
 
 export function TrustSection({ theme }: { theme: 'light' | 'dark' | 'classic' }) {
   const steps = [
-    { title: "حذف واسطه‌ها", desc: "خرید مستقیم از درب کارخانه با کوتاه کردن حداکثری زنجیره تامین و دستیابی به سود نهایی واقعی.", icon: <Users size={22} />, color: "from-blue-500 to-indigo-600", bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200" },
-    { title: "جلوگیری از کلاهبرداری", desc: "حفاظت کامل از سرمایه شما در حساب امانی تا زمان تحویل فیزیکی کالا و تایید نهایی سلامت آن.", icon: <ShieldCheck size={22} />, color: "from-emerald-500 to-teal-600", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200" },
-    { title: "مبارزه با گرانفروشی", desc: "نظارت هوشمند و قیمت‌گذاری بر پایه نرخ رسمی مصوب بدون ریالی افزایش کاذب.", icon: <Scale size={22} />, color: "from-amber-500 to-orange-600", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200" },
-    { title: "جلوگیری از کالا غیربهداشتی", desc: "بررسی سیستمی و تایید اصالت کدهای بهداشتی، تاریخ انقضا و پروانه‌های ساخت کارخانجات.", icon: <ShieldAlert size={22} />, color: "from-rose-500 to-pink-600", bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200" },
-    { title: "حمایت از ارگانیک و سلامت", desc: "اولویت‌دهی ویژه به عرضه محصولات ارگانیک، طبیعی و دوست‌دار سلامت هموطنان.", icon: <Leaf size={22} />, color: "from-teal-500 to-emerald-600", bg: "bg-teal-50", text: "text-teal-600", border: "border-teal-200" },
+    { title: "حذف کامل واسطه‌ها", desc: "خرید مستقیم از درب کارخانجات با کوتاه کردن زنجیره تامین و دستیابی به سود واقعی و نهایی تولید.", icon: <Users size={22} />, color: "from-blue-500 to-indigo-600", bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200" },
+    { title: "تضمین مالی امانی وجه", desc: "حفاظت کامل از سرمایه و نقدینگی شما در حساب امانی دست اول تا تایید تخلیه فیزیکی و امضای بارنامه.", icon: <ShieldCheck size={22} />, color: "from-emerald-500 to-teal-600", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200" },
+    { title: "عدالت در قیمت‌گذاری کشوری", desc: "قیمت‌های دست اول منطبق بر نرخ مصوب سازمان حمایت و خروجی رسمی خطوط تولید بدون پورسانت.", icon: <Scale size={22} />, color: "from-amber-500 to-orange-600", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200" },
+    { title: "اصالت بهداشتی و سلامت کالا", desc: "تایید سیب سلامت، استانداردهای اجباری، کدهای ترخیص بهداشتی و تاریخ تولید مستقیم کارخانه.", icon: <ShieldAlert size={22} />, color: "from-rose-500 to-pink-600", bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200" },
+    { title: "حمایت از تغذیه ارگانیک", desc: "رتبه‌بندی ویژه کارخانجات سبز و ترویج عرضه محصولات فاقد افزودنی‌های غیرمجاز و باکیفیت.", icon: <Leaf size={22} />, color: "from-teal-500 to-emerald-600", bg: "bg-teal-50", text: "text-teal-600", border: "border-teal-200" },
   ];
 
   return (
     <div className="py-8 md:py-12" dir="rtl">
-      <div className="p-6 md:p-10 rounded-3xl md:rounded-[3rem] bg-gradient-to-br from-emerald-100/60 via-amber-50/50 to-blue-100/50 border border-emerald-300/40 shadow-xl shadow-emerald-500/5 flex flex-col items-center text-center space-y-5 md:space-y-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 ring-4 ring-white">
-           <Gavel size={28} />
+      <div className="flex flex-col items-center text-center space-y-5 md:space-y-6 overflow-hidden relative">
+        {/* Futuristic Network Diamond */}
+        <div className="relative w-36 h-36 flex items-center justify-center">
+          <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-2xl animate-pulse" />
+          <NetworkDiamondWidget size={140} />
         </div>
-        <div className="max-w-2xl space-y-2 md:space-y-3">
-           <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-800 text-[11px] font-black border border-emerald-300/60">
-             🛡️ تضمین ۱۰۰٪ امنیت مالی و فیزیکی کالا
+
+        <div className="max-w-3xl space-y-2 md:space-y-3 relative z-10">
+           <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-550/10 text-emerald-700 text-[11px] font-black border border-emerald-500/20 shadow-sm animate-pulse">
+             🛡️ پروتکل چندلایه امنیت تجاری و مالی کشور
            </span>
-           <h2 className="text-xl md:text-2xl font-black text-slate-900">پروتکل امنیتی و تسویه حساب دست اول</h2>
-           <p className="text-xs md:text-sm font-bold text-slate-600 leading-relaxed max-w-xl mx-auto">
-             در دست اول، پول شما کاملاً امن است. تا زمانی که سفارش را سالم تحویل نگیرید، وجه به حساب کارخانه واریز نمی‌شود. این یعنی امنیت ۱۰۰٪ برای خریدار و تضمین فروش برای کارخانه.
+           <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight">
+             پروتکل چندلایه امنیت مالی و تسویه هوشمند دست اول
+           </h2>
+           <p className="text-xs md:text-sm font-bold text-slate-650 leading-relaxed max-w-2xl mx-auto">
+             پلتفرم کشوری دست اول از نظام یکپارچه «پرداخت امانی زنجیره تامین» استفاده می‌کند. سرمایه شما تا لحظه تحویل فیزیکی کالا، تخلیه کامل در انبار و تایید بارنامه دولتی، به طور امن در حساب واسط نگهداری می‌شود. این سیستم ریسک را برای خریداران به صفر و سود تولید را برای کارخانه تضمین می‌کند.
            </p>
         </div>
         
         {/* Horizontal scrollable row */}
-        <div className="flex flex-row overflow-x-auto gap-3 sm:gap-4 w-full pt-4 md:pt-6 pb-3 no-scrollbar scroll-smooth">
+        <div className="flex flex-row overflow-x-auto gap-3 sm:gap-4 w-full pt-4 md:pt-6 pb-3 no-scrollbar scroll-smooth relative z-10">
            {steps.map((s, idx) => (
              <div 
-               key={idx} 
-               className={`min-w-[220px] sm:min-w-[240px] flex-1 shrink-0 space-y-3 bg-white/95 backdrop-blur-md p-4 rounded-2xl border ${s.border} shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-right`}
+                key={idx} 
+                className={`min-w-[220px] sm:min-w-[240px] flex-1 shrink-0 space-y-3 bg-white/95 backdrop-blur-md p-4 rounded-2xl border ${s.border} shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-right`}
              >
                 <div className="flex items-center justify-between">
                   <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${s.color} text-white shadow-md flex items-center justify-center`}>
                      {s.icon}
                   </div>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>
-                    گام ۰{idx + 1}
+                    سطح امنیتی ۰{idx + 1}
                   </span>
                 </div>
                 <div>

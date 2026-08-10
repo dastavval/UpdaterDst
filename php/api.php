@@ -99,10 +99,10 @@ switch ($action) {
             exit();
         }
 
-        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP
+        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP (تغییر اولویت برای آدرس‌های بدون ریت‌لیمیت)
         $zipUrls = [
-            "https://api.github.com/repos/" . $path . "/zipball/" . $branch,
             "https://codeload.github.com/" . $path . "/zip/refs/heads/" . $branch,
+            "https://api.github.com/repos/" . $path . "/zipball/" . $branch,
             "https://github.com/" . $path . "/archive/refs/heads/" . $branch . ".zip"
         ];
 
@@ -110,42 +110,96 @@ switch ($action) {
         $httpCode = 0;
         $attemptedUrls = [];
         $successfulUrl = '';
+        $downloadMethod = '';
 
         foreach ($zipUrls as $url) {
             $attemptedUrls[] = $url;
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (PHP) Dastavval-Updater/2.0');
-            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // عدم نیاز به تایید SSL برای اطمینان بالا روی سرورهای با SSL قدیمی یا محدود
+            
+            // روش ۱: استفاده از Curl با تنظیمات پیشرفته و لغو تایید هویت برای پیشگیری از دیواره‌های آتش
+            if (function_exists('curl_init')) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (PHP) Dastavval-Updater/3.0');
+                curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
-            $headers = [
-                'Accept: application/vnd.github+json',
-                'User-Agent: Dastavval-Updater/2.0'
-            ];
+                $headers = [
+                    'Accept: application/vnd.github+json',
+                    'User-Agent: Dastavval-Updater/3.0'
+                ];
 
-            if (!empty($token)) {
-                $headers[] = "Authorization: Bearer " . $token;
-            }
-
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-            $data = curl_exec($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($code === 200 && !empty($data) && strlen($data) > 100) {
-                // بررسی ابتدایی هدر فایل zip (شروع با PK\x03\x04)
-                if (substr($data, 0, 4) === "PK\x03\x04") {
-                    $zipData = $data;
-                    $httpCode = $code;
-                    $successfulUrl = $url;
-                    break;
+                if (!empty($token)) {
+                    $headers[] = "Authorization: Bearer " . $token;
                 }
+
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+                $data = curl_exec($ch);
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($code === 200 && !empty($data) && strlen($data) > 100) {
+                    if (substr($data, 0, 4) === "PK\x03\x04") {
+                        $zipData = $data;
+                        $httpCode = $code;
+                        $successfulUrl = $url;
+                        $downloadMethod = 'curl';
+                        break;
+                    }
+                }
+                $httpCode = $code;
             }
-            $httpCode = $code;
+
+            // روش ۲: تلاش مجدد با file_get_contents و Stream Context در صورت غیرفعال بودن یا لکنت Curl
+            if (ini_get('allow_url_fopen')) {
+                $headers_arr = [
+                    'User-Agent: Dastavval-Updater/3.0',
+                    'Accept: application/vnd.github+json'
+                ];
+                if (!empty($token)) {
+                    $headers_arr[] = "Authorization: Bearer " . $token;
+                }
+
+                $opts = [
+                    'http' => [
+                        'method' => 'GET',
+                        'header' => implode("\r\n", $headers_arr),
+                        'follow_location' => 1,
+                        'timeout' => 90,
+                        'ignore_errors' => true
+                    ],
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false
+                    ]
+                ];
+                $context = stream_context_create($opts);
+                $data = @file_get_contents($url, false, $context);
+                
+                $code = 0;
+                if (isset($http_response_header) && is_array($http_response_header)) {
+                    foreach ($http_response_header as $header) {
+                        if (preg_match('/^HTTP\/\d\.\d\s+(\d+)/i', $header, $matches)) {
+                            $code = intval($matches[1]);
+                            break;
+                        }
+                    }
+                }
+
+                if (($code === 200 || $code === 0) && !empty($data) && strlen($data) > 100) {
+                    if (substr($data, 0, 4) === "PK\x03\x04") {
+                        $zipData = $data;
+                        $httpCode = ($code === 0) ? 200 : $code;
+                        $successfulUrl = $url;
+                        $downloadMethod = 'file_get_contents';
+                        break;
+                    }
+                }
+                $httpCode = $code;
+            }
         }
 
         if (empty($zipData)) {
@@ -171,11 +225,23 @@ switch ($action) {
             $root_dir = dirname(__DIR__); // روت اصلی هاست
             $rootPrefix = '';
             
+            // تشخیص فوق‌العاده هوشمندانه روت‌پرفیکس (پوشه اتوماتیک ساخته شده توسط گیت‌هاب)
             if ($zip->numFiles > 0) {
-                $firstFile = $zip->getNameIndex(0);
-                $slashPos = strpos($firstFile, '/');
-                if ($slashPos !== false) {
-                    $rootPrefix = substr($firstFile, 0, $slashPos + 1);
+                $firstEntry = $zip->getNameIndex(0);
+                $firstParts = explode('/', $firstEntry);
+                if (count($firstParts) > 1 && !empty($firstParts[0])) {
+                    $candidate = $firstParts[0] . '/';
+                    $allStartWithCandidate = true;
+                    for ($k = 0; $k < $zip->numFiles; $k++) {
+                        $name = $zip->getNameIndex($k);
+                        if (strpos($name, $candidate) !== 0) {
+                            $allStartWithCandidate = false;
+                            break;
+                        }
+                    }
+                    if ($allStartWithCandidate) {
+                        $rootPrefix = $candidate;
+                    }
                 }
             }
 
@@ -258,7 +324,8 @@ switch ($action) {
                     : 'کدها با موفقیت دریافت و اعمال شدند. (دیتابیس بدون تغییر یا با خطا مواجه شد)',
                 'updatedFilesCount' => $updatedFilesCount,
                 'databaseUpdated' => $databaseUpdated,
-                'databaseError' => $databaseError
+                'databaseError' => $databaseError,
+                'download_method' => $downloadMethod
             ], JSON_UNESCAPED_UNICODE);
         } else {
             @unlink($tempZip);

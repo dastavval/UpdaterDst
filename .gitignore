@@ -1,6 +1,6 @@
 node_modules/
 build/
-dist/
+# dist/
 coverage/
 .DS_Store
 *.log
@@ -8,6 +8,6 @@ coverage/
 !.env.example
 ai-cache.json
 .aistudio/
-assets/index-*
-public/assets/index-*
+# assets/index-*
+# public/assets/index-*
 bun.lock

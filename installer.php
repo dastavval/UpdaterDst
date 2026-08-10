@@ -211,14 +211,61 @@ if (isset($_GET['action'])) {
             file_put_contents($config_file, $config_code);
             @chmod($config_file, 0644);
 
-            // اجرای database.sql در صورت وجود
+            // اجرای database.sql در صورت وجود با رعایت امنیت و عدم حذف داده‌های گرانبهای کاربر
             if (file_exists($sql_file)) {
-                $sql = file_get_contents($sql_file);
-                $queries = array_filter(array_map('trim', explode(';', $sql)));
-                foreach ($queries as $q) {
-                    if (!empty($q) && strpos($q, '--') !== 0) {
-                        try { $pdo->exec($q); } catch (Exception $ex) {}
+                try {
+                    $sql = file_get_contents($sql_file);
+                    
+                    // حذف کامنت‌ها
+                    $sql = preg_replace('/--.*\n/', '', $sql);
+                    $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+                    
+                    $queries = array_filter(array_map('trim', explode(';', $sql)));
+                    
+                    // پیدا کردن جداول موجود در دیتابیس فعلی
+                    $existingTables = [];
+                    $tableQuery = $pdo->query("SHOW TABLES");
+                    if ($tableQuery) {
+                        $existingTables = $tableQuery->fetchAll(PDO::FETCH_COLUMN);
                     }
+
+                    foreach ($queries as $q) {
+                        $q = trim($q);
+                        if (empty($q)) continue;
+
+                        // ۱. جلوگیری از حذف و تخلیه جداول موجود
+                        if (stripos($q, 'DROP TABLE') !== false || stripos($q, 'TRUNCATE') !== false || stripos($q, 'DELETE FROM') !== false) {
+                            continue;
+                        }
+
+                        // ۲. تبدیل به IF NOT EXISTS
+                        if (stripos($q, 'CREATE TABLE') !== false && stripos($q, 'IF NOT EXISTS') === false) {
+                            $q = preg_replace('/CREATE\s+TABLE/i', 'CREATE TABLE IF NOT EXISTS', $q);
+                        }
+
+                        // ۳. جلوگیری از بازنویسی داده‌های موجود (محصولات، سفارشات و تنظیمات کاربر)
+                        if (stripos($q, 'INSERT INTO') !== false) {
+                            if (preg_match('/INSERT\s+INTO\s+[`"\'\s]*([a-zA-Z0-9_\-]+)/i', $q, $matches)) {
+                                $tableName = $matches[1];
+                                if (in_array($tableName, $existingTables)) {
+                                    $countCheck = $pdo->query("SELECT COUNT(*) FROM `{$tableName}`");
+                                    if ($countCheck) {
+                                        $rowCount = (int)$countCheck->fetchColumn();
+                                        if ($rowCount > 0) {
+                                            // جدول حاوی داده است، از درج پیش‌فرض‌های گیت‌هاب صرف‌نظر می‌کنیم
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        try { 
+                            $pdo->exec($q); 
+                        } catch (Exception $ex) {}
+                    }
+                } catch (Exception $dbEx) {
+                    // در صورت خطای کلی، ثبت خطا بدون قطع فرآیند
                 }
             }
 

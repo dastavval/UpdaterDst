@@ -11,6 +11,7 @@ interface PremiumProductCardProps {
   onAddToCart: (product: Product, qty: number) => void;
   onViewDetails?: (product: Product) => void;
   toPersianNum: (num: any) => string;
+  interfaceMode?: 'simple' | 'advanced';
 }
 
 export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
@@ -20,7 +21,8 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
   onDecrement,
   onAddToCart,
   onViewDetails,
-  toPersianNum
+  toPersianNum,
+  interfaceMode = 'advanced'
 }) => {
   const consumerPrice = product.consumer_price || product.price || 0;
   const profitMargin = consumerPrice > 0 
@@ -122,6 +124,20 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
           <MapPin size={14} className="text-indigo-400" />
           <span>{product.shipping_origin || "کارخانه مرکزی"}</span>
         </div>
+
+        {/* Advanced B2B Telemetry */}
+        {interfaceMode === 'advanced' && (
+          <div className="grid grid-cols-2 gap-2 text-[10px] bg-gradient-to-r from-purple-500/5 to-indigo-500/5 p-3 rounded-2xl border border-indigo-500/10 text-slate-600 font-bold">
+            <div className="flex items-center gap-1.5">
+              <span className="text-purple-600">⚡</span>
+              <span>ظرفیت خط: {toPersianNum((product as any).production_capacity || "۱۵,۰۰۰")} تن</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-indigo-600">🛡️</span>
+              <span>تحویل لجستیک: {toPersianNum((product as any).lead_time_hours || "۳۶")} ساعت</span>
+            </div>
+          </div>
+        )}
 
         {/* Action Bar */}
         <div className="mt-auto pt-2 flex items-center gap-3">

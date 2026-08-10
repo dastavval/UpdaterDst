@@ -1075,10 +1075,10 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-colors duration-300 font-sans selection ${
       theme === 'classic' 
-        ? 'bg-[#FAF6F0] text-[#2D1E12] theme-classic' 
+        ? 'bg-white text-slate-900 theme-classic' 
         : theme === 'dark' 
         ? 'bg-slate-950 text-slate-100' 
-        : 'bg-gradient-to-tr from-indigo-50/40 via-slate-50/30 to-purple-50/40 text-indigo-950'
+        : 'bg-white text-slate-900'
     }`} dir={language === 'en' ? 'ltr' : 'rtl'}>
       
       {/* Dynamic Theme Color Variables Injection */}
@@ -1212,7 +1212,7 @@ export default function App() {
               className="space-y-8"
             >
               {/* Simple order presentation header */}
-              <div id="order-panel-header" className="bg-white text-indigo-900 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-6 border border-slate-150 shadow-sm relative overflow-hidden text-right" dir="rtl">
+              <div id="order-panel-header" className="bg-white text-indigo-900 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-6 relative overflow-hidden text-right" dir="rtl">
                 <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
                 <div className="relative z-10 flex items-center gap-4 text-right">
                   <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl font-bold border border-emerald-100">
@@ -1227,7 +1227,7 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => setActiveTab('presentation')}
-                  className="relative z-10 bg-slate-50 hover text-indigo-800 font-black text-xs px-5 py-3 rounded-xl transition-all border border-slate-150 cursor-pointer shrink-0"
+                  className="relative z-10 bg-white hover text-indigo-800 font-black text-xs px-5 py-3 rounded-xl transition-all border border-slate-150 cursor-pointer shrink-0"
                 >
                   مطالعه معرفی پلتفرم دست اول
                 </button>
@@ -1257,7 +1257,7 @@ export default function App() {
                           className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[11px] font-black transition-all shrink-0 border cursor-pointer ${
                             isActive 
                               ? "bg-emerald-600 text-white border-emerald-500 shadow-md" 
-                              : "bg-white text-slate-600 border-gray-200 hover:bg-slate-50"
+                              : "bg-white text-slate-600 border-gray-200 hover:bg-white"
                           }`}
                         >
                           <span>{cat.name}</span>
@@ -1288,7 +1288,7 @@ export default function App() {
 
                 {/* Desktop-Only Categories and Brand Sidebar */}
                 <div className="hidden lg:block lg:col-span-1 space-y-6">
-                  <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+                  <div className="space-y-6">
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-black text-xs text-gray-800 flex items-center gap-2">
@@ -1313,7 +1313,7 @@ export default function App() {
 
                       {/* Inline Category Creation Input */}
                       {showAddCat && (
-                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 mb-3 space-y-2 animate-fade-in">
+                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 mb-3 space-y-2 animate-fade-in">
                           <input
                             type="text"
                             value={newCatName}
@@ -1362,7 +1362,7 @@ export default function App() {
                               className={`group relative flex items-center justify-between rounded-xl transition-all ${
                                 isActive 
                                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-black" 
-                                  : "text-slate-700 hover:bg-slate-50 hover:text-emerald-800"
+                                  : "text-slate-700 hover:bg-white hover:text-emerald-800"
                               }`}
                             >
                               {isEditing ? (
@@ -1439,7 +1439,7 @@ export default function App() {
                             setActiveTab('admin');
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}
-                          className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-[11px] font-black border border-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl text-[11px] font-black border border-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Settings size={13} className="text-emerald-600" />
                           <span>مدیریت کامل گروه‌های کالایی در پنل مدیریت</span>
@@ -1460,7 +1460,7 @@ export default function App() {
                             className={`w-full text-right px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                               selectedBrand === brand
                                 ? "bg-indigo-50 text-indigo-700 font-black"
-                                : "text-slate-500 hover:bg-slate-50"
+                                : "text-slate-500 hover:bg-white"
                             }`}
                           >
                             {brand === "همه" ? "همه برندها و کارخانه‌ها" : brand}
@@ -1474,7 +1474,7 @@ export default function App() {
                 {/* Catalog & Products list */}
                 <div className="lg:col-span-3 space-y-6">
                   {/* Display View modes controls */}
-                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-3 sm:p-4 rounded-[1.5rem] border border-gray-100 shadow-sm text-right">
+                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-3 sm:p-4 rounded-[1.5rem] text-right">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-xs font-black text-gray-500 hidden sm:inline">حالت نمایش:</span>
                       <button
@@ -1482,7 +1482,7 @@ export default function App() {
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] sm font-black transition-all cursor-pointer ${
                           viewMode === 'table'
                           ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-gray-50 text-gray-650 hover"
+                          : "bg-white text-gray-650 hover"
                         }`}
                       >
                         <List size={13} />
@@ -1494,7 +1494,7 @@ export default function App() {
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] sm font-black transition-all cursor-pointer ${
                           viewMode === 'grid'
                           ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-gray-50 text-gray-650 hover"
+                          : "bg-white text-gray-650 hover"
                         }`}
                       >
                         <Grid size={13} />
@@ -1506,7 +1506,7 @@ export default function App() {
                         className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] sm font-black transition-all cursor-pointer ${
                           viewMode === 'list'
                           ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-gray-50 text-gray-650 hover"
+                          : "bg-white text-gray-650 hover"
                         }`}
                       >
                         <List size={13} />
@@ -1653,7 +1653,7 @@ export default function App() {
                 />
               </motion.div>
             ) : (
-              <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-5 bg-white rounded-[2.5rem] border border-slate-200/80 shadow-sm max-w-2xl mx-auto my-8">
+              <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-5 bg-white rounded-[2.5rem] max-w-2xl mx-auto my-8">
                 <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center shadow-inner">
                   <ShieldCheck size={40} />
                 </div>
@@ -2044,7 +2044,7 @@ export default function App() {
                   <>
                     <div className="space-y-3">
                       {cart.map(item => (
-                        <div key={item.productId} className="flex gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <div key={item.productId} className="flex gap-4 bg-white p-4 rounded-2xl border border-gray-100">
                           <div className="flex-1">
                             <h4 className="font-black text-sm text-gray-900">{item.name}</h4>
                             <p className="text-xs text-gray-500 mt-1">
@@ -2182,7 +2182,7 @@ export default function App() {
                           placeholder="مثال: علیرضا حسینی"
                           value={buyerName}
                           onChange={e => setBuyerName(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus focus text-xs text-right font-bold text-indigo-800 focus:outline-none"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus focus text-xs text-right font-bold text-indigo-800 focus:outline-none"
                         />
                       </div>
 
@@ -2194,7 +2194,7 @@ export default function App() {
                           placeholder="مثال: 09121111111"
                           value={buyerPhone}
                           onChange={e => setBuyerPhone(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus focus text-xs text-right font-mono text-indigo-800 focus:outline-none"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus focus text-xs text-right font-mono text-indigo-800 focus:outline-none"
                         />
                       </div>
 
@@ -2206,7 +2206,7 @@ export default function App() {
                           placeholder="مثال: تهران، جاده خاوران، انبار مرکزی توزیع البرز..."
                           value={buyerAddress}
                           onChange={e => setBuyerAddress(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus focus text-xs text-right leading-relaxed text-indigo-800 focus:outline-none"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus focus text-xs text-right leading-relaxed text-indigo-800 focus:outline-none"
                         />
                       </div>
 
@@ -2301,7 +2301,7 @@ export default function App() {
                 const finalPayableAmount = totalAmount - badgeDiscountAmount - bulkDiscountAmount;
 
                 return (
-                  <div className="p-6 border-t space-y-4 bg-gray-50/50">
+                  <div className="p-6 border-t space-y-4 bg-white">
                     <div className="space-y-2 text-xs font-bold border-b pb-3 border-dashed">
                       <div className="flex justify-between text-gray-500">
                         <span>مجموع ناخالص کارتن‌ها ({totalQuantity} عدد):</span>
@@ -2395,7 +2395,7 @@ export default function App() {
       />
 
       {/* Clean Light Material B2B Responsive Footer */}
-      <footer className="bg-slate-50 text-slate-800 border-t border-slate-200/90 pt-16 pb-10 mt-12 relative" dir="rtl">
+      <footer className="bg-white text-slate-800 border-t border-slate-200/90 pt-16 pb-10 mt-12 relative" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 text-right">
           
           {/* Column 1: Brand & Logo */}
@@ -2671,7 +2671,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAnnouncementModal(false)}
-              className="absolute inset-0 bg-slate-50/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-white/80 backdrop-blur-sm"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
