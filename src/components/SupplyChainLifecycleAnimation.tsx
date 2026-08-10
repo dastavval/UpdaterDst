@@ -374,12 +374,11 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
           {/* Customer Support Call Button */}
           <a
             href="tel:09999123001"
-            className="flex-1 sm:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs group"
+            className="flex-1 sm:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 px-3.5 py-2 rounded-full text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs group"
             title="تماس مستقیم تلفنی با پشتیبانی مشتریان"
           >
-            <div className="relative flex items-center justify-center">
-              <PhoneCall size={14} className="text-emerald-600 group-hover:rotate-12 transition-transform" />
-              <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+            <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+              <PhoneCall size={13} className="animate-pulse" />
             </div>
             <span>پشتیبان تلفنی</span>
           </a>

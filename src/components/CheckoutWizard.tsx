@@ -299,12 +299,11 @@ export default function CheckoutWizard({
               <div className="flex items-center gap-2">
                 <a
                   href="tel:09999123001"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all shadow-xs group border border-emerald-500/30"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-black transition-all shadow-xs group"
                   title="تماس تلفنی با پشتیبانی مشتریان"
                 >
-                  <div className="relative flex items-center justify-center">
-                    <PhoneCall size={13} className="text-amber-300 group-hover:rotate-12 transition-transform" />
-                    <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+                    <PhoneCall size={12} className="animate-pulse" />
                   </div>
                   <span>پشتیبانی مشتریان</span>
                 </a>
