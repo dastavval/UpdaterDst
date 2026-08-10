@@ -396,20 +396,30 @@ app.post("/api/admin/github-update", async (req, res) => {
   console.log(`[GitHub Updater] Initiating update from repository: ${repoUrl} (branch: ${branch}, token: ${token ? "Provided" : "None"})`);
 
   try {
-    let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/, "");
-    if (!cleanRepoUrl.startsWith("http://") && !cleanRepoUrl.startsWith("https://")) {
-      cleanRepoUrl = "https://" + cleanRepoUrl;
+    let ownerRepo = "";
+    const matches = String(repoUrl).match(/(?:github\.com\/|repos\/|^)([^\/]+)\/([^\/\.\?\s]+)(?:\.git|\/|$)/i);
+    if (matches && matches[1] && matches[2]) {
+      ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
+    } else {
+      let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/, "");
+      cleanRepoUrl = cleanRepoUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
+      ownerRepo = cleanRepoUrl.replace(/^\/+|\/+$/g, "");
     }
 
-    const ownerRepo = cleanRepoUrl.replace("https://github.com/", "");
+    if (!ownerRepo || !ownerRepo.includes("/")) {
+      return res.status(400).json({
+        success: false,
+        error: "آدرس یا نام مخزن گیت‌هاب معتبر نمی‌باشد. نمونه صحیح: username/repository"
+      });
+    }
 
     // Prepare candidate download URLs
     const zipUrls = [
+      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${branch}`,
+      `https://github.com/${ownerRepo}/archive/refs/heads/${branch}.zip`,
       `https://api.github.com/repos/${ownerRepo}/zipball/${branch}`,
-      `${cleanRepoUrl}/archive/refs/heads/${branch}.zip`,
-      `${cleanRepoUrl}/archive/refs/heads/main.zip`,
-      `${cleanRepoUrl}/archive/refs/heads/master.zip`,
-      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${branch}`
+      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/master`,
+      `https://github.com/${ownerRepo}/archive/refs/heads/master.zip`
     ];
 
     let zipResponse: any = null;

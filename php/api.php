@@ -89,21 +89,30 @@ switch ($action) {
             exit();
         }
 
-        // تمیز کردن آدرس مخزن گیت‌هاب
-        $cleanRepoUrl = preg_replace('/\.git$/', '', $repoUrl);
-        $parts = parse_url($cleanRepoUrl);
-        $path = isset($parts['path']) ? trim($parts['path'], '/') : '';
-        
-        if (empty($path)) {
-            echo json_encode(['success' => false, 'error' => 'فرمت آدرس مخزن نامعتبر است.'], JSON_UNESCAPED_UNICODE);
+        // استخراج فوق‌العاده هوشمندانه و تمیز owner/repo از انواع فرمت‌های ورودی
+        // مانند: https://github.com/owner/repo.git, github.com/owner/repo, owner/repo
+        $ownerRepo = '';
+        if (preg_match('/(?:github\.com\/|repos\/|^)([^\/]+)\/([^\/\.\?\s]+)(?:\.git|\/|$)/i', $repoUrl, $matches)) {
+            $ownerRepo = trim($matches[1]) . '/' . trim($matches[2]);
+        } else {
+            $cleanUrl = preg_replace('/\.git$/', '', $repoUrl);
+            $parts = parse_url($cleanUrl);
+            $path = isset($parts['path']) ? trim($parts['path'], '/') : '';
+            $ownerRepo = $path;
+        }
+
+        if (empty($ownerRepo) || strpos($ownerRepo, '/') === false) {
+            echo json_encode(['success' => false, 'error' => 'فرمت آدرس یا نام مخزن گیت‌هاب نامعتبر است. نمونه صحیح: username/repository'], JSON_UNESCAPED_UNICODE);
             exit();
         }
 
-        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP (تغییر اولویت برای آدرس‌های بدون ریت‌لیمیت)
+        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP
         $zipUrls = [
-            "https://codeload.github.com/" . $path . "/zip/refs/heads/" . $branch,
-            "https://api.github.com/repos/" . $path . "/zipball/" . $branch,
-            "https://github.com/" . $path . "/archive/refs/heads/" . $branch . ".zip"
+            "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/" . $branch,
+            "https://github.com/" . $ownerRepo . "/archive/refs/heads/" . $branch . ".zip",
+            "https://api.github.com/repos/" . $ownerRepo . "/zipball/" . $branch,
+            "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/master",
+            "https://github.com/" . $ownerRepo . "/archive/refs/heads/master.zip"
         ];
 
         $zipData = '';
@@ -112,100 +121,108 @@ switch ($action) {
         $successfulUrl = '';
         $downloadMethod = '';
 
-        foreach ($zipUrls as $url) {
-            $attemptedUrls[] = $url;
-            
-            // روش ۱: استفاده از Curl با تنظیمات پیشرفته و لغو تایید هویت برای پیشگیری از دیواره‌های آتش
-            if (function_exists('curl_init')) {
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (PHP) Dastavval-Updater/3.0');
-                curl_setopt($ch, CURLOPT_TIMEOUT, 90);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        // تابع کمکی اختصاصی برای دریافت محتوا با مدیریت کامل Redirectها بدون وابستگی به CURLOPT_FOLLOWLOCATION (سازگار با open_basedir هاست‌های ایران)
+        $fetchUrlWithRedirects = function($url, $token, &$lastCode) {
+            $currentUrl = $url;
+            $maxRedirects = 8;
+            $redirectCount = 0;
 
-                $headers = [
-                    'Accept: application/vnd.github+json',
-                    'User-Agent: Dastavval-Updater/3.0'
-                ];
+            while ($redirectCount < $maxRedirects) {
+                if (function_exists('curl_init')) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $currentUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HEADER, true);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/4.0');
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
-                if (!empty($token)) {
-                    $headers[] = "Authorization: Bearer " . $token;
-                }
-
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-                $data = curl_exec($ch);
-                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                curl_close($ch);
-
-                if ($code === 200 && !empty($data) && strlen($data) > 100) {
-                    if (substr($data, 0, 4) === "PK\x03\x04") {
-                        $zipData = $data;
-                        $httpCode = $code;
-                        $successfulUrl = $url;
-                        $downloadMethod = 'curl';
-                        break;
+                    $headers = [
+                        'Accept: application/vnd.github+json',
+                        'User-Agent: Dastavval-Updater/4.0'
+                    ];
+                    if (!empty($token)) {
+                        $headers[] = "Authorization: Bearer " . $token;
                     }
-                }
-                $httpCode = $code;
-            }
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-            // روش ۲: تلاش مجدد با file_get_contents و Stream Context در صورت غیرفعال بودن یا لکنت Curl
-            if (ini_get('allow_url_fopen')) {
-                $headers_arr = [
-                    'User-Agent: Dastavval-Updater/3.0',
-                    'Accept: application/vnd.github+json'
-                ];
-                if (!empty($token)) {
-                    $headers_arr[] = "Authorization: Bearer " . $token;
-                }
+                    $response = curl_exec($ch);
+                    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
 
-                $opts = [
-                    'http' => [
-                        'method' => 'GET',
-                        'header' => implode("\r\n", $headers_arr),
-                        'follow_location' => 1,
-                        'timeout' => 90,
-                        'ignore_errors' => true
-                    ],
-                    'ssl' => [
-                        'verify_peer' => false,
-                        'verify_peer_name' => false
-                    ]
-                ];
-                $context = stream_context_create($opts);
-                $data = @file_get_contents($url, false, $context);
-                
-                $code = 0;
-                if (isset($http_response_header) && is_array($http_response_header)) {
-                    foreach ($http_response_header as $header) {
-                        if (preg_match('/^HTTP\/\d\.\d\s+(\d+)/i', $header, $matches)) {
-                            $code = intval($matches[1]);
-                            break;
+                    $lastCode = $code;
+
+                    if ($code >= 300 && $code < 400 && !empty($response)) {
+                        $headerText = substr($response, 0, $headerSize);
+                        if (preg_match('/Location:\s*([^\s\r\n]+)/i', $headerText, $locMatches)) {
+                            $currentUrl = trim($locMatches[1]);
+                            $redirectCount++;
+                            continue;
+                        }
+                    }
+
+                    if ($code === 200 && !empty($response)) {
+                        $body = substr($response, $headerSize);
+                        if (strlen($body) > 100 && substr($body, 0, 4) === "PK\x03\x04") {
+                            return $body;
                         }
                     }
                 }
 
-                if (($code === 200 || $code === 0) && !empty($data) && strlen($data) > 100) {
-                    if (substr($data, 0, 4) === "PK\x03\x04") {
-                        $zipData = $data;
-                        $httpCode = ($code === 0) ? 200 : $code;
-                        $successfulUrl = $url;
-                        $downloadMethod = 'file_get_contents';
-                        break;
+                // Fallback stream context
+                if (ini_get('allow_url_fopen')) {
+                    $headers_arr = [
+                        'User-Agent: Dastavval-Updater/4.0',
+                        'Accept: application/vnd.github+json'
+                    ];
+                    if (!empty($token)) {
+                        $headers_arr[] = "Authorization: Bearer " . $token;
+                    }
+
+                    $opts = [
+                        'http' => [
+                            'method' => 'GET',
+                            'header' => implode("\r\n", $headers_arr),
+                            'follow_location' => 1,
+                            'timeout' => 60,
+                            'ignore_errors' => true
+                        ],
+                        'ssl' => [
+                            'verify_peer' => false,
+                            'verify_peer_name' => false
+                        ]
+                    ];
+                    $context = stream_context_create($opts);
+                    $body = @file_get_contents($currentUrl, false, $context);
+                    
+                    if (!empty($body) && strlen($body) > 100 && substr($body, 0, 4) === "PK\x03\x04") {
+                        $lastCode = 200;
+                        return $body;
                     }
                 }
-                $httpCode = $code;
+
+                break;
+            }
+            return null;
+        };
+
+        foreach ($zipUrls as $url) {
+            $attemptedUrls[] = $url;
+            $data = $fetchUrlWithRedirects($url, $token, $httpCode);
+            if (!empty($data)) {
+                $zipData = $data;
+                $successfulUrl = $url;
+                $downloadMethod = 'curl_safe_redirect';
+                break;
             }
         }
 
         if (empty($zipData)) {
             echo json_encode([
                 'success' => false, 
-                'error' => 'خطا در دریافت فایل فشرده معتبر سورس‌کد از گیت‌هاب (کد آخرین پاسخ: ' . $httpCode . '). لطفا مطمئن شوید که مخزن شما عمومی (Public) است، یا توکن دسترسی معتبر (PAT) وارد کرده‌اید، و نام شاخه (Branch) کاملاً درست است.',
+                'error' => 'خطا در دریافت فایل فشرده معتبر سورس‌کد از گیت‌هاب (کد آخرین پاسخ: ' . $httpCode . '). لطفاً مطمئن شوید که مخزن ' . $ownerRepo . ' عمومی (Public) است، یا توکن دسترسی معتبر (PAT) وارد کرده‌اید، و نام شاخه (' . $branch . ') کاملاً درست است.',
                 'attempted_urls' => $attemptedUrls
             ], JSON_UNESCAPED_UNICODE);
             exit();
