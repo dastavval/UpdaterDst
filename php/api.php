@@ -92,10 +92,10 @@ switch ($action) {
         // استخراج فوق‌العاده هوشمندانه و تمیز owner/repo از انواع فرمت‌های ورودی
         // مانند: https://github.com/owner/repo.git, github.com/owner/repo, owner/repo
         $ownerRepo = '';
-        if (preg_match('/(?:github\.com\/|repos\/|^)([^\/]+)\/([^\/\.\?\s]+)(?:\.git|\/|$)/i', $repoUrl, $matches)) {
-            $ownerRepo = trim($matches[1]) . '/' . trim($matches[2]);
+        if (preg_match('/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\.\?\s\#]+)/i', $repoUrl, $matches)) {
+            $ownerRepo = trim($matches[1]) . '/' . preg_replace('/\.git$/i', '', trim($matches[2]));
         } else {
-            $cleanUrl = preg_replace('/\.git$/', '', $repoUrl);
+            $cleanUrl = preg_replace('/\.git$/i', '', $repoUrl);
             $parts = parse_url($cleanUrl);
             $path = isset($parts['path']) ? trim($parts['path'], '/') : '';
             $ownerRepo = $path;
@@ -111,6 +111,8 @@ switch ($action) {
             "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/" . $branch,
             "https://github.com/" . $ownerRepo . "/archive/refs/heads/" . $branch . ".zip",
             "https://api.github.com/repos/" . $ownerRepo . "/zipball/" . $branch,
+            "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/main",
+            "https://github.com/" . $ownerRepo . "/archive/refs/heads/main.zip",
             "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/master",
             "https://github.com/" . $ownerRepo . "/archive/refs/heads/master.zip"
         ];

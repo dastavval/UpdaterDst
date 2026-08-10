@@ -397,11 +397,11 @@ app.post("/api/admin/github-update", async (req, res) => {
 
   try {
     let ownerRepo = "";
-    const matches = String(repoUrl).match(/(?:github\.com\/|repos\/|^)([^\/]+)\/([^\/\.\?\s]+)(?:\.git|\/|$)/i);
+    const matches = String(repoUrl).match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\.\?\s\#]+)/i);
     if (matches && matches[1] && matches[2]) {
-      ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
+      ownerRepo = `${matches[1].trim()}/${matches[2].trim().replace(/\.git$/i, "")}`;
     } else {
-      let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/, "");
+      let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/i, "");
       cleanRepoUrl = cleanRepoUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
       ownerRepo = cleanRepoUrl.replace(/^\/+|\/+$/g, "");
     }
@@ -413,11 +413,13 @@ app.post("/api/admin/github-update", async (req, res) => {
       });
     }
 
-    // Prepare candidate download URLs
+    // Prepare candidate download URLs with branch fallbacks
     const zipUrls = [
       `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${branch}`,
       `https://github.com/${ownerRepo}/archive/refs/heads/${branch}.zip`,
       `https://api.github.com/repos/${ownerRepo}/zipball/${branch}`,
+      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/main`,
+      `https://github.com/${ownerRepo}/archive/refs/heads/main.zip`,
       `https://codeload.github.com/${ownerRepo}/zip/refs/heads/master`,
       `https://github.com/${ownerRepo}/archive/refs/heads/master.zip`
     ];
@@ -429,7 +431,7 @@ app.post("/api/admin/github-update", async (req, res) => {
       try {
         console.log(`[GitHub Updater] Attempting download: ${url}`);
         const headers: Record<string, string> = {
-          "User-Agent": "Mozilla/5.0 (Node.js) Dastavval-Updater/1.0",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/5.0",
           "Accept": "application/vnd.github+json"
         };
 
@@ -437,7 +439,7 @@ app.post("/api/admin/github-update", async (req, res) => {
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, { headers, redirect: "follow" });
 
         if (response.ok) {
           zipResponse = response;
@@ -453,7 +455,7 @@ app.post("/api/admin/github-update", async (req, res) => {
     if (!zipResponse) {
       return res.status(400).json({
         success: false,
-        error: `امکان دریافت فایل فشرده سورس‌کد و دیتابیس از مخزن ${repoUrl} میسر نشد. لطفاً از عمومی (Public) بودن مخزن یا صحت نام شاخه مطمئن شوید.`
+        error: `امکان دریافت فایل فشرده سورس‌کد و دیتابیس از مخزن ${ownerRepo} میسر نشد. لطفاً از عمومی (Public) بودن مخزن یا صحت توکن دسترسی/نام شاخه مطمئن شوید.`
       });
     }
 
@@ -479,10 +481,15 @@ app.post("/api/admin/github-update", async (req, res) => {
 
     // Determine root prefix inside the zip archive (e.g. "UpdaterDst-main/")
     let rootPrefix = "";
-    const firstEntryName = zipEntries[0].entryName;
-    const slashPos = firstEntryName.indexOf("/");
-    if (slashPos !== -1) {
-      rootPrefix = firstEntryName.substring(0, slashPos + 1);
+    if (zipEntries.length > 0) {
+      const entryWithSlash = zipEntries.find(e => e.entryName.includes("/"));
+      if (entryWithSlash) {
+        const candidate = entryWithSlash.entryName.split("/")[0] + "/";
+        const matchingCount = zipEntries.filter(e => e.entryName.startsWith(candidate)).length;
+        if (matchingCount >= Math.floor(zipEntries.length * 0.5)) {
+          rootPrefix = candidate;
+        }
+      }
     }
 
     let updatedFilesCount = 0;
@@ -506,14 +513,20 @@ app.post("/api/admin/github-update", async (req, res) => {
         continue;
       }
 
-      const targetPath = path.join(process.cwd(), relPath);
-      const targetDir = path.dirname(targetPath);
-
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+      // If the extracted file is inside dist/, also copy it to project root for static serving
+      const targetPaths = [path.join(process.cwd(), relPath)];
+      if (relPath.startsWith("dist/")) {
+        targetPaths.push(path.join(process.cwd(), relPath.substring(5)));
       }
 
-      fs.writeFileSync(targetPath, entry.getData());
+      for (const targetPath of targetPaths) {
+        const targetDir = path.dirname(targetPath);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        fs.writeFileSync(targetPath, entry.getData());
+      }
+
       updatedFilesCount++;
       updatedFileList.push(relPath);
 
