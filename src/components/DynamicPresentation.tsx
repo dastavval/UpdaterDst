@@ -588,82 +588,98 @@ export default function DynamicPresentation({
         </motion.button>
       </section>
 
-      {/* --- OFFICIAL SOCIAL CHANNELS (ULTRA-COMPACT 3-CARD ANIMATED GRID) --- */}
-      <section className="grid grid-cols-3 gap-2 sm:gap-2.5">
-        {/* Rubika */}
-        <motion.a
-          whileHover={{ y: -3, scale: 1.02 }}
-          whileTap={{ scale: 0.96 }}
-          href={rubikaUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group relative overflow-hidden bg-white hover:bg-purple-50/70 hover:border-purple-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer hover:shadow-md"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-              💎
-            </div>
-            <div className="min-w-0 text-right">
-              <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-purple-700 block truncate">
-                روبیکا
-              </span>
-              <span className="text-[10px] text-purple-600 font-extrabold block truncate">
-                کانال 📢
-              </span>
-            </div>
+      {/* --- OFFICIAL SOCIAL CHANNELS (FRAMED CARD CONTAINER) --- */}
+      <section className="bg-gradient-to-r from-slate-50 via-purple-50/20 to-slate-50 border-2 border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-xs">
+        <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200/70">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
+              📡
+            </span>
+            <h4 className="text-xs sm:text-sm font-black text-slate-800">
+              شبکه‌های اجتماعی و کانال‌های رسمی دست اول
+            </h4>
           </div>
-          <span className="text-slate-300 group-hover:text-purple-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
-        </motion.a>
+          <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+            ارتباط زنده و اطلاع‌رسانی آنلاین
+          </span>
+        </div>
 
-        {/* WhatsApp */}
-        <motion.a
-          whileHover={{ y: -3, scale: 1.02 }}
-          whileTap={{ scale: 0.96 }}
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 hover:border-emerald-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer hover:shadow-md"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-              💬
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {/* Rubika */}
+          <motion.a
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            href={rubikaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white hover:bg-purple-50/70 hover:border-purple-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                💎
+              </div>
+              <div className="min-w-0 text-right">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-purple-700 block truncate">
+                  روبیکا
+                </span>
+                <span className="text-[10px] text-purple-600 font-extrabold block truncate">
+                  کانال 📢
+                </span>
+              </div>
             </div>
-            <div className="min-w-0 text-right">
-              <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-emerald-700 block truncate">
-                واتساپ
-              </span>
-              <span className="text-[10px] text-emerald-600 font-extrabold block truncate">
-                پشتیبانی 🗣️
-              </span>
-            </div>
-          </div>
-          <span className="text-slate-300 group-hover:text-emerald-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
-        </motion.a>
+            <span className="text-slate-300 group-hover:text-purple-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+          </motion.a>
 
-        {/* Instagram */}
-        <motion.a
-          whileHover={{ y: -3, scale: 1.02 }}
-          whileTap={{ scale: 0.96 }}
-          href={instagramUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group relative overflow-hidden bg-white hover:bg-pink-50/70 hover:border-pink-300 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer hover:shadow-md"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-              📸
+          {/* WhatsApp */}
+          <motion.a
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 hover:border-emerald-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                💬
+              </div>
+              <div className="min-w-0 text-right">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-emerald-700 block truncate">
+                  واتساپ
+                </span>
+                <span className="text-[10px] text-emerald-600 font-extrabold block truncate">
+                  پشتیبانی 🗣️
+                </span>
+              </div>
             </div>
-            <div className="min-w-0 text-right">
-              <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-pink-700 block truncate">
-                اینستاگرام
-              </span>
-              <span className="text-[10px] text-pink-600 font-extrabold block truncate">
-                آفر 🎁
-              </span>
+            <span className="text-slate-300 group-hover:text-emerald-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+          </motion.a>
+
+          {/* Instagram */}
+          <motion.a
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            href={instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white hover:bg-pink-50/70 hover:border-pink-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                📸
+              </div>
+              <div className="min-w-0 text-right">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-pink-700 block truncate">
+                  اینستاگرام
+                </span>
+                <span className="text-[10px] text-pink-600 font-extrabold block truncate">
+                  آفر 🎁
+                </span>
+              </div>
             </div>
-          </div>
-          <span className="text-slate-300 group-hover:text-pink-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
-        </motion.a>
+            <span className="text-slate-300 group-hover:text-pink-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+          </motion.a>
+        </div>
       </section>
 
       {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}

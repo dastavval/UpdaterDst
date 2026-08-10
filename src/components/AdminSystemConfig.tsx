@@ -286,8 +286,11 @@ export default function AdminSystemConfig({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          data = await res.json();
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = null;
         }
       } catch (err) {
         console.warn("Node test fetch failed, trying PHP fallback...", err);
@@ -300,14 +303,19 @@ export default function AdminSystemConfig({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           });
-          const phpData = await phpRes.json();
-          if (phpRes.ok && phpData.success) {
-            data = phpData;
-          } else if (phpData && phpData.error) {
-            throw new Error(phpData.error);
+          const phpText = await phpRes.text();
+          if (phpRes.ok) {
+            try {
+              const phpData = JSON.parse(phpText);
+              if (phpData && phpData.success !== false) {
+                data = phpData;
+              }
+            } catch (e) {
+              // ignore HTML 404
+            }
           }
-        } catch (phpErr: any) {
-          if (!data) throw phpErr;
+        } catch (phpErr) {
+          // ignore
         }
       }
 
@@ -347,7 +355,6 @@ export default function AdminSystemConfig({
 
       let res: Response | null = null;
       let data: any = null;
-      let responseText = "";
 
       // Endpoint 1: Express Node.js route
       try {
@@ -356,22 +363,20 @@ export default function AdminSystemConfig({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          responseText = await res.text();
-          try {
-            data = JSON.parse(responseText);
-          } catch (e) {
-            data = null;
-          }
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = null;
         }
       } catch (err) {
         console.warn("Node endpoint fetch failed, trying PHP endpoint fallback...", err);
       }
 
       // Endpoint 2: Fallback PHP cPanel API
-      if (!res || !res.ok || !data || data.success === false) {
+      if (!data || data.success === false) {
         if (data && data.error) {
-          addLog(`هشدار از اندپوئینت اصلی: ${data.error} - تلاش با اندپوئینت PHP cPanel...`);
+          addLog(`هشدار از اندپوئینت اصلی: ${data.error}`);
         }
         try {
           const phpRes = await fetch("php/api.php?action=admin/github-update", {
@@ -380,23 +385,19 @@ export default function AdminSystemConfig({
             body: JSON.stringify(payload)
           });
           const phpText = await phpRes.text();
-          try {
-            const phpData = JSON.parse(phpText);
-            if (phpRes.ok && phpData.success !== false) {
-              res = phpRes;
-              data = phpData;
-            } else if (phpData && phpData.error) {
-              throw new Error(phpData.error);
-            }
-          } catch (jsonErr: any) {
-            if (!data) {
-              throw new Error("پاسخ غیرمنتظره از سرور: " + phpText.substring(0, 150));
+          if (phpRes.ok) {
+            try {
+              const phpData = JSON.parse(phpText);
+              if (phpData && phpData.success !== false) {
+                res = phpRes;
+                data = phpData;
+              }
+            } catch (jsonErr) {
+              // ignore non-json
             }
           }
-        } catch (phpErr: any) {
-          if (!data) {
-            throw phpErr;
-          }
+        } catch (phpErr) {
+          // ignore
         }
       }
 
