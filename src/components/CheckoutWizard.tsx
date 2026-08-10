@@ -13,6 +13,7 @@ import {
   Upload, 
   Truck, 
   ShieldCheck, 
+  PhoneCall,
   Trash2, 
   Plus, 
   Minus, 
@@ -295,12 +296,25 @@ export default function CheckoutWizard({
                   <p className="text-[10px] text-slate-400 font-bold">فرآیند ۴ مرحله‌ای شفاف و مستقیم با خط تولید</p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href="tel:09999123001"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all shadow-xs group border border-emerald-500/30"
+                  title="تماس تلفنی با پشتیبانی مشتریان"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <PhoneCall size={13} className="text-amber-300 group-hover:rotate-12 transition-transform" />
+                    <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                  </div>
+                  <span>پشتیبانی مشتریان</span>
+                </a>
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Step Wizard Bar */}

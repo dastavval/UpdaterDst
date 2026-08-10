@@ -1,4 +1,4 @@
-import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info } from "lucide-react";
+import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
@@ -522,15 +522,30 @@ export default function Navbar({
                 </button>
               )}
 
+              {/* Support Call Button Next to Cart */}
+              <a
+                href="tel:09999123001"
+                className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs shrink-0 group border border-emerald-500/30"
+                title="تماس تلفنی با پشتیبانی مشتریان"
+              >
+                <div className="relative flex items-center justify-center">
+                  <PhoneCall size={15} className="text-amber-300 group-hover:rotate-12 transition-transform" />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                </div>
+                <span className="font-bold">پشتیبانی مشتریان</span>
+              </a>
+
               {/* Cart Button */}
               <button 
                 onClick={onCartClick} 
-                className="p-2 text-slate-700 bg-slate-100 rounded-xl relative hover:scale-105 transition-transform cursor-pointer"
+                className="p-2 sm:px-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl relative hover:scale-105 transition-transform cursor-pointer flex items-center gap-1.5"
                 aria-label="View Cart"
+                title="مشاهده سبد خرید"
               >
-                <ShoppingCart size={16} />
+                <ShoppingCart size={18} />
+                <span className="text-xs font-black hidden xs:inline">سبد خرید</span>
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-600 text-white text-[8px] rounded-full flex items-center justify-center font-bold">
+                  <span className="w-4.5 h-4.5 bg-rose-600 text-white text-[10px] rounded-full flex items-center justify-center font-black shadow-xs">
                     {cartCount}
                   </span>
                 )}

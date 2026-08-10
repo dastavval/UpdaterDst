@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, ChevronRight, Package, Search, Filter, X, Plus, Minus } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Package, Search, Filter, X, Plus, Minus, PhoneCall } from 'lucide-react';
 import { Product } from '../types';
 
 interface QuickOrderListProps {
@@ -271,9 +271,20 @@ export default function QuickOrderList({
                   }, 0)).toLocaleString('fa-IR')} تومان
                 </span>
               </div>
+              <a 
+                href="tel:09999123001"
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-3.5 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer shadow-xs flex items-center gap-1.5 group border border-emerald-500/30"
+                title="تماس مستقیم با پشتیبانی مشتریان"
+              >
+                <div className="relative flex items-center justify-center">
+                  <PhoneCall size={14} className="text-amber-300 group-hover:rotate-12 transition-transform" />
+                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                </div>
+                <span>پشتیبانی مشتریان</span>
+              </a>
               <button 
                 onClick={onCheckout}
-                className="bg-purple-700 text-white px-6 py-2.5 rounded-xl font-black text-xs hover transition-all cursor-pointer shadow-sm"
+                className="bg-purple-700 hover:bg-purple-800 text-white px-5 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer shadow-sm"
               >
                 ادامه و ثبت سفارش
               </button>
