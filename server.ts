@@ -456,7 +456,7 @@ app.post("/api/admin/github-update", async (req, res) => {
   console.log(`[GitHub Updater] Initiating update from repository: ${rawRepoUrl} (branch: ${userBranch}, token: ${token ? "Provided" : "None"})`);
 
   try {
-    let cleanUrl = String(rawRepoUrl).trim();
+    let cleanUrl = String(rawRepoUrl).trim().replace(/\/+$/, "");
     cleanUrl = cleanUrl.replace(/^git@github\.com:/i, "https://github.com/");
     cleanUrl = cleanUrl.replace(/\.git$/i, "");
 
@@ -472,6 +472,7 @@ app.post("/api/admin/github-update", async (req, res) => {
     if (matches && matches[1] && matches[2]) {
       ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
     }
+    ownerRepo = ownerRepo.replace(/\.git$/i, "").replace(/\/+$/, "");
 
     if (!ownerRepo || !ownerRepo.includes("/")) {
       return res.status(400).json({
@@ -521,16 +522,23 @@ app.post("/api/admin/github-update", async (req, res) => {
 
     // Determine root prefix inside zip archive (e.g. "b2b-distributor-platform-main/")
     let rootPrefix = "";
-    if (zipEntries.length > 0) {
-      const entryWithSlash = zipEntries.find(e => e.entryName.includes("/"));
-      if (entryWithSlash) {
-        const candidate = entryWithSlash.entryName.split("/")[0] + "/";
-        const matchingCount = zipEntries.filter(e => e.entryName.startsWith(candidate)).length;
-        if (matchingCount >= Math.floor(zipEntries.length * 0.5)) {
-          rootPrefix = candidate;
+    const prefixCounts: Record<string, number> = {};
+    for (const e of zipEntries) {
+      if (e.entryName.includes("/")) {
+        const top = e.entryName.split("/")[0] + "/";
+        if (top !== "__MACOSX/") {
+          prefixCounts[top] = (prefixCounts[top] || 0) + 1;
         }
       }
     }
+    let maxCount = 0;
+    for (const [prefix, count] of Object.entries(prefixCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        rootPrefix = prefix;
+      }
+    }
+    console.log(`[GitHub Updater] Detected archive root prefix: "${rootPrefix}" (${maxCount} files)`);
 
     let updatedFilesCount = 0;
     let databaseUpdated = false;

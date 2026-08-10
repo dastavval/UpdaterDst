@@ -251,23 +251,23 @@ switch ($action) {
             $root_dir = dirname(__DIR__); // روت اصلی هاست
             $rootPrefix = '';
             
-            // تشخیص فوق‌العاده هوشمندانه روت‌پرفیکس (پوشه اتوماتیک ساخته شده توسط گیت‌هاب)
-            if ($zip->numFiles > 0) {
-                $firstEntry = $zip->getNameIndex(0);
-                $firstParts = explode('/', $firstEntry);
-                if (count($firstParts) > 1 && !empty($firstParts[0])) {
-                    $candidate = $firstParts[0] . '/';
-                    $allStartWithCandidate = true;
-                    for ($k = 0; $k < $zip->numFiles; $k++) {
-                        $name = $zip->getNameIndex($k);
-                        if (strpos($name, $candidate) !== 0) {
-                            $allStartWithCandidate = false;
-                            break;
-                        }
+            // تشخیص فوق‌العاده هوشمندانه روت‌پرفیکس بر اساس بیشترین تکرار پوشه فرعی گیت‌هاب
+            $dirCounts = [];
+            for ($k = 0; $k < $zip->numFiles; $k++) {
+                $name = $zip->getNameIndex($k);
+                $parts = explode('/', $name);
+                if (count($parts) > 1 && !empty($parts[0])) {
+                    $top = $parts[0] . '/';
+                    if ($top !== '__MACOSX/') {
+                        $dirCounts[$top] = isset($dirCounts[$top]) ? $dirCounts[$top] + 1 : 1;
                     }
-                    if ($allStartWithCandidate) {
-                        $rootPrefix = $candidate;
-                    }
+                }
+            }
+            $maxC = 0;
+            foreach ($dirCounts as $dirName => $count) {
+                if ($count > $maxC) {
+                    $maxC = $count;
+                    $rootPrefix = $dirName;
                 }
             }
 

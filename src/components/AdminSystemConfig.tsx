@@ -260,6 +260,71 @@ export default function AdminSystemConfig({
     }
   };
 
+  // Handler: Test GitHub Connection
+  const handleGitHubTest = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog(`تست اتصال به مخزن گیت‌هاب: ${githubRepoUrl} (شاخه ${githubBranch})`);
+    
+    try {
+      if (!githubRepoUrl.trim()) {
+        throw new Error("آدرس مخزن گیت‌هاب نمی‌تواند خالی باشد.");
+      }
+      const payload = {
+        repoUrl: githubRepoUrl.trim(),
+        branch: githubBranch.trim() || "main",
+        token: githubToken.trim()
+      };
+
+      let res: Response | null = null;
+      let data: any = null;
+
+      try {
+        res = await fetch("/api/admin/github-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (err) {
+        console.warn("Node test fetch failed, trying PHP fallback...", err);
+      }
+
+      if (!data || data.success === false) {
+        try {
+          const phpRes = await fetch("php/api.php?action=admin/github-test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const phpData = await phpRes.json();
+          if (phpRes.ok && phpData.success) {
+            data = phpData;
+          } else if (phpData && phpData.error) {
+            throw new Error(phpData.error);
+          }
+        } catch (phpErr: any) {
+          if (!data) throw phpErr;
+        }
+      }
+
+      if (!data || data.success === false) {
+        throw new Error(data?.error || "ارتباط با مخزن گیت‌هاب برقرار نشد.");
+      }
+
+      addLog(`نتیجه تست اتصال: ${data.message}`);
+      setSuccessMsg(`تست اتصال با موفقیت انجام شد! فایل فشرده مخزن ${data.ownerRepo} شناسایی گردید (${data.zipSizeKb} KB).`);
+    } catch (err: any) {
+      setErrorMsg("خطا در تست اتصال گیت‌هاب: " + err.message);
+      addLog("خطا در تست اتصال: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handler: GitHub Live Pull & Sync
   const handleGitHubSync = async () => {
     setLoading(true);
@@ -721,14 +786,27 @@ export default function AdminSystemConfig({
               </div>
             </div>
 
-            <button
-              onClick={handleGitHubSync}
-              disabled={loading}
-              className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 hover:brightness-110 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-purple-900/20 flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              {loading ? <RefreshCw size={18} className="animate-spin" /> : <GitBranch size={18} className="text-amber-400" />}
-              <span>🚀 اجرای فوری بروزرسانی سیستم از گیت‌هاب</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleGitHubTest}
+                disabled={loading}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border border-slate-300"
+              >
+                {loading ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} className="text-emerald-600" />}
+                <span>بررسی و تست اتصال</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGitHubSync}
+                disabled={loading}
+                className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 hover:brightness-110 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-purple-900/20 flex items-center gap-2 cursor-pointer active:scale-95"
+              >
+                {loading ? <RefreshCw size={18} className="animate-spin" /> : <GitBranch size={18} className="text-amber-400" />}
+                <span>🚀 اجرای فوری بروزرسانی سیستم از گیت‌هاب</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
