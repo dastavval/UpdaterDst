@@ -126,25 +126,32 @@ switch ($action) {
         // تابع کمکی اختصاصی برای دریافت محتوا با مدیریت کامل Redirectها بدون وابستگی به CURLOPT_FOLLOWLOCATION (سازگار با open_basedir هاست‌های ایران)
         $fetchUrlWithRedirects = function($url, $token, &$lastCode) {
             $currentUrl = $url;
-            $maxRedirects = 8;
+            $maxRedirects = 10;
             $redirectCount = 0;
 
             while ($redirectCount < $maxRedirects) {
+                $isS3orCodeload = (
+                    strpos($currentUrl, 'objects.githubusercontent.com') !== false ||
+                    strpos($currentUrl, 'codeload.github.com') !== false ||
+                    strpos($currentUrl, 'Signature=') !== false ||
+                    strpos($currentUrl, 'X-Amz-') !== false
+                );
+
                 if (function_exists('curl_init')) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $currentUrl);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HEADER, true);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/4.0');
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/5.0');
                     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
                     $headers = [
-                        'Accept: application/vnd.github+json',
-                        'User-Agent: Dastavval-Updater/4.0'
+                        'Accept: application/vnd.github+json, application/zip, application/octet-stream, */*',
+                        'User-Agent: Dastavval-Updater/5.0'
                     ];
-                    if (!empty($token)) {
+                    if (!empty($token) && !$isS3orCodeload && (strpos($currentUrl, 'github.com') !== false || strpos($currentUrl, 'api.github.com') !== false)) {
                         $headers[] = "Authorization: Bearer " . $token;
                     }
                     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -176,10 +183,10 @@ switch ($action) {
                 // Fallback stream context
                 if (ini_get('allow_url_fopen')) {
                     $headers_arr = [
-                        'User-Agent: Dastavval-Updater/4.0',
-                        'Accept: application/vnd.github+json'
+                        'User-Agent: Dastavval-Updater/5.0',
+                        'Accept: application/vnd.github+json, application/zip, application/octet-stream, */*'
                     ];
-                    if (!empty($token)) {
+                    if (!empty($token) && !$isS3orCodeload && (strpos($currentUrl, 'github.com') !== false || strpos($currentUrl, 'api.github.com') !== false)) {
                         $headers_arr[] = "Authorization: Bearer " . $token;
                     }
 

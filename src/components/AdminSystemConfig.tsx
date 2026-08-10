@@ -263,30 +263,88 @@ export default function AdminSystemConfig({
   // Handler: GitHub Live Pull & Sync
   const handleGitHubSync = async () => {
     setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
     addLog(`شروع فرآیند Fetch و Pull از مخزن Git: ${githubRepoUrl} (شاخه ${githubBranch})`);
+    
     try {
+      if (!githubRepoUrl.trim()) {
+        throw new Error("آدرس مخزن گیت‌هاب نمی‌تواند خالی باشد.");
+      }
+
       addLog("در حال برقراری ارتباط با سرور و ارسال درخواست بروزرسانی...");
-      const res = await fetch("/api/admin/github-update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          repoUrl: githubRepoUrl,
-          branch: githubBranch,
-          token: githubToken
-        })
-      });
+      
+      const payload = {
+        repoUrl: githubRepoUrl.trim(),
+        branch: githubBranch.trim() || "main",
+        token: githubToken.trim()
+      };
 
-      const data = await res.json();
+      let res: Response | null = null;
+      let data: any = null;
+      let responseText = "";
 
-      if (!res.ok || data.success === false) {
-        throw new Error(data.error || "سرور درخواست را رد کرد یا با خطا مواجه شد.");
+      // Endpoint 1: Express Node.js route
+      try {
+        res = await fetch("/api/admin/github-update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          responseText = await res.text();
+          try {
+            data = JSON.parse(responseText);
+          } catch (e) {
+            data = null;
+          }
+        }
+      } catch (err) {
+        console.warn("Node endpoint fetch failed, trying PHP endpoint fallback...", err);
+      }
+
+      // Endpoint 2: Fallback PHP cPanel API
+      if (!res || !res.ok || !data || data.success === false) {
+        if (data && data.error) {
+          addLog(`هشدار از اندپوئینت اصلی: ${data.error} - تلاش با اندپوئینت PHP cPanel...`);
+        }
+        try {
+          const phpRes = await fetch("php/api.php?action=admin/github-update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const phpText = await phpRes.text();
+          try {
+            const phpData = JSON.parse(phpText);
+            if (phpRes.ok && phpData.success !== false) {
+              res = phpRes;
+              data = phpData;
+            } else if (phpData && phpData.error) {
+              throw new Error(phpData.error);
+            }
+          } catch (jsonErr: any) {
+            if (!data) {
+              throw new Error("پاسخ غیرمنتظره از سرور: " + phpText.substring(0, 150));
+            }
+          }
+        } catch (phpErr: any) {
+          if (!data) {
+            throw phpErr;
+          }
+        }
+      }
+
+      if (!data || data.success === false) {
+        throw new Error(data?.error || "سرور درخواست بروزرسانی را رد کرد یا با خطا مواجه شد.");
       }
 
       addLog("دریافت آخرین کدها از مخزن GitHub با موفقیت انجام شد.");
       addLog(`تعداد کل فایل‌های بروزرسانی و استخراج شده: ${data.updatedFilesCount || 0}`);
-      addLog("سرویس با نسخه جدید همگام‌سازی و بروزرسانی شد.");
+      if (data.databaseUpdated) {
+        addLog("دیتابیس سیستم نیز با فایل SQL مخزن همگام‌سازی و به‌روز شد.");
+      }
+      addLog("سرویس با آخرین نسخه گیت‌هاب همگام‌سازی و بروزرسانی گردید.");
 
       const newCommitHash = data.commitHash || Math.random().toString(36).substring(2, 9);
       setLastCommitInfo({

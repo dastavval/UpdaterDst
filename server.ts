@@ -388,22 +388,89 @@ app.post("/api/admin/ai-config", (req, res) => {
 });
 
 // --- GITHUB AUTO UPDATE ENDPOINT ---
-app.post("/api/admin/github-update", async (req, res) => {
-  const repoUrl = req.body.repoUrl || "https://github.com/dastavval/UpdaterDst";
-  const branch = req.body.branch || "main";
-  const token = req.body.token || "";
+async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buffer; finalUrl: string } | null> {
+  let currentUrl = url;
+  let maxRedirects = 10;
+  let redirectCount = 0;
 
-  console.log(`[GitHub Updater] Initiating update from repository: ${repoUrl} (branch: ${branch}, token: ${token ? "Provided" : "None"})`);
+  while (redirectCount < maxRedirects) {
+    console.log(`[GitHub Updater] Fetching: ${currentUrl} (Redirect level: ${redirectCount})`);
+
+    const isS3orCodeload = currentUrl.includes("objects.githubusercontent.com") ||
+                           currentUrl.includes("codeload.github.com") ||
+                           currentUrl.includes("Signature=") ||
+                           currentUrl.includes("X-Amz-");
+
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/5.0",
+      "Accept": "application/vnd.github+json, application/zip, application/octet-stream, */*"
+    };
+
+    // Only send Authorization header to github.com / api.github.com, never to AWS S3 or codeload
+    if (token && !isS3orCodeload && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(currentUrl, {
+        headers,
+        redirect: "manual"
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (location) {
+          currentUrl = location;
+          redirectCount++;
+          continue;
+        }
+      }
+
+      if (response.status === 200) {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        // Check for ZIP magic number (PK\x03\x04 -> 0x50, 0x4b, 0x03, 0x04)
+        if (buffer.length > 100 && buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
+          return { buffer, finalUrl: currentUrl };
+        } else {
+          console.warn(`[GitHub Updater] URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
+        }
+      } else {
+        console.warn(`[GitHub Updater] URL ${currentUrl} returned HTTP status ${response.status}`);
+      }
+    } catch (err: any) {
+      console.error(`[GitHub Updater] Error fetching ${currentUrl}:`, err.message);
+    }
+
+    break;
+  }
+
+  return null;
+}
+
+app.post("/api/admin/github-update", async (req, res) => {
+  const rawRepoUrl = req.body.repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git";
+  const userBranch = (req.body.branch || "main").trim();
+  const token = (req.body.token || "").trim();
+
+  console.log(`[GitHub Updater] Initiating update from repository: ${rawRepoUrl} (branch: ${userBranch}, token: ${token ? "Provided" : "None"})`);
 
   try {
+    let cleanUrl = String(rawRepoUrl).trim();
+    cleanUrl = cleanUrl.replace(/^git@github\.com:/i, "https://github.com/");
+    cleanUrl = cleanUrl.replace(/\.git$/i, "");
+
+    let extractedBranch = userBranch;
+    const treeMatch = cleanUrl.match(/\/tree\/([^\/\s\?\#]+)/i);
+    if (treeMatch && treeMatch[1]) {
+      extractedBranch = treeMatch[1];
+      cleanUrl = cleanUrl.replace(/\/tree\/[^\/\s\?\#]+.*/i, "");
+    }
+
     let ownerRepo = "";
-    const matches = String(repoUrl).match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\.\?\s\#]+)/i);
+    const matches = cleanUrl.match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\s\?\#]+)/i);
     if (matches && matches[1] && matches[2]) {
-      ownerRepo = `${matches[1].trim()}/${matches[2].trim().replace(/\.git$/i, "")}`;
-    } else {
-      let cleanRepoUrl = String(repoUrl).trim().replace(/\.git$/i, "");
-      cleanRepoUrl = cleanRepoUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
-      ownerRepo = cleanRepoUrl.replace(/^\/+|\/+$/g, "");
+      ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
     }
 
     if (!ownerRepo || !ownerRepo.includes("/")) {
@@ -413,63 +480,36 @@ app.post("/api/admin/github-update", async (req, res) => {
       });
     }
 
-    // Prepare candidate download URLs with branch fallbacks
-    const zipUrls = [
-      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${branch}`,
-      `https://github.com/${ownerRepo}/archive/refs/heads/${branch}.zip`,
-      `https://api.github.com/repos/${ownerRepo}/zipball/${branch}`,
-      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/main`,
-      `https://github.com/${ownerRepo}/archive/refs/heads/main.zip`,
-      `https://codeload.github.com/${ownerRepo}/zip/refs/heads/master`,
-      `https://github.com/${ownerRepo}/archive/refs/heads/master.zip`
-    ];
+    // Build candidate URLs
+    const branchesToTry = Array.from(new Set([extractedBranch, userBranch, "main", "master"])).filter(Boolean);
+    const zipUrls: string[] = [];
 
-    let zipResponse: any = null;
+    for (const b of branchesToTry) {
+      zipUrls.push(`https://api.github.com/repos/${ownerRepo}/zipball/${b}`);
+      zipUrls.push(`https://codeload.github.com/${ownerRepo}/zip/refs/heads/${b}`);
+      zipUrls.push(`https://github.com/${ownerRepo}/archive/refs/heads/${b}.zip`);
+    }
+
+    let result: { buffer: Buffer; finalUrl: string } | null = null;
     let successfulUrl = "";
 
-    for (const url of zipUrls) {
-      try {
-        console.log(`[GitHub Updater] Attempting download: ${url}`);
-        const headers: Record<string, string> = {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/5.0",
-          "Accept": "application/vnd.github+json"
-        };
-
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(url, { headers, redirect: "follow" });
-
-        if (response.ok) {
-          zipResponse = response;
-          successfulUrl = url;
-          console.log(`[GitHub Updater] Successfully fetched zip from ${url}`);
-          break;
-        }
-      } catch (fetchErr: any) {
-        console.log(`[GitHub Updater] Failed ${url}:`, fetchErr.message);
+    for (const candidateUrl of zipUrls) {
+      console.log(`[GitHub Updater] Trying candidate URL: ${candidateUrl}`);
+      result = await fetchGithubZip(candidateUrl, token);
+      if (result) {
+        successfulUrl = candidateUrl;
+        break;
       }
     }
 
-    if (!zipResponse) {
+    if (!result) {
       return res.status(400).json({
         success: false,
-        error: `امکان دریافت فایل فشرده سورس‌کد و دیتابیس از مخزن ${ownerRepo} میسر نشد. لطفاً از عمومی (Public) بودن مخزن یا صحت توکن دسترسی/نام شاخه مطمئن شوید.`
+        error: `امکان دریافت فایل فشرده سورس‌کد از مخزن ${ownerRepo} میسر نشد. لطفاً از عمومی (Public) بودن مخزن یا صحت توکن دسترسی (PAT) و نام شاخه (${userBranch}) مطمئن شوید.`
       });
     }
 
-    const arrayBuffer = await zipResponse.arrayBuffer();
-    const zipBuffer = Buffer.from(arrayBuffer);
-
-    if (zipBuffer.length < 100) {
-      return res.status(400).json({
-        success: false,
-        error: "فایل دریافتی از مخزن گیت‌هاب معتبر نمی‌باشد (حجم فایل بسیار ناچیز است)."
-      });
-    }
-
-    const zip = new AdmZip(zipBuffer);
+    const zip = new AdmZip(result.buffer);
     const zipEntries = zip.getEntries();
 
     if (zipEntries.length === 0) {
@@ -479,7 +519,7 @@ app.post("/api/admin/github-update", async (req, res) => {
       });
     }
 
-    // Determine root prefix inside the zip archive (e.g. "UpdaterDst-main/")
+    // Determine root prefix inside zip archive (e.g. "b2b-distributor-platform-main/")
     let rootPrefix = "";
     if (zipEntries.length > 0) {
       const entryWithSlash = zipEntries.find(e => e.entryName.includes("/"));
@@ -495,7 +535,6 @@ app.post("/api/admin/github-update", async (req, res) => {
     let updatedFilesCount = 0;
     let databaseUpdated = false;
     const updatedFileList: string[] = [];
-
     const excludes = ["node_modules", ".git", ".env"];
 
     for (const entry of zipEntries) {
@@ -513,8 +552,9 @@ app.post("/api/admin/github-update", async (req, res) => {
         continue;
       }
 
-      // If the extracted file is inside dist/, also copy it to project root for static serving
+      // Write original file
       const targetPaths = [path.join(process.cwd(), relPath)];
+      // If file is inside dist/, also copy it to project root for direct serving
       if (relPath.startsWith("dist/")) {
         targetPaths.push(path.join(process.cwd(), relPath.substring(5)));
       }
@@ -552,7 +592,7 @@ app.post("/api/admin/github-update", async (req, res) => {
       }
     }
 
-    // Rebuild project
+    // Rebuild project if possible
     console.log("[GitHub Updater] Executing build command (npm run build)...");
     try {
       execSync("npm run build", { stdio: "inherit" });
