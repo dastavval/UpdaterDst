@@ -418,10 +418,12 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
 
       const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
       const rateLimitReset = response.headers.get("x-ratelimit-reset");
-      const rateLimitLimit = response.headers.get("x-ratelimit-limit");
 
-      if (response.status === 401 || response.status === 403 || response.status === 429) {
-        console.error(`[GitHub Updater Error] Connection rejected with HTTP ${response.status}. Auth Token Provided: ${!!token}, RateLimit Limit: ${rateLimitLimit}, Remaining: ${rateLimitRemaining}, Reset Timestamp: ${rateLimitReset}`);
+      if (response.status === 401 || response.status === 403 || response.status === 404) {
+        console.error(`[GitHub Updater Error] HTTP ${response.status} at ${currentUrl}. Remaining: ${rateLimitRemaining}`);
+        if (response.status === 404) {
+          console.warn("[GitHub Updater] Resource not found. This might be a private repo needing a token or an invalid branch/tag.");
+        }
       }
 
       if (response.status >= 300 && response.status < 400) {

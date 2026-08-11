@@ -1934,20 +1934,31 @@ export default function AdminSystemConfig({
 
               <div className="p-8 space-y-8">
                 {/* Repository Health & Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-3">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
                       <Code2 size={14} />
-                      <span className="text-[10px] font-black">شاخه فعال</span>
+                      <span className="text-[10px] font-black">شاخه یا تگ فعال (Ref)</span>
                     </div>
-                    <p className="text-sm font-black text-slate-300">{githubBranch}</p>
+                    <input 
+                      type="text"
+                      value={githubBranch}
+                      onChange={(e) => setGithubBranch(e.target.value)}
+                      placeholder="main, master, v1.0 ..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-black text-white focus:border-indigo-500 outline-none transition-all"
+                    />
+                    <p className="text-[9px] text-slate-500 font-bold">نام Branch یا Tag مورد نظر برای بروزرسانی را وارد کنید.</p>
                   </div>
                   <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
                       <Activity size={14} />
                       <span className="text-[10px] font-black">وضعیت سرویس</span>
                     </div>
-                    <p className="text-sm font-black text-emerald-400">عملیاتی (Connected)</p>
+                    <p className="text-sm font-black text-emerald-400 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      عملیاتی (Connected)
+                    </p>
+                    <p className="text-[9px] text-slate-500 font-bold mt-2">ارتباط با API گیت‌هاب برقرار است.</p>
                   </div>
                   <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
@@ -1957,6 +1968,15 @@ export default function AdminSystemConfig({
                     <p className="text-sm font-black text-slate-300">
                       {b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleString('fa-IR') : 'ثبت نشده'}
                     </p>
+                    <p className="text-[9px] text-slate-500 font-bold mt-2">زمان دقیق آخرین همگام‌سازی موفق</p>
+                  </div>
+                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                    <div className="flex items-center gap-2 text-slate-500 mb-1">
+                      <ShieldCheck size={14} />
+                      <span className="text-[10px] font-black">سطح امنیت</span>
+                    </div>
+                    <p className="text-sm font-black text-indigo-400">SSL / OAuth 2.0</p>
+                    <p className="text-[9px] text-slate-500 font-bold mt-2">اتصال امن و رمزنگاری شده</p>
                   </div>
                 </div>
 
