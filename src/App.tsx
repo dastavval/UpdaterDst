@@ -1666,24 +1666,6 @@ export default function App() {
                   >
                     بازگشت به پیشخوان اصلی
                   </button>
-                  <button 
-                    onClick={() => {
-                      const adminAccount = {
-                        name: "مدیر ارشد پلتفرم",
-                        email: "admin@dastavval.ir",
-                        role: "admin",
-                        userCode: "ADM-001",
-                        company: "دفتر مرکزی دست اول",
-                        badge: "admin"
-                      };
-                      setUser(adminAccount);
-                      setUserBadge("admin");
-                      localStorage.setItem('dastavval_user', JSON.stringify(adminAccount));
-                    }}
-                    className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-2xl font-black text-xs shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-amber-300"
-                  >
-                    🛡️ ورود سریع یک‌کلیکه به عنوان مدیر ارشد (Admin HQ)
-                  </button>
                 </div>
               </div>
             )

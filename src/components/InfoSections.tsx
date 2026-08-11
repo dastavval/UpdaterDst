@@ -845,54 +845,52 @@ export function InteractiveEarningsCalculator({ theme }: { theme: 'light' | 'dar
           </div>
         </div>
 
-        <div className={`lg:col-span-6 rounded-3xl p-6 text-right space-y-4 border shadow-xl relative overflow-hidden ${
-          theme === 'dark' ? 'bg-slate-50 text-white border-slate-800' : 'bg-gradient-to-br from-emerald-600 to-emerald-800 text-white border-emerald-500'
-        }`}>
-          <div className="absolute top-0 left-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
+        <div className="lg:col-span-6 rounded-3xl p-6 text-right space-y-4 bg-white text-slate-900 border border-slate-200/80 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl" />
           
-          <div className="border-b border-white/10 pb-3 flex justify-between items-center">
-            <span className="text-[10px] bg-white/10 text-emerald-100 px-2 py-0.5 rounded font-mono font-bold">CALCULATOR TIER v2.5</span>
-            <span className="text-xs font-black text-amber-300">{specs.label}</span>
+          <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-mono font-bold">CALCULATOR TIER v2.5</span>
+            <span className="text-xs font-black text-amber-600">{specs.label}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-xs font-bold pt-2">
             <div className="space-y-1">
-              <span className="text-emerald-200 block">میانگین سود در کارتن:</span>
-              <span className="text-white font-black">{specs.avgProfitPerCarton.toLocaleString()} تومان</span>
+              <span className="text-slate-500 block">میانگین سود در کارتن:</span>
+              <span className="text-slate-900 font-black">{specs.avgProfitPerCarton.toLocaleString()} تومان</span>
             </div>
             <div className="space-y-1">
-              <span className="text-emerald-200 block">مدل سود ناخالص:</span>
-              <span className="text-white font-black">{specs.marginText}</span>
+              <span className="text-slate-500 block">مدل سود ناخالص:</span>
+              <span className="text-slate-900 font-black">{specs.marginText}</span>
             </div>
           </div>
 
-          <div className="space-y-1.5 pt-2 border-t border-white/10">
-            <span className="text-[11px] text-emerald-200 font-bold block">سود خام توزیع محصولات:</span>
-            <span className="text-sm font-black text-white">{grossProfit.toLocaleString()} تومان</span>
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <span className="text-[11px] text-slate-500 font-bold block">سود خام توزیع محصولات:</span>
+            <span className="text-sm font-black text-slate-900">{grossProfit.toLocaleString()} تومان</span>
           </div>
 
           {platformBonus > 0 && (
             <div className="space-y-1.5">
-              <span className="text-[11px] text-amber-300 font-bold block">پاداش مازاد تعاونی (طرح تشویقی):</span>
-              <span className="text-sm font-black text-amber-300">+{platformBonus.toLocaleString()} تومان</span>
+              <span className="text-[11px] text-amber-600 font-bold block">پاداش مازاد تعاونی (طرح تشویقی):</span>
+              <span className="text-sm font-black text-amber-600">+{platformBonus.toLocaleString()} تومان</span>
             </div>
           )}
 
           {specs.baseSalary > 0 && (
             <div className="space-y-1.5">
-              <span className="text-[11px] text-sky-300 font-bold block">پاداش ثابت نمایندگی انحصاری استانی:</span>
-              <span className="text-sm font-black text-sky-300">+{specs.baseSalary.toLocaleString()} تومان</span>
+              <span className="text-[11px] text-blue-600 font-bold block">پاداش ثابت نمایندگی انحصاری استانی:</span>
+              <span className="text-sm font-black text-blue-600">+{specs.baseSalary.toLocaleString()} تومان</span>
             </div>
           )}
 
-          <div className="pt-4 border-t border-white/10 flex justify-between items-end">
+          <div className="pt-4 border-t border-slate-100 flex justify-between items-end">
             <div className="text-left font-mono">
-              <span className="text-2xl font-black text-amber-300">
+              <span className="text-2xl font-black text-emerald-600">
                 {totalEarning.toLocaleString()}
               </span>
-              <span className="text-[11px] font-black text-emerald-200 mr-1">تومان / ماهانه</span>
+              <span className="text-[11px] font-black text-slate-500 mr-1">تومان / ماهانه</span>
             </div>
-            <span className="text-xs font-black text-emerald-100">کل درآمد خالص برآوردی شما:</span>
+            <span className="text-xs font-black text-slate-700">کل درآمد خالص برآوردی شما:</span>
           </div>
         </div>
       </div>
