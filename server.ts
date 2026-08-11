@@ -5,7 +5,7 @@ import AdmZip from "adm-zip";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import { execSync } from "child_process";
+import { execSync, exec } from "child_process";
 
 dotenv.config();
 
@@ -107,6 +107,7 @@ const DEFAULT_B2B_CONFIG = {
     "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
     "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1000"
   ],
+  githubToken: "",
   lastGithubUpdate: null
 };
 

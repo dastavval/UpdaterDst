@@ -42,7 +42,8 @@ import {
   Share2,
   Save,
   Code2,
-  ShieldAlert
+  ShieldAlert,
+  Webhook
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";

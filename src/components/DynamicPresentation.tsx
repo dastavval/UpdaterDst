@@ -559,6 +559,72 @@ export default function DynamicPresentation({
         </div>
       </section>
 
+      {/* --- FEATURED PRODUCTS SECTION --- */}
+      <section className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
+          <div>
+            <h2 className="text-sm sm font-black text-slate-900 flex items-center gap-1.5">
+              <Store size={18} className="text-amber-500" />
+              کالاهای منتخب کارخانه
+            </h2>
+          </div>
+
+          {/* Search Box */}
+          <div className="w-full sm:w-56 relative">
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+              <Search size={14} />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="جستجوی کالا..."
+              className="w-full py-1.5 pr-8 pl-8 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus text-slate-900 text-right"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Products Grid (Max 8) */}
+        {featuredDisplayProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+            {featuredDisplayProducts.map((p, idx) => (
+              <ProductCard
+                key={p.id}
+                index={idx}
+                product={p}
+                onAddToCart={(prod, qty) => {
+                  if (onAddToCart) onAddToCart(prod, qty);
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center bg-white rounded-xl space-y-1">
+            <div className="text-xl">🔍</div>
+            <h4 className="font-black text-xs text-slate-800">کالایی یافت نشد</h4>
+          </div>
+        )}
+
+        {/* View Full Catalog Prominent CTA */}
+        <div className="pt-1 text-center">
+          <button
+            onClick={() => setActiveTab?.('catalog')}
+            className={`w-full sm:w-auto px-6 py-2.5 ${activeColors.catalogBtnBg} hover:opacity-90 text-white font-black text-xs rounded-xl shadow-sm transition-all cursor-pointer inline-flex items-center justify-center gap-2`}
+          >
+            <span>مشاهده لیست کامل محصولات در کاتالوگ عمده</span>
+            <ArrowLeft size={15} />
+          </button>
+        </div>
+      </section>
+
       {/* --- 4 HIGH-IMPACT COMPACT & ANIMATED ACTION BUTTONS --- */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4 border-y border-slate-100/60 my-2">
         {/* Button 1: Wholesale Orders */}
@@ -814,72 +880,6 @@ export default function DynamicPresentation({
             <h4 className="text-xs font-black text-slate-800">سود بنکدار</h4>
             <p className="text-[10px] text-slate-400 font-bold">قیمت کف کارخانه</p>
           </div>
-        </div>
-      </section>
-
-      {/* --- FEATURED PRODUCTS SECTION --- */}
-      <section className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-          <div>
-            <h2 className="text-sm sm font-black text-slate-900 flex items-center gap-1.5">
-              <Store size={18} className="text-amber-500" />
-              کالاهای منتخب کارخانه
-            </h2>
-          </div>
-
-          {/* Search Box */}
-          <div className="w-full sm:w-56 relative">
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-              <Search size={14} />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجوی کالا..."
-              className="w-full py-1.5 pr-8 pl-8 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus text-slate-900 text-right"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Products Grid (Max 8) */}
-        {featuredDisplayProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-            {featuredDisplayProducts.map((p, idx) => (
-              <ProductCard
-                key={p.id}
-                index={idx}
-                product={p}
-                onAddToCart={(prod, qty) => {
-                  if (onAddToCart) onAddToCart(prod, qty);
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="p-6 text-center bg-white rounded-xl space-y-1">
-            <div className="text-xl">🔍</div>
-            <h4 className="font-black text-xs text-slate-800">کالایی یافت نشد</h4>
-          </div>
-        )}
-
-        {/* View Full Catalog Prominent CTA */}
-        <div className="pt-1 text-center">
-          <button
-            onClick={() => setActiveTab?.('catalog')}
-            className={`w-full sm:w-auto px-6 py-2.5 ${activeColors.catalogBtnBg} hover:opacity-90 text-white font-black text-xs rounded-xl shadow-sm transition-all cursor-pointer inline-flex items-center justify-center gap-2`}
-          >
-            <span>مشاهده لیست کامل محصولات در کاتالوگ عمده</span>
-            <ArrowLeft size={15} />
-          </button>
         </div>
       </section>
 
