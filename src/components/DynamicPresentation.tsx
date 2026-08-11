@@ -419,20 +419,20 @@ export default function DynamicPresentation({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-br from-[#d1d1d1] via-[#ffffff] via-[#e5e5e5] via-[#ffffff] to-[#d1d1d1] border-2 border-white shadow-[0_4px_25px_rgba(200,200,200,0.5),inset_0_2px_4px_rgba(255,255,255,1)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
-              {/* Platinum prism reflection */}
+            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-br from-[#e0eafc] via-[#ffffff] via-[#cfd9df] via-[#ffffff] to-[#e0eafc] border-2 border-white/80 shadow-[0_4px_25px_rgba(255,255,255,0.4),inset_0_2px_4px_rgba(255,255,255,1)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
+              {/* Diamond-like prism reflection */}
               <motion.div 
-                animate={{ x: ["-200%", "300%"], rotate: [10, 10] }} 
-                transition={{ repeat: Infinity, duration: 3, ease: "linear" }} 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/90 to-transparent -skew-x-30 pointer-events-none" 
+                animate={{ x: ["-200%", "300%"], rotate: [15, 15] }} 
+                transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }} 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-100/50 via-white/90 via-cyan-100/50 to-transparent -skew-x-45 pointer-events-none" 
               />
               
-              {/* Subtle silver metallic sheen */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(150,150,150,0.15),transparent)] pointer-events-none" />
+              {/* Rainbow diffraction effect (subtle) */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(0,240,255,0.1),transparent)] pointer-events-none" />
               
-              <Sparkles size={14} className="text-slate-500 fill-slate-400/20 shrink-0 relative z-10 animate-pulse" />
+              <Sparkles size={14} className="text-cyan-600 fill-cyan-400/20 shrink-0 relative z-10 animate-pulse" />
               <span className="text-[11px] sm:text-xs font-black tracking-wide text-slate-800 pr-0.5 select-none relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,1)]">
-                « خیر و برکت در صدق معامله هست »
+                « خیر و برکت در صدق معامله است »
               </span>
             </div>
           </div>
@@ -464,6 +464,98 @@ export default function DynamicPresentation({
         {/* Creative Interactive B2B Supply Chain Lifecycle Animation Widget */}
         <div className="relative z-10 w-full lg:w-[480px] shrink-0">
           <SupplyChainLifecycleAnimation onOrderClick={() => setActiveTab?.('order')} />
+        </div>
+      </section>
+
+      {/* --- QUICK CATEGORY NAVIGATION TILES --- */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+          <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+              <Grid size={16} />
+            </div>
+            <span>دسته بندی ها</span>
+          </h2>
+          <button 
+            onClick={() => setActiveTab?.('order')}
+            className="text-[11px] font-black text-emerald-800 hover:text-emerald-900 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/60"
+          >
+            <span>مشاهده</span>
+            <ArrowLeft size={13} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          {categoriesList.map((cat) => {
+            const itemCount = cat.id === "همه" 
+              ? products.length 
+              : products.filter(p => isCategoryMatch(p, cat.id)).length;
+            const isSelected = selectedCategory === cat.id;
+
+            return (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  const targetCat = cat.id === "همه" ? "همه" : cat.id;
+                  setSelectedCategory(targetCat);
+                  if (setActiveCategory) setActiveCategory(targetCat);
+                }}
+                className={`group relative rounded-2xl overflow-hidden border transition-all text-right flex flex-col justify-between cursor-pointer p-3 space-y-2.5 ${
+                  isSelected
+                    ? "bg-gradient-to-b from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-xl shadow-emerald-900/20 scale-[1.02]"
+                    : "bg-white text-slate-800 border-slate-200 hover:bg-white hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1"
+                }`}
+              >
+                <div className="relative w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
+                  {cat.image ? (
+                    <>
+                      <img 
+                        src={cat.image} 
+                        alt={cat.label} 
+                        onError={(e) => {
+                          e.currentTarget.src = getCategoryImage(cat.label);
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                      />
+                      <div className={`absolute inset-0 ${isSelected ? "bg-emerald-950/30" : "bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent"}`} />
+                      <span className="absolute top-2 right-2 bg-white/95 backdrop-blur-md text-slate-900 w-8 h-8 rounded-xl text-sm flex items-center justify-center font-black shadow-md border border-white/50 z-10">
+                        {cat.icon || "🏷️"}
+                      </span>
+                    </>
+                  ) : (
+                    <div className={`w-full h-full flex flex-col items-center justify-center p-3 relative transition-all duration-300 ${
+                      isSelected 
+                        ? "bg-gradient-to-br from-emerald-800 via-teal-700 to-indigo-900 text-amber-300" 
+                        : "bg-gradient-to-br from-emerald-900 via-slate-900 to-teal-950 text-emerald-300 group-hover:from-emerald-800 group-hover:to-slate-900"
+                    }`}>
+                      {/* B2B All Items Special Badge */}
+                      <span className="text-3xl sm:text-4xl transform group-hover:scale-120 group-hover:rotate-6 transition-all duration-300 drop-shadow-md">
+                        {cat.icon || "✨"}
+                      </span>
+                      <span className="text-[10px] font-black tracking-wider uppercase mt-1 opacity-90 text-amber-200 bg-black/30 px-2 py-0.5 rounded-md border border-white/10">
+                        کاتالوگ کامل
+                      </span>
+                    </div>
+                  )}
+
+                  <span className={`absolute bottom-2 left-2 px-2.5 py-1 rounded-lg text-[9px] font-black shadow-md ${
+                    isSelected ? "bg-amber-400 text-slate-950" : "bg-slate-900/90 backdrop-blur-md text-white border border-white/20"
+                  }`}>
+                    {toPersianNum(itemCount)} کالا
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className={`text-xs sm:text-sm font-black line-clamp-1 ${isSelected ? "text-amber-300" : "text-slate-900 group-hover:text-emerald-700"}`}>
+                    {cat.label}
+                  </h3>
+                  <p className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
+                    تامین مستقیم کارخانه
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -722,98 +814,6 @@ export default function DynamicPresentation({
             <h4 className="text-xs font-black text-slate-800">سود بنکدار</h4>
             <p className="text-[10px] text-slate-400 font-bold">قیمت کف کارخانه</p>
           </div>
-        </div>
-      </section>
-
-      {/* --- QUICK CATEGORY NAVIGATION TILES --- */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-          <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
-              <Grid size={16} />
-            </div>
-            <span>دسته بندی ها</span>
-          </h2>
-          <button 
-            onClick={() => setActiveTab?.('order')}
-            className="text-[11px] font-black text-emerald-800 hover:text-emerald-900 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/60"
-          >
-            <span>مشاهده</span>
-            <ArrowLeft size={13} />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {categoriesList.map((cat) => {
-            const itemCount = cat.id === "همه" 
-              ? products.length 
-              : products.filter(p => isCategoryMatch(p, cat.id)).length;
-            const isSelected = selectedCategory === cat.id;
-
-            return (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  const targetCat = cat.id === "همه" ? "همه" : cat.id;
-                  setSelectedCategory(targetCat);
-                  if (setActiveCategory) setActiveCategory(targetCat);
-                }}
-                className={`group relative rounded-2xl overflow-hidden border transition-all text-right flex flex-col justify-between cursor-pointer p-3 space-y-2.5 ${
-                  isSelected
-                    ? "bg-gradient-to-b from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-xl shadow-emerald-900/20 scale-[1.02]"
-                    : "bg-white text-slate-800 border-slate-200 hover:bg-white hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1"
-                }`}
-              >
-                <div className="relative w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
-                  {cat.image ? (
-                    <>
-                      <img 
-                        src={cat.image} 
-                        alt={cat.label} 
-                        onError={(e) => {
-                          e.currentTarget.src = getCategoryImage(cat.label);
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                      />
-                      <div className={`absolute inset-0 ${isSelected ? "bg-emerald-950/30" : "bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent"}`} />
-                      <span className="absolute top-2 right-2 bg-white/95 backdrop-blur-md text-slate-900 w-8 h-8 rounded-xl text-sm flex items-center justify-center font-black shadow-md border border-white/50 z-10">
-                        {cat.icon || "🏷️"}
-                      </span>
-                    </>
-                  ) : (
-                    <div className={`w-full h-full flex flex-col items-center justify-center p-3 relative transition-all duration-300 ${
-                      isSelected 
-                        ? "bg-gradient-to-br from-emerald-800 via-teal-700 to-indigo-900 text-amber-300" 
-                        : "bg-gradient-to-br from-emerald-900 via-slate-900 to-teal-950 text-emerald-300 group-hover:from-emerald-800 group-hover:to-slate-900"
-                    }`}>
-                      {/* B2B All Items Special Badge */}
-                      <span className="text-3xl sm:text-4xl transform group-hover:scale-120 group-hover:rotate-6 transition-all duration-300 drop-shadow-md">
-                        {cat.icon || "✨"}
-                      </span>
-                      <span className="text-[10px] font-black tracking-wider uppercase mt-1 opacity-90 text-amber-200 bg-black/30 px-2 py-0.5 rounded-md border border-white/10">
-                        کاتالوگ کامل
-                      </span>
-                    </div>
-                  )}
-
-                  <span className={`absolute bottom-2 left-2 px-2.5 py-1 rounded-lg text-[9px] font-black shadow-md ${
-                    isSelected ? "bg-amber-400 text-slate-950" : "bg-slate-900/90 backdrop-blur-md text-white border border-white/20"
-                  }`}>
-                    {toPersianNum(itemCount)} کالا
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className={`text-xs sm:text-sm font-black line-clamp-1 ${isSelected ? "text-amber-300" : "text-slate-900 group-hover:text-emerald-700"}`}>
-                    {cat.label}
-                  </h3>
-                  <p className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
-                    تامین مستقیم کارخانه
-                  </p>
-                </div>
-              </button>
-            );
-          })}
         </div>
       </section>
 
