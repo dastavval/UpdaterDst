@@ -6,7 +6,7 @@ import {
   GraduationCap, HelpCircle, Lock, BookOpen, Compass
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { InteractiveEarningsCalculator, TermsAndRulesSection } from "./InfoSections";
+import { TermsAndRulesSection } from "./InfoSections";
 
 interface NewsItem {
   id: string;
@@ -170,17 +170,6 @@ export default function B2BNews({
         >
           <Compass size={14} />
           <span>اخبار و تولیدی‌ها</span>
-        </button>
-        <button
-          onClick={() => setExploreSubTab('earnings')}
-          className={`flex-1 py-2.5 px-1 rounded-xl text-[10px] sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            exploreSubTab === 'earnings'
-              ? 'bg-white text-emerald-600 shadow-md shadow-emerald-500/5'
-              : 'text-slate-500 hover'
-          }`}
-        >
-          <TrendingUp size={14} />
-          <span>طرح درآمدزایی</span>
         </button>
         <button
           onClick={() => setExploreSubTab('education')}
@@ -503,12 +492,6 @@ export default function B2BNews({
         )}
       </section>
       </>
-      )}
-
-      {exploreSubTab === 'earnings' && (
-        <div className="space-y-6 animate-fadeIn">
-          <InteractiveEarningsCalculator theme="light" />
-        </div>
       )}
 
       {exploreSubTab === 'terms' && (
