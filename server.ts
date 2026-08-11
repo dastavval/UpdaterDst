@@ -567,8 +567,9 @@ app.post("/api/admin/github-update", async (req, res) => {
   const rawRepoUrl = req.body.repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git";
   const userBranch = (req.body.branch || "main").trim();
   const token = (req.body.token || "").trim();
+  const hardReset = req.body.hardReset === true;
 
-  console.log(`[GitHub Updater] Initiating update from repository: ${rawRepoUrl} (branch: ${userBranch}, token: ${token ? "Provided" : "None"})`);
+  console.log(`[GitHub Updater] Initiating update from repository: ${rawRepoUrl} (branch: ${userBranch}, Hard Reset: ${hardReset})`);
 
   try {
     let cleanUrl = String(rawRepoUrl).trim().replace(/\/+$/, "");
@@ -676,6 +677,22 @@ app.post("/api/admin/github-update", async (req, res) => {
     let databaseUpdated = false;
     const updatedFileList: string[] = [];
     const excludes = ["node_modules", ".git", ".env"];
+
+    if (hardReset) {
+      console.log("[GitHub Updater] Performing Hard Reset - cleaning up existing directories...");
+      try {
+        const dirsToClean = ["src", "public"];
+        for (const dir of dirsToClean) {
+          const dirPath = path.join(process.cwd(), dir);
+          if (fs.existsSync(dirPath)) {
+            console.log(`[GitHub Updater] Removing ${dirPath}...`);
+            fs.rmSync(dirPath, { recursive: true, force: true });
+          }
+        }
+      } catch (cleanErr: any) {
+        console.warn("[GitHub Updater] Hard Reset cleanup warning:", cleanErr.message);
+      }
+    }
 
     for (const entry of zipEntries) {
       if (entry.isDirectory) continue;

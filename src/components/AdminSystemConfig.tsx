@@ -40,7 +40,9 @@ import {
   Wifi,
   Sparkles,
   Share2,
-  Save
+  Save,
+  Code2,
+  ShieldAlert
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -194,9 +196,6 @@ export default function AdminSystemConfig({
   const [showTopSocialBar, setShowTopSocialBar] = useState(
     b2bConfig.showTopSocialBar ?? false
   );
-  const [showTopAnnouncement, setShowTopAnnouncement] = useState(
-    b2bConfig.showTopAnnouncement ?? false
-  );
 
   const handleSaveSocialConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,8 +210,7 @@ export default function AdminSystemConfig({
         socialChannelsTitle,
         socialChannelsSubtitle,
         pwaPromptDelaySeconds,
-        showTopSocialBar,
-        showTopAnnouncement
+        showTopSocialBar
       } as any);
       addLog("تنظیمات کانال‌های اجتماعی با موفقیت ذخیره شد.");
       setSuccessMsg("لینک کانال‌ها و وضعیت نمایش نوار هدر با موفقیت ذخیره شد.");
@@ -341,11 +339,11 @@ export default function AdminSystemConfig({
   };
 
   // Handler: GitHub Live Pull & Sync
-  const handleGitHubSync = async () => {
+  const handleGitHubSync = async (hardReset: boolean = false) => {
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    addLog(`شروع فرآیند Fetch و Pull از مخزن Git: ${githubRepoUrl} (شاخه ${githubBranch})`);
+    addLog(`شروع فرآیند Fetch و Pull از مخزن Git: ${githubRepoUrl} (شاخه ${githubBranch}) ${hardReset ? '[HARD RESET MODE]' : ''}`);
     
     try {
       if (!githubRepoUrl.trim()) {
@@ -357,7 +355,8 @@ export default function AdminSystemConfig({
       const payload = {
         repoUrl: githubRepoUrl.trim(),
         branch: githubBranch.trim() || "main",
-        token: githubToken.trim()
+        token: githubToken.trim(),
+        hardReset
       };
 
       let res: Response | null = null;
@@ -409,13 +408,7 @@ export default function AdminSystemConfig({
       }
 
       if (!data || data.success === false) {
-        addLog("هشدار دسترسی مستقیم گیت‌هاب: اعمال همگام‌سازی محلی و بروزرسانی خودکار فایل‌ها و دیتابیس...");
-        data = {
-          success: true,
-          message: "سیستم، کدهای جاری و ساختار دیتابیس با موفقیت همگام‌سازی و بروزرسانی شدند (نسخه پایدار اعمال گردید).",
-          updatedFilesCount: 25,
-          databaseUpdated: true
-        };
+        throw new Error(data?.error || "خطا در برقراری ارتباط با سرور گیت‌هاب یا دریافت پکیج بروزرسانی.");
       }
 
       addLog("دریافت و اعمال آخرین تغییرات سامانه با موفقیت انجام شد.");
@@ -437,19 +430,23 @@ export default function AdminSystemConfig({
         githubRepoUrl,
         githubBranch,
         githubToken,
-        githubAutoDeploy
+        githubAutoDeploy,
+        lastGithubUpdate: Date.now()
       } as any);
 
       setSuccessMsg(data.message || "پروژه و دیتابیس با موفقیت همگام‌سازی و به‌روزرسانی شدند!");
       
-      // Perform deep reload after 1.5 seconds to load latest version
+      // Perform deep reload after 2 seconds to load latest version with cache busting
       setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', Date.now().toString());
+        window.location.href = url.toString();
+      }, 2000);
     } catch (err: any) {
-      // Graceful fallback for any unexpected error
-      addLog("اعمال همگام‌سازی اضطراری محلی به دلیل خطای شبکه: " + err.message);
-      setSuccessMsg("سیستم کدهای جاری و ساختار دیتابیس را به عنوان نسخه پایدار همگام‌سازی کرد.");
+      // Show actual error instead of fake success
+      addLog("خطا در همگام‌سازی گیت‌هاب: " + err.message);
+      setSuccessMsg(null as any);
+      alert("بروزرسانی ناموفق بود: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -819,7 +816,7 @@ export default function AdminSystemConfig({
 
               <button
                 type="button"
-                onClick={handleGitHubSync}
+                onClick={() => handleGitHubSync()}
                 disabled={loading}
                 className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 hover:brightness-110 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-purple-900/20 flex items-center gap-2 cursor-pointer active:scale-95"
               >
@@ -1227,14 +1224,14 @@ export default function AdminSystemConfig({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
-                  تنظیمات نوار شبکه‌های اجتماعی
+                  تنظیمات نوار بالایی هدر
                 </span>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${showTopSocialBar ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-700 text-slate-300"}`}>
                   {showTopSocialBar ? "فعال" : "غیرفعال (پیش‌فرض)"}
                 </span>
               </div>
-              <h4 className="text-sm font-black text-white">نمایش نوار دکمه‌های شبکه اجتماعی بالای سایت (Header Bar)</h4>
-              <p className="text-[11px] text-slate-300 font-bold">با فعال‌سازی، دکمه‌های مستقیم کانال روبیکا، تلگرام، واتساپ و اینستاگرام نمایش داده می‌شود.</p>
+              <h4 className="text-sm font-black text-white">نمایش نوار اعلان دکمه‌های شبکه اجتماعی بالای سایت (Header Bar)</h4>
+              <p className="text-[11px] text-slate-300 font-bold">با فعال‌سازی، دکمه‌های مستقیم کانال روبیکا، تلگرام، واتساپ و اینستاگرام در بالاترین بخش تمام صفحات نمایش داده می‌شود.</p>
             </div>
 
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -1245,32 +1242,6 @@ export default function AdminSystemConfig({
                 className="sr-only peer"
               />
               <div className="w-14 h-8 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-purple-600"></div>
-            </label>
-          </div>
-
-          {/* Top Announcement Bar Toggle Banner */}
-          <div className="bg-gradient-to-r from-emerald-900 via-green-900 to-slate-900 text-white p-5 rounded-2xl border border-emerald-500/30 flex items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-green-400 text-slate-950 text-[10px] font-black">
-                  نوار اعلان ویژه (Announcement Bar)
-                </span>
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${showTopAnnouncement ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-700 text-slate-300"}`}>
-                  {showTopAnnouncement ? "فعال" : "غیرفعال (پیش‌فرض)"}
-                </span>
-              </div>
-              <h4 className="text-sm font-black text-white">نمایش نوار سبز پلاستیکی اعلان بالای هدر</h4>
-              <p className="text-[11px] text-slate-300 font-bold">این نوار برای اطلاع‌رسانی تخفیف‌ها و جشنواره‌ها در بالاترین نقطه سایت استفاده می‌شود.</p>
-            </div>
-
-            <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input
-                type="checkbox"
-                checked={showTopAnnouncement}
-                onChange={(e) => setShowTopAnnouncement(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-14 h-8 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-green-500"></div>
             </label>
           </div>
 
@@ -1451,7 +1422,7 @@ export default function AdminSystemConfig({
 
               <button
                 type="button"
-                onClick={handleGitHubSync}
+                onClick={() => handleGitHubSync()}
                 disabled={loading}
                 className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
@@ -1938,6 +1909,97 @@ export default function AdminSystemConfig({
                 <p className="text-[11px] text-slate-300 leading-relaxed font-bold">
                   کدهای Backend PHP درون پوشه <code className="text-blue-300 font-mono">/php/config.php</code> و <code className="text-blue-300 font-mono">/php/api.php</code> قرار دارند.
                 </p>
+              </div>
+            </div>
+
+            {/* GitHub Repo Integration & 1-Click Sync */}
+            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl mb-8">
+              <div className="p-6 border-b border-slate-800 bg-slate-800/30 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-500/20 text-indigo-400 rounded-2xl">
+                    <Network size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">وضعیت اتصال به ریپازیتوری (Repository Connectivity)</h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">مانیتورینگ و مدیریت همگام‌سازی مستقیم با مخزن GitHub</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5 ${githubRepoUrl.includes('dastavval') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                    <ShieldCheck size={12} />
+                    {githubRepoUrl.includes('dastavval') ? 'مخزن رسمی تایید شده' : 'مخزن شخصی/تست'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-8 space-y-8">
+                {/* Repository Health & Info */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                    <div className="flex items-center gap-2 text-slate-500 mb-1">
+                      <Code2 size={14} />
+                      <span className="text-[10px] font-black">شاخه فعال</span>
+                    </div>
+                    <p className="text-sm font-black text-slate-300">{githubBranch}</p>
+                  </div>
+                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                    <div className="flex items-center gap-2 text-slate-500 mb-1">
+                      <Activity size={14} />
+                      <span className="text-[10px] font-black">وضعیت سرویس</span>
+                    </div>
+                    <p className="text-sm font-black text-emerald-400">عملیاتی (Connected)</p>
+                  </div>
+                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                    <div className="flex items-center gap-2 text-slate-500 mb-1">
+                      <Clock size={14} />
+                      <span className="text-[10px] font-black">آخرین بروزرسانی موفق</span>
+                    </div>
+                    <p className="text-sm font-black text-slate-300">
+                      {b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleString('fa-IR') : 'ثبت نشده'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hard Reset Action Banner */}
+                <div className="bg-gradient-to-r from-rose-900/40 via-slate-800 to-slate-800 rounded-[2rem] p-8 border border-rose-500/20 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                    <Terminal size={120} />
+                  </div>
+                  <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8">
+                    <div className="flex-1 space-y-2">
+                      <h4 className="text-lg font-black text-white flex items-center gap-2">
+                        <ShieldAlert className="text-rose-500" size={24} />
+                        همگام‌سازی اجباری (Hard-Reset Sync)
+                      </h4>
+                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed max-w-2xl">
+                        اگر بروزرسانی استاندارد با خطا مواجه می‌شود یا فایل‌ها به درستی جایگزین نشده‌اند، از این گزینه استفاده کنید. 
+                        در این حالت پوشه‌های <b>src</b> و <b>public</b> ابتدا حذف و سپس با نسخه جدید جایگزین می‌شوند.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 shrink-0">
+                      <button 
+                        onClick={() => handleGitHubSync(false)}
+                        disabled={loading}
+                        className="px-6 py-3 bg-white text-slate-900 rounded-2xl text-xs font-black shadow-xl hover:bg-slate-50 transition-all flex items-center gap-2"
+                      >
+                        {loading ? <RefreshCw className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                        بروزرسانی استاندارد
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if(confirm("آیا از انجام Hard-Reset اطمینان دارید؟ این عمل پوشه‌های اصلی پروژه را پاکسازی و مجدداً دانلود می‌کند.")) {
+                            handleGitHubSync(true);
+                          }
+                        }}
+                        disabled={loading}
+                        className="px-6 py-3 bg-rose-600 text-white rounded-2xl text-xs font-black shadow-xl shadow-rose-900/30 hover:bg-rose-700 transition-all flex items-center gap-2"
+                      >
+                        <Zap size={14} />
+                        فورس آپدیت (Hard-Reset)
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

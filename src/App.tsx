@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc } from "./lib/firebase-mock";
 import { db } from "./lib/firebase";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
+import { cacheProducts, getCachedProducts } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
 import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
@@ -208,7 +209,8 @@ export default function App() {
       minOrderAmount: 3000000, // 3 Million Toman default minimum order
       minOrderCartons: 3,
       topAnnouncement: "",
-      showTopAnnouncement: false
+      showTopAnnouncement: false,
+      lastGithubUpdate: null
     };
   });
 
@@ -791,6 +793,13 @@ export default function App() {
 
   const fetchProducts = async () => {
     try {
+      // First try to load from IndexedDB for instant display
+      const cached = await getCachedProducts();
+      if (cached && cached.length > 0) {
+        setProducts(cached);
+        setLoading(false);
+      }
+
       const q = query(collection(db, "products"));
       const querySnapshot = await getDocs(q);
       const fetchedProducts = querySnapshot.docs.map(doc => ({
@@ -799,9 +808,14 @@ export default function App() {
       })) as Product[];
       
       setProducts(fetchedProducts);
+      
+      // Update cache in background
+      if (fetchedProducts.length > 0) {
+        await cacheProducts(fetchedProducts);
+      }
     } catch (error) {
       console.error("Error fetching products from Firestore:", error);
-      setProducts([]);
+      // Fallback is handled by the initial cached state
     } finally {
       setLoading(false);
     }

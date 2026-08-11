@@ -293,6 +293,7 @@ export interface B2BConfig {
   pwaPromptDelaySeconds?: number;
   showTopSocialBar?: boolean;
   githubRepoUrl?: string;
+  lastGithubUpdate?: number | null;
 }
 
 export interface InventoryLog {

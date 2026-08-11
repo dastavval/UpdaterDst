@@ -72,7 +72,7 @@ export default function Navbar({
   logoUrl,
   mascotUrl,
   topAnnouncement = "🚀 تخفیف ویژه جشنواره تابستانه کارخانجات - ارسال مستقیم و هماهنگ‌شده بر اساس ضوابط کارخانه",
-  showTopAnnouncement = false,
+  showTopAnnouncement = true,
   onOpenAnnouncementModal,
   hqAddress,
   supportPhone,
@@ -290,16 +290,22 @@ export default function Navbar({
         {/* Top Announcement Bar */}
         {showTopAnnouncement && topAnnouncement && !isAnnouncementDismissed && (
           <div 
-            className="bg-green-400 text-white text-[11px] font-black py-1.5 px-4 border-b border-green-300 flex items-center justify-between gap-2 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] transition-all group"
+            className="bg-green-500 text-white text-[11px] font-black py-2 px-4 border-b border-green-400 flex items-center justify-between gap-2 overflow-hidden shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_1px_2px_rgba(0,0,0,0.1)] transition-all group relative"
           >
+            {/* Glossy Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
+            
             <div 
               onClick={() => onOpenAnnouncementModal?.()}
-              className="flex-1 flex items-center justify-center gap-2 cursor-pointer truncate"
+              className="flex-1 flex items-center justify-center gap-3 cursor-pointer truncate relative z-10"
             >
-              <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-              <span className="truncate group-hover:underline drop-shadow-sm">{topAnnouncement}</span>
-              <span className="text-[9px] bg-white text-green-600 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black shadow-sm">
-                <span>جزئیات</span>
+              <div className="relative">
+                <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse shrink-0 shadow-[0_0_10px_rgba(255,255,255,1)] block" />
+                <span className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-white animate-ping opacity-75" />
+              </div>
+              <span className="truncate group-hover:underline drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{topAnnouncement}</span>
+              <span className="text-[9px] bg-white text-green-700 px-2.5 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
+                <span>مشاهده جزئیات</span>
                 <span>←</span>
               </span>
             </div>

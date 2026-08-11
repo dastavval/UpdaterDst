@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2 } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -52,6 +52,7 @@ interface AdminPanelProps {
 }
 
 import { AdminSalesCharts } from "./AdminSalesCharts";
+import { getCacheStatus, CacheStatus } from "../lib/db";
 
 type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives';
 
@@ -597,6 +598,18 @@ export default function AdminPanel({
   const [bFormProductId, setBFormProductId] = useState("");
   const [bFormDesc, setBFormDesc] = useState("");
   const [bFormStatus, setBFormStatus] = useState("در انتظار تایید مدارک");
+
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus>({ isHealthy: false, itemCount: 0, lastUpdate: null });
+
+  useEffect(() => {
+    const checkCache = async () => {
+      const status = await getCacheStatus();
+      setCacheStatus(status);
+    };
+    if (activeSubTab === 'dashboard') {
+      checkCache();
+    }
+  }, [activeSubTab]);
 
   // AI Settings states
   const [showAiSettings, setShowAiSettings] = useState(false);
@@ -3684,6 +3697,94 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* GitHub & Cache Status Widget Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl hover transition-all group overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-8 opacity-5">
+                <Network size={160} className="text-white" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-indigo-500/20 text-indigo-400 rounded-[1.5rem]">
+                      <Github size={32} />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-black text-white">وضعیت زیرساخت ابری و همگام‌سازی</h4>
+                      <p className="text-[10px] text-slate-400 font-bold">مانیتورینگ زنده ارتباط با گیت‌هاب و دیتابیس محلی</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-2 ${cacheStatus.isHealthy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${cacheStatus.isHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                      IndexedDB Health: {cacheStatus.isHealthy ? 'Operational' : 'Critical'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8 pt-8 border-t border-slate-800">
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">آخرین سینک گیت‌هاب</p>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-800 rounded-xl text-slate-400">
+                        <Clock size={16} />
+                      </div>
+                      <span className="text-sm font-black text-slate-200">
+                        {b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleTimeString('fa-IR') : 'ثبت نشده'}
+                        <span className="text-[10px] text-slate-500 font-bold mr-2">
+                          ({b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleDateString('fa-IR') : '-'})
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">موجودی کش محصولات</p>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-800 rounded-xl text-slate-400">
+                        <Layers size={16} />
+                      </div>
+                      <span className="text-sm font-black text-slate-200">
+                        {toPersianNum(cacheStatus.itemCount)} <span className="text-[10px] text-slate-500 font-bold">آیتم فعال در IDB</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex gap-3">
+                  <button 
+                    onClick={() => window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'system' } }))}
+                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-black rounded-2xl transition-all border border-slate-700/50 flex items-center justify-center gap-2"
+                  >
+                    <Settings size={14} />
+                    تنظیمات پیشرفته زیرساخت
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-4 -translate-y-4">
+                <Zap size={180} className="text-white" />
+              </div>
+              <div className="relative z-10 h-full flex flex-col justify-between">
+                <div>
+                  <h4 className="text-xl font-black text-white mb-2">میانبر بروزرسانی سریع</h4>
+                  <p className="text-xs text-indigo-100 font-bold leading-relaxed opacity-80">
+                    با یک کلیک تمام کدهای سامانه را با آخرین تغییرات مخزن مرکزی همگام‌سازی کنید.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'system' } }))}
+                  className="mt-8 py-4 bg-white text-indigo-600 font-black text-sm rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                >
+                  <RefreshCw size={18} />
+                  همگام‌سازی لحظه‌ای با گیت‌هاب
+                </button>
               </div>
             </div>
           </div>
