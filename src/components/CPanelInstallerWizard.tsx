@@ -59,23 +59,22 @@ export default function CPanelInstallerWizard({
         })
       });
       const data = await res.json();
-      setSyncSuccess(true);
-      if (onUpdateConfig) {
-        onUpdateConfig({
-          ...b2bConfig,
-          githubRepoUrl: githubUrl,
-          lastGithubSync: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR')
-        });
+      
+      if (data.success) {
+        setSyncSuccess(true);
+        if (onUpdateConfig) {
+          onUpdateConfig({
+            ...b2bConfig,
+            githubRepoUrl: githubUrl,
+            lastGithubSync: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR')
+          });
+        }
+      } else {
+        alert("خطا در بروزرسانی: " + (data.error || "خطای ناشناخته"));
       }
-    } catch (err) {
-      setSyncSuccess(true);
-      if (onUpdateConfig) {
-        onUpdateConfig({
-          ...b2bConfig,
-          githubRepoUrl: githubUrl,
-          lastGithubSync: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR')
-        });
-      }
+    } catch (err: any) {
+      console.error("GitHub Sync Error:", err);
+      alert("خطا در برقراری ارتباط با سرور: " + err.message);
     } finally {
       setIsSyncingGithub(false);
     }

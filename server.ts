@@ -565,218 +565,197 @@ app.post("/api/admin/github-diagnostics", async (req, res) => {
   }
 });
 
-app.post("/api/admin/github-update", async (req, res) => {
-  const rawRepoUrl = req.body.repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git";
-  const userBranch = (req.body.branch || "main").trim();
-  const token = (req.body.token || "").trim();
-  const hardReset = req.body.hardReset === true;
+app.post("/api/admin/github-diagnostics", async (req, res) => {
+  const { repoUrl, branch, token } = req.body;
+  
+  let cleanUrl = (repoUrl || "").replace(/\/+$/, "");
+  let extractedBranch = branch || "main";
+  let ownerRepo = "";
+  
+  const matches = cleanUrl.match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\s\?\#]+)/i);
+  if (matches && matches[1] && matches[2]) {
+    ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
+  }
+  ownerRepo = ownerRepo.replace(/\.git$/i, "");
 
-  console.log(`[GitHub Updater] Initiating update from repository: ${rawRepoUrl} (branch: ${userBranch}, Hard Reset: ${hardReset})`);
+  if (!ownerRepo) {
+    return res.status(400).json({ success: false, error: "Invalid repository" });
+  }
+
+  const testUrls = [
+    `https://api.github.com/repos/${ownerRepo}/zipball/${extractedBranch}`,
+    `https://github.com/${ownerRepo}/archive/refs/heads/${extractedBranch}.zip`,
+    `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${extractedBranch}`
+  ];
+
+  const diagnostics = [];
+  for (const url of testUrls) {
+    try {
+      const headers: any = { "User-Agent": "Dastavval-Diagnostics" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      
+      const response = await fetch(url, { headers, method: "HEAD", redirect: "manual" });
+      diagnostics.push({
+        url,
+        status: response.status,
+        isZip: response.headers.get("content-type")?.includes("zip") || response.status === 302,
+        error: response.status >= 400 ? `HTTP ${response.status}` : null
+      });
+    } catch (e: any) {
+      diagnostics.push({ url, status: "ERROR", error: e.message });
+    }
+  }
+
+  res.json({ success: true, diagnostics });
+});
+
+// Shared function for GitHub updates
+async function performGithubUpdate(repoUrl: string, branch: string, token: string, hardReset: boolean = false) {
+  console.log(`[GitHub Updater Task] Starting update for ${repoUrl} (${branch}, Hard Reset: ${hardReset})`);
+  
+  let cleanUrl = String(repoUrl).trim().replace(/\/+$/, "");
+  cleanUrl = cleanUrl.replace(/^git@github\.com:/i, "https://github.com/");
+  cleanUrl = cleanUrl.replace(/\.git$/i, "");
+
+  let extractedBranch = (branch || "").trim() || "main";
+  const treeMatch = cleanUrl.match(/\/tree\/([^\/\s\?\#]+)/i);
+  if (treeMatch && treeMatch[1]) {
+    extractedBranch = treeMatch[1];
+    cleanUrl = cleanUrl.replace(/\/tree\/[^\/\s\?\#]+.*/i, "");
+  }
+
+  let ownerRepo = "";
+  const matches = cleanUrl.match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\s\?\#]+)/i);
+  if (matches && matches[1] && matches[2]) {
+    ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
+  }
+  ownerRepo = ownerRepo.replace(/\.git$/i, "").replace(/\/+$/, "");
+
+  if (!ownerRepo || !ownerRepo.includes("/")) {
+    throw new Error("آدرس یا نام مخزن گیت‌هاب معتبر نمی‌باشد.");
+  }
+
+  const branchesToTry = Array.from(new Set([extractedBranch, "main", "master"])).filter(Boolean);
+  const zipUrls: string[] = [];
+  for (const b of branchesToTry) {
+    zipUrls.push(`https://api.github.com/repos/${ownerRepo}/zipball/${b}`);
+    zipUrls.push(`https://github.com/${ownerRepo}/archive/refs/heads/${b}.zip`);
+    zipUrls.push(`https://codeload.github.com/${ownerRepo}/zip/refs/heads/${b}`);
+  }
+
+  let result: { buffer: Buffer; finalUrl: string } | null = null;
+  let successfulUrl = "";
+  for (const url of zipUrls) {
+    console.log(`[GitHub Updater Task] Trying candidate URL: ${url}`);
+    result = await fetchGithubZip(url, token);
+    if (result) {
+      successfulUrl = url;
+      break;
+    }
+  }
+
+  if (!result) {
+    throw new Error(`امکان دسترسی به کدها در شاخه های ${branchesToTry.join(", ")} فراهم نشد.`);
+  }
+
+  const zip = new AdmZip(result.buffer);
+  const zipEntries = zip.getEntries();
+  if (zipEntries.length === 0) throw new Error("فایل فشرده دریافتی از گیت‌هاب خالی است.");
+
+  let rootPrefix = "";
+  const prefixCounts: Record<string, number> = {};
+  for (const e of zipEntries) {
+    if (e.entryName.includes("/")) {
+      const top = e.entryName.split("/")[0] + "/";
+      if (top !== "__MACOSX/") prefixCounts[top] = (prefixCounts[top] || 0) + 1;
+    }
+  }
+  let maxCount = 0;
+  for (const [prefix, count] of Object.entries(prefixCounts)) {
+    if (count > maxCount) {
+      maxCount = count;
+      rootPrefix = prefix;
+    }
+  }
+
+  if (hardReset) {
+    const dirsToClean = ["src", "public"];
+    for (const dir of dirsToClean) {
+      const dirPath = path.join(process.cwd(), dir);
+      if (fs.existsSync(dirPath)) fs.rmSync(dirPath, { recursive: true, force: true });
+    }
+  }
+
+  let updatedFilesCount = 0;
+  const excludes = ["node_modules", ".git", ".env"];
+  for (const entry of zipEntries) {
+    if (entry.isDirectory) continue;
+    let relPath = entry.entryName;
+    if (rootPrefix && relPath.startsWith(rootPrefix)) relPath = relPath.substring(rootPrefix.length);
+    if (!relPath) continue;
+    const topDir = relPath.split("/")[0];
+    if (excludes.includes(topDir) || excludes.includes(relPath)) continue;
+
+    const targetPaths = [path.join(process.cwd(), relPath)];
+    if (relPath.startsWith("dist/")) targetPaths.push(path.join(process.cwd(), relPath.substring(5)));
+
+    for (const targetPath of targetPaths) {
+      const targetDir = path.dirname(targetPath);
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+      fs.writeFileSync(targetPath, entry.getData());
+    }
+    updatedFilesCount++;
+  }
+
+  b2bConfig.lastGithubUpdate = Date.now();
+  try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
 
   try {
-    let cleanUrl = String(rawRepoUrl).trim().replace(/\/+$/, "");
-    cleanUrl = cleanUrl.replace(/^git@github\.com:/i, "https://github.com/");
-    cleanUrl = cleanUrl.replace(/\.git$/i, "");
+    exec("npm install --no-save && npm run build", (err) => {
+      if (err) console.error("[GitHub Updater Task] Build error:", err);
+      else console.log("[GitHub Updater Task] Build success.");
+    });
+  } catch (e) {}
 
-    let extractedBranch = userBranch;
-    const treeMatch = cleanUrl.match(/\/tree\/([^\/\s\?\#]+)/i);
-    if (treeMatch && treeMatch[1]) {
-      extractedBranch = treeMatch[1];
-      cleanUrl = cleanUrl.replace(/\/tree\/[^\/\s\?\#]+.*/i, "");
-    }
+  return { updatedFilesCount, successfulUrl };
+}
 
-    let ownerRepo = "";
-    const matches = cleanUrl.match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\s\?\#]+)/i);
-    if (matches && matches[1] && matches[2]) {
-      ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
-    }
-    ownerRepo = ownerRepo.replace(/\.git$/i, "").replace(/\/+$/, "");
-
-    if (!ownerRepo || !ownerRepo.includes("/")) {
-      return res.status(400).json({
-        success: false,
-        error: "آدرس یا نام مخزن گیت‌هاب معتبر نمی‌باشد. نمونه صحیح: username/repository"
-      });
-    }
-
-    // Build candidate URLs
-    const branchesToTry = Array.from(new Set([extractedBranch, userBranch, "main", "master"])).filter(Boolean);
-    const zipUrls: string[] = [];
-
-    for (const b of branchesToTry) {
-      zipUrls.push(`https://api.github.com/repos/${ownerRepo}/zipball/${b}`);
-      zipUrls.push(`https://codeload.github.com/${ownerRepo}/zip/refs/heads/${b}`);
-      zipUrls.push(`https://github.com/${ownerRepo}/archive/refs/heads/${b}.zip`);
-    }
-
-    let result: { buffer: Buffer; finalUrl: string } | null = null;
-    let successfulUrl = "";
-
-    for (const candidateUrl of zipUrls) {
-      console.log(`[GitHub Updater] Trying candidate URL: ${candidateUrl}`);
-      result = await fetchGithubZip(candidateUrl, token);
-      if (result) {
-        successfulUrl = candidateUrl;
-        break;
-      }
-    }
-
-    if (!result) {
-      console.warn(`[GitHub Updater] Primary repo ${ownerRepo} fetch failed or unreachable. Attempting fallback sample repo...`);
+app.post("/api/github-webhook", async (req, res) => {
+  const event = req.headers["x-github-event"];
+  if (event === "push") {
+    const payload = req.body;
+    const repoUrl = payload.repository?.html_url;
+    const branch = payload.ref?.replace("refs/heads/", "");
+    if (repoUrl && branch) {
       try {
-        result = await fetchGithubZip("https://api.github.com/repos/octocat/Hello-World/zipball/master", "");
-      } catch (e) {
-        // ignore
+        const result = await performGithubUpdate(repoUrl, branch, b2bConfig.githubToken || "", false);
+        return res.json({ success: true, message: "به‌روزرسانی خودکار انجام شد.", updatedFilesCount: result.updatedFilesCount });
+      } catch (err: any) {
+        return res.status(500).json({ success: false, error: err.message });
       }
     }
+  }
+  res.json({ success: true, message: "نادیده گرفته شد." });
+});
 
-    if (!result) {
-      return res.status(502).json({
-        success: false,
-        error: "امکان برقراری ارتباط با مخزن گیت‌هاب میسر نشد. لطفاً از صحت آدرس ریپازیتوری، شاخه (Branch) و توکن اطمینان حاصل کنید."
-      });
-    }
-
-    const zip = new AdmZip(result.buffer);
-    const zipEntries = zip.getEntries();
-
-    if (zipEntries.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "فایل فشرده دریافتی از گیت‌هاب خالی است."
-      });
-    }
-
-    // Determine root prefix inside zip archive (e.g. "b2b-distributor-platform-main/")
-    let rootPrefix = "";
-    const prefixCounts: Record<string, number> = {};
-    for (const e of zipEntries) {
-      if (e.entryName.includes("/")) {
-        const top = e.entryName.split("/")[0] + "/";
-        if (top !== "__MACOSX/") {
-          prefixCounts[top] = (prefixCounts[top] || 0) + 1;
-        }
-      }
-    }
-    let maxCount = 0;
-    for (const [prefix, count] of Object.entries(prefixCounts)) {
-      if (count > maxCount) {
-        maxCount = count;
-        rootPrefix = prefix;
-      }
-    }
-    console.log(`[GitHub Updater] Detected archive root prefix: "${rootPrefix}" (${maxCount} files)`);
-
-    let updatedFilesCount = 0;
-    let databaseUpdated = false;
-    const updatedFileList: string[] = [];
-    const excludes = ["node_modules", ".git", ".env"];
-
-    if (hardReset) {
-      console.log("[GitHub Updater] Performing Hard Reset - cleaning up existing directories...");
-      try {
-        const dirsToClean = ["src", "public"];
-        for (const dir of dirsToClean) {
-          const dirPath = path.join(process.cwd(), dir);
-          if (fs.existsSync(dirPath)) {
-            console.log(`[GitHub Updater] Removing ${dirPath}...`);
-            fs.rmSync(dirPath, { recursive: true, force: true });
-          }
-        }
-      } catch (cleanErr: any) {
-        console.warn("[GitHub Updater] Hard Reset cleanup warning:", cleanErr.message);
-      }
-    }
-
-    for (const entry of zipEntries) {
-      if (entry.isDirectory) continue;
-
-      let relPath = entry.entryName;
-      if (rootPrefix && relPath.startsWith(rootPrefix)) {
-        relPath = relPath.substring(rootPrefix.length);
-      }
-
-      if (!relPath) continue;
-
-      const topDir = relPath.split("/")[0];
-      if (excludes.includes(topDir) || excludes.includes(relPath)) {
-        continue;
-      }
-
-      // Write original file
-      const targetPaths = [path.join(process.cwd(), relPath)];
-      // If file is inside dist/, also copy it to project root for direct serving
-      if (relPath.startsWith("dist/")) {
-        targetPaths.push(path.join(process.cwd(), relPath.substring(5)));
-      }
-
-      for (const targetPath of targetPaths) {
-        const targetDir = path.dirname(targetPath);
-        if (!fs.existsSync(targetDir)) {
-          fs.mkdirSync(targetDir, { recursive: true });
-        }
-        fs.writeFileSync(targetPath, entry.getData());
-      }
-
-      updatedFilesCount++;
-      updatedFileList.push(relPath);
-
-      if (relPath.endsWith("database.sql") || relPath.endsWith("b2b-config.json") || relPath.endsWith("local-products.json")) {
-        databaseUpdated = true;
-      }
-    }
-
-    // Reload b2bConfig if b2b-config.json was updated
-    if (fs.existsSync(B2B_CONFIG_FILE)) {
-      try {
-        const raw = fs.readFileSync(B2B_CONFIG_FILE, "utf-8");
-        const parsed = JSON.parse(raw);
-        b2bConfig = {
-          ...DEFAULT_B2B_CONFIG,
-          ...parsed,
-          categories: (parsed.categories && parsed.categories.length > 0) ? parsed.categories : DEFAULT_B2B_CONFIG.categories,
-          factories: (parsed.factories && parsed.factories.length > 0) ? parsed.factories : DEFAULT_B2B_CONFIG.factories,
-          brands: (parsed.brands && parsed.brands.length > 0) ? parsed.brands : DEFAULT_B2B_CONFIG.brands
-        };
-      } catch (e) {
-        console.error("Failed to reload b2b-config.json:", e);
-      }
-    }
-
-    // Rebuild project if possible
-    console.log("[GitHub Updater] Executing install and build commands...");
-    try {
-      // We use --no-save to avoid modifying package-lock.json if not needed, but ensure dependencies are there
-      execSync("npm install --no-save && npm run build", { stdio: "inherit", timeout: 300000 }); 
-      console.log("[GitHub Updater] Build completed successfully.");
-    } catch (buildErr: any) {
-      console.warn("[GitHub Updater] Build warning/error:", buildErr.message);
-      // Even if build fails, we might have updated the source files. 
-    }
-
-    // Update lastGithubUpdate in config
-    b2bConfig.lastGithubUpdate = Date.now();
-    try {
-      fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
-    } catch (e) {
-      console.error("Failed to update lastGithubUpdate in b2b-config.json:", e);
-    }
-
+app.post("/api/admin/github-update", async (req, res) => {
+  const { repoUrl, branch, token, hardReset } = req.body;
+  try {
+    const result = await performGithubUpdate(
+      repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git",
+      branch || "main",
+      token || "",
+      hardReset === true
+    );
     return res.json({
       success: true,
       message: "کدها و دیتابیس سامانه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد! در حال بارگذاری مجدد...",
-      downloadUrl: successfulUrl,
-      updatedFilesCount,
-      databaseUpdated,
-      updatedFiles: updatedFileList.slice(0, 20)
+      downloadUrl: result.successfulUrl,
+      updatedFilesCount: result.updatedFilesCount
     });
   } catch (error: any) {
-    console.error("[GitHub Updater Exception]:", error);
-    return res.status(500).json({
-      success: false,
-      error: `خطای سیستمی در بروزرسانی: ${error.message}`,
-      details: error.stack
-    });
+    console.error("[GitHub Updater Error]:", error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

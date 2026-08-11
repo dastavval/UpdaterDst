@@ -419,20 +419,20 @@ export default function DynamicPresentation({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-br from-[#e0eafc] via-[#ffffff] via-[#cfd9df] via-[#ffffff] to-[#e0eafc] border-2 border-white/80 shadow-[0_4px_25px_rgba(255,255,255,0.4),inset_0_2px_4px_rgba(255,255,255,1)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
-              {/* Diamond-like prism reflection */}
+            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-br from-[#d1d1d1] via-[#ffffff] via-[#e5e5e5] via-[#ffffff] to-[#d1d1d1] border-2 border-white shadow-[0_4px_25px_rgba(200,200,200,0.5),inset_0_2px_4px_rgba(255,255,255,1)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
+              {/* Platinum prism reflection */}
               <motion.div 
-                animate={{ x: ["-200%", "300%"], rotate: [15, 15] }} 
-                transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }} 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-100/50 via-white/90 via-cyan-100/50 to-transparent -skew-x-45 pointer-events-none" 
+                animate={{ x: ["-200%", "300%"], rotate: [10, 10] }} 
+                transition={{ repeat: Infinity, duration: 3, ease: "linear" }} 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/90 to-transparent -skew-x-30 pointer-events-none" 
               />
               
-              {/* Rainbow diffraction effect (subtle) */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(0,240,255,0.1),transparent)] pointer-events-none" />
+              {/* Subtle silver metallic sheen */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(150,150,150,0.15),transparent)] pointer-events-none" />
               
-              <Sparkles size={14} className="text-cyan-600 fill-cyan-400/20 shrink-0 relative z-10 animate-pulse" />
+              <Sparkles size={14} className="text-slate-500 fill-slate-400/20 shrink-0 relative z-10 animate-pulse" />
               <span className="text-[11px] sm:text-xs font-black tracking-wide text-slate-800 pr-0.5 select-none relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,1)]">
-                « خیر و برکت در صدق معامله است »
+                « خیر و برکت در صدق معامله هست »
               </span>
             </div>
           </div>

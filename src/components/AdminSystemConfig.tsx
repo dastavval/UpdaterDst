@@ -2024,39 +2024,68 @@ export default function AdminSystemConfig({
             </div>
 
             {/* GitHub Repo Integration & 1-Click Sync */}
-            <div className="mt-4 p-4 bg-slate-950/90 rounded-2xl border border-indigo-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black shrink-0">
-                  <Github size={20} />
+            <div className="mt-4 p-4 bg-slate-950/90 rounded-2xl border border-indigo-500/30 space-y-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black shrink-0">
+                    <Github size={20} />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-black text-white flex items-center gap-2">
+                      لینک مخزن گیت‌هاب (GitHub Repository) و بروزرسانی آنلاین
+                    </h5>
+                    <p className="text-[11px] text-slate-400 font-bold dir-ltr text-right">
+                      {b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/b2b-platform'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h5 className="text-xs font-black text-white flex items-center gap-2">
-                    لینک مخزن گیت‌هاب (GitHub Repository) و بروزرسانی آنلاین
-                  </h5>
-                  <p className="text-[11px] text-slate-400 font-bold dir-ltr text-right">
-                    {b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/b2b-platform'}
-                  </p>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <a
+                    href={b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/b2b-platform'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-black rounded-xl border border-slate-700 flex items-center gap-1.5 cursor-pointer text-center"
+                  >
+                    <ExternalLink size={14} />
+                    <span>بازکردن GitHub</span>
+                  </a>
+
+                  <button
+                    onClick={() => setShowInstallerWizard(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw size={14} />
+                    <span>جادوگر بروزرسانی گیت‌هاب</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <a
-                  href={b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/b2b-platform'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-black rounded-xl border border-slate-700 flex items-center gap-1.5 cursor-pointer text-center"
-                >
-                  <ExternalLink size={14} />
-                  <span>بازکردن GitHub</span>
-                </a>
-
-                <button
-                  onClick={() => setShowInstallerWizard(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw size={14} />
-                  <span>جادوگر بروزرسانی گیت‌هاب</span>
-                </button>
+              {/* Webhook Info */}
+              <div className="pt-3 border-t border-indigo-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <h6 className="text-[10px] font-black text-indigo-300 flex items-center gap-1">
+                    <Webhook size={12} />
+                    آدرس وب‌هوک برای بروزرسانی خودکار (GitHub Webhook URL)
+                  </h6>
+                  <p className="text-[9px] text-slate-500 font-bold leading-relaxed">
+                    این آدرس را در تنظیمات Webhooks مخزن گیت‌هاب خود اضافه کنید تا به محض Push، سایت خودکار بروز شود.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
+                  <code className="text-[10px] text-emerald-400 font-mono select-all">
+                    {window.location.origin}/api/github-webhook
+                  </code>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/github-webhook`);
+                      alert("آدرس وب‌هوک کپی شد.");
+                    }}
+                    className="p-1.5 hover:bg-slate-800 text-slate-400 rounded-lg transition-colors"
+                  >
+                    <Copy size={12} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
