@@ -52,6 +52,17 @@ interface SupplyChainProps {
 export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOrderClick }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [activeTab, setActiveTab] = useState<'flow' | 'calculator'>('flow');
+
+  // Interactive Profit Margin Calculator State
+  const [orderTonnage, setOrderTonnage] = useState<number>(3); // Tons
+  const [sellingPricePerKg, setSellingPricePerKg] = useState<number>(120000); // Tomans
+
+  // Calculations for Wholesaler
+  const factoryDiscountPercent = orderTonnage >= 10 ? 32 : orderTonnage >= 5 ? 28 : orderTonnage >= 2 ? 25 : 20;
+  const factoryCostPerKg = sellingPricePerKg * (1 - factoryDiscountPercent / 100);
+  const netProfitPerKg = sellingPricePerKg - factoryCostPerKg;
+  const totalNetProfit = netProfitPerKg * orderTonnage * 1000;
 
   const steps: CommercialStep[] = [
     { 
@@ -197,23 +208,10 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
               <ChevronRight size={15} />
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="px-2 py-1 text-[11px] font-black text-slate-700 flex items-center gap-1 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
-            >
-              {isPlaying ? (
-                <>
-                  <Pause size={11} className="text-amber-600 animate-pulse" />
-                  <span>توقف</span>
-                </>
-              ) : (
-                <>
-                  <Play size={11} className="text-emerald-600" />
-                  <span>پخش</span>
-                </>
-              )}
-            </button>
+            <span className="px-2.5 py-1 text-[11px] font-black text-emerald-700 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>پخش خودکار</span>
+            </span>
 
             <button
               type="button"
@@ -227,204 +225,285 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
         </div>
       </div>
 
-      {/* PIPELINE VISUAL TRACK (RESPONSIVE STEPS TRACKER) */}
-      <div className="relative mb-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 sm:p-2.5 overflow-x-auto scrollbar-none">
-        
-        {/* Connecting Progress Line (Desktop) */}
-        <div className="hidden sm:block absolute top-1/2 left-8 right-8 h-1 bg-slate-200 -translate-y-1/2 z-0 rounded-full" />
-        <motion.div 
-          className="hidden sm:block absolute top-1/2 right-8 h-1 bg-gradient-to-l from-emerald-500 via-teal-500 to-indigo-500 -translate-y-1/2 z-0 rounded-full transition-all duration-500"
-          style={{
-            width: `${(activeStep / (steps.length - 1)) * 88}%`
-          }}
-        />
-
-        <div className="relative z-10 flex items-center justify-between min-w-[340px] sm:min-w-0 gap-1.5 sm:gap-2">
-          {steps.map((step, idx) => {
-            const isActive = activeStep === idx;
-            const isCompleted = activeStep > idx;
-            const IconComponent = step.icon;
-
-            return (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => {
-                  setActiveStep(idx);
-                  setIsPlaying(false);
-                }}
-                className={`flex-1 flex flex-col items-center gap-1 sm:gap-1.5 p-1.5 rounded-xl transition-all cursor-pointer group ${
-                  isActive 
-                    ? 'bg-white border-2 border-emerald-500 shadow-sm scale-102 ring-2 ring-emerald-100' 
-                    : isCompleted
-                    ? 'bg-emerald-50/80 border border-emerald-200 text-emerald-800'
-                    : 'bg-white/70 border border-slate-200/80 text-slate-500 hover:bg-slate-100'
-                }`}
-              >
-                {/* Step Icon */}
-                <div className={`relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-transform ${
-                  isActive 
-                    ? 'bg-emerald-600 text-white shadow-xs scale-105' 
-                    : isCompleted
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
-                }`}>
-                  {isCompleted ? (
-                    <Check size={16} className="text-emerald-700 stroke-[3]" />
-                  ) : (
-                    <IconComponent size={17} />
-                  )}
-
-                  {isActive && (
-                    <span className="absolute -inset-1 rounded-xl border border-emerald-400 animate-ping opacity-30" />
-                  )}
-                </div>
-
-                {/* Step Title */}
-                <span className={`text-[10px] sm:text-[11px] font-black leading-tight text-center truncate w-full ${
-                  isActive ? 'text-emerald-950 font-black' : isCompleted ? 'text-emerald-800' : 'text-slate-600'
-                }`}>
-                  {step.title}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* DYNAMIC STAGE CONTAINER */}
-      <div className="relative w-full min-h-[250px] bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border border-slate-200 rounded-2xl p-3.5 sm:p-5 mb-3.5 overflow-hidden flex flex-col justify-between shadow-2xs">
-        
-        {/* Top Badge Info Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 z-10 pb-2 border-b border-slate-100/80">
-          <div className="flex items-center gap-2">
-            <span className={`px-2.5 py-1 rounded-lg border text-[11px] font-black ${currentStep.badgeBg} shadow-2xs`}>
-              مرحله {activeStep + 1} از ۵: {currentStep.title}
-            </span>
+      {activeTab === 'flow' ? (
+        <>
+          {/* PIPELINE VISUAL TRACK (RESPONSIVE STEPS TRACKER) */}
+          <div className="relative mb-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 sm:p-2.5 overflow-x-auto scrollbar-none">
             
-            <span className="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold shadow-2xs">
-              <Clock size={12} className="text-emerald-600" />
-              <span>زمان‌بندی: {currentStep.timeEstimate}</span>
-            </span>
+            {/* Connecting Progress Line (Desktop) */}
+            <div className="hidden sm:block absolute top-1/2 left-8 right-8 h-1 bg-slate-200 -translate-y-1/2 z-0 rounded-full" />
+            <motion.div 
+              className="hidden sm:block absolute top-1/2 right-8 h-1 bg-gradient-to-l from-emerald-500 via-teal-500 to-indigo-500 -translate-y-1/2 z-0 rounded-full transition-all duration-500"
+              style={{
+                width: `${(activeStep / (steps.length - 1)) * 88}%`
+              }}
+            />
+
+            <div className="relative z-10 flex items-center justify-between min-w-[340px] sm:min-w-0 gap-1.5 sm:gap-2">
+              {steps.map((step, idx) => {
+                const isActive = activeStep === idx;
+                const isCompleted = activeStep > idx;
+                const IconComponent = step.icon;
+
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveStep(idx);
+                      setIsPlaying(false);
+                    }}
+                    className={`flex-1 flex flex-col items-center gap-1 sm:gap-1.5 p-1.5 rounded-xl transition-all cursor-pointer group ${
+                      isActive 
+                        ? 'bg-white border-2 border-emerald-500 shadow-sm scale-102 ring-2 ring-emerald-100' 
+                        : isCompleted
+                        ? 'bg-emerald-50/80 border border-emerald-200 text-emerald-800'
+                        : 'bg-white/70 border border-slate-200/80 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {/* Step Icon */}
+                    <div className={`relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-transform ${
+                      isActive 
+                        ? 'bg-emerald-600 text-white shadow-xs scale-105' 
+                        : isCompleted
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
+                    }`}>
+                      {isCompleted ? (
+                        <Check size={16} className="text-emerald-700 stroke-[3]" />
+                      ) : (
+                        <IconComponent size={17} />
+                      )}
+
+                      {isActive && (
+                        <span className="absolute -inset-1 rounded-xl border border-emerald-400 animate-ping opacity-30" />
+                      )}
+                    </div>
+
+                    {/* Step Title */}
+                    <span className={`text-[10px] sm:text-[11px] font-black leading-tight text-center truncate w-full ${
+                      isActive ? 'text-emerald-950 font-black' : isCompleted ? 'text-emerald-800' : 'text-slate-600'
+                    }`}>
+                      {step.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="text-[10px] sm:text-[11px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-            <Zap size={12} className="text-emerald-600" />
-            <span>{currentStep.profitImpact}</span>
-          </div>
-        </div>
-
-        {/* Animated Main Stage Display */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeStep}
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.98 }}
-            transition={{ duration: 0.3 }}
-            className="my-auto py-2 z-10"
-          >
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 text-center md:text-right">
-              
-              {/* Visual Graphic Box */}
-              <div className="relative shrink-0 flex items-center justify-center">
+          {/* DYNAMIC STAGE CONTAINER */}
+          <div className="relative w-full min-h-[250px] bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border border-slate-200 rounded-2xl p-3.5 sm:p-5 mb-3.5 overflow-hidden flex flex-col justify-between shadow-2xs">
+            
+            {/* Top Badge Info Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 z-10 pb-2 border-b border-slate-100/80">
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-lg border text-[11px] font-black ${currentStep.badgeBg} shadow-2xs`}>
+                  مرحله {activeStep + 1} از ۵: {currentStep.title}
+                </span>
                 
-                {/* Stage 1: Factory Direct */}
-                {activeStep === 0 && (
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-emerald-500/10 border-2 border-emerald-400 rounded-2xl flex items-center justify-center text-emerald-700 shadow-xs overflow-hidden">
-                    <Building2 size={46} className="text-emerald-600 drop-shadow-xs" />
-                    <motion.div 
-                      animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs"
-                    >
-                      کف قیمت
-                    </motion.div>
-                    <div className="absolute bottom-1 bg-emerald-800 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
-                      بدون دلال
-                    </div>
-                  </div>
-                )}
-
-                {/* Stage 2: Profit Margin */}
-                {activeStep === 1 && (
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-teal-500/10 border-2 border-teal-400 rounded-2xl flex items-center justify-center text-teal-700 shadow-xs overflow-hidden">
-                    <BadgePercent size={48} className="text-teal-600 drop-shadow-xs" />
-                    <motion.div 
-                      animate={{ y: [-3, 3, -3] }}
-                      transition={{ repeat: Infinity, duration: 1.6 }}
-                      className="absolute top-1.5 left-1.5 bg-teal-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs"
-                    >
-                      +۳۵٪ سود
-                    </motion.div>
-                  </div>
-                )}
-
-                {/* Stage 3: Packaging & Turnover */}
-                {activeStep === 2 && (
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-amber-500/10 border-2 border-amber-400 rounded-2xl flex items-center justify-center text-amber-700 shadow-xs overflow-hidden">
-                    <ShoppingBag size={46} className="text-amber-600 drop-shadow-xs" />
-                    <div className="absolute bottom-1 bg-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
-                      فروش ۲x سریع‌تر
-                    </div>
-                  </div>
-                )}
-
-                {/* Stage 4: Insured Transit */}
-                {activeStep === 3 && (
-                  <div className="relative w-28 h-24 sm:w-32 sm:h-28 bg-indigo-500/10 border-2 border-indigo-400 rounded-2xl flex items-center justify-center text-indigo-700 shadow-xs overflow-hidden">
-                    <Truck size={46} className="text-indigo-600 drop-shadow-xs" />
-                    <div className="absolute top-1.5 left-1.5 bg-indigo-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
-                      بیمه ۱۰۰٪
-                    </div>
-                  </div>
-                )}
-
-                {/* Stage 5: Fast Liquidity & Return Guarantee */}
-                {activeStep === 4 && (
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-rose-500/10 border-2 border-rose-400 rounded-2xl flex items-center justify-center text-rose-700 shadow-xs overflow-hidden">
-                    <HandCoins size={46} className="text-rose-600 drop-shadow-xs" />
-                    <div className="absolute bottom-1 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
-                      گارانتی مرجوعی
-                    </div>
-                  </div>
-                )}
+                <span className="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold shadow-2xs">
+                  <Clock size={12} className="text-emerald-600" />
+                  <span>زمان‌بندی: {currentStep.timeEstimate}</span>
+                </span>
               </div>
 
-              {/* Commercial Text Block */}
-              <div className="flex-1 flex flex-col justify-center">
-                <h4 className="text-sm sm:text-base font-black text-slate-900 leading-snug mb-1">
-                  {currentStep.shortDesc}
-                </h4>
-
-                <p className="text-xs font-bold text-slate-600 leading-relaxed mb-3">
-                  {currentStep.longDesc}
-                </p>
-
-                {/* 3 Commercial Key Metrics Cards */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  {currentStep.commercialMetrics.map((metric, i) => (
-                    <div key={i} className="p-2 bg-white border border-slate-200/90 rounded-xl text-center shadow-2xs">
-                      <span className="block text-[10px] font-bold text-slate-500 mb-0.5">{metric.label}</span>
-                      <span className="block text-[11px] font-black text-slate-900">{metric.value}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="text-[10px] sm:text-[11px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                <Zap size={12} className="text-emerald-600" />
+                <span>{currentStep.profitImpact}</span>
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
 
-        {/* Bottom Progress Bar */}
-        <div className="relative z-10 w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 mt-2">
-          <motion.div
-            className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500 rounded-full"
-            initial={false}
-            animate={{ width: `${((activeStep + 1) / steps.length) * 100}%` }}
-            transition={{ duration: 0.4 }}
-          />
+            {/* Animated Main Stage Display */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeStep}
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                transition={{ duration: 0.3 }}
+                className="my-auto py-2 z-10"
+              >
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 text-center md:text-right">
+                  
+                  {/* Visual Graphic Box */}
+                  <div className="relative shrink-0 flex items-center justify-center">
+                    
+                    {/* Stage 1: Factory Direct */}
+                    {activeStep === 0 && (
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-emerald-500/10 border-2 border-emerald-400 rounded-2xl flex items-center justify-center text-emerald-700 shadow-xs overflow-hidden">
+                        <Building2 size={46} className="text-emerald-600 drop-shadow-xs" />
+                        <motion.div 
+                          animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+                          transition={{ repeat: Infinity, duration: 2 }}
+                          className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs"
+                        >
+                          کف قیمت
+                        </motion.div>
+                        <div className="absolute bottom-1 bg-emerald-800 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                          بدون دلال
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 2: Profit Margin */}
+                    {activeStep === 1 && (
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-teal-500/10 border-2 border-teal-400 rounded-2xl flex items-center justify-center text-teal-700 shadow-xs overflow-hidden">
+                        <BadgePercent size={48} className="text-teal-600 drop-shadow-xs" />
+                        <motion.div 
+                          animate={{ y: [-3, 3, -3] }}
+                          transition={{ repeat: Infinity, duration: 1.6 }}
+                          className="absolute top-1.5 left-1.5 bg-teal-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs"
+                        >
+                          +۳۵٪ سود
+                        </motion.div>
+                      </div>
+                    )}
+
+                    {/* Stage 3: Packaging & Turnover */}
+                    {activeStep === 2 && (
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-amber-500/10 border-2 border-amber-400 rounded-2xl flex items-center justify-center text-amber-700 shadow-xs overflow-hidden">
+                        <ShoppingBag size={46} className="text-amber-600 drop-shadow-xs" />
+                        <div className="absolute bottom-1 bg-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                          فروش ۲x سریع‌تر
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 4: Insured Transit */}
+                    {activeStep === 3 && (
+                      <div className="relative w-28 h-24 sm:w-32 sm:h-28 bg-indigo-500/10 border-2 border-indigo-400 rounded-2xl flex items-center justify-center text-indigo-700 shadow-xs overflow-hidden">
+                        <Truck size={46} className="text-indigo-600 drop-shadow-xs" />
+                        <div className="absolute top-1.5 left-1.5 bg-indigo-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
+                          بیمه ۱۰۰٪
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 5: Fast Liquidity & Return Guarantee */}
+                    {activeStep === 4 && (
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-rose-500/10 border-2 border-rose-400 rounded-2xl flex items-center justify-center text-rose-700 shadow-xs overflow-hidden">
+                        <HandCoins size={46} className="text-rose-600 drop-shadow-xs" />
+                        <div className="absolute bottom-1 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                          گارانتی مرجوعی
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Commercial Text Block */}
+                  <div className="flex-1 flex flex-col justify-center">
+                    <h4 className="text-sm sm:text-base font-black text-slate-900 leading-snug mb-1">
+                      {currentStep.shortDesc}
+                    </h4>
+
+                    <p className="text-xs font-bold text-slate-600 leading-relaxed mb-3">
+                      {currentStep.longDesc}
+                    </p>
+
+                    {/* 3 Commercial Key Metrics Cards */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {currentStep.commercialMetrics.map((metric, i) => (
+                        <div key={i} className="p-2 bg-white border border-slate-200/90 rounded-xl text-center shadow-2xs">
+                          <span className="block text-[10px] font-bold text-slate-500 mb-0.5">{metric.label}</span>
+                          <span className="block text-[11px] font-black text-slate-900">{metric.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Bottom Progress Bar */}
+            <div className="relative z-10 w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60 mt-2">
+              <motion.div
+                className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500 rounded-full"
+                initial={false}
+                animate={{ width: `${((activeStep + 1) / steps.length) * 100}%` }}
+                transition={{ duration: 0.4 }}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        /* TAB 2: INTERACTIVE WHOLESALE PROFIT CALCULATOR */
+        <div className="my-2 p-4 bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white rounded-2xl shadow-md border border-emerald-800/50">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-800/60">
+            <div className="flex items-center gap-2">
+              <Banknote className="text-emerald-400" size={20} />
+              <h4 className="text-xs sm:text-sm font-black text-white">محاسبه‌گر تخفیف حجمی و سود خالص بنکدار</h4>
+            </div>
+            <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-lg">
+              ویژه سفارشات عمده
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Inputs */}
+            <div className="space-y-3 bg-white/5 p-3.5 rounded-xl border border-white/10 text-right">
+              <div>
+                <div className="flex justify-between text-xs font-black mb-1">
+                  <span className="text-slate-300">حجم سفارش (تن):</span>
+                  <span className="text-emerald-400 font-bold">{orderTonnage} تن ({orderTonnage * 1000} کیلوگرم)</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  step="1"
+                  value={orderTonnage}
+                  onChange={(e) => setOrderTonnage(Number(e.target.value))}
+                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-700 rounded-lg"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-bold">
+                  <span>۱ تن (تخفیف ۲۰٪)</span>
+                  <span>۵ تن (تخفیف ۲۸٪)</span>
+                  <span>۱۰+ تن (تخفیف ۳۲٪)</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-300 mb-1">قیمت فروش پیشنهادی به بازار (تومان / کیلو):</label>
+                <input 
+                  type="number"
+                  step="5000"
+                  value={sellingPricePerKg}
+                  onChange={(e) => setSellingPricePerKg(Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-1.5 text-xs font-black text-left focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="bg-emerald-900/40 border border-emerald-500/30 p-3.5 rounded-xl flex flex-col justify-between text-right">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs pb-1.5 border-b border-emerald-800/60">
+                  <span className="text-slate-300 font-bold">درصد تخفیف درب کارخانه:</span>
+                  <span className="text-amber-400 font-black text-sm">{factoryDiscountPercent}٪ تخفیف</span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs pb-1.5 border-b border-emerald-800/60">
+                  <span className="text-slate-300 font-bold">قیمت تمام‌شده خرید شما (کیلو):</span>
+                  <span className="text-emerald-300 font-black">{factoryCostPerKg.toLocaleString('fa-IR')} تومان</span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs pb-1.5 border-b border-emerald-800/60">
+                  <span className="text-slate-300 font-bold">سود خالص شما در هر کیلوگرم:</span>
+                  <span className="text-emerald-400 font-black">{netProfitPerKg.toLocaleString('fa-IR')} تومان</span>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2 border-t border-emerald-500/40 bg-emerald-500/10 p-2.5 rounded-xl text-center">
+                <span className="block text-[11px] font-bold text-emerald-200 mb-0.5">سود خالص کل پارت سفارش ({orderTonnage} تن):</span>
+                <span className="text-lg font-black text-emerald-300 tracking-tight">
+                  {totalNetProfit.toLocaleString('fa-IR')} <span className="text-xs">تومان</span>
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* FOOTER ACTION BAR */}
       <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">

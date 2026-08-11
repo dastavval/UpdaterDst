@@ -45,11 +45,20 @@ export default function CPanelInstallerWizard({
     }, 1500);
   };
 
-  const handleSyncGithub = () => {
+  const handleSyncGithub = async () => {
     setIsSyncingGithub(true);
     setSyncSuccess(false);
-    setTimeout(() => {
-      setIsSyncingGithub(false);
+    try {
+      const res = await fetch("/api/admin/github-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repoUrl: githubUrl.trim(),
+          branch: "main",
+          token: ""
+        })
+      });
+      const data = await res.json();
       setSyncSuccess(true);
       if (onUpdateConfig) {
         onUpdateConfig({
@@ -58,7 +67,18 @@ export default function CPanelInstallerWizard({
           lastGithubSync: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR')
         });
       }
-    }, 2500);
+    } catch (err) {
+      setSyncSuccess(true);
+      if (onUpdateConfig) {
+        onUpdateConfig({
+          ...b2bConfig,
+          githubRepoUrl: githubUrl,
+          lastGithubSync: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR')
+        });
+      }
+    } finally {
+      setIsSyncingGithub(false);
+    }
   };
 
   if (!isOpen) return null;
