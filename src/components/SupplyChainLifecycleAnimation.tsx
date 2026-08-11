@@ -293,7 +293,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
           </div>
 
           {/* DYNAMIC STAGE CONTAINER */}
-          <div className="relative w-full min-h-[250px] bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border border-slate-200 rounded-2xl p-3.5 sm:p-5 mb-3.5 overflow-hidden flex flex-col justify-between shadow-2xs">
+          <div className="relative w-full min-h-[180px] bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-4 mb-3 overflow-hidden flex flex-col justify-between shadow-2xs">
             
             {/* Top Badge Info Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 z-10 pb-2 border-b border-slate-100/80">
@@ -331,8 +331,8 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
                     
                     {/* Stage 1: Factory Direct */}
                     {activeStep === 0 && (
-                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-emerald-500/10 border-2 border-emerald-400 rounded-2xl flex items-center justify-center text-emerald-700 shadow-xs overflow-hidden">
-                        <Building2 size={46} className="text-emerald-600 drop-shadow-xs" />
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-emerald-500/10 border-2 border-emerald-400 rounded-2xl flex items-center justify-center text-emerald-700 shadow-xs overflow-hidden">
+                        <Building2 size={36} className="text-emerald-600 drop-shadow-xs" />
                         <motion.div 
                           animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
                           transition={{ repeat: Infinity, duration: 2 }}
@@ -348,8 +348,8 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
 
                     {/* Stage 2: Profit Margin */}
                     {activeStep === 1 && (
-                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-teal-500/10 border-2 border-teal-400 rounded-2xl flex items-center justify-center text-teal-700 shadow-xs overflow-hidden">
-                        <BadgePercent size={48} className="text-teal-600 drop-shadow-xs" />
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-teal-500/10 border-2 border-teal-400 rounded-2xl flex items-center justify-center text-teal-700 shadow-xs overflow-hidden">
+                        <BadgePercent size={38} className="text-teal-600 drop-shadow-xs" />
                         <motion.div 
                           animate={{ y: [-3, 3, -3] }}
                           transition={{ repeat: Infinity, duration: 1.6 }}
@@ -362,8 +362,8 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
 
                     {/* Stage 3: Packaging & Turnover */}
                     {activeStep === 2 && (
-                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-amber-500/10 border-2 border-amber-400 rounded-2xl flex items-center justify-center text-amber-700 shadow-xs overflow-hidden">
-                        <ShoppingBag size={46} className="text-amber-600 drop-shadow-xs" />
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-amber-500/10 border-2 border-amber-400 rounded-2xl flex items-center justify-center text-amber-700 shadow-xs overflow-hidden">
+                        <ShoppingBag size={36} className="text-amber-600 drop-shadow-xs" />
                         <div className="absolute bottom-1 bg-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
                           فروش ۲x سریع‌تر
                         </div>
@@ -372,8 +372,8 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
 
                     {/* Stage 4: Insured Transit */}
                     {activeStep === 3 && (
-                      <div className="relative w-28 h-24 sm:w-32 sm:h-28 bg-indigo-500/10 border-2 border-indigo-400 rounded-2xl flex items-center justify-center text-indigo-700 shadow-xs overflow-hidden">
-                        <Truck size={46} className="text-indigo-600 drop-shadow-xs" />
+                      <div className="relative w-24 h-20 sm:w-28 sm:h-24 bg-indigo-500/10 border-2 border-indigo-400 rounded-2xl flex items-center justify-center text-indigo-700 shadow-xs overflow-hidden">
+                        <Truck size={36} className="text-indigo-600 drop-shadow-xs" />
                         <div className="absolute top-1.5 left-1.5 bg-indigo-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
                           بیمه ۱۰۰٪
                         </div>
@@ -382,8 +382,8 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
 
                     {/* Stage 5: Fast Liquidity & Return Guarantee */}
                     {activeStep === 4 && (
-                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-rose-500/10 border-2 border-rose-400 rounded-2xl flex items-center justify-center text-rose-700 shadow-xs overflow-hidden">
-                        <HandCoins size={46} className="text-rose-600 drop-shadow-xs" />
+                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-rose-500/10 border-2 border-rose-400 rounded-2xl flex items-center justify-center text-rose-700 shadow-xs overflow-hidden">
+                        <HandCoins size={36} className="text-rose-600 drop-shadow-xs" />
                         <div className="absolute bottom-1 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-2xs">
                           گارانتی مرجوعی
                         </div>
