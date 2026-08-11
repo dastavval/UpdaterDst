@@ -163,7 +163,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
     if (!isPlaying) return;
     const timer = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % steps.length);
-    }, 5000);
+    }, 3500);
     return () => clearInterval(timer);
   }, [isPlaying, steps.length]);
 

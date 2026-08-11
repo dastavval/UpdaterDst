@@ -106,7 +106,8 @@ const DEFAULT_B2B_CONFIG = {
   gallery: [
     "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
     "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1000"
-  ]
+  ],
+  lastGithubUpdate: null
 };
 
 let b2bConfig = { ...DEFAULT_B2B_CONFIG };
@@ -407,6 +408,7 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
     };
 
     if (token && !isS3orCodeload && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
+      // Use "token" prefix for legacy PATs or "Bearer" for modern ones. Both often work, but "Bearer" is preferred.
       headers["Authorization"] = `Bearer ${token}`;
     }
 
@@ -418,12 +420,10 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
 
       const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
       const rateLimitReset = response.headers.get("x-ratelimit-reset");
+      const rateLimitLimit = response.headers.get("x-ratelimit-limit");
 
-      if (response.status === 401 || response.status === 403 || response.status === 404) {
-        console.error(`[GitHub Updater Error] HTTP ${response.status} at ${currentUrl}. Remaining: ${rateLimitRemaining}`);
-        if (response.status === 404) {
-          console.warn("[GitHub Updater] Resource not found. This might be a private repo needing a token or an invalid branch/tag.");
-        }
+      if (response.status === 401 || response.status === 403 || response.status === 429) {
+        console.error(`[GitHub Updater Error] Connection rejected with HTTP ${response.status}. Auth Token Provided: ${!!token}, RateLimit Limit: ${rateLimitLimit}, Remaining: ${rateLimitRemaining}, Reset Timestamp: ${rateLimitReset}`);
       }
 
       if (response.status >= 300 && response.status < 400) {
@@ -631,17 +631,9 @@ app.post("/api/admin/github-update", async (req, res) => {
     }
 
     if (!result) {
-      console.warn(`[GitHub Updater] Remote fetch completely unavailable. Performing local workspace and database synchronization...`);
-      let dbUpdated = false;
-      const dbFile = path.join(process.cwd(), "database.sql");
-      if (fs.existsSync(dbFile)) {
-        dbUpdated = true;
-      }
-      return res.json({
-        success: true,
-        message: "سیستم، کدهای جاری و ساختار دیتابیس با موفقیت همگام‌سازی و بروزرسانی شدند (نسخه محلی با موفقیت اعمال گردید).",
-        updatedFilesCount: 25,
-        databaseUpdated: dbUpdated
+      return res.status(502).json({
+        success: false,
+        error: "امکان برقراری ارتباط با مخزن گیت‌هاب میسر نشد. لطفاً از صحت آدرس ریپازیتوری، شاخه (Branch) و توکن اطمینان حاصل کنید."
       });
     }
 
@@ -762,6 +754,14 @@ app.post("/api/admin/github-update", async (req, res) => {
       // Even if build fails, we might have updated the source files. 
     }
 
+    // Update lastGithubUpdate in config
+    b2bConfig.lastGithubUpdate = Date.now();
+    try {
+      fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    } catch (e) {
+      console.error("Failed to update lastGithubUpdate in b2b-config.json:", e);
+    }
+
     return res.json({
       success: true,
       message: "کدها و دیتابیس سامانه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد! در حال بارگذاری مجدد...",
@@ -772,12 +772,10 @@ app.post("/api/admin/github-update", async (req, res) => {
     });
   } catch (error: any) {
     console.error("[GitHub Updater Exception]:", error);
-    return res.json({
-      success: true,
-      message: "سیستم کدهای جاری و ساختار دیتابیس را به عنوان نسخه پایدار و بروز شده همگام‌سازی کرد.",
-      updatedFilesCount: 25,
-      databaseUpdated: true,
-      commitHash: Math.random().toString(36).substring(2, 9)
+    return res.status(500).json({
+      success: false,
+      error: `خطای سیستمی در بروزرسانی: ${error.message}`,
+      details: error.stack
     });
   }
 });

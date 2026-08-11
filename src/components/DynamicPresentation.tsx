@@ -432,7 +432,7 @@ export default function DynamicPresentation({
               
               <Sparkles size={14} className="text-cyan-600 fill-cyan-400/20 shrink-0 relative z-10 animate-pulse" />
               <span className="text-[11px] sm:text-xs font-black tracking-wide text-slate-800 pr-0.5 select-none relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,1)]">
-                « برکت در صدق معامله است »
+                « خیر و برکت در صدق معامله است »
               </span>
             </div>
           </div>
