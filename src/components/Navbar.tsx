@@ -216,9 +216,9 @@ export default function Navbar({
       <nav className="sticky top-0 z-50 transition-all duration-300 bg-white/95 border-b border-slate-200/80 shadow-[0_4px_20px_rgba(15,23,42,0.04)] text-slate-900 backdrop-blur-md" dir={isRtl ? "rtl" : "ltr"}>
         {/* Top Social Channels Bar (Disabled by default, toggleable in admin) */}
         {showTopSocialBar && (
-          <div className="bg-slate-900 text-white text-[10px] sm:text-[11px] font-bold py-1 px-3 sm:px-4 border-b border-slate-800 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          <div className="bg-emerald-50 text-emerald-900 text-[10px] sm:text-[11px] font-bold py-1.5 px-3 sm:px-4 border-b border-emerald-200/60 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs">
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <span className="text-[10px] text-amber-400 font-black hidden sm:inline-block">شبکه‌های اجتماعی رسمی:</span>
+              <span className="text-[10px] text-emerald-800 font-black hidden sm:inline-block">شبکه‌های رسمی:</span>
               
               {/* Rubika Button */}
               <a
