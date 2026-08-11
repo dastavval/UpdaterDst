@@ -394,7 +394,7 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
   let redirectCount = 0;
 
   while (redirectCount < maxRedirects) {
-    console.log(`[GitHub Updater] Fetching: ${currentUrl} (Redirect level: ${redirectCount})`);
+    console.log(`[GitHub Updater Diagnostics] Fetching: ${currentUrl} (Redirect level: ${redirectCount})`);
 
     const isS3orCodeload = currentUrl.includes("objects.githubusercontent.com") ||
                            currentUrl.includes("codeload.github.com") ||
@@ -402,11 +402,10 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
                            currentUrl.includes("X-Amz-");
 
     const headers: Record<string, string> = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/5.0",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Advanced-Updater/5.0",
       "Accept": "application/vnd.github+json, application/zip, application/octet-stream, */*"
     };
 
-    // Only send Authorization header to github.com / api.github.com, never to AWS S3 or codeload
     if (token && !isS3orCodeload && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -416,6 +415,14 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
         headers,
         redirect: "manual"
       });
+
+      const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
+      const rateLimitReset = response.headers.get("x-ratelimit-reset");
+      const rateLimitLimit = response.headers.get("x-ratelimit-limit");
+
+      if (response.status === 401 || response.status === 403 || response.status === 429) {
+        console.error(`[GitHub Updater Error] Connection rejected with HTTP ${response.status}. Auth Token Provided: ${!!token}, RateLimit Limit: ${rateLimitLimit}, Remaining: ${rateLimitRemaining}, Reset Timestamp: ${rateLimitReset}`);
+      }
 
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
@@ -429,17 +436,17 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
       if (response.status === 200) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        // Check for ZIP magic number (PK\x03\x04 -> 0x50, 0x4b, 0x03, 0x04)
         if (buffer.length > 100 && buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
+          console.log(`[GitHub Updater Success] Successfully downloaded valid ZIP archive from ${currentUrl} (${buffer.length} bytes). RateLimit Remaining: ${rateLimitRemaining ?? 'N/A'}`);
           return { buffer, finalUrl: currentUrl };
         } else {
-          console.warn(`[GitHub Updater] URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
+          console.warn(`[GitHub Updater Warning] URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
         }
       } else {
-        console.warn(`[GitHub Updater] URL ${currentUrl} returned HTTP status ${response.status}`);
+        console.warn(`[GitHub Updater Warning] URL ${currentUrl} returned HTTP status ${response.status}`);
       }
     } catch (err: any) {
-      console.error(`[GitHub Updater] Error fetching ${currentUrl}:`, err.message);
+      console.error(`[GitHub Updater Exception] Network error fetching ${currentUrl}:`, err.message);
     }
 
     break;
