@@ -290,7 +290,7 @@ export default function Navbar({
         {/* Top Announcement Bar */}
         {showTopAnnouncement && topAnnouncement && !isAnnouncementDismissed && (
           <div 
-            className="bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 text-white text-[11px] font-black py-1.5 px-4 border-b border-emerald-400 flex items-center justify-between gap-2 overflow-hidden shadow-inner transition-all group"
+            className="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-400 text-white text-[11px] font-black py-1.5 px-4 border-b border-orange-300/50 flex items-center justify-between gap-2 overflow-hidden shadow-sm transition-all group"
           >
             <div 
               onClick={() => onOpenAnnouncementModal?.()}
@@ -298,7 +298,7 @@ export default function Navbar({
             >
               <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
               <span className="truncate group-hover:underline">{topAnnouncement}</span>
-              <span className="text-[9px] bg-white text-emerald-900 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black">
+              <span className="text-[9px] bg-white text-orange-900 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black">
                 <span>جزئیات</span>
                 <span>←</span>
               </span>

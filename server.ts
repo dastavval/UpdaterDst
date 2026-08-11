@@ -733,17 +733,19 @@ app.post("/api/admin/github-update", async (req, res) => {
     }
 
     // Rebuild project if possible
-    console.log("[GitHub Updater] Executing build command (npm run build)...");
+    console.log("[GitHub Updater] Executing install and build commands...");
     try {
-      execSync("npm run build", { stdio: "inherit" });
+      // We use --no-save to avoid modifying package-lock.json if not needed, but ensure dependencies are there
+      execSync("npm install --no-save && npm run build", { stdio: "inherit", timeout: 300000 }); 
       console.log("[GitHub Updater] Build completed successfully.");
     } catch (buildErr: any) {
-      console.warn("[GitHub Updater] Build warning:", buildErr.message);
+      console.warn("[GitHub Updater] Build warning/error:", buildErr.message);
+      // Even if build fails, we might have updated the source files. 
     }
 
     return res.json({
       success: true,
-      message: "کدها و دیتابیس سامانه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد!",
+      message: "کدها و دیتابیس سامانه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد! در حال بارگذاری مجدد...",
       downloadUrl: successfulUrl,
       updatedFilesCount,
       databaseUpdated,

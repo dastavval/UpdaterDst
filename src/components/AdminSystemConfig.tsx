@@ -405,13 +405,7 @@ export default function AdminSystemConfig({
       }
 
       if (!data || data.success === false) {
-        addLog("هشدار دسترسی مستقیم گیت‌هاب: اعمال همگام‌سازی محلی و بروزرسانی خودکار فایل‌ها و دیتابیس...");
-        data = {
-          success: true,
-          message: "سیستم، کدهای جاری و ساختار دیتابیس با موفقیت همگام‌سازی و بروزرسانی شدند (نسخه پایدار اعمال گردید).",
-          updatedFilesCount: 25,
-          databaseUpdated: true
-        };
+        throw new Error(data?.error || "خطا در برقراری ارتباط با سرور گیت‌هاب یا دریافت پکیج بروزرسانی.");
       }
 
       addLog("دریافت و اعمال آخرین تغییرات سامانه با موفقیت انجام شد.");
@@ -438,14 +432,17 @@ export default function AdminSystemConfig({
 
       setSuccessMsg(data.message || "پروژه و دیتابیس با موفقیت همگام‌سازی و به‌روزرسانی شدند!");
       
-      // Perform deep reload after 1.5 seconds to load latest version
+      // Perform deep reload after 2 seconds to load latest version with cache busting
       setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        const url = new URL(window.location.href);
+        url.searchParams.set('reload', Date.now().toString());
+        window.location.href = url.toString();
+      }, 2000);
     } catch (err: any) {
-      // Graceful fallback for any unexpected error
-      addLog("اعمال همگام‌سازی اضطراری محلی به دلیل خطای شبکه: " + err.message);
-      setSuccessMsg("سیستم کدهای جاری و ساختار دیتابیس را به عنوان نسخه پایدار همگام‌سازی کرد.");
+      // Show actual error instead of fake success
+      addLog("خطا در همگام‌سازی گیت‌هاب: " + err.message);
+      setSuccessMsg(null as any);
+      alert("بروزرسانی ناموفق بود: " + err.message);
     } finally {
       setLoading(false);
     }
