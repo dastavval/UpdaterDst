@@ -508,17 +508,16 @@ export default function ProductDetailModal({
                     <div className="space-y-1">
                       <h4 className="text-xs font-black text-slate-700">مبنای ثبت سفارش بر اساس واحد بسته‌بندی:</h4>
                       <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                        محصولات صنایع غذایی مستقیماً بر اساس کارتنی، کیلوگرمی یا تناژ خروجی خط تولید کارخانه حواله می‌شوند.
+                        محصولات صنایع غذایی مستقیماً بر اساس کارتن، بسته یا حجم عمده خط تولید کارخانه حواله می‌شوند.
                       </p>
                     </div>
 
                     {/* Unit Selector Chips */}
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {[
                         { id: 'carton', label: "کارتن عمده" },
                         { id: 'pack', label: `پاکت (${product.unit})` },
-                        { id: 'kg', label: "کیلوگرم (وزنی)" },
-                        { id: 'ton', label: "تناژ (ترانزیتی)" }
+                        { id: 'kg', label: "کیلوگرم (وزنی)" }
                       ].map((u) => (
                         <button
                           key={u.id}
@@ -583,8 +582,8 @@ export default function ProductDetailModal({
                         <span className="text-indigo-800 font-mono text-xs">{toPersianNum(totalWeightKg)} کیلوگرم</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block mb-0.5">بار تناژ ترانزیت:</span>
-                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(totalWeightTons)} تن</span>
+                        <span className="text-slate-400 block mb-0.5">بار حجمی ترانزیت:</span>
+                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(cartons)} کارتن</span>
                       </div>
                     </div>
 

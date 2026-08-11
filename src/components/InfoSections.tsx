@@ -756,7 +756,7 @@ export function InteractiveEarningsCalculator({ theme }: { theme: 'light' | 'dar
       case 'supermarket':
         return { label: "سوپرمارکت زنجیره‌ای / تک‌فروشی خلاق", avgProfitPerCarton: 112000, marginText: "حاشیه سود ناخالص تک‌فروشی بالا", baseSalary: 0 };
       default:
-        return { label: "بنکدار و پخش‌کننده مویرگی (همکار)", avgProfitPerCarton: 35000, marginText: "تخفیف تناژ حجمی مستقیم از درب کارخانه", baseSalary: 5000000 };
+        return { label: "بنکدار و پخش‌کننده مویرگی (همکار)", avgProfitPerCarton: 35000, marginText: "تخفیف کارتنی حجمی مستقیم از درب کارخانه", baseSalary: 5000000 };
     }
   };
 
@@ -766,9 +766,7 @@ export function InteractiveEarningsCalculator({ theme }: { theme: 'light' | 'dar
   const totalEarning = grossProfit + platformBonus + specs.baseSalary;
 
   return (
-    <div className={`p-6 sm:p-8 rounded-[2rem] border text-right space-y-6 ${
-      theme === 'dark' ? 'bg-white/40 border-slate-800' : 'bg-gradient-to-br from-amber-500/[0.04] via-amber-500/[0.01] to-emerald-500/[0.04] border-amber-200/50 shadow-sm'
-    }`} dir="rtl">
+    <div className="p-6 sm:p-8 rounded-[2rem] border border-slate-100 bg-white text-right space-y-6 shadow-sm" dir="rtl">
       <div className="space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-600 border border-amber-500/20">
           <TrendingUp size={12} />
