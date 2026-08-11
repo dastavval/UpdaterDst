@@ -51,6 +51,8 @@ interface AdminPanelProps {
   onLogout?: () => void;
 }
 
+import { AdminSalesCharts } from "./AdminSalesCharts";
+
 type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives';
 
 export default function AdminPanel({ 
@@ -6094,24 +6096,25 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
       {/* --- TAB 3: REPORTS --- */}
       {(activeSubTab as any) === 'reports' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl">
-          <h3 className="text-sm font-black text-slate-900">گزارشات آماری سیستم</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
-              <p className="text-[10px] text-emerald-800 font-black">تعداد کل سفارشات</p>
-              <p className="text-2xl font-black text-emerald-950 mt-1">{orders.length}</p>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+            <div>
+              <h3 className="text-xl font-black text-slate-900">گزارشات تحلیل بازار و فروش</h3>
+              <p className="text-xs text-slate-400 font-bold mt-1">مانیتورینگ هوشمند عملکرد کارخانجات و توزیع‌کنندگان عمده</p>
             </div>
-            <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100">
-              <p className="text-[10px] text-blue-800 font-black">تعداد کل محصولات</p>
-              <p className="text-2xl font-black text-blue-950 mt-1">{products.length}</p>
-            </div>
-            <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100">
-              <p className="text-[10px] text-amber-800 font-black">مجموع فروش</p>
-              <p className="text-2xl font-black text-amber-950 mt-1">
-                {toPersianNum(orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0))} تومان
-              </p>
+            <div className="flex gap-2">
+              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-2xl text-[11px] font-black text-slate-700 shadow-sm hover:shadow-md transition-all">
+                <Download size={14} />
+                خروجی PDF
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-2xl text-[11px] font-black shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all">
+                <RefreshCw size={14} />
+                بروزرسانی داده‌ها
+              </button>
             </div>
           </div>
+
+          <AdminSalesCharts />
         </div>
       )}
 
