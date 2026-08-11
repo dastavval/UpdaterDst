@@ -677,9 +677,9 @@ export default function ProductDetailModal({
                       </label>
                       <div className="grid grid-cols-3 gap-2.5">
                         {[
-                          { id: "road_truck", label: "کامیون تک/ده‌چرخ", desc: "ظرفیت ۱۰ الی ۱۵ تن" },
-                          { id: "heavy_trailer", label: "تریلر چادری", desc: "ظرفیت ۲۲ الی ۲۵ تن" },
-                          { id: "local_cargo", label: "ایسوزو/خاور مسقف", desc: "ظرفیت ۳ الی ۶ تن" }
+                          { id: "road_truck", label: "کامیون تک/ده‌چرخ", desc: "ظرفیت ۱,۰۰۰ الی ۱,۵۰۰ کارتن" },
+                          { id: "heavy_trailer", label: "تریلر چادری", desc: "ظرفیت ۲,۰۰۰ الی ۲,۵۰۰ کارتن" },
+                          { id: "local_cargo", label: "ایسوزو/خاور مسقف", desc: "ظرفیت ۳۰۰ الی ۶۰۰ کارتن" }
                         ].map((t) => (
                           <div 
                             key={t.id}

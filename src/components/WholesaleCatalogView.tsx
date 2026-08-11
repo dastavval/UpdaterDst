@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "motion/react";
 import { Product } from "../types";
-import { ShoppingCart, Plus, Minus, Package, ArrowLeftRight, Check, Info, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Package, ArrowLeftRight, Check, Info, ShieldCheck, Sparkles, Star, Search, Filter, Flame } from "lucide-react";
 import StarRating from "./StarRating";
 import { PremiumProductCard } from "./PremiumProductCard";
 
@@ -17,16 +17,9 @@ interface WholesaleCatalogViewProps {
 export default function WholesaleCatalogView({ products, activeCategory, onAddToCart, userBadge, onViewDetails, interfaceMode }: WholesaleCatalogViewProps) {
   // Store ordered carton quantities per product in local state
   const [cartonQuantities, setCartonQuantities] = useState<Record<string, number>>({});
-
-  const getDiscountPercent = (badge?: string) => {
-    switch (badge) {
-      case 'silver': return 2;
-      case 'gold': return 5;
-      case 'vip': return 8;
-      case 'admin': return 10;
-      default: return 0;
-    }
-  };
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<'all' | 'bestselling' | 'new' | 'featured'>('all');
+  const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'rating'>('default');
 
   const getQuantity = (productId: string, minOrder: number) => {
     return cartonQuantities[productId] ?? minOrder;
@@ -55,12 +48,47 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
     return num.toString().replace(/[0-9]/g, (w) => (persian as any)[w]);
   };
 
-  // Sort products so Featured / Pinned / VIP products appear FIRST
-  const displayProducts = [...products].sort((a, b) => {
-    const aScore = (a.isFeatured || a.badge === "ویژه" || a.badge === "VIP" || a.badge === "منتخب" || a.isFavorite) ? 1 : 0;
-    const bScore = (b.isFeatured || b.badge === "ویژه" || b.badge === "VIP" || b.badge === "منتخب" || b.isFavorite) ? 1 : 0;
-    return bScore - aScore;
-  });
+  // Filter and sort products
+  const displayProducts = useMemo(() => {
+    let list = [...products];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.brand.toLowerCase().includes(q) || 
+        (p.description && p.description.toLowerCase().includes(q))
+      );
+    }
+
+    // Type filter
+    if (filterType === 'bestselling') {
+      list = list.filter(p => p.isFeatured || p.badge === "پرفروش" || p.badge === "ویژه" || (p.rating && p.rating >= 4.5));
+    } else if (filterType === 'new') {
+      list = list.filter(p => p.isNew || p.badge === "جدید");
+    } else if (filterType === 'featured') {
+      list = list.filter(p => p.isFeatured || p.badge === "VIP" || p.badge === "منتخب");
+    }
+
+    // Sort
+    list.sort((a, b) => {
+      if (sortBy === 'price-asc') {
+        return (a.bulk_price || a.price) - (b.bulk_price || b.price);
+      } else if (sortBy === 'price-desc') {
+        return (b.bulk_price || b.price) - (a.bulk_price || a.price);
+      } else if (sortBy === 'rating') {
+        return (b.rating || 0) - (a.rating || 0);
+      } else {
+        // Default: featured/bestselling first
+        const aScore = (a.isFeatured || a.badge === "ویژه" || a.badge === "VIP" || a.badge === "منتخب" || a.isFavorite) ? 1 : 0;
+        const bScore = (b.isFeatured || b.badge === "ویژه" || b.badge === "VIP" || b.badge === "منتخب" || b.isFavorite) ? 1 : 0;
+        return bScore - aScore;
+      }
+    });
+
+    return list;
+  }, [products, searchQuery, filterType, sortBy]);
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-xl text-right" dir="rtl">
@@ -96,39 +124,139 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
         </div>
       </div>
 
-      {/* 1. Mobile-Optimized Product List (Premium Grid) */}
-      <div className="md:hidden grid grid-cols-1 gap-6 p-4">
-        {displayProducts.map((product) => (
-          <PremiumProductCard 
-            key={`mob-cat-${product.id}`}
-            product={product}
-            qty={getQuantity(product.id, product.min_order_cartons)}
-            onIncrement={handleIncrement}
-            onDecrement={handleDecrement}
-            onAddToCart={onAddToCart}
-            onViewDetails={onViewDetails}
-            toPersianNum={toPersianNum}
-            interfaceMode={interfaceMode}
+      {/* Search and Filters Bar */}
+      <div className="p-4 sm:p-6 bg-slate-50/60 border-b border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Search Input */}
+        <div className="relative w-full md:w-80">
+          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="جستجوی نام کالا یا برند..."
+            className="w-full bg-white border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 shadow-xs transition-all"
           />
-        ))}
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              filterType === 'all'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            همه محصولات
+          </button>
+          <button
+            onClick={() => setFilterType('bestselling')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+              filterType === 'bestselling'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Flame size={13} className="text-amber-400" />
+            پرفروش‌ترین‌ها
+          </button>
+          <button
+            onClick={() => setFilterType('new')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              filterType === 'new'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            جدیدترین‌ها
+          </button>
+          <button
+            onClick={() => setFilterType('featured')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              filterType === 'featured'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            ویژه / VIP
+          </button>
+
+          {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
+          >
+            <option value="default">مرتب‌سازی: پیش‌فرض</option>
+            <option value="price-asc">ارزان‌ترین قیمت</option>
+            <option value="price-desc">گران‌ترین قیمت</option>
+            <option value="rating">بالاترین امتیاز</option>
+          </select>
+        </div>
       </div>
 
-      {/* 2. Desktop-Optimized Product Grid (Royal Bento Style) */}
-      <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-8 p-8 bg-slate-50/30">
-        {displayProducts.map((product) => (
-          <PremiumProductCard 
-            key={`desk-cat-${product.id}`}
-            product={product}
-            qty={getQuantity(product.id, product.min_order_cartons)}
-            onIncrement={handleIncrement}
-            onDecrement={handleDecrement}
-            onAddToCart={onAddToCart}
-            onViewDetails={onViewDetails}
-            toPersianNum={toPersianNum}
-            interfaceMode={interfaceMode}
-          />
-        ))}
+      {/* Product Count Indicator */}
+      <div className="px-6 py-2.5 bg-emerald-50/50 border-b border-emerald-100/60 flex items-center justify-between text-[11px] font-bold text-slate-600">
+        <span>نمایش {toPersianNum(displayProducts.length)} محصول در این دسته</span>
+        {searchQuery && (
+          <button 
+            onClick={() => setSearchQuery("")} 
+            className="text-emerald-700 hover:underline font-black cursor-pointer"
+          >
+            پاک کردن جستجو (×)
+          </button>
+        )}
       </div>
+
+      {displayProducts.length === 0 ? (
+        <div className="p-16 text-center space-y-3">
+          <Package size={40} className="mx-auto text-slate-300" />
+          <p className="text-xs font-bold text-slate-500">هیچ محصولی با معیارهای جستجوی شما یافت نشد.</p>
+          <button 
+            onClick={() => { setSearchQuery(""); setFilterType('all'); }} 
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black cursor-pointer shadow-sm hover:bg-emerald-700"
+          >
+            نمایش همه محصولات
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* 1. Mobile-Optimized Product List (Premium Grid) */}
+          <div className="md:hidden grid grid-cols-1 gap-6 p-4">
+            {displayProducts.map((product) => (
+              <PremiumProductCard 
+                key={`mob-cat-${product.id}`}
+                product={product}
+                qty={getQuantity(product.id, product.min_order_cartons)}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+                onAddToCart={onAddToCart}
+                onViewDetails={onViewDetails}
+                toPersianNum={toPersianNum}
+                interfaceMode={interfaceMode}
+              />
+            ))}
+          </div>
+
+          {/* 2. Desktop-Optimized Product Grid (Royal Bento Style) */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-8 p-8 bg-slate-50/30">
+            {displayProducts.map((product) => (
+              <PremiumProductCard 
+                key={`desk-cat-${product.id}`}
+                product={product}
+                qty={getQuantity(product.id, product.min_order_cartons)}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+                onAddToCart={onAddToCart}
+                onViewDetails={onViewDetails}
+                toPersianNum={toPersianNum}
+                interfaceMode={interfaceMode}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

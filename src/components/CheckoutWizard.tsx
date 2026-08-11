@@ -475,7 +475,7 @@ export default function CheckoutWizard({
                     <div className="flex justify-between items-center">
                       <span>تخمین خودرو ترابری:</span>
                       <span className="font-black text-indigo-700">
-                        {estimatedWeightKg < 1500 ? "وانت / نیسان بار" : estimatedWeightKg < 5000 ? "کامیونت خاور ۶ تن" : "کامیون تک / جفت ۲۰ تن"}
+                        {estimatedWeightKg < 1500 ? "وانت / نیسان بار" : estimatedWeightKg < 5000 ? "کامیونت خاور ۶ تنی" : "کامیون تک / جفت ۲۰ تنی"}
                       </span>
                     </div>
                     <div className="text-[10px] text-indigo-700 font-normal">

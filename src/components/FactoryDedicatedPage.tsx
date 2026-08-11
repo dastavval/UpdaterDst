@@ -532,7 +532,7 @@ export default function FactoryDedicatedPage({
                     <Zap size={20} />
                   </div>
                   <span className="text-[11px] text-slate-400 font-bold block">ظرفیت تولید:</span>
-                  <span className="text-sm font-black text-slate-900 block">{factory.capacity || "۵۰ تن در روز"}</span>
+                  <span className="text-sm font-black text-slate-900 block">{factory.capacity || "۵,۰۰۰ کارتن در روز"}</span>
                 </div>
 
                 <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">

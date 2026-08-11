@@ -130,7 +130,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
           <div className="grid grid-cols-2 gap-2 text-[10px] bg-gradient-to-r from-purple-500/5 to-indigo-500/5 p-3 rounded-2xl border border-indigo-500/10 text-slate-600 font-bold">
             <div className="flex items-center gap-1.5">
               <span className="text-purple-600">⚡</span>
-              <span>ظرفیت خط: {toPersianNum((product as any).production_capacity || "۱۵,۰۰۰")} تن</span>
+              <span>ظرفیت خط: {toPersianNum((product as any).production_capacity || "۱۵,۰۰۰")} کارتن</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-indigo-600">🛡️</span>
