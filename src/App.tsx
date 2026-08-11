@@ -1243,11 +1243,11 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
                     {[
-                      { id: "همه", name: "همه محصولات", value: "همه" },
+                      { id: "mob-cat-all", name: "همه محصولات", value: "همه" },
                       ...Array.from(new Set([
                         ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name),
                         ...products.map(p => p.category).filter(Boolean)
-                      ])).map(catName => ({ id: catName, name: catName, value: catName }))
+                      ])).map((catName, idx) => ({ id: `mob-cat-${idx}-${catName}`, name: catName, value: catName }))
                     ].map((cat: any) => {
                       const isActive = activeCategory === cat.value;
                       return (
@@ -1267,11 +1267,11 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    {["همه", ...Array.from(new Set(products.map(p => p.brand)))].map((brand) => {
+                    {["همه", ...Array.from(new Set(products.map(p => p.brand).filter(Boolean)))].map((brand, idx) => {
                       const isActive = selectedBrand === brand;
                       return (
                         <button
-                          key={brand}
+                          key={`mob-brand-${idx}-${brand}`}
                           onClick={() => setSelectedBrand(brand)}
                           className={`px-3 py-1.5 rounded-full text-[10px] font-black transition-all shrink-0 border cursor-pointer ${
                             isActive
@@ -1453,9 +1453,9 @@ export default function App() {
                         <span>فیلتر بر اساس کارخانه</span>
                       </h3>
                       <div className="space-y-1 max-h-48 overflow-y-auto">
-                        {["همه", ...Array.from(new Set(products.map(p => p.brand)))].map((brand) => (
+                        {["همه", ...Array.from(new Set(products.map(p => p.brand).filter(Boolean)))].map((brand, idx) => (
                           <button
-                            key={brand}
+                            key={`desk-brand-${idx}-${brand}`}
                             onClick={() => setSelectedBrand(brand)}
                             className={`w-full text-right px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                               selectedBrand === brand

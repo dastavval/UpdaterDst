@@ -113,6 +113,9 @@ export default function AdminSystemConfig({
     message: "بهینه‌سازی سیستم فاکتور رسمی و مانیتورینگ لودبالانسر سرور"
   });
 
+  const [githubDiagnostics, setGithubDiagnostics] = useState<any>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+
   // --- 3. SITE & DATABASE CONFIG STATES ---
   const [siteDomain, setSiteDomain] = useState((b2bConfig as any).domain || "https://dastavval.ir");
   const [apiGatewayUrl, setApiGatewayUrl] = useState(
@@ -949,6 +952,103 @@ export default function AdminSystemConfig({
                 🚀 <strong className="font-black">نکته بسیار مهم:</strong> فرآیند بروزرسانی گیت‌هاب کاملا زنده و ابری است؛ با کلیک بر روی دکمه بروزرسانی زنده، آخرین ورژن وب‌سایت کامپایل شده و در لحظه جایگزین خواهد شد.
               </div>
             </div>
+          </div>
+
+          {/* GitHub API Response Diagnostic Inspector Tool */}
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xl space-y-6 mt-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                  <ShieldCheck size={20} className="text-indigo-600" />
+                  <span>ابزار عیب‌یابی پیشرفته و بازرسی پاسخ خام API گیت‌هاب (Diagnostic Inspector)</span>
+                </h4>
+                <p className="text-xs text-slate-500 font-bold mt-1">
+                  این ابزار تمامی آدرس‌های مخزن گیت‌هاب، هدرهای امنیتی، وضعیت هدایت (Redirect Hops) و کدهای پاسخ HTTP را تست کرده و علت دقیق خطاهای آپدیت را گزارش می‌دهد.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsDiagnosing(true);
+                  addLog("شروع اجرای ابزار عیب‌یابی پیشرفته پاسخ‌های گیت‌هاب...");
+                  try {
+                    const res = await fetch("/api/admin/github-diagnostics", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        repoUrl: githubRepoUrl.trim(),
+                        branch: githubBranch.trim(),
+                        token: githubToken.trim()
+                      })
+                    });
+                    const data = await res.json();
+                    setGithubDiagnostics(data);
+                    addLog(`عیب‌یابی کامل شد. مخزن شناسایی شده: ${data.ownerRepo || "ناشناس"}`);
+                    setSuccessMsg("گزارش عیب‌یابی پاسخ‌های خام API گیت‌هاب با موفقیت تهیه شد.");
+                  } catch (e: any) {
+                    setErrorMsg("خطا در اجرای عیب‌یابی گیت‌هاب: " + e.message);
+                    addLog("خطا در عیب‌یابی: " + e.message);
+                  } finally {
+                    setIsDiagnosing(false);
+                  }
+                }}
+                disabled={isDiagnosing}
+                className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-md"
+              >
+                <RefreshCw size={16} className={isDiagnosing ? "animate-spin" : ""} />
+                <span>اجرای تست و بازرسی خام API</span>
+              </button>
+            </div>
+
+            {githubDiagnostics && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <span className="text-[10px] font-black text-slate-400 block">نام مخزن استخراج شده (Owner/Repo):</span>
+                    <span className="text-xs font-mono font-black text-slate-800">{githubDiagnostics.ownerRepo || "تعیین نشده"}</span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <span className="text-[10px] font-black text-slate-400 block">شاخه‌های تست شده:</span>
+                    <span className="text-xs font-mono font-black text-slate-800">{githubDiagnostics.branchesTried?.join(", ") || "-"}</span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <span className="text-[10px] font-black text-slate-400 block">تعداد آدرس‌های آزمایشی:</span>
+                    <span className="text-xs font-mono font-black text-indigo-600">{githubDiagnostics.diagnostics?.length || 0} URL</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h5 className="text-xs font-black text-slate-700">نتیجه تست تک‌تک آدرس‌ها و پاسخ‌های خام (Raw Response Inspector):</h5>
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {githubDiagnostics.diagnostics?.map((diag: any, idx: number) => (
+                      <div
+                        key={`diag-${idx}`}
+                        className={`p-4 rounded-2xl border text-xs font-mono space-y-1.5 ${
+                          diag.isZip ? "bg-emerald-50/70 border-emerald-200 text-emerald-950" : "bg-rose-50/70 border-rose-200 text-rose-950"
+                        }`}
+                        dir="ltr"
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span className="truncate max-w-[70%] font-black">{diag.url}</span>
+                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${diag.status === 200 && diag.isZip ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}`}>
+                            HTTP {diag.status} {diag.isZip ? "✓ ZIP OK" : "✗ FAILED"}
+                          </span>
+                        </div>
+                        {diag.finalUrl !== diag.url && (
+                          <div className="text-[10px] text-slate-500 truncate">
+                            Redirect Final: {diag.finalUrl} (Hops: {diag.hops})
+                          </div>
+                        )}
+                        <div className="text-[10px] flex items-center justify-between text-slate-600 pt-1 border-t border-black/5">
+                          <span>حجم بایت: {diag.contentSize} bytes</span>
+                          <span className="text-rose-700 font-bold">{diag.error || (diag.isZip ? "فایل ZIP کاملاً معتبر است" : "نامعتبر")}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

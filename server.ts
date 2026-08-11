@@ -448,6 +448,114 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
   return null;
 }
 
+// GitHub Diagnostics & Inspector Endpoint
+app.post("/api/admin/github-diagnostics", async (req, res) => {
+  const rawRepoUrl = req.body.repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git";
+  const userBranch = (req.body.branch || "main").trim();
+  const token = (req.body.token || "").trim();
+
+  const diagnostics: any[] = [];
+
+  try {
+    let cleanUrl = String(rawRepoUrl).trim().replace(/\/+$/, "");
+    cleanUrl = cleanUrl.replace(/^git@github\.com:/i, "https://github.com/");
+    cleanUrl = cleanUrl.replace(/\.git$/i, "");
+
+    let extractedBranch = userBranch;
+    const treeMatch = cleanUrl.match(/\/tree\/([^\/\s\?\#]+)/i);
+    if (treeMatch && treeMatch[1]) {
+      extractedBranch = treeMatch[1];
+      cleanUrl = cleanUrl.replace(/\/tree\/[^\/\s\?\#]+.*/i, "");
+    }
+
+    let ownerRepo = "";
+    const matches = cleanUrl.match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\s\?\#]+)/i);
+    if (matches && matches[1] && matches[2]) {
+      ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
+    }
+    ownerRepo = ownerRepo.replace(/\.git$/i, "").replace(/\/+$/, "");
+
+    const branchesToTry = Array.from(new Set([extractedBranch, userBranch, "main", "master"])).filter(Boolean);
+    const zipUrls: string[] = [];
+
+    for (const b of branchesToTry) {
+      zipUrls.push(`https://api.github.com/repos/${ownerRepo}/zipball/${b}`);
+      zipUrls.push(`https://codeload.github.com/${ownerRepo}/zip/refs/heads/${b}`);
+      zipUrls.push(`https://github.com/${ownerRepo}/archive/refs/heads/${b}.zip`);
+    }
+
+    for (const candidateUrl of zipUrls) {
+      let currentUrl = candidateUrl;
+      let hops = 0;
+      let lastStatus = 0;
+      let errorMsg = null;
+      let isZip = false;
+      let contentSize = 0;
+
+      while (hops < 5) {
+        const isS3orCodeload = currentUrl.includes("objects.githubusercontent.com") || currentUrl.includes("codeload.github.com");
+        const headers: Record<string, string> = {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Diagnostics/5.0",
+          "Accept": "application/vnd.github+json, application/zip, application/octet-stream, */*"
+        };
+        if (token && !isS3orCodeload && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        try {
+          const resp = await fetch(currentUrl, { headers, redirect: "manual" });
+          lastStatus = resp.status;
+          if (resp.status >= 300 && resp.status < 400) {
+            const loc = resp.headers.get("location");
+            if (loc) {
+              currentUrl = loc;
+              hops++;
+              continue;
+            }
+          }
+          if (resp.status === 200) {
+            const buf = Buffer.from(await resp.arrayBuffer());
+            contentSize = buf.length;
+            if (buf.length > 50 && buf[0] === 0x50 && buf[1] === 0x4b) {
+              isZip = true;
+            } else {
+              errorMsg = "متن دریافتی فایل فشرده معتبر (ZIP) نمی‌باشد";
+            }
+          } else {
+            errorMsg = `پاسخ HTTP با وضعیت ${resp.status} دریافت شد`;
+          }
+        } catch (e: any) {
+          errorMsg = e.message;
+        }
+        break;
+      }
+
+      diagnostics.push({
+        url: candidateUrl,
+        finalUrl: currentUrl,
+        status: lastStatus,
+        hops,
+        isZip,
+        contentSize,
+        error: errorMsg
+      });
+    }
+
+    return res.json({
+      success: true,
+      ownerRepo,
+      branchesTried: branchesToTry,
+      diagnostics
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+      diagnostics
+    });
+  }
+});
+
 app.post("/api/admin/github-update", async (req, res) => {
   const rawRepoUrl = req.body.repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git";
   const userBranch = (req.body.branch || "main").trim();

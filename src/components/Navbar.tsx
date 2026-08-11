@@ -290,15 +290,15 @@ export default function Navbar({
         {/* Top Announcement Bar */}
         {showTopAnnouncement && topAnnouncement && !isAnnouncementDismissed && (
           <div 
-            className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 text-slate-950 text-[11px] font-black py-1.5 px-4 border-b border-amber-400 flex items-center justify-between gap-2 overflow-hidden shadow-inner transition-all group"
+            className="bg-gradient-to-r from-rose-400 via-rose-500 to-rose-400 text-white text-[11px] font-black py-1.5 px-4 border-b border-rose-300 flex items-center justify-between gap-2 overflow-hidden shadow-inner transition-all group"
           >
             <div 
               onClick={() => onOpenAnnouncementModal?.()}
               className="flex-1 flex items-center justify-center gap-2 cursor-pointer truncate"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-800 animate-ping shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
               <span className="truncate group-hover:underline">{topAnnouncement}</span>
-              <span className="text-[9px] bg-white text-amber-900 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black">
+              <span className="text-[9px] bg-white text-rose-900 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black">
                 <span>جزئیات</span>
                 <span>←</span>
               </span>
@@ -308,7 +308,7 @@ export default function Navbar({
                 e.stopPropagation();
                 setIsAnnouncementDismissed(true);
               }}
-              className="p-1 text-slate-950 hover:bg-black/10 rounded-full transition-colors cursor-pointer shrink-0"
+              className="p-1 text-white hover:bg-black/10 rounded-full transition-colors cursor-pointer shrink-0"
               title="بستن اعلان"
             >
               <X size={14} />
