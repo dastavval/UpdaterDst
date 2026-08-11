@@ -72,7 +72,7 @@ export default function Navbar({
   logoUrl,
   mascotUrl,
   topAnnouncement = "🚀 تخفیف ویژه جشنواره تابستانه کارخانجات - ارسال مستقیم و هماهنگ‌شده بر اساس ضوابط کارخانه",
-  showTopAnnouncement = true,
+  showTopAnnouncement = false,
   onOpenAnnouncementModal,
   hqAddress,
   supportPhone,
@@ -290,15 +290,15 @@ export default function Navbar({
         {/* Top Announcement Bar */}
         {showTopAnnouncement && topAnnouncement && !isAnnouncementDismissed && (
           <div 
-            className="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-400 text-white text-[11px] font-black py-1.5 px-4 border-b border-orange-300/50 flex items-center justify-between gap-2 overflow-hidden shadow-sm transition-all group"
+            className="bg-green-400 text-white text-[11px] font-black py-1.5 px-4 border-b border-green-300 flex items-center justify-between gap-2 overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] transition-all group"
           >
             <div 
               onClick={() => onOpenAnnouncementModal?.()}
               className="flex-1 flex items-center justify-center gap-2 cursor-pointer truncate"
             >
-              <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
-              <span className="truncate group-hover:underline">{topAnnouncement}</span>
-              <span className="text-[9px] bg-white text-orange-900 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+              <span className="truncate group-hover:underline drop-shadow-sm">{topAnnouncement}</span>
+              <span className="text-[9px] bg-white text-green-600 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black shadow-sm">
                 <span>جزئیات</span>
                 <span>←</span>
               </span>
