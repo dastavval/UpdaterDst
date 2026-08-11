@@ -437,6 +437,11 @@ export default function AdminSystemConfig({
       } as any);
 
       setSuccessMsg(data.message || "پروژه و دیتابیس با موفقیت همگام‌سازی و به‌روزرسانی شدند!");
+      
+      // Perform deep reload after 1.5 seconds to load latest version
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (err: any) {
       // Graceful fallback for any unexpected error
       addLog("اعمال همگام‌سازی اضطراری محلی به دلیل خطای شبکه: " + err.message);

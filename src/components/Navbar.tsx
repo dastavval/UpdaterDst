@@ -526,12 +526,12 @@ export default function Navbar({
               <a
                 href="tel:09999123001"
                 className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs shrink-0 group"
-                title="تماس تلفنی با پشتیبانی مشتریان"
+                title="تماس تلفنی با پشتیبانی تلفنی"
               >
                 <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
                   <PhoneCall size={13} className="animate-pulse" />
                 </div>
-                <span className="font-black text-emerald-950">پشتیبانی مشتریان</span>
+                <span className="font-black text-emerald-950">پشتیبانی تلفنی</span>
               </a>
 
               {/* Cart Button */}
