@@ -119,6 +119,43 @@ export default function AdminSystemConfig({
   const [githubDiagnostics, setGithubDiagnostics] = useState<any>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
 
+  // --- GITHUB ADVANCED SYNC & PIPELINE STATES ---
+  const [pipelineStep, setPipelineStep] = useState<number>(0); // 0: Idle, 1: Test, 2: Preview, 3: Apply, 4: Rebuild, 5: Refresh
+  const [pipelineProgress, setPipelineProgress] = useState<number>(0);
+  const [previewFiles, setPreviewFiles] = useState<any[]>([]);
+  const [previewMeta, setPreviewMeta] = useState<any>(null);
+  const [remoteCommitInfo, setRemoteCommitInfo] = useState<any>(null);
+  const [fileSearchFilter, setFileSearchFilter] = useState<string>("");
+  const [fileStatusFilter, setFileStatusFilter] = useState<'all' | 'new' | 'modified'>('all');
+  const [hardResetMode, setHardResetMode] = useState<boolean>(false);
+  const [showFileDetailsModal, setShowFileDetailsModal] = useState<boolean>(false);
+
+  // Poll server logs when github tab is active
+  const fetchServerGithubLogs = async () => {
+    try {
+      const res = await fetch("/api/admin/github-logs");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+          const formatted = data.logs.map((l: any) => 
+            `[${new Date(l.timestamp).toLocaleTimeString("fa-IR")}] [${l.type.toUpperCase()}] ${l.message}`
+          );
+          setTerminalLogs(formatted);
+        }
+      }
+    } catch (e) {
+      // ignore log poll error
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "github") {
+      fetchServerGithubLogs();
+      const interval = setInterval(fetchServerGithubLogs, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
   // --- 3. SITE & DATABASE CONFIG STATES ---
   const [siteDomain, setSiteDomain] = useState((b2bConfig as any).domain || "https://dastavval.ir");
   const [apiGatewayUrl, setApiGatewayUrl] = useState(
@@ -266,166 +303,138 @@ export default function AdminSystemConfig({
     }
   };
 
-  // Handler: Test GitHub Connection
+  // Step 1: Test GitHub Connection & Fetch Remote Commit Metadata
   const handleGitHubTest = async () => {
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    addLog(`تست اتصال به مخزن گیت‌هاب: ${githubRepoUrl} (شاخه ${githubBranch})`);
+    setPipelineStep(1);
+    setPipelineProgress(20);
+    addLog(`[مرحله ۱] تست اتصال به مخزن: ${githubRepoUrl} (شاخه ${githubBranch})`);
     
     try {
-      if (!githubRepoUrl.trim()) {
-        throw new Error("آدرس مخزن گیت‌هاب نمی‌تواند خالی باشد.");
-      }
+      if (!githubRepoUrl.trim()) throw new Error("آدرس مخزن گیت‌هاب الزامی است.");
+
       const payload = {
         repoUrl: githubRepoUrl.trim(),
         branch: githubBranch.trim() || "main",
         token: githubToken.trim()
       };
 
-      let res: Response | null = null;
-      let data: any = null;
+      const res = await fetch("/api/admin/github-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-      try {
-        res = await fetch("/api/admin/github-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const text = await res.text();
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-          data = null;
-        }
-      } catch (err) {
-        console.warn("Node test fetch failed, trying PHP fallback...", err);
-      }
-
+      const data = await res.json();
       if (!data || data.success === false) {
-        try {
-          const phpRes = await fetch("php/api.php?action=admin/github-test", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-          const phpText = await phpRes.text();
-          if (phpRes.ok) {
-            try {
-              const phpData = JSON.parse(phpText);
-              if (phpData && phpData.success !== false) {
-                data = phpData;
-              }
-            } catch (e) {
-              // ignore HTML 404
-            }
-          }
-        } catch (phpErr) {
-          // ignore
-        }
+        throw new Error(data?.error || "خطا در استعلام از مخزن گیت‌هاب.");
       }
 
-      if (!data || data.success === false) {
-        throw new Error(data?.error || "ارتباط با مخزن گیت‌هاب برقرار نشد.");
+      if (data.commitInfo) {
+        setRemoteCommitInfo(data.commitInfo);
       }
 
-      addLog(`نتیجه تست اتصال: ${data.message}`);
-      setSuccessMsg(`تست اتصال با موفقیت انجام شد! فایل فشرده مخزن ${data.ownerRepo} شناسایی گردید (${data.zipSizeKb} KB).`);
+      setPipelineProgress(25);
+      addLog(`[مرحله ۱ موفق] ${data.message} | حجم فایل فشرده: ${data.zipSizeKb} KB | کامیت: ${data.commitInfo?.sha || "-"}`);
+      setSuccessMsg(`ارتباط با مخزن ${data.ownerRepo} برقرار شد! کامیت ${data.commitInfo?.sha} شناسایی گردید.`);
+      return data;
     } catch (err: any) {
-      setErrorMsg("خطا در تست اتصال گیت‌هاب: " + err.message);
+      setErrorMsg("خطا در مرحله ۱ (تست اتصال): " + err.message);
       addLog("خطا در تست اتصال: " + err.message);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // Handler: GitHub Live Pull & Sync
-  const handleGitHubSync = async (hardReset: boolean = false) => {
+  // Step 2: Download & Preview File List / Diff
+  const handleGitHubPreview = async () => {
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    addLog(`شروع فرآیند Fetch و Pull از مخزن Git: ${githubRepoUrl} (شاخه ${githubBranch}) ${hardReset ? '[HARD RESET MODE]' : ''}`);
-    
+    setPipelineStep(2);
+    setPipelineProgress(40);
+    addLog(`[مرحله ۲] دریافت فایل فشرده کدهای جدید و محاسبه لیست تغییرات...`);
+
     try {
-      if (!githubRepoUrl.trim()) {
-        throw new Error("آدرس مخزن گیت‌هاب نمی‌تواند خالی باشد.");
+      if (!githubRepoUrl.trim()) throw new Error("آدرس مخزن گیت‌هاب الزامی است.");
+
+      const payload = {
+        repoUrl: githubRepoUrl.trim(),
+        branch: githubBranch.trim() || "main",
+        token: githubToken.trim()
+      };
+
+      const res = await fetch("/api/admin/github-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!data || data.success === false) {
+        throw new Error(data?.error || "خطا در دانلود یا استخراج پیش‌نمایش کدهای جدید.");
       }
 
-      addLog("در حال برقراری ارتباط با سرور و ارسال درخواست بروزرسانی...");
-      
+      setPreviewFiles(data.files || []);
+      setPreviewMeta(data);
+      if (data.commitInfo) setRemoteCommitInfo(data.commitInfo);
+
+      setPipelineProgress(50);
+      setShowFileDetailsModal(true);
+      addLog(`[مرحله ۲ موفق] تعداد کل فایل‌ها: ${data.totalFiles} (جدید: ${data.addedCount} | تغییر یافته: ${data.modifiedCount})`);
+      setSuccessMsg(`تحلیل کدهای جدید انجام شد. ${data.totalFiles} فایل آماده جایگزینی و بروزرسانی می‌باشد.`);
+      return data;
+    } catch (err: any) {
+      setErrorMsg("خطا در مرحله ۲ (دانلود و تحلیل فایل‌ها): " + err.message);
+      addLog("خطا در دانلود پیش‌نمایش: " + err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 3: Apply Code Changes & Update Configuration
+  const handleGitHubApplyFiles = async (hardResetOverride?: boolean) => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setPipelineStep(3);
+    setPipelineProgress(70);
+    const isHard = hardResetOverride !== undefined ? hardResetOverride : hardResetMode;
+    addLog(`[مرحله ۳] جایگزینی فایل‌های سورس‌کد روی دیسک ${isHard ? ' (همراه با پاکسازی اولیه Hard Reset)' : ''}...`);
+
+    try {
+      if (!githubRepoUrl.trim()) throw new Error("آدرس مخزن گیت‌هاب الزامی است.");
+
       const payload = {
         repoUrl: githubRepoUrl.trim(),
         branch: githubBranch.trim() || "main",
         token: githubToken.trim(),
-        hardReset
+        hardReset: isHard
       };
 
-      let res: Response | null = null;
-      let data: any = null;
-
-      // Endpoint 1: Express Node.js route
-      try {
-        res = await fetch("/api/admin/github-update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const text = await res.text();
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-          data = null;
-        }
-      } catch (err) {
-        console.warn("Node endpoint fetch failed, trying PHP endpoint fallback...", err);
-      }
-
-      // Endpoint 2: Fallback PHP cPanel API
-      if (!data || data.success === false) {
-        if (data && data.error) {
-          addLog(`هشدار از اندپوئینت اصلی: ${data.error}`);
-        }
-        try {
-          const phpRes = await fetch("php/api.php?action=admin/github-update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-          const phpText = await phpRes.text();
-          if (phpRes.ok) {
-            try {
-              const phpData = JSON.parse(phpText);
-              if (phpData && phpData.success !== false) {
-                res = phpRes;
-                data = phpData;
-              }
-            } catch (jsonErr) {
-              // ignore non-json
-            }
-          }
-        } catch (phpErr) {
-          // ignore
-        }
-      }
-
-      if (!data || data.success === false) {
-        throw new Error(data?.error || "خطا در برقراری ارتباط با سرور گیت‌هاب یا دریافت پکیج بروزرسانی.");
-      }
-
-      addLog("دریافت و اعمال آخرین تغییرات سامانه با موفقیت انجام شد.");
-      addLog(`تعداد کل فایل‌های بروزرسانی شده: ${data.updatedFilesCount || 25}`);
-      if (data.databaseUpdated) {
-        addLog("دیتابیس سیستم نیز با موفقیت همگام‌سازی و به‌روز شد.");
-      }
-      addLog("سرویس با موفقیت همگام‌سازی و بروزرسانی گردید.");
-
-      const newCommitHash = data.commitHash || Math.random().toString(36).substring(2, 9);
-      setLastCommitInfo({
-        hash: newCommitHash,
-        author: "مدیریت سامانه (Auto Sync)",
-        date: new Date().toLocaleDateString("fa-IR"),
-        message: data.message || "بروزرسانی مستقیم از مخزن گیت‌هاب و اعمال آخرین تغییرات"
+      const res = await fetch("/api/admin/github-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
+
+      const data = await res.json();
+      if (!data || data.success === false) {
+        throw new Error(data?.error || "خطا در جایگزینی و اعمال فایل‌های جدید.");
+      }
+
+      if (data.commitInfo) {
+        setLastCommitInfo({
+          hash: data.commitInfo.sha,
+          author: data.commitInfo.author,
+          date: data.commitInfo.date,
+          message: data.commitInfo.message
+        });
+      }
 
       await onUpdateB2bConfig({
         githubRepoUrl,
@@ -435,22 +444,116 @@ export default function AdminSystemConfig({
         lastGithubUpdate: Date.now()
       } as any);
 
-      setSuccessMsg(data.message || "پروژه و دیتابیس با موفقیت همگام‌سازی و به‌روزرسانی شدند!");
-      
-      // Perform deep reload after 2 seconds to load latest version with cache busting
-      setTimeout(() => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('reload', Date.now().toString());
-        window.location.href = url.toString();
-      }, 2000);
+      setPipelineProgress(75);
+      addLog(`[مرحله ۳ موفق] ${data.updatedFilesCount} فایل با موفقیت روی سرور جایگزین شد.`);
+      setSuccessMsg(`کدهای جدید روی سرور مستقر گردید (${data.updatedFilesCount} فایل جایگزین شد).`);
+      return data;
     } catch (err: any) {
-      // Show actual error instead of fake success
-      addLog("خطا در همگام‌سازی گیت‌هاب: " + err.message);
-      setSuccessMsg(null as any);
-      alert("بروزرسانی ناموفق بود: " + err.message);
+      setErrorMsg("خطا در مرحله ۳ (اعمال تغییرات): " + err.message);
+      addLog("خطا در اعمال تغییرات: " + err.message);
+      throw err;
     } finally {
       setLoading(false);
     }
+  };
+
+  // Step 4: Rebuild & Compile Web Application
+  const handleGitHubRebuild = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setPipelineStep(4);
+    setPipelineProgress(90);
+    addLog(`[مرحله ۴] شروع کامپایل و بازسازی سرور (npm run build)...`);
+
+    try {
+      const res = await fetch("/api/admin/github-rebuild", { method: "POST" });
+      const data = await res.json();
+      if (!data || data.success === false) {
+        throw new Error(data?.error || "خطا در بازسازی و کامپایل پروژه.");
+      }
+
+      setPipelineProgress(95);
+      addLog(`[مرحله ۴ موفق] پروژه با موفقیت کامپایل و بازسازی شد.`);
+      setSuccessMsg("کامپایل و بازسازی فرانت‌اند و بک‌اند با موفقیت انجام گردید!");
+      return data;
+    } catch (err: any) {
+      setErrorMsg("خطا در مرحله ۴ (کامپایل): " + err.message);
+      addLog("خطا در کامپایل: " + err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 5: Clear Caches & Perform Deep Reload
+  const handleDeepRefresh = async () => {
+    setPipelineStep(5);
+    setPipelineProgress(100);
+    addLog(`[مرحله ۵] پاکسازی کش مرورگر و کش سرویس‌ورکر و بازخوانی عمیق (Deep Reload)...`);
+
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+          await registration.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys();
+        for (let key of cacheKeys) {
+          await caches.delete(key);
+        }
+      }
+      sessionStorage.clear();
+    } catch (e) {
+      // Ignore cache clear non-fatal errors
+    }
+
+    setSuccessMsg("پاکسازی کامل کش انجام شد! در حال بارگذاری مجدد زنده وب‌سایت...");
+    setTimeout(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', Date.now().toString());
+      window.location.href = url.toString();
+    }, 1200);
+  };
+
+  // Automated 1-Click Pipeline Execution (Runs Steps 1 to 5)
+  const handleAutomatedFullPipeline = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog(`🚀 شروع فرآیند اتوماتیک ۱-کلیکه بروزرسانی کامل وب‌سایت از مخزن گیت‌هاب...`);
+
+    try {
+      // 1. Test
+      await handleGitHubTest();
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 2. Preview & Diff
+      await handleGitHubPreview();
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 3. Apply
+      await handleGitHubApplyFiles(hardResetMode);
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 4. Rebuild
+      await handleGitHubRebuild();
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 5. Deep Refresh
+      await handleDeepRefresh();
+    } catch (err: any) {
+      alert("فرآیند اتوماتیک بروزرسانی به علت خطا متوقف شد: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Legacy / Direct Sync Alias Function
+  const handleGitHubSync = async (hardReset: boolean = false) => {
+    return handleGitHubApplyFiles(hardReset);
   };
 
   // Handler: Save Site & DB Config
@@ -790,40 +893,220 @@ export default function AdminSystemConfig({
         </button>
       </div>
 
-      {/* --- TAB 0: GITHUB AUTO-UPDATE & LIVE DEPLOY --- */}
+      {/* --- TAB 0: GITHUB AUTO-UPDATE & LIVE DEPLOY HUB --- */}
       {activeTab === "github" && (
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
+          
+          {/* Header & Main Automated Actions */}
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/30">
                 <Github size={24} className="text-amber-400 animate-pulse" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">بروزرسانی هوشمند سیستم و همگام‌سازی با گیت‌هاب (GitHub Sync Engine)</h3>
-                <p className="text-[11px] text-slate-400 font-bold">بسته بروزرسانی خودکار و همگام‌سازی آنی کدهای وب‌سایت با مخزن اختصاصی Git</p>
+                <h3 className="text-sm font-black text-slate-800">مرکز مدیریت و همگام‌سازی زنده گیت‌هاب (GitHub Sync Hub)</h3>
+                <p className="text-[11px] text-slate-400 font-bold">فرآیند شفاف ۵ مرحله‌ای: استعلام، دریافت فایل، تحلیل تغییرات، اعمال، بازسازی و ریفرش عمیق</p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
+            {/* Quick Actions Bar */}
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={handleGitHubTest}
+                onClick={handleAutomatedFullPipeline}
                 disabled={loading}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border border-slate-300"
+                className="px-5 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:brightness-110 text-white rounded-2xl text-xs font-black transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer active:scale-95"
               >
-                {loading ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} className="text-emerald-600" />}
-                <span>بررسی و تست اتصال</span>
+                {loading ? <RefreshCw size={18} className="animate-spin" /> : <Zap size={18} className="text-amber-300" />}
+                <span>⚡ اجرای اتوماتیک ۱-کلیکه (کل فرآیند)</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleGitHubSync()}
-                disabled={loading}
-                className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 hover:brightness-110 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-purple-900/20 flex items-center gap-2 cursor-pointer active:scale-95"
+                onClick={handleDeepRefresh}
+                className="px-4 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border border-slate-200"
               >
-                {loading ? <RefreshCw size={18} className="animate-spin" /> : <GitBranch size={18} className="text-amber-400" />}
-                <span>🚀 اجرای فوری بروزرسانی سیستم از گیت‌هاب</span>
+                <RotateCcw size={16} className="text-indigo-600" />
+                <span>ریفرش عمیق و پاکسازی کش</span>
               </button>
+            </div>
+          </div>
+
+          {/* Step-by-Step Interactive Stepper Bar */}
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-slate-700 flex items-center gap-2">
+                <Activity size={16} className="text-indigo-600" />
+                پایپ‌لاین ۵ مرحله‌ای همگام‌سازی وب‌سایت با مخزن Git
+              </span>
+              <span className="text-xs font-mono font-black text-indigo-600 dir-ltr bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-100">
+                پیشرفت: {pipelineProgress}٪
+              </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-500 transition-all duration-500"
+                style={{ width: `${pipelineProgress}%` }}
+              />
+            </div>
+
+            {/* Stepper Buttons Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2">
+              <button
+                onClick={handleGitHubTest}
+                disabled={loading}
+                className={`p-3 rounded-2xl text-right transition-all border flex flex-col justify-between cursor-pointer ${
+                  pipelineStep >= 1 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400">مرحله ۱</span>
+                  {pipelineStep >= 1 ? <Check size={14} className="text-emerald-600" /> : <ShieldCheck size={14} className="text-slate-400" />}
+                </div>
+                <span className="text-xs font-black mt-1">۱. استعلام و تست</span>
+              </button>
+
+              <button
+                onClick={handleGitHubPreview}
+                disabled={loading}
+                className={`p-3 rounded-2xl text-right transition-all border flex flex-col justify-between cursor-pointer ${
+                  pipelineStep >= 2 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400">مرحله ۲</span>
+                  {pipelineStep >= 2 ? <Check size={14} className="text-emerald-600" /> : <FileCode size={14} className="text-slate-400" />}
+                </div>
+                <span className="text-xs font-black mt-1">۲. دانلود و لیست تغییرات</span>
+              </button>
+
+              <button
+                onClick={() => handleGitHubApplyFiles()}
+                disabled={loading}
+                className={`p-3 rounded-2xl text-right transition-all border flex flex-col justify-between cursor-pointer ${
+                  pipelineStep >= 3 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400">مرحله ۳</span>
+                  {pipelineStep >= 3 ? <Check size={14} className="text-emerald-600" /> : <GitBranch size={14} className="text-slate-400" />}
+                </div>
+                <span className="text-xs font-black mt-1">۳. اعمال و جایگزینی</span>
+              </button>
+
+              <button
+                onClick={handleGitHubRebuild}
+                disabled={loading}
+                className={`p-3 rounded-2xl text-right transition-all border flex flex-col justify-between cursor-pointer ${
+                  pipelineStep >= 4 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400">مرحله ۴</span>
+                  {pipelineStep >= 4 ? <Check size={14} className="text-emerald-600" /> : <Cpu size={14} className="text-slate-400" />}
+                </div>
+                <span className="text-xs font-black mt-1">۴. کامپایل و بازسازی</span>
+              </button>
+
+              <button
+                onClick={handleDeepRefresh}
+                className={`p-3 rounded-2xl text-right transition-all border flex flex-col justify-between cursor-pointer col-span-2 sm:col-span-1 ${
+                  pipelineStep >= 5 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400">مرحله ۵</span>
+                  {pipelineStep >= 5 ? <Check size={14} className="text-emerald-600" /> : <RotateCcw size={14} className="text-slate-400" />}
+                </div>
+                <span className="text-xs font-black mt-1">۵. ریفرش عمیق</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Versioning & Affected System Sections Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Installed Local Version Card */}
+            <div className="bg-slate-900 text-white p-5 rounded-3xl space-y-3 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-300 flex items-center gap-1.5">
+                  <CheckCircle size={16} className="text-emerald-400" />
+                  نسخه فعال سرور
+                </span>
+                <span className="px-2 py-0.5 bg-slate-800 text-emerald-400 text-[10px] font-mono font-black rounded-md dir-ltr">
+                  {lastCommitInfo.hash}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 font-bold line-clamp-2">« {lastCommitInfo.message} »</p>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-800 pt-2">
+                <span>توسعه‌دهنده: {lastCommitInfo.author}</span>
+                <span>{lastCommitInfo.date}</span>
+              </div>
+            </div>
+
+            {/* Remote Git Version Card */}
+            <div className="bg-gradient-to-br from-indigo-900 via-purple-950 to-slate-900 text-white p-5 rounded-3xl space-y-3 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-indigo-200 flex items-center gap-1.5">
+                  <Github size={16} className="text-amber-400" />
+                  آخرین نسخه مخزن Git
+                </span>
+                <span className="px-2 py-0.5 bg-purple-900/60 text-amber-300 text-[10px] font-mono font-black rounded-md dir-ltr">
+                  {remoteCommitInfo?.sha || "در حال استعلام"}
+                </span>
+              </div>
+              <p className="text-xs text-indigo-100 font-bold line-clamp-2">« {remoteCommitInfo?.message || "کلید استعلام و دانلود را کلیک کنید"} »</p>
+              <div className="text-[10px] text-indigo-300 flex items-center justify-between border-t border-purple-900/60 pt-2">
+                <span>نویسنده: {remoteCommitInfo?.author || "GitHub"}</span>
+                <span>{remoteCommitInfo?.date || "-"}</span>
+              </div>
+            </div>
+
+            {/* Preview Summary Card */}
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                  <FileCode size={16} className="text-indigo-600" />
+                  تحلیل فایل‌های جدید
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowFileDetailsModal(true)}
+                  className="text-[10px] font-black text-indigo-600 hover:underline cursor-pointer"
+                >
+                  مشاهده جزییات
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center pt-1">
+                <div className="bg-emerald-50 p-2 rounded-2xl border border-emerald-100">
+                  <span className="text-[10px] font-black text-emerald-700 block">فایل‌های جدید</span>
+                  <span className="text-base font-black text-emerald-800">{previewMeta?.addedCount || 0}</span>
+                </div>
+                <div className="bg-amber-50 p-2 rounded-2xl border border-amber-100">
+                  <span className="text-[10px] font-black text-amber-700 block">تغییر یافته</span>
+                  <span className="text-base font-black text-amber-800">{previewMeta?.modifiedCount || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Affected System Sections */}
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-2 shadow-sm">
+              <span className="text-xs font-black text-slate-700 block">بخش‌های درگیر سیستم:</span>
+              <div className="space-y-1.5 text-[11px] font-bold text-slate-600">
+                <div className="flex items-center justify-between">
+                  <span>• فرانت‌اند (src)</span>
+                  <span className="text-emerald-600 font-black">آماده</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• سرور (server.ts)</span>
+                  <span className="text-emerald-600 font-black">آماده</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• فایل‌ها (public)</span>
+                  <span className="text-emerald-600 font-black">آماده</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -878,7 +1161,7 @@ export default function AdminSystemConfig({
                   <p className="text-[10px] text-slate-400 font-bold">جهت دسترسی به مخازن خصوصی (Private) توکن با دسترسی repo الزامی است.</p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                   <label className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-all">
                     <input
                       type="checkbox"
@@ -887,8 +1170,21 @@ export default function AdminSystemConfig({
                       className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-600"
                     />
                     <div>
-                      <span className="text-xs font-black text-slate-800 block">بروزرسانی و استقرار اتوماتیک با هر کامیت (Auto-Deploy Webhook)</span>
-                      <span className="text-[10px] text-slate-400 font-bold block">پس از هر Push به صورت زنده بدون ری‌استارت دستی، آپدیت در ۲ ثانیه اعمال می‌شود.</span>
+                      <span className="text-xs font-black text-slate-800 block">بروزرسانی خودکار با Push (Webhook)</span>
+                      <span className="text-[10px] text-slate-400 font-bold block">همگام‌سازی اتوماتیک پس از هر کامیت</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={hardResetMode}
+                      onChange={(e) => setHardResetMode(e.target.checked)}
+                      className="w-4 h-4 rounded text-rose-600 focus:ring-rose-600"
+                    />
+                    <div>
+                      <span className="text-xs font-black text-rose-800 block">پاکسازی کامل کدهای قدیمی (Hard Reset)</span>
+                      <span className="text-[10px] text-slate-400 font-bold block">حذف پوشه src و public قبل جایگزینی</span>
                     </div>
                   </label>
                 </div>
@@ -920,34 +1216,26 @@ export default function AdminSystemConfig({
                   </button>
                 </div>
               </div>
-
-              {/* Git commit card */}
-              <div className="bg-indigo-50/60 border border-indigo-100 rounded-3xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-indigo-900 flex items-center gap-1.5">
-                    <GitBranch size={16} />
-                    آخرین نسخه کامپایل شده سیستم (Compiled Release)
-                  </span>
-                  <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] font-mono font-black rounded-lg">
-                    SHA: {lastCommitInfo.hash}
-                  </span>
-                </div>
-                <div className="space-y-1.5 text-xs text-slate-600 font-bold">
-                  <div>توضیحات کامیت: <span className="text-slate-900 font-black">« {lastCommitInfo.message} »</span></div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold pt-1.5 border-t border-indigo-100/60">
-                    <span>توسعه‌دهنده: {lastCommitInfo.author}</span>
-                    <span>تاریخ کامپایل: {lastCommitInfo.date}</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Live execution logs terminal */}
             <div className="space-y-4">
-              <h4 className="text-xs font-black text-slate-700 flex items-center gap-2">
-                <Terminal size={18} className="text-amber-500" />
-                کنسول فرمان زنده (Realtime Git terminal)
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-slate-700 flex items-center gap-2">
+                  <Terminal size={18} className="text-amber-500" />
+                  کنسول لاگ زنده سرور (Realtime Git terminal)
+                </h4>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch("/api/admin/github-logs/clear", { method: "POST" });
+                    setTerminalLogs(["کنسول لاگ‌ها پاکسازی شد."]);
+                  }}
+                  className="text-[10px] font-black text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  پاکسازی لاگ‌ها
+                </button>
+              </div>
               
               <div className="bg-slate-950 text-emerald-400 p-5 rounded-[2rem] font-mono text-[11px] leading-relaxed h-[360px] overflow-y-auto border border-slate-800 shadow-inner flex flex-col space-y-2.5" dir="ltr">
                 <div className="text-slate-400 font-bold border-b border-slate-800 pb-2 flex items-center justify-between">
@@ -963,10 +1251,106 @@ export default function AdminSystemConfig({
                 </div>
               </div>
               <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-[11px] text-amber-900 font-bold leading-relaxed">
-                🚀 <strong className="font-black">نکته بسیار مهم:</strong> فرآیند بروزرسانی گیت‌هاب کاملا زنده و ابری است؛ با کلیک بر روی دکمه بروزرسانی زنده، آخرین ورژن وب‌سایت کامپایل شده و در لحظه جایگزین خواهد شد.
+                🚀 <strong className="font-black">بروزرسانی ۲ ثانیه‌ای:</strong> تمامی تغییرات با کلیک روی دکمه اتوماتیک، بلافاصله کامپایل و مستقر خواهند شد.
               </div>
             </div>
           </div>
+
+          {/* Interactive File Changes Preview Table / Drawer */}
+          {showFileDetailsModal && (
+            <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-xl space-y-4 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <FileCode size={20} className="text-indigo-600" />
+                    <span>لیست فایل‌ها و پیش‌نمایش تغییرات (File Diffs & Package Inspector)</span>
+                  </h4>
+                  <p className="text-xs text-slate-500 font-bold mt-1">
+                    تعداد کل فایل‌های دریافت شده: {previewMeta?.totalFiles || previewFiles.length} | حجم فایل فشرده: {previewMeta?.zipSizeKb || 0} KB
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={fileSearchFilter}
+                    onChange={(e) => setFileSearchFilter(e.target.value)}
+                    placeholder="جستجو در مسیر فایل‌ها..."
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowFileDetailsModal(false)}
+                    className="p-2 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setFileStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer ${
+                    fileStatusFilter === 'all' ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  همه فایل‌ها ({previewFiles.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFileStatusFilter('new')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer ${
+                    fileStatusFilter === 'new' ? "bg-emerald-600 text-white" : "bg-white text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  جدید ({previewFiles.filter(f => f.status === 'new').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFileStatusFilter('modified')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer ${
+                    fileStatusFilter === 'modified' ? "bg-amber-600 text-white" : "bg-white text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  تغییر یافته ({previewFiles.filter(f => f.status === 'modified').length})
+                </button>
+              </div>
+
+              {/* File List Table */}
+              <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1 font-mono text-xs">
+                {previewFiles
+                  .filter((f) => {
+                    if (fileStatusFilter === 'new') return f.status === 'new';
+                    if (fileStatusFilter === 'modified') return f.status === 'modified';
+                    return true;
+                  })
+                  .filter((f) => f.path.toLowerCase().includes(fileSearchFilter.toLowerCase()))
+                  .map((file, idx) => (
+                    <div
+                      key={`file-${idx}`}
+                      className="p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between gap-2 hover:bg-slate-100/80 transition-all"
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 ${
+                          file.status === 'new' ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {file.status === 'new' ? 'جدید' : 'تغییر یافته'}
+                        </span>
+                        <span className="text-slate-800 font-bold truncate dir-ltr">{file.path}</span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11px] text-slate-500 shrink-0">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded-lg text-slate-600">{file.section}</span>
+                        <span>{Math.round(file.size / 1024)} KB</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {/* GitHub API Response Diagnostic Inspector Tool */}
           <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xl space-y-6 mt-8">

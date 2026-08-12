@@ -274,12 +274,12 @@ export default function QuickOrderList({
               <a 
                 href="tel:09999123001"
                 className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 px-3.5 py-2 rounded-full font-black text-xs transition-all cursor-pointer shadow-xs flex items-center gap-2 group"
-                title="تماس مستقیم با پشتیبانی تلفنی"
+                title="تماس مستقیم با پشتیبانی مشتریان"
               >
                 <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
                   <PhoneCall size={13} className="animate-pulse" />
                 </div>
-                <span>پشتیبانی تلفنی</span>
+                <span>پشتیبانی مشتریان</span>
               </a>
               <button 
                 onClick={onCheckout}

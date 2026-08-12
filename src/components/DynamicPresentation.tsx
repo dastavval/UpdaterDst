@@ -419,20 +419,17 @@ export default function DynamicPresentation({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-br from-[#e0eafc] via-[#ffffff] via-[#cfd9df] via-[#ffffff] to-[#e0eafc] border-2 border-white/80 shadow-[0_4px_25px_rgba(255,255,255,0.4),inset_0_2px_4px_rgba(255,255,255,1)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
-              {/* Diamond-like prism reflection */}
+            <div className="relative overflow-hidden px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-slate-200 via-slate-100 via-zinc-300 via-slate-100 to-slate-200 border-2 border-slate-300/90 shadow-[0_4px_20px_rgba(148,163,184,0.35),inset_0_2px_4px_rgba(255,255,255,0.9)] flex items-center gap-2 group hover:scale-[1.03] active:scale-[0.98] transition-all duration-300">
+              {/* Metallic silver sheen reflection */}
               <motion.div 
                 animate={{ x: ["-200%", "300%"], rotate: [15, 15] }} 
                 transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }} 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-100/50 via-white/90 via-cyan-100/50 to-transparent -skew-x-45 pointer-events-none" 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent -skew-x-45 pointer-events-none" 
               />
               
-              {/* Rainbow diffraction effect (subtle) */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(0,240,255,0.1),transparent)] pointer-events-none" />
-              
-              <Sparkles size={14} className="text-cyan-600 fill-cyan-400/20 shrink-0 relative z-10 animate-pulse" />
-              <span className="text-[11px] sm:text-xs font-black tracking-wide text-slate-800 pr-0.5 select-none relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,1)]">
-                « خیر و برکت در صدق معامله است »
+              <Sparkles size={14} className="text-slate-600 fill-slate-400/30 shrink-0 relative z-10 animate-pulse" />
+              <span className="text-[11px] sm:text-xs font-black tracking-wide text-slate-800 pr-0.5 select-none relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
+                « خیر و برکت در صدق در معامله است »
               </span>
             </div>
           </div>
