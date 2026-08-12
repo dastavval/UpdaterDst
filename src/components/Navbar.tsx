@@ -431,20 +431,22 @@ export default function Navbar({
                 <span>🍏 سیب سلامت و طبیعی</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setActiveTab?.('admin');
-                }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'admin'
-                    ? "bg-slate-900 text-amber-400 shadow-md font-black ring-2 ring-amber-400/50"
-                    : "bg-amber-100 text-amber-900 hover:bg-amber-200"
-                }`}
-                title="ورود به پنل مدیریت سرور و بروزرسانی گیت‌هاب"
-              >
-                <ShieldAlert size={15} className="text-amber-500" />
-                <span>پنل مدیریت و گیت‌هاب</span>
-              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setActiveTab?.('admin');
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'admin'
+                      ? "bg-slate-900 text-amber-400 shadow-md font-black ring-2 ring-amber-400/50"
+                      : "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                  }`}
+                  title="ورود به پنل مدیریت سرور و بروزرسانی گیت‌هاب"
+                >
+                  <ShieldAlert size={15} className="text-amber-500" />
+                  <span>پنل مدیریت و گیت‌هاب</span>
+                </button>
+              )}
                 <button
                   onClick={() => {
                     if (user) {

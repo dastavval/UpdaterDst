@@ -59,16 +59,17 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
   const [animSpeed, setAnimSpeed] = useState<number>(3500); // 3.5 seconds
   const [activeTab, setActiveTab] = useState<'flow' | 'calculator'>('flow');
 
-  // Interactive Profit Margin Calculator State
-  const [orderTonnage, setOrderTonnage] = useState<number>(3); // Tons
-  const [sellingPricePerKg, setSellingPricePerKg] = useState<number>(140000); // Tomans
+  // Interactive Profit Margin Calculator State (Carton-based / کارتنی)
+  const [orderCartons, setOrderCartons] = useState<number>(50); // Cartons count
+  const [sellingPricePerCarton, setSellingPricePerCarton] = useState<number>(380000); // Tomans per carton
 
   // Calculations for Wholesaler
-  const factoryDiscountPercent = orderTonnage >= 10 ? 35 : orderTonnage >= 5 ? 30 : orderTonnage >= 2 ? 25 : 20;
-  const factoryCostPerKg = sellingPricePerKg * (1 - factoryDiscountPercent / 100);
-  const netProfitPerKg = sellingPricePerKg - factoryCostPerKg;
-  const profitMarginPercent = Math.round((netProfitPerKg / factoryCostPerKg) * 100);
-  const totalNetProfit = netProfitPerKg * orderTonnage * 1000;
+  const factoryDiscountPercent = orderCartons >= 200 ? 35 : orderCartons >= 100 ? 30 : orderCartons >= 50 ? 25 : 20;
+  const factoryCostPerCarton = Math.round(sellingPricePerCarton * (1 - factoryDiscountPercent / 100));
+  const netProfitPerCarton = sellingPricePerCarton - factoryCostPerCarton;
+  const profitMarginPercent = Math.round((netProfitPerCarton / factoryCostPerCarton) * 100);
+  const totalNetProfit = netProfitPerCarton * orderCartons;
+  const estWeightTons = ((orderCartons * 12) / 1000).toFixed(2);
 
   const steps: CommercialStep[] = [
     { 
@@ -433,46 +434,54 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
           </div>
         </>
       ) : (
-        /* TAB 2: WHITE-THEMED PROFIT CALCULATOR */
+        /* TAB 2: WHITE-THEMED PROFIT CALCULATOR (CARTON-BASED) */
         <div className="relative z-10 my-2 p-5 bg-white border-2 border-emerald-300 text-slate-900 rounded-3xl shadow-sm">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Banknote className="text-emerald-600" size={22} />
-              <h4 className="text-xs sm:text-sm font-black text-slate-900">محاسبه‌گر سود فروشنده (تعیین سود دلخواه تا ۱۰۰٪)</h4>
+              <h4 className="text-xs sm:text-sm font-black text-slate-900">محاسبه‌گر سود کارتنی فروشنده (تعیین سود دلخواه تا ۱۰۰٪)</h4>
             </div>
             <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-lg">
-              سود دست خودتان است
+              📦 سود هر کارتن در اختیار شماست
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Inputs */}
-            <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-right">
+            <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-right">
               <div>
-                <div className="flex justify-between text-xs font-black mb-1.5">
-                  <span className="text-slate-700">حجم سفارش خرید (تن):</span>
-                  <span className="text-emerald-700 font-bold">{orderTonnage} تن ({orderTonnage * 1000} کیلوگرم)</span>
+                <div className="flex justify-between items-center text-xs font-black mb-1.5">
+                  <span className="text-slate-700">حجم سفارش خرید (تعداد کارتن):</span>
+                  <span className="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-md text-xs">{orderCartons} کارتن (~{estWeightTons} تن)</span>
                 </div>
                 <input 
                   type="range" 
-                  min="1" 
-                  max="20" 
-                  step="1"
-                  value={orderTonnage}
-                  onChange={(e) => setOrderTonnage(Number(e.target.value))}
-                  className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                  min="5" 
+                  max="500" 
+                  step="5"
+                  value={orderCartons}
+                  onChange={(e) => setOrderCartons(Number(e.target.value))}
+                  className="w-full accent-emerald-600 cursor-pointer h-2.5 bg-slate-200 rounded-lg"
                 />
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-1">
+                  <span>۵ کارتن</span>
+                  <span>۱۰۰ کارتن</span>
+                  <span>۵۰۰ کارتن</span>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-700 mb-1">قیمت پیشنهادی فروش شما به بازار (تومان / کیلو):</label>
-                <input 
-                  type="number"
-                  step="5000"
-                  value={sellingPricePerKg}
-                  onChange={(e) => setSellingPricePerKg(Number(e.target.value))}
-                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-xs font-black text-left focus:outline-none focus:border-emerald-600"
-                />
+                <label className="block text-xs font-black text-slate-700 mb-1">قیمت پیشنهادی فروش شما به بازار (تومان / هر کارتن):</label>
+                <div className="relative">
+                  <input 
+                    type="number"
+                    step="5000"
+                    value={sellingPricePerCarton}
+                    onChange={(e) => setSellingPricePerCarton(Number(e.target.value))}
+                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-xl px-3 py-2 text-xs font-black text-left focus:outline-none focus:border-emerald-600 pl-12"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">تومان</span>
+                </div>
               </div>
             </div>
 
@@ -480,23 +489,23 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
             <div className="bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl flex flex-col justify-between text-right">
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs pb-1.5 border-b border-emerald-200/60">
-                  <span className="text-slate-600 font-bold">قیمت خرید شما از کارخانه (کیلو):</span>
-                  <span className="text-slate-900 font-black">{factoryCostPerKg.toLocaleString('fa-IR')} تومان</span>
+                  <span className="text-slate-600 font-bold">قیمت خرید هر کارتن از کارخانه:</span>
+                  <span className="text-slate-900 font-black">{factoryCostPerCarton.toLocaleString('fa-IR')} تومان ({factoryDiscountPercent}٪ تخفیف)</span>
                 </div>
 
                 <div className="flex justify-between items-center text-xs pb-1.5 border-b border-emerald-200/60">
-                  <span className="text-slate-600 font-bold">سود شما در هر کیلوگرم:</span>
-                  <span className="text-emerald-800 font-black">{netProfitPerKg.toLocaleString('fa-IR')} تومان</span>
+                  <span className="text-slate-600 font-bold">سود خالص شما در هر کارتن:</span>
+                  <span className="text-emerald-800 font-black">{netProfitPerCarton.toLocaleString('fa-IR')} تومان</span>
                 </div>
 
                 <div className="flex justify-between items-center text-xs pb-1.5 border-b border-emerald-200/60">
-                  <span className="text-slate-600 font-bold">درصد سود شما (نسبت به قیمت کارخانه):</span>
-                  <span className="text-amber-800 font-black text-sm">+{profitMarginPercent}٪ سود خالص</span>
+                  <span className="text-slate-600 font-bold">درصد حاشیه سود (مارژین):</span>
+                  <span className="text-amber-800 font-black text-sm">+{profitMarginPercent}٪ سود کارتنی</span>
                 </div>
               </div>
 
               <div className="mt-3 pt-2.5 border-t border-emerald-300 bg-white p-3 rounded-2xl text-center shadow-2xs">
-                <span className="block text-[11px] font-bold text-slate-600 mb-0.5">کل سود خالص شما در این سفارش ({orderTonnage} تن):</span>
+                <span className="block text-[11px] font-bold text-slate-600 mb-0.5">کل سود خالص شما در این سفارش ({orderCartons} کارتن):</span>
                 <span className="text-xl font-black text-emerald-800 tracking-tight">
                   {totalNetProfit.toLocaleString('fa-IR')} <span className="text-xs">تومان</span>
                 </span>
