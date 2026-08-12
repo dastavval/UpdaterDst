@@ -744,15 +744,18 @@ async function inspectGithubRepo(repoUrl: string, branch: string, token: string)
   };
 }
 
-async function performGithubUpdate(repoUrl: string, branch: string, token: string, hardReset: boolean = false) {
+async function performGithubUpdate(repoUrl: string, branch: string, token: string, hardReset: boolean = true) {
   const inspected = await inspectGithubRepo(repoUrl, branch, token);
   
-  if (hardReset) {
-    addGithubLog('info', 'Performing Hard Reset on src/ and public/ directories...');
-    const dirsToClean = ["src", "public"];
-    for (const dir of dirsToClean) {
-      const dirPath = path.join(process.cwd(), dir);
-      if (fs.existsSync(dirPath)) fs.rmSync(dirPath, { recursive: true, force: true });
+  // Hard Reset: clean src, public, php, dist to ensure 100% rollback accuracy
+  addGithubLog('info', 'Performing Hard Reset & cleaning stale directories (src, public, php, dist)...');
+  const dirsToClean = ["src", "public", "php", "dist"];
+  for (const dir of dirsToClean) {
+    const dirPath = path.join(process.cwd(), dir);
+    if (fs.existsSync(dirPath)) {
+      try {
+        fs.rmSync(dirPath, { recursive: true, force: true });
+      } catch (e) {}
     }
   }
 
@@ -786,14 +789,15 @@ async function performGithubUpdate(repoUrl: string, branch: string, token: strin
   (b2bConfig as any).lastCommitInfo = inspected.commitInfo;
   try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
 
-  addGithubLog('success', `Update completed. ${updatedFilesCount} files updated. Triggering build...`);
+  addGithubLog('success', `Update completed. ${updatedFilesCount} files extracted. Running synchronous build...`);
 
   try {
-    exec("npm run build", (err: any, stdout: string) => {
-      if (err) addGithubLog('error', `Build error: ${err.message}`);
-      else addGithubLog('success', `Build completed successfully.`);
-    });
-  } catch (e) {}
+    execSync("npm run build", { stdio: 'inherit' });
+    addGithubLog('success', `Build completed successfully.`);
+  } catch (err: any) {
+    addGithubLog('error', `Build error: ${err.message}`);
+    throw new Error("خطا در کامپایل پروژه پس از بروزرسانی: " + err.message);
+  }
 
   return {
     updatedFilesCount,
@@ -804,6 +808,91 @@ async function performGithubUpdate(repoUrl: string, branch: string, token: strin
     totalSizeBytes: inspected.totalSizeBytes
   };
 }
+
+// Endpoint: Manual ZIP Package Upload & Sync
+app.post("/api/admin/manual-zip-upload", async (req, res) => {
+  try {
+    const { zipBase64, fileName } = req.body;
+    if (!zipBase64) {
+      return res.status(400).json({ success: false, error: "فایل زیپ ارسال نشده است." });
+    }
+
+    const cleanBase64 = zipBase64.replace(/^data:[^;]+;base64,/, "");
+    const zipBuffer = Buffer.from(cleanBase64, "base64");
+
+    addGithubLog('info', `[Manual ZIP Upload] Processing uploaded package: ${fileName || 'update.zip'} (${Math.round(zipBuffer.length / 1024)} KB)`);
+
+    // Hard Reset: clean src, public, php, dist
+    const dirsToClean = ["src", "public", "php", "dist"];
+    for (const dir of dirsToClean) {
+      const dirPath = path.join(process.cwd(), dir);
+      if (fs.existsSync(dirPath)) {
+        try { fs.rmSync(dirPath, { recursive: true, force: true }); } catch (e) {}
+      }
+    }
+
+    const zip = new AdmZip(zipBuffer);
+    const zipEntries = zip.getEntries();
+
+    let rootPrefix = "";
+    const firstDirEntry = zipEntries.find(e => e.isDirectory);
+    if (firstDirEntry) {
+      const candidate = firstDirEntry.entryName;
+      const allStartWith = zipEntries.every(e => e.entryName.startsWith(candidate));
+      if (allStartWith) rootPrefix = candidate;
+    }
+
+    let updatedFilesCount = 0;
+    const updatedFilesList: string[] = [];
+    const excludes = ["node_modules", ".git", ".env"];
+
+    for (const entry of zipEntries) {
+      if (entry.isDirectory) continue;
+      let relPath = entry.entryName;
+      if (rootPrefix && relPath.startsWith(rootPrefix)) {
+        relPath = relPath.substring(rootPrefix.length);
+      }
+      if (!relPath) continue;
+      const topDir = relPath.split("/")[0];
+      if (excludes.includes(topDir) || excludes.includes(relPath)) continue;
+
+      const targetPaths = [path.join(process.cwd(), relPath)];
+      if (relPath.startsWith("dist/")) targetPaths.push(path.join(process.cwd(), relPath.substring(5)));
+
+      for (const targetPath of targetPaths) {
+        const targetDir = path.dirname(targetPath);
+        if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+        fs.writeFileSync(targetPath, entry.getData());
+      }
+      updatedFilesCount++;
+      updatedFilesList.push(relPath);
+    }
+
+    b2bConfig.lastGithubUpdate = Date.now();
+    try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+
+    addGithubLog('success', `[Manual ZIP] Extracted ${updatedFilesCount} files. Running npm run build...`);
+
+    try {
+      execSync("npm run build", { stdio: 'inherit' });
+      addGithubLog('success', `[Manual ZIP] Build completed successfully.`);
+    } catch (err: any) {
+      addGithubLog('error', `[Manual ZIP] Build error: ${err.message}`);
+      throw new Error("خطا در کامپایل پروژه پس از بارگذاری دستی: " + err.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `بسته بروزرسانی دستی (${fileName || 'update.zip'}) با موفقیت استخراج، کامپایل و جایگزین شد!`,
+      updatedFilesCount,
+      updatedFilesList
+    });
+  } catch (error: any) {
+    console.error("[Manual ZIP Error]:", error);
+    addGithubLog('error', `[Manual ZIP Error] ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Endpoint: Test Connection & Metadata Check
 app.post("/api/admin/github-test", async (req, res) => {
@@ -859,17 +948,12 @@ app.post("/api/admin/github-preview", async (req, res) => {
 app.post("/api/admin/github-rebuild", async (req, res) => {
   addGithubLog('info', 'Manual compilation & rebuild triggered by admin...');
   try {
-    exec("npm run build", (err: any, stdout: string, stderr: string) => {
-      if (err) {
-        addGithubLog('error', `Rebuild failed: ${err.message}`);
-        return res.status(500).json({ success: false, error: err.message, log: stderr || stdout });
-      } else {
-        addGithubLog('success', 'Project compiled and rebuilt successfully!');
-        return res.json({ success: true, message: "کدها با موفقیت کامپایل و بازسازی شدند.", log: stdout });
-      }
-    });
-  } catch (e: any) {
-    return res.status(500).json({ success: false, error: e.message });
+    const stdout = execSync("npm run build", { encoding: "utf-8" });
+    addGithubLog('success', 'Project compiled and rebuilt successfully!');
+    return res.json({ success: true, message: "کدها با موفقیت کامپایل و بازسازی شدند.", log: stdout });
+  } catch (err: any) {
+    addGithubLog('error', `Rebuild failed: ${err.message}`);
+    return res.status(500).json({ success: false, error: err.message, log: err.stdout || err.stderr || err.message });
   }
 });
 

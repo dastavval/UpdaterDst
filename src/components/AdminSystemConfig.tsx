@@ -588,6 +588,54 @@ export default function AdminSystemConfig({
     return handleGitHubApplyFiles(hardReset);
   };
 
+  // Handler: Manual ZIP Upload & Sync
+  const handleManualZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.zip')) {
+      alert("لطفاً فقط فایل فشرده با فرمت .zip انتخاب کنید.");
+      return;
+    }
+
+    if (!confirm(`آیا از بارگذاری و اعمال بسته بروزرسانی "${file.name}" اطمینان دارید؟ این عمل پوشه‌های اصلی را پاکسازی و بسته جدید را استخراج، کامپایل و جایگزین می‌کند.`)) {
+      return;
+    }
+
+    setLoading(true);
+    addLog(`[بارگذاری دستی] در حال خواندن فایل زیپ ${file.name}...`);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result as string;
+        addLog(`[بارگذاری دستی] ارسال به سرور جهت استخراج و کامپایل...`);
+        const res = await fetch('/api/admin/manual-zip-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ zipBase64: base64, fileName: file.name })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "خطا در بارگذاری بسته بروزرسانی");
+        }
+        addLog(`[بارگذاری دستی] موفقیت! ${data.updatedFilesCount} فایل بروز شد. در حال رفرش کامل...`);
+        alert(data.message || "بروزرسانی دستی با موفقیت انجام شد.");
+        window.location.reload();
+      } catch (err: any) {
+        alert("خطا در بارگذاری دستی: " + err.message);
+        addLog(`[خطا] ${err.message}`);
+      } finally {
+        setLoading(false);
+        e.target.value = '';
+      }
+    };
+    reader.onerror = () => {
+      setLoading(false);
+      alert("خطا در خواندن فایل از روی سیستم.");
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handler: Save Site & DB Config
   const handleSaveConfigs = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2435,6 +2483,37 @@ export default function AdminSystemConfig({
                         <Zap size={14} />
                         فورس آپدیت (Hard-Reset)
                       </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Manual ZIP Upload & Direct Sync Card */}
+                <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 rounded-[2rem] p-8 border border-amber-500/30 relative overflow-hidden group shadow-xl">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                    <FileCode size={120} />
+                  </div>
+                  <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8">
+                    <div className="flex-1 space-y-2">
+                      <h4 className="text-lg font-black text-white flex items-center gap-2">
+                        <Upload className="text-amber-400" size={24} />
+                        بارگذاری دستی بسته بروزرسانی (Manual ZIP Upload)
+                      </h4>
+                      <p className="text-[11px] text-slate-300 font-bold leading-relaxed max-w-2xl">
+                        اگر گیت‌هاب در دسترس نیست یا می‌خواهید فایل زیپ آپدیت را مستقیماً از سیستم خود بارگذاری کنید، فایل `.zip` پروژه را انتخاب کنید. سرور به صورت خودکار پوشه‌های قبلی را پاکسازی، بسته جدید را استخراج، کامپایل (<code className="text-amber-300 font-mono">npm run build</code>) و جایگزین می‌کند.
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      <label className="px-6 py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl text-xs font-black shadow-xl transition-all flex items-center gap-2 cursor-pointer active:scale-95">
+                        <Upload size={16} />
+                        <span>انتخاب فایل ZIP و بروزرسانی فوری</span>
+                        <input
+                          type="file"
+                          accept=".zip"
+                          onChange={handleManualZipUpload}
+                          disabled={loading}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
