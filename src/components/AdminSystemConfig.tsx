@@ -97,7 +97,7 @@ export default function AdminSystemConfig({
 
   // --- 2. GITHUB AUTO UPDATE STATES ---
   const [githubRepoUrl, setGithubRepoUrl] = useState(
-    (b2bConfig as any).githubRepoUrl || "https://github.com/dastavval/dastavval.com.git"
+    (b2bConfig as any).githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git"
   );
   const [githubBranch, setGithubBranch] = useState((b2bConfig as any).githubBranch || "main");
   const [githubToken, setGithubToken] = useState((b2bConfig as any).githubToken || "");
@@ -2453,14 +2453,14 @@ export default function AdminSystemConfig({
                       لینک مخزن گیت‌هاب (GitHub Repository) و بروزرسانی آنلاین
                     </h5>
                     <p className="text-[11px] text-slate-400 font-bold dir-ltr text-right">
-                      {b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/dastavval.com'}
+                      {b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/UpdaterDst'}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <a
-                    href={b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/dastavval.com'}
+                    href={b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/UpdaterDst'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-black rounded-xl border border-slate-700 flex items-center gap-1.5 cursor-pointer text-center"

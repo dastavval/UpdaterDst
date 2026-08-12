@@ -364,34 +364,34 @@ export default function FactoriesView({
 
   return (
     <div className="space-y-8 pb-16 text-right font-sans" dir="rtl">
-      {/* Streamlined Glassmorphic Responsive Header */}
-      <div className="relative overflow-hidden bg-slate-900/85 backdrop-blur-2xl text-white rounded-[2rem] p-5 sm:p-7 shadow-2xl border border-white/20 space-y-4">
-        {/* Ambient Glow accents */}
-        <div className="absolute -top-20 -left-20 w-60 h-60 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+      {/* Streamlined Responsive Header Card (White Theme) */}
+      <div className="relative overflow-hidden bg-white text-slate-900 rounded-[2rem] p-5 sm:p-7 shadow-md border border-slate-200/90 space-y-4">
+        {/* Subtle Ambient Glow accents */}
+        <div className="absolute -top-20 -left-20 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 bg-amber-400/20 border border-amber-400/40 px-3 py-1 rounded-full text-[10px] font-black text-amber-300">
-              <Award size={13} className="text-amber-400" />
+            <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200/90 px-3 py-1 rounded-full text-[10px] font-black text-amber-900 shadow-2xs">
+              <Award size={13} className="text-amber-600" />
               <span>ارتباط مستقیم بنکداران و کارخانجات کشور</span>
             </div>
-            <h1 className="text-lg sm:text-2xl font-black text-white leading-snug">
+            <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug">
               فهرست کارخانجات و واحدهای تولیدی معتبر
             </h1>
-            <p className="text-xs text-slate-300 font-medium leading-relaxed">
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
               خرید مستقیم به قیمت درب کارخانه، دریافت کاتالوگ و QR کد اختصاصی تولیدکنندگان کشور
             </p>
           </div>
 
-          {/* Clean Segmented Sub-Tab Switcher - Fully Responsive */}
-          <div className="w-full lg:w-auto flex items-center gap-1.5 bg-black/40 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 overflow-x-auto custom-scrollbar shrink-0">
+          {/* Clean Segmented Sub-Tab Switcher - Light Background */}
+          <div className="w-full lg:w-auto flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 overflow-x-auto custom-scrollbar shrink-0">
             <button
               onClick={() => setActiveSubTab('factories')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeSubTab === 'factories'
-                  ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20 font-black"
-                  : "text-slate-300 hover:text-white"
+                  ? "bg-amber-400 text-slate-950 shadow-sm shadow-amber-400/20 font-black"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <Factory size={14} />
@@ -402,8 +402,8 @@ export default function FactoriesView({
               onClick={() => setActiveSubTab('raw_materials')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeSubTab === 'raw_materials'
-                  ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-black"
-                  : "text-slate-300 hover:text-white"
+                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 font-black"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <Boxes size={14} />
@@ -414,8 +414,8 @@ export default function FactoriesView({
               onClick={() => setActiveSubTab('suppliers')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeSubTab === 'suppliers'
-                  ? "bg-teal-400 text-slate-950 shadow-lg shadow-teal-400/20 font-black"
-                  : "text-slate-300 hover:text-white"
+                  ? "bg-teal-600 text-white shadow-sm shadow-teal-600/20 font-black"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <Building2 size={14} />

@@ -80,8 +80,8 @@ switch ($action) {
     case 'admin/github-test':
         header('Content-Type: application/json; charset=utf-8');
         $input = json_decode(file_get_contents('php://input'), true);
-        $repoUrl = isset($input['repoUrl']) ? trim($input['repoUrl']) : 'dastavval/b2b-distributor-platform';
-        $branch = isset($input['branch']) ? trim($input['branch']) : 'main';
+        $repoUrl = isset($input['repoUrl']) && !empty($input['repoUrl']) ? trim($input['repoUrl']) : 'dastavval/UpdaterDst';
+        $branch = isset($input['branch']) && !empty($input['branch']) ? trim($input['branch']) : 'main';
         $token = isset($input['token']) ? trim($input['token']) : '';
 
         $ownerRepo = '';
@@ -92,8 +92,7 @@ switch ($action) {
         }
 
         if (empty($ownerRepo) || strpos($ownerRepo, '/') === false) {
-            echo json_encode(['success' => false, 'error' => 'نام یا آدرس مخزن گیت‌هاب نامعتبر است.'], JSON_UNESCAPED_UNICODE);
-            exit();
+            $ownerRepo = 'dastavval/UpdaterDst';
         }
 
         // دریافت اطلاعات کامیت از API گیت‌هاب
@@ -141,8 +140,8 @@ switch ($action) {
     case 'admin/github-preview':
         header('Content-Type: application/json; charset=utf-8');
         $input = json_decode(file_get_contents('php://input'), true);
-        $repoUrl = isset($input['repoUrl']) ? trim($input['repoUrl']) : 'dastavval/b2b-distributor-platform';
-        $branch = isset($input['branch']) ? trim($input['branch']) : 'main';
+        $repoUrl = isset($input['repoUrl']) && !empty($input['repoUrl']) ? trim($input['repoUrl']) : 'dastavval/UpdaterDst';
+        $branch = isset($input['branch']) && !empty($input['branch']) ? trim($input['branch']) : 'main';
 
         $ownerRepo = '';
         if (preg_match('/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\.\?\s\#]+)/i', $repoUrl, $matches)) {
@@ -218,21 +217,29 @@ switch ($action) {
         echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
         exit();
 
-    // ۵.۵ بروزرسانی سورس‌کد و دیتابیس مستقیم از مخزن گیت‌هاب (GitHub Auto Sync & Deploy)
+    // ۵.۵ وب‌هوک، کرون‌جاب و بروزرسانی سورس‌کد و دیتابیس مستقیم از گیت‌هاب (GitHub Webhook, Cron & Direct Sync)
+    case 'github-webhook':
+    case 'cron-auto-update':
     case 'admin/github-update':
         header('Content-Type: application/json; charset=utf-8');
-        $input = json_decode(file_get_contents('php://input'), true);
-        $repoUrl = isset($input['repoUrl']) ? trim($input['repoUrl']) : '';
-        $branch = isset($input['branch']) ? trim($input['branch']) : 'main';
-        $token = isset($input['token']) ? trim($input['token']) : '';
-
-        if (empty($repoUrl)) {
-            echo json_encode(['success' => false, 'error' => 'آدرس مخزن گیت‌هاب الزامی است.'], JSON_UNESCAPED_UNICODE);
-            exit();
+        $input = json_decode(file_get_contents('php://input'), true) ?: [];
+        
+        // استخراج پارامترها از بادی یا کوئری‌استرینگ
+        $repoUrl = isset($input['repoUrl']) && !empty($input['repoUrl']) 
+            ? trim($input['repoUrl']) 
+            : (isset($_GET['repoUrl']) ? trim($_GET['repoUrl']) : 'https://github.com/dastavval/UpdaterDst');
+            
+        if (isset($input['repository']['html_url'])) {
+            $repoUrl = trim($input['repository']['html_url']);
         }
 
-        // استخراج فوق‌العاده هوشمندانه و تمیز owner/repo از انواع فرمت‌های ورودی
-        // مانند: https://github.com/owner/repo.git, github.com/owner/repo, owner/repo
+        $branch = isset($input['branch']) && !empty($input['branch']) 
+            ? trim($input['branch']) 
+            : (isset($input['ref']) ? str_replace('refs/heads/', '', $input['ref']) : 'main');
+            
+        $token = isset($input['token']) ? trim($input['token']) : '';
+
+        // استخراج فوق‌العاده هوشمندانه و تمیز owner/repo
         $ownerRepo = '';
         if (preg_match('/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\.\?\s\#]+)/i', $repoUrl, $matches)) {
             $ownerRepo = trim($matches[1]) . '/' . preg_replace('/\.git$/i', '', trim($matches[2]));
@@ -244,12 +251,11 @@ switch ($action) {
         }
 
         if (empty($ownerRepo) || strpos($ownerRepo, '/') === false) {
-            echo json_encode(['success' => false, 'error' => 'فرمت آدرس یا نام مخزن گیت‌هاب نامعتبر است. نمونه صحیح: username/repository'], JSON_UNESCAPED_UNICODE);
-            exit();
+            $ownerRepo = 'dastavval/UpdaterDst';
         }
 
         // ساخت آدرس‌های کاندید برای دانلود فایل ZIP (همراه با Fallback مخزن رسمی)
-        $reposToTry = array_unique([$ownerRepo, "dastavval/dastavval.com", "dastavval/b2b-platform"]);
+        $reposToTry = array_unique([$ownerRepo, "dastavval/UpdaterDst", "dastavval/dastavval.com", "dastavval/b2b-platform"]);
         $zipUrls = [];
         foreach ($reposToTry as $repo) {
             $zipUrls[] = "https://api.github.com/repos/" . $repo . "/zipball/" . $branch;

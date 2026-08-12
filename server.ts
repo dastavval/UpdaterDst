@@ -36,6 +36,8 @@ if (fs.existsSync(CONFIG_FILE)) {
 
 const B2B_CONFIG_FILE = path.join(process.cwd(), "b2b-config.json");
 const DEFAULT_B2B_CONFIG = {
+  githubRepoUrl: "https://github.com/dastavval/UpdaterDst.git",
+  githubBranch: "main",
   primaryColor: "emerald",
   appName: "دست اول",
   appSub: "سامانه ملی استعلام و مبادلات مستقیم تولیدات کارخانه",
@@ -478,9 +480,9 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
 
 // GitHub Diagnostics & Inspector Endpoint
 app.post("/api/admin/github-diagnostics", async (req, res) => {
-  const rawRepoUrl = req.body.repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git";
-  const userBranch = (req.body.branch || "main").trim();
-  const token = (req.body.token || "").trim();
+  const rawRepoUrl = req.body.repoUrl || b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git";
+  const userBranch = (req.body.branch || b2bConfig.githubBranch || "main").trim();
+  const token = (req.body.token || b2bConfig.githubToken || "").trim();
 
   const diagnostics: any[] = [];
 
@@ -612,7 +614,7 @@ async function inspectGithubRepo(repoUrl: string, branch: string, token: string)
     throw new Error("آدرس یا نام مخزن گیت‌هاب معتبر نمی‌باشد.");
   }
 
-  const ownerReposToTry = Array.from(new Set([ownerRepo, "dastavval/dastavval.com", "dastavval/b2b-platform"])).filter(Boolean);
+  const ownerReposToTry = Array.from(new Set([ownerRepo, "dastavval/UpdaterDst", "dastavval/dastavval.com", "dastavval/b2b-platform"])).filter(Boolean);
   const branchesToTry = Array.from(new Set([extractedBranch, "main", "master"])).filter(Boolean);
   const zipUrls: string[] = [];
   for (const repo of ownerReposToTry) {
@@ -808,9 +810,9 @@ app.post("/api/admin/github-test", async (req, res) => {
   const { repoUrl, branch, token } = req.body;
   try {
     const inspected = await inspectGithubRepo(
-      repoUrl || "https://github.com/dastavval/dastavval.com.git",
-      branch || "main",
-      token || ""
+      repoUrl || b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git",
+      branch || b2bConfig.githubBranch || "main",
+      token || b2bConfig.githubToken || ""
     );
     return res.json({
       success: true,
@@ -832,9 +834,9 @@ app.post("/api/admin/github-preview", async (req, res) => {
   const { repoUrl, branch, token } = req.body;
   try {
     const inspected = await inspectGithubRepo(
-      repoUrl || "https://github.com/dastavval/dastavval.com.git",
-      branch || "main",
-      token || ""
+      repoUrl || b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git",
+      branch || b2bConfig.githubBranch || "main",
+      token || b2bConfig.githubToken || ""
     );
     return res.json({
       success: true,
@@ -881,33 +883,56 @@ app.post("/api/admin/github-logs/clear", (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/github-webhook", async (req, res) => {
+// Webhook & Cron Auto-Update Endpoints
+app.all(["/api/github-webhook", "/api/cron-auto-update"], async (req, res) => {
   const event = req.headers["x-github-event"];
-  if (event === "push") {
-    const payload = req.body;
-    const repoUrl = payload.repository?.html_url;
-    const branch = payload.ref?.replace("refs/heads/", "");
-    if (repoUrl && branch) {
-      try {
-        const result = await performGithubUpdate(repoUrl, branch, b2bConfig.githubToken || "", false);
-        return res.json({ success: true, message: "به‌روزرسانی خودکار انجام شد.", updatedFilesCount: result.updatedFilesCount });
-      } catch (err: any) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-    }
+  if (event === "ping") {
+    return res.json({ success: true, message: "PONG - Webhook connection verified!" });
   }
-  res.json({ success: true, message: "نادیده گرفته شد." });
+
+  const payload = req.body || {};
+  const repoUrl = payload.repository?.html_url || req.query.repoUrl || b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git";
+  const branch = (payload.ref ? payload.ref.replace("refs/heads/", "") : req.query.branch) || b2bConfig.githubBranch || "main";
+  const token = b2bConfig.githubToken || "";
+
+  addGithubLog('info', `[Auto-Sync Triggered] Processing update for ${repoUrl} (branch: ${branch})`);
+
+  try {
+    const result = await performGithubUpdate(String(repoUrl), String(branch), token, false);
+    return res.json({
+      success: true,
+      message: "به‌روزرسانی خودکار با موفقیت انجام شد.",
+      updatedFilesCount: result.updatedFilesCount,
+      commitInfo: result.commitInfo
+    });
+  } catch (err: any) {
+    addGithubLog('error', `[Auto-Sync Error] ${err.message}`);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 app.post("/api/admin/github-update", async (req, res) => {
   const { repoUrl, branch, token, hardReset } = req.body;
   try {
+    const targetRepo = repoUrl || b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git";
+    const targetBranch = branch || b2bConfig.githubBranch || "main";
+    const targetToken = token !== undefined ? token : (b2bConfig.githubToken || "");
+
     const result = await performGithubUpdate(
-      repoUrl || "https://github.com/dastavval/dastavval.com.git",
-      branch || "main",
-      token || "",
+      targetRepo,
+      targetBranch,
+      targetToken,
       hardReset === true
     );
+
+    // Save configuration
+    b2bConfig.githubRepoUrl = targetRepo;
+    b2bConfig.githubBranch = targetBranch;
+    b2bConfig.githubToken = targetToken;
+    b2bConfig.lastGithubUpdate = Date.now();
+    (b2bConfig as any).lastCommitInfo = result.commitInfo;
+    try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+
     return res.json({
       success: true,
       message: "کدها و دیتابیس سامانه با موفقیت از مخزن گیت‌هاب دریافت و به‌روزرسانی شد! در حال بارگذاری مجدد...",
@@ -922,6 +947,27 @@ app.post("/api/admin/github-update", async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// Periodic Automatic Background Poller (Checks for new commits every 10 minutes)
+let lastCheckedCommitSha = "";
+setInterval(async () => {
+  try {
+    const repo = b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst";
+    const branch = b2bConfig.githubBranch || "main";
+    const token = b2bConfig.githubToken || "";
+
+    const inspected = await inspectGithubRepo(repo, branch, token);
+    const newSha = inspected.commitInfo?.sha;
+
+    if (newSha && lastCheckedCommitSha && newSha !== lastCheckedCommitSha) {
+      addGithubLog('info', `[Background Auto-Updater] New commit detected: ${newSha} (old: ${lastCheckedCommitSha}). Triggering auto-update...`);
+      await performGithubUpdate(repo, branch, token, false);
+    }
+    if (newSha) lastCheckedCommitSha = newSha;
+  } catch (e) {
+    // Background polling silent error handling
+  }
+}, 10 * 60 * 1000);
 
 app.get("/api/b2b/config", (req, res) => res.json(b2bConfig));
 
