@@ -267,94 +267,102 @@ switch ($action) {
 
         // تابع کمکی اختصاصی برای دریافت محتوا با مدیریت کامل Redirectها بدون وابستگی به CURLOPT_FOLLOWLOCATION (سازگار با open_basedir هاست‌های ایران)
         $fetchUrlWithRedirects = function($url, $token, &$lastCode) {
-            $currentUrl = $url;
-            $maxRedirects = 10;
-            $redirectCount = 0;
+            $tokensToTry = [];
+            if (!empty($token)) {
+                $tokensToTry[] = trim($token);
+            }
+            $tokensToTry[] = ''; // Unauthenticated fallback
 
-            while ($redirectCount < $maxRedirects) {
-                $isS3orCodeload = (
-                    strpos($currentUrl, 'objects.githubusercontent.com') !== false ||
-                    strpos($currentUrl, 'codeload.github.com') !== false ||
-                    strpos($currentUrl, 'Signature=') !== false ||
-                    strpos($currentUrl, 'X-Amz-') !== false
-                );
+            foreach ($tokensToTry as $currentToken) {
+                $currentUrl = $url;
+                $maxRedirects = 10;
+                $redirectCount = 0;
 
-                if (function_exists('curl_init')) {
-                    $ch = curl_init();
-                    curl_setopt($ch, CURLOPT_URL, $currentUrl);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_HEADER, true);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/5.0');
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                while ($redirectCount < $maxRedirects) {
+                    $isS3orCodeload = (
+                        strpos($currentUrl, 'objects.githubusercontent.com') !== false ||
+                        strpos($currentUrl, 'codeload.github.com') !== false ||
+                        strpos($currentUrl, 'Signature=') !== false ||
+                        strpos($currentUrl, 'X-Amz-') !== false
+                    );
 
-                    $headers = [
-                        'Accept: application/vnd.github+json, application/zip, application/octet-stream, */*',
-                        'User-Agent: Dastavval-Updater/5.0'
-                    ];
-                    if (!empty($token) && !$isS3orCodeload && (strpos($currentUrl, 'github.com') !== false || strpos($currentUrl, 'api.github.com') !== false)) {
-                        $headers[] = "Authorization: Bearer " . $token;
-                    }
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                    if (function_exists('curl_init')) {
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $currentUrl);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_HEADER, true);
+                        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Updater/6.0');
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
-                    $response = curl_exec($ch);
-                    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-                    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
+                        $headers = [
+                            'Accept: application/vnd.github+json, application/zip, application/octet-stream, */*',
+                            'User-Agent: Dastavval-Updater/6.0'
+                        ];
+                        if (!empty($currentToken) && !$isS3orCodeload && (strpos($currentUrl, 'github.com') !== false || strpos($currentUrl, 'api.github.com') !== false)) {
+                            $headers[] = "Authorization: Bearer " . $currentToken;
+                        }
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-                    $lastCode = $code;
+                        $response = curl_exec($ch);
+                        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
 
-                    if ($code >= 300 && $code < 400 && !empty($response)) {
-                        $headerText = substr($response, 0, $headerSize);
-                        if (preg_match('/Location:\s*([^\s\r\n]+)/i', $headerText, $locMatches)) {
-                            $currentUrl = trim($locMatches[1]);
-                            $redirectCount++;
-                            continue;
+                        $lastCode = $code;
+
+                        if ($code >= 300 && $code < 400 && !empty($response)) {
+                            $headerText = substr($response, 0, $headerSize);
+                            if (preg_match('/Location:\s*([^\s\r\n]+)/i', $headerText, $locMatches)) {
+                                $currentUrl = trim($locMatches[1]);
+                                $redirectCount++;
+                                continue;
+                            }
+                        }
+
+                        if ($code === 200 && !empty($response)) {
+                            $body = substr($response, $headerSize);
+                            if (strlen($body) > 100 && substr($body, 0, 4) === "PK\x03\x04") {
+                                return $body;
+                            }
                         }
                     }
 
-                    if ($code === 200 && !empty($response)) {
-                        $body = substr($response, $headerSize);
-                        if (strlen($body) > 100 && substr($body, 0, 4) === "PK\x03\x04") {
+                    // Fallback stream context
+                    if (ini_get('allow_url_fopen')) {
+                        $headers_arr = [
+                            'User-Agent: Dastavval-Updater/6.0',
+                            'Accept: application/vnd.github+json, application/zip, application/octet-stream, */*'
+                        ];
+                        if (!empty($currentToken) && !$isS3orCodeload && (strpos($currentUrl, 'github.com') !== false || strpos($currentUrl, 'api.github.com') !== false)) {
+                            $headers_arr[] = "Authorization: Bearer " . $currentToken;
+                        }
+
+                        $opts = [
+                            'http' => [
+                                'method' => 'GET',
+                                'header' => implode("\r\n", $headers_arr),
+                                'follow_location' => 1,
+                                'timeout' => 60,
+                                'ignore_errors' => true
+                            ],
+                            'ssl' => [
+                                'verify_peer' => false,
+                                'verify_peer_name' => false
+                            ]
+                        ];
+                        $context = stream_context_create($opts);
+                        $body = @file_get_contents($currentUrl, false, $context);
+                        
+                        if (!empty($body) && strlen($body) > 100 && substr($body, 0, 4) === "PK\x03\x04") {
+                            $lastCode = 200;
                             return $body;
                         }
                     }
+
+                    break;
                 }
-
-                // Fallback stream context
-                if (ini_get('allow_url_fopen')) {
-                    $headers_arr = [
-                        'User-Agent: Dastavval-Updater/5.0',
-                        'Accept: application/vnd.github+json, application/zip, application/octet-stream, */*'
-                    ];
-                    if (!empty($token) && !$isS3orCodeload && (strpos($currentUrl, 'github.com') !== false || strpos($currentUrl, 'api.github.com') !== false)) {
-                        $headers_arr[] = "Authorization: Bearer " . $token;
-                    }
-
-                    $opts = [
-                        'http' => [
-                            'method' => 'GET',
-                            'header' => implode("\r\n", $headers_arr),
-                            'follow_location' => 1,
-                            'timeout' => 60,
-                            'ignore_errors' => true
-                        ],
-                        'ssl' => [
-                            'verify_peer' => false,
-                            'verify_peer_name' => false
-                        ]
-                    ];
-                    $context = stream_context_create($opts);
-                    $body = @file_get_contents($currentUrl, false, $context);
-                    
-                    if (!empty($body) && strlen($body) > 100 && substr($body, 0, 4) === "PK\x03\x04") {
-                        $lastCode = 200;
-                        return $body;
-                    }
-                }
-
-                break;
             }
             return null;
         };

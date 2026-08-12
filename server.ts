@@ -406,77 +406,71 @@ app.post("/api/admin/ai-config", (req, res) => {
 
 // --- GITHUB AUTO UPDATE ENDPOINT ---
 async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buffer; finalUrl: string } | null> {
-  let currentUrl = url;
-  let maxRedirects = 10;
-  let redirectCount = 0;
+  const isS3orCodeload = (u: string) => 
+    u.includes("objects.githubusercontent.com") ||
+    u.includes("codeload.github.com") ||
+    u.includes("Signature=") ||
+    u.includes("X-Amz-");
 
-  while (redirectCount < maxRedirects) {
-    console.log(`[GitHub Updater Diagnostics] Fetching: ${currentUrl} (Redirect level: ${redirectCount})`);
+  // Auth header strategies to attempt: Bearer, token-prefix, and unauthenticated fallback
+  const authStrategies: (string | null)[] = [];
+  if (token && token.trim()) {
+    authStrategies.push(`Bearer ${token.trim()}`);
+    authStrategies.push(`token ${token.trim()}`);
+  }
+  authStrategies.push(null); // Unauthenticated fallback (critical for public repos with invalid tokens)
 
-    const isS3orCodeload = currentUrl.includes("objects.githubusercontent.com") ||
-                           currentUrl.includes("codeload.github.com") ||
-                           currentUrl.includes("Signature=") ||
-                           currentUrl.includes("X-Amz-");
+  for (const authHeader of authStrategies) {
+    let currentUrl = url;
+    let redirectCount = 0;
+    const maxRedirects = 10;
 
-    const headers: Record<string, string> = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Advanced-Updater/5.0",
-      "Accept": "application/vnd.github+json, application/zip, application/octet-stream, */*"
-    };
+    while (redirectCount < maxRedirects) {
+      console.log(`[GitHub Updater] Fetching: ${currentUrl} (Auth: ${authHeader ? 'Set' : 'None'}, Redirect: ${redirectCount})`);
 
-    if (token && !isS3orCodeload && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
-      // Use "token" prefix for legacy PATs or "Bearer" for modern ones. Both often work, but "Bearer" is preferred.
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+      const headers: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval-Advanced-Updater/6.0",
+        "Accept": "application/vnd.github+json, application/zip, application/octet-stream, */*"
+      };
 
-    try {
-      const response = await fetch(currentUrl, {
-        headers,
-        redirect: "manual"
-      });
+      if (authHeader && !isS3orCodeload(currentUrl) && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
+        headers["Authorization"] = authHeader;
+      }
 
-      const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
-      const rateLimitReset = response.headers.get("x-ratelimit-reset");
-      const rateLimitLimit = response.headers.get("x-ratelimit-limit");
-
-      if (response.status === 401 || response.status === 403 || response.status === 429) {
-        addGithubLog('error', `Connection rejected with HTTP ${response.status}. Auth Token Provided: ${!!token}`, {
-          rateLimitRemaining,
-          rateLimitReset,
-          rateLimitLimit
+      try {
+        const response = await fetch(currentUrl, {
+          headers,
+          redirect: "manual"
         });
-      }
 
-      if (response.status === 404) {
-        addGithubLog('error', `Resource not found (404) at ${currentUrl}. Check branch name or repository visibility.`);
-      }
-
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get("location");
-        if (location) {
-          addGithubLog('info', `Following redirect to ${location}`);
-          currentUrl = location;
-          redirectCount++;
-          continue;
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get("location");
+          if (location) {
+            addGithubLog('info', `Following redirect to ${location}`);
+            currentUrl = location;
+            redirectCount++;
+            continue;
+          }
         }
-      }
 
-      if (response.status === 200) {
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        if (buffer.length > 100 && buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
-          addGithubLog('success', `Successfully downloaded valid ZIP archive from ${currentUrl} (${buffer.length} bytes).`);
-          return { buffer, finalUrl: currentUrl };
+        if (response.status === 200) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          if (buffer.length > 100 && buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
+            addGithubLog('success', `Successfully downloaded valid ZIP archive from ${currentUrl} (${buffer.length} bytes).`);
+            return { buffer, finalUrl: currentUrl };
+          } else {
+            addGithubLog('error', `URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
+          }
         } else {
-          addGithubLog('error', `URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
+          addGithubLog('error', `URL ${currentUrl} returned HTTP status ${response.status} (Auth mode: ${authHeader ? 'Token' : 'Public'})`);
         }
-      } else {
-        addGithubLog('error', `URL ${currentUrl} returned HTTP status ${response.status}`);
+      } catch (err: any) {
+        console.error(`[GitHub Updater Exception] Network error fetching ${currentUrl}:`, err.message);
       }
-    } catch (err: any) {
-      console.error(`[GitHub Updater Exception] Network error fetching ${currentUrl}:`, err.message);
-    }
 
-    break;
+      break; // Move to next auth strategy or URL candidate if redirect loop ends without 200
+    }
   }
 
   return null;

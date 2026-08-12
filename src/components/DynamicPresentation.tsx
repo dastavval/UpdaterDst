@@ -413,7 +413,7 @@ export default function DynamicPresentation({
                 </span>
               </div>
               <h3 className="text-sm sm:text-base font-black text-slate-900 mt-1 leading-snug">
-                {(b2bConfig as any).appName || "دست اول"}؛ با بیش از {toPersianNum(displayedReps)} نماینده فروش و {toPersianNum(displayedProducts)} محصول در سراسر کشور
+                {(b2bConfig as any).appName || "دست اول"} با بیش از {toPersianNum(displayedReps)} نماینده و بازاریاب و {toPersianNum(displayedProducts)} محصول در سرتاسر ایران
               </h3>
             </div>
           </div>

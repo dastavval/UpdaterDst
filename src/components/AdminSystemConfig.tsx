@@ -312,6 +312,8 @@ export default function AdminSystemConfig({
 
   // Helper: Resilient Dual-Engine Call (Node Express Primary + PHP cPanel Fallback)
   const callGithubApi = async (action: string, payload?: any) => {
+    let nodeError: string | null = null;
+
     // 1. Try Primary Node.js API
     try {
       const res = await fetch(`/api/admin/github-${action}`, {
@@ -324,34 +326,44 @@ export default function AdminSystemConfig({
         try {
           const data = JSON.parse(text);
           if (data && data.success !== false) return data;
-          if (data && data.error) throw new Error(data.error);
+          if (data && data.error) nodeError = data.error;
         } catch (jsonErr: any) {
-          if (jsonErr.message && !jsonErr.message.includes('JSON')) throw jsonErr;
+          nodeError = jsonErr.message;
         }
+      } else {
+        nodeError = `Node API HTTP status ${res.status}`;
       }
     } catch (e: any) {
-      if (e.message && !e.message.includes('fetch') && !e.message.includes('Unexpected') && !e.message.includes('JSON')) {
-        throw e;
-      }
+      nodeError = e.message || "Network error on Node API";
+    }
+
+    if (nodeError) {
+      addLog(`[هشدار موتور نود] ${nodeError}. در حال اجرای موتور جایگزین PHP/cPanel...`);
     }
 
     // 2. Fallback to PHP cPanel API
-    const phpRes = await fetch(`/php/api.php?action=admin/github-${action}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload ? JSON.stringify(payload) : undefined
-    });
+    try {
+      const phpRes = await fetch(`/php/api.php?action=admin/github-${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload ? JSON.stringify(payload) : undefined
+      });
 
-    if (!phpRes.ok) {
-      throw new Error(`خطا در پاسخگویی سرور هاست (${phpRes.status})`);
+      if (phpRes.ok) {
+        const phpData = await phpRes.json();
+        if (phpData && phpData.success !== false) return phpData;
+        if (phpData && phpData.error) {
+          throw new Error(phpData.error);
+        }
+      } else {
+        throw new Error(`خطا در پاسخگویی سرور هاست (${phpRes.status})`);
+      }
+    } catch (phpErr: any) {
+      const finalMsg = nodeError 
+        ? `${nodeError} (تلاش ثانویه PHP نیز ناموفق بود: ${phpErr.message})`
+        : phpErr.message;
+      throw new Error(finalMsg);
     }
-
-    const phpData = await phpRes.json();
-    if (!phpData || phpData.success === false) {
-      throw new Error(phpData?.error || "خطا در برقراری ارتباط با سرویس همگام‌سازی هاست");
-    }
-
-    return phpData;
   };
 
   // Step 1: Test GitHub Connection & Fetch Remote Commit Metadata
