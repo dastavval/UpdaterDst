@@ -1955,10 +1955,10 @@ export default function AdminSystemConfig({
                       <Activity size={14} />
                       <span className="text-[10px] font-black">وضعیت سرویس</span>
                     </div>
-                    <p className="text-sm font-black text-emerald-400 flex items-center gap-2">
+                    <div className="text-sm font-black text-emerald-400 flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       عملیاتی (Connected)
-                    </p>
+                    </div>
                     <p className="text-[9px] text-slate-500 font-bold mt-2">ارتباط با API گیت‌هاب برقرار است.</p>
                   </div>
                   <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">

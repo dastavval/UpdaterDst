@@ -178,10 +178,10 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
   };
 
   return (
-    <div className="relative w-full bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-5 shadow-xs select-none text-right transition-all" dir="rtl">
+    <div className="relative w-full bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-4 shadow-xs select-none text-right transition-all" dir="rtl">
       
       {/* HEADER BAR */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 mb-3.5 border-b border-slate-100">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
             <Coins size={18} />
@@ -228,7 +228,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
       {activeTab === 'flow' ? (
         <>
           {/* PIPELINE VISUAL TRACK (RESPONSIVE STEPS TRACKER) */}
-          <div className="relative mb-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl p-2 sm:p-2.5 overflow-x-auto scrollbar-none">
+          <div className="relative mb-2.5 bg-slate-50/90 border border-slate-200/80 rounded-xl p-1.5 sm:p-2 overflow-x-auto scrollbar-none">
             
             {/* Connecting Progress Line (Desktop) */}
             <div className="hidden sm:block absolute top-1/2 left-8 right-8 h-1 bg-slate-200 -translate-y-1/2 z-0 rounded-full" />
@@ -293,7 +293,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
           </div>
 
           {/* DYNAMIC STAGE CONTAINER */}
-          <div className="relative w-full min-h-[180px] bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-4 mb-3 overflow-hidden flex flex-col justify-between shadow-2xs">
+          <div className="relative w-full min-h-[160px] bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border border-slate-200 rounded-2xl p-2.5 sm:p-3.5 mb-2.5 overflow-hidden flex flex-col justify-between shadow-2xs">
             
             {/* Top Badge Info Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 z-10 pb-2 border-b border-slate-100/80">

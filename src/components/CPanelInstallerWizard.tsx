@@ -31,6 +31,10 @@ export default function CPanelInstallerWizard({
   const [dbPass, setDbPass] = useState('@Ali3360@Ali3360');
   const [dbTestStatus, setDbTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [githubUrl, setGithubUrl] = useState(b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/b2b-platform');
+  const [githubBranch, setGithubBranch] = useState(b2bConfig?.githubBranch || 'main');
+  const [githubToken, setGithubToken] = useState(b2bConfig?.githubToken || '');
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -45,6 +49,19 @@ export default function CPanelInstallerWizard({
     }, 1500);
   };
 
+  const fetchLogs = async () => {
+    setIsLoadingLogs(true);
+    try {
+      const res = await fetch("/api/admin/github-logs");
+      const data = await res.json();
+      if (data.success) setLogs(data.logs);
+    } catch (e) {
+      console.error("Failed to fetch logs", e);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
   const handleSyncGithub = async () => {
     setIsSyncingGithub(true);
     setSyncSuccess(false);
@@ -54,8 +71,8 @@ export default function CPanelInstallerWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repoUrl: githubUrl.trim(),
-          branch: "main",
-          token: ""
+          branch: githubBranch.trim(),
+          token: githubToken.trim()
         })
       });
       const data = await res.json();
@@ -66,12 +83,15 @@ export default function CPanelInstallerWizard({
           onUpdateConfig({
             ...b2bConfig,
             githubRepoUrl: githubUrl,
+            githubBranch,
+            githubToken,
             lastGithubSync: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR')
           });
         }
       } else {
         alert("خطا در بروزرسانی: " + (data.error || "خطای ناشناخته"));
       }
+      fetchLogs();
     } catch (err: any) {
       console.error("GitHub Sync Error:", err);
       alert("خطا در برقراری ارتباط با سرور: " + err.message);
@@ -441,51 +461,88 @@ try {
 
             {/* STEP 4: GitHub Repository & 1-Click Update */}
             {activeStep === 4 && (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div className="p-5 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 border border-indigo-500/40 rounded-2xl space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <h3 className="text-base font-black text-indigo-300 flex items-center gap-2">
-                        <Github size={20} className="text-amber-400" />
+                      <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <Github size={18} className="text-indigo-400" />
                         اتصال مخزن گیت‌هاب و بروزرسانی آنلاین پلتفرم
                       </h3>
                       <p className="text-xs text-slate-300 font-bold leading-relaxed">
-                        لینک ریپوزیتوری گیت‌هاب پروژه را وارد کنید تا همواره با ۱ کلیک پلتفرم شما به آخرین نسخه بروزرسانی شود.
+                        لینک ریپوزیتوری و توکن دسترسی (PAT) را وارد کنید تا همواره با ۱ کلیک پلتفرم شما به آخرین نسخه بروزرسانی شود.
                       </p>
                     </div>
 
-                    <a
-                      href={githubUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 font-black text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 cursor-pointer shrink-0"
+                    <a 
+                      href="https://github.com/settings/tokens" 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20"
                     >
-                      <ExternalLink size={14} />
-                      <span>مشاهده در GitHub</span>
+                      <ExternalLink size={12} />
+                      دریافت Token
                     </a>
                   </div>
 
-                  <div className="space-y-2 pt-1">
-                    <label className="text-xs font-bold text-slate-300">لینک مخزن گیت‌هاب (GitHub Repository URL):</label>
-                    <div className="flex items-center gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-300">لینک مخزن (Repository URL):</label>
                       <input
                         type="text"
                         value={githubUrl}
                         onChange={(e) => setGithubUrl(e.target.value)}
-                        placeholder="https://github.com/username/dastavval-b2b"
-                        className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-emerald-300 dir-ltr text-left"
+                        placeholder="https://github.com/username/repo"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-emerald-300 dir-ltr text-left"
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-300">شاخه (Branch):</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={githubBranch}
+                          onChange={(e) => setGithubBranch(e.target.value)}
+                          placeholder="main"
+                          className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-emerald-300 dir-ltr text-left"
+                        />
+                        <select 
+                          onChange={(e) => setGithubBranch(e.target.value)}
+                          className="bg-slate-800 border border-slate-700 rounded-xl px-2 py-2.5 text-[10px] font-black text-white outline-none"
+                        >
+                          <option value="main">Main</option>
+                          <option value="master">Master</option>
+                          <option value="dev">Dev</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300">توکن دسترسی شخصی (GitHub PAT - برای مخازن خصوصی):</label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="password"
+                          value={githubToken}
+                          onChange={(e) => setGithubToken(e.target.value)}
+                          placeholder="ghp_xxxxxxxxxxxx"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 pr-9 text-xs font-mono text-emerald-300 dir-ltr text-left"
+                        />
+                        <Key size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      </div>
 
                       <button
                         onClick={handleSyncGithub}
                         disabled={isSyncingGithub}
-                        className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-slate-950 font-black text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer shrink-0"
+                        className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 shrink-0 ${
+                          isSyncingGithub 
+                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                            : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                        }`}
                       >
-                        {isSyncingGithub ? (
-                          <RefreshCw size={16} className="animate-spin" />
-                        ) : (
-                          <RefreshCw size={16} />
-                        )}
+                        <RefreshCw size={16} className={isSyncingGithub ? 'animate-spin' : ''} />
                         <span>بروزرسانی مستقیم از گیت‌هاب</span>
                       </button>
                     </div>
@@ -498,24 +555,84 @@ try {
                       className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2"
                     >
                       <CheckCircle2 size={18} className="text-emerald-400" />
-                      <span>پلتفرم با آخرین commit مخزن گیت‌هاب با موفقیت همگام‌سازی و بروزرسانی شد!</span>
+                      <span>پلتفرم با شاخه {githubBranch} مخزن گیت‌هاب با موفقیت همگام‌سازی شد!</span>
                     </motion.div>
                   )}
 
-                  {b2bConfig?.lastGithubSync && (
-                    <p className="text-[11px] text-slate-400 font-bold">
-                      آخرین همگام‌سازی موفق: <span className="text-amber-300">{b2bConfig.lastGithubSync}</span>
-                    </p>
-                  )}
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                    <span>آخرین همگام‌سازی موفق: <span className="text-amber-300">{b2bConfig?.lastGithubSync || '---'}</span></span>
+                    <button 
+                      onClick={fetchLogs}
+                      className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                    >
+                      <Terminal size={14} />
+                      مشاهده لاگ‌های فنی بروزرسانی
+                    </button>
+                  </div>
+                </div>
+
+                {/* LOGS PANEL */}
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                      <Terminal size={14} />
+                      لاگ‌های دقیق فراخوانی API و عیب‌یابی (Logs):
+                    </h4>
+                    <div className="flex items-center gap-2">
+                       <button 
+                        onClick={async () => {
+                          await fetch("/api/admin/github-logs/clear", { method: "POST" });
+                          setLogs([]);
+                        }}
+                        className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        پاکسازی لاگ‌ها
+                      </button>
+                      <button 
+                        onClick={fetchLogs}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+                      >
+                        <RefreshCw size={12} className={isLoadingLogs ? 'animate-spin' : ''} />
+                        بروزرسانی لاگ
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                    <div className="max-h-48 overflow-y-auto p-2 font-mono text-[10px] space-y-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                      {logs.length > 0 ? logs.map((log) => (
+                        <div key={log.id} className={`p-1.5 rounded border-r-2 ${
+                          log.type === 'error' ? 'bg-red-500/5 border-red-500 text-red-300' : 
+                          log.type === 'success' ? 'bg-emerald-500/5 border-emerald-500 text-emerald-300' : 
+                          'bg-slate-800/40 border-slate-500 text-slate-300'
+                        }`}>
+                          <div className="flex items-center justify-between mb-0.5 opacity-60">
+                            <span>{new Date(log.timestamp).toLocaleTimeString('fa-IR')}</span>
+                            <span className="uppercase text-[9px] font-black">{log.type}</span>
+                          </div>
+                          <div className="font-bold leading-relaxed">{log.message}</div>
+                          {log.details && (
+                            <pre className="mt-1 text-[9px] opacity-70 overflow-x-auto whitespace-pre-wrap">
+                              {JSON.stringify(log.details, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      )) : (
+                        <div className="py-8 text-center text-slate-600 font-bold italic">
+                          {isLoadingLogs ? 'در حال دریافت لاگ‌ها...' : 'هیچ لاگی ثبت نشده است. دکمه بروزرسانی را بزنید.'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2">
-                  <h4 className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-                    <Terminal size={14} />
-                    فرمان Git Pull مستقیم برای cPanel SSH / Cron Job:
+                  <h4 className="text-xs font-black text-slate-400 flex items-center gap-1.5">
+                    <Code2 size={14} />
+                    فرمان Git Pull مستقیم (SSH):
                   </h4>
                   <code className="block bg-slate-900 p-3 rounded-xl font-mono text-emerald-400 text-xs dir-ltr text-left border border-slate-800">
-                    cd public_html && git pull origin main
+                    cd public_html && git pull origin {githubBranch}
                   </code>
                 </div>
               </div>

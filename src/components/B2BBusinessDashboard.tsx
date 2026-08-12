@@ -11,6 +11,8 @@ import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import { t, Language } from "../lib/translations";
 import { ProfileManagement, SupportTicketSystem, SystemNotifications } from "./PortalModules";
+import ReportsView from "./ReportsView";
+import { BarChart as BarChartIcon } from "lucide-react";
 
 interface B2BBusinessDashboardProps {
   products: Product[];
@@ -51,7 +53,7 @@ export default function B2BBusinessDashboard({
 }: B2BBusinessDashboardProps) {
 
   // Active Main tab of the partner portal
-  const [activeTab, setActiveTab] = useState<'overview' | 'tracking' | 'roi' | 'agents' | 'profile' | 'tickets' | 'notifications'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tracking' | 'roi' | 'reports' | 'agents' | 'profile' | 'tickets' | 'notifications'>('overview');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -425,6 +427,17 @@ export default function B2BBusinessDashboard({
         >
           <Calculator size={14} />
           {t("آنالیزر سود بنکداری و ROI", language)}
+        </button>
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'reports'
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+              : "text-slate-500 hover"
+          }`}
+        >
+          <BarChartIcon size={14} />
+          {t("گزارشات و نمودارهای تحلیلی", language)}
         </button>
         <button
           onClick={() => setActiveTab('agents')}
@@ -1052,6 +1065,11 @@ export default function B2BBusinessDashboard({
               </div>
             </div>
           </div>
+        )}
+
+        {/* --- REGIONAL AGENTS TAB --- */}
+        {activeTab === 'reports' && (
+          <ReportsView language={language} user={user} userBadge={userBadge} />
         )}
 
         {/* --- REGIONAL AGENTS TAB --- */}

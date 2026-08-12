@@ -746,143 +746,6 @@ export default function DynamicPresentation({
         </motion.button>
       </section>
 
-      {/* --- OFFICIAL SOCIAL CHANNELS (FRAMED CARD CONTAINER) --- */}
-      <section className="bg-gradient-to-r from-slate-50 via-purple-50/20 to-slate-50 border-2 border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200/70">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
-              📡
-            </span>
-            <h4 className="text-xs sm:text-sm font-black text-slate-800">
-              شبکه‌های اجتماعی و کانال‌های رسمی دست اول
-            </h4>
-          </div>
-          <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
-            ارتباط زنده و اطلاع‌رسانی آنلاین
-          </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          {/* Rubika */}
-          <motion.a
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            href={rubikaUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-purple-50/70 hover:border-purple-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
-                💎
-              </div>
-              <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-purple-700 block truncate">
-                  روبیکا
-                </span>
-                <span className="text-[10px] text-purple-600 font-extrabold block truncate">
-                  کانال 📢
-                </span>
-              </div>
-            </div>
-            <span className="text-slate-300 group-hover:text-purple-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
-          </motion.a>
-
-          {/* WhatsApp */}
-          <motion.a
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 hover:border-emerald-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
-                💬
-              </div>
-              <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-emerald-700 block truncate">
-                  واتساپ
-                </span>
-                <span className="text-[10px] text-emerald-600 font-extrabold block truncate">
-                  پشتیبانی 🗣️
-                </span>
-              </div>
-            </div>
-            <span className="text-slate-300 group-hover:text-emerald-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
-          </motion.a>
-
-          {/* Instagram */}
-          <motion.a
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            href={instagramUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-pink-50/70 hover:border-pink-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
-                📸
-              </div>
-              <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-pink-700 block truncate">
-                  اینستاگرام
-                </span>
-                <span className="text-[10px] text-pink-600 font-extrabold block truncate">
-                  آفر 🎁
-                </span>
-              </div>
-            </div>
-            <span className="text-slate-300 group-hover:text-pink-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
-          </motion.a>
-        </div>
-      </section>
-
-      {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-b border-slate-100/60 mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-slate-100 text-slate-800 rounded-lg flex items-center justify-center shrink-0">
-            <Factory size={18} />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">تامین مستقیم</h4>
-            <p className="text-[10px] text-slate-400 font-bold">ثبت سفارش خط تولید</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-emerald-50 text-emerald-800 rounded-lg flex items-center justify-center shrink-0">
-            <Truck size={18} />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">لجستیک سراسری</h4>
-            <p className="text-[10px] text-slate-400 font-bold">ارسال بیمه‌شده</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <div className={`w-9 h-9 ${activeColors.iconBg} ${activeColors.iconText} rounded-lg flex items-center justify-center shrink-0`}>
-            <ShieldCheck size={18} />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">فاکتور کارخانه‌ای</h4>
-            <p className="text-[10px] text-slate-400 font-bold">صدور بر اساس ضوابط کارخانه</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-teal-50 text-teal-800 rounded-lg flex items-center justify-center shrink-0">
-            <Zap size={18} />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">سود بنکدار</h4>
-            <p className="text-[10px] text-slate-400 font-bold">قیمت کف کارخانه</p>
-          </div>
-        </div>
-      </section>
-
       {/* --- TOP ACTIVE FACTORIES HORIZONTAL LIST --- */}
       {(() => {
         const configFactories = b2bConfig?.factories && b2bConfig.factories.length > 0
@@ -1080,6 +943,225 @@ export default function DynamicPresentation({
         );
       })()}
 
+      {/* --- OFFICIAL SOCIAL CHANNELS (FRAMED CARD CONTAINER) --- */}
+      <section className="bg-gradient-to-r from-slate-50 via-purple-50/20 to-slate-50 border-2 border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-xs">
+        <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200/70">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
+              📡
+            </span>
+            <h4 className="text-xs sm:text-sm font-black text-slate-800">
+              شبکه‌های اجتماعی و کانال‌های رسمی دست اول
+            </h4>
+          </div>
+          <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+            ارتباط زنده و اطلاع‌رسانی آنلاین
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {/* Rubika */}
+          <motion.a
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            href={rubikaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white hover:bg-purple-50/70 hover:border-purple-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                💎
+              </div>
+              <div className="min-w-0 text-right">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-purple-700 block truncate">
+                  روبیکا
+                </span>
+                <span className="text-[10px] text-purple-600 font-extrabold block truncate">
+                  کانال 📢
+                </span>
+              </div>
+            </div>
+            <span className="text-slate-300 group-hover:text-purple-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+          </motion.a>
+
+          {/* WhatsApp */}
+          <motion.a
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 hover:border-emerald-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                💬
+              </div>
+              <div className="min-w-0 text-right">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-emerald-700 block truncate">
+                  واتساپ
+                </span>
+                <span className="text-[10px] text-emerald-600 font-extrabold block truncate">
+                  پشتیبانی 🗣️
+                </span>
+              </div>
+            </div>
+            <span className="text-slate-300 group-hover:text-emerald-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+          </motion.a>
+
+          {/* Instagram */}
+          <motion.a
+            whileHover={{ y: -3, scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            href={instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white hover:bg-pink-50/70 hover:border-pink-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
+                📸
+              </div>
+              <div className="min-w-0 text-right">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-pink-700 block truncate">
+                  اینستاگرام
+                </span>
+                <span className="text-[10px] text-pink-600 font-extrabold block truncate">
+                  آفر 🎁
+                </span>
+              </div>
+            </div>
+            <span className="text-slate-300 group-hover:text-pink-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+          </motion.a>
+        </div>
+      </section>
+
+      {/* --- PARTNER BRANDS STRIP --- */}
+      {(() => {
+        const activeBrands = b2bConfig?.brands && b2bConfig.brands.length > 0 
+          ? b2bConfig.brands 
+          : Array.from(new Set(products.map(p => p.brand).filter(Boolean))).map((brandName, idx) => ({
+              id: `brand-${idx}`,
+              name: brandName,
+              type: "واحد تولیدی فعال",
+              icon: "🏭",
+              logoUrl: undefined
+            }));
+
+        return (
+          <section className="space-y-2 py-3 border-b border-slate-100/60 mb-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+              <span className="text-[11px] sm:text-xs font-black text-slate-800 flex items-center gap-1.5">
+                <Building2 size={14} className={activeColors.brandIconText} />
+                برندهای رسمی کارخانه‌ها
+              </span>
+              <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                تامین‌کنندگان مستقیم
+              </span>
+            </div>
+
+            {activeBrands.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-4 text-center bg-white rounded-xl border border-dashed border-slate-200 p-3">
+                <span className="text-xl mb-1">🏭</span>
+                <p className="text-xs font-bold text-slate-600">هنوز هیچ برندی ثبت نشده است</p>
+              </div>
+            ) : (
+              <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-2.5 pb-1 pt-1 hide-scrollbar scroll-smooth">
+                {activeBrands.map((brand, bIdx) => {
+                  const logoSrc = brand.logoUrl || (brand as any).logo;
+                  return (
+                    <button
+                      key={`${brand.id || brand.name}-${bIdx}`}
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
+                        if (setActiveTab) setActiveTab('order');
+                      }}
+                      className="snap-start shrink-0 w-[72px] sm:w-[95px] flex flex-col items-center justify-center p-1 rounded-xl bg-white/70 hover:bg-emerald-50 transition-all duration-200 cursor-pointer group text-center relative"
+                      title={`مشاهده کاتالوگ و اقلام برند ${brand.name}`}
+                    >
+                      {/* Logo Container - Borderless, Clean & Prominent */}
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center relative group-hover:scale-108 transition-transform duration-200">
+                        {logoSrc ? (
+                          <img 
+                            src={logoSrc} 
+                            alt={brand.name} 
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const parent = e.currentTarget.parentElement;
+                              if (parent) {
+                                const fb = parent.querySelector('.brand-vector-fallback');
+                                if (fb) (fb as HTMLElement).style.display = 'flex';
+                              }
+                            }}
+                            className="w-full h-full object-contain p-0.5" 
+                          />
+                        ) : null}
+                        <div 
+                          className="brand-vector-fallback hidden absolute inset-0 bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex-col items-center justify-center rounded-xl shadow-xs"
+                          style={{ display: !logoSrc ? 'flex' : 'none' }}
+                        >
+                          <span className="text-lg">🏭</span>
+                        </div>
+                      </div>
+
+                      <div className="text-center w-full min-w-0 mt-1">
+                        <h4 className="text-[10px] sm:text-xs font-black text-slate-800 group-hover:text-emerald-700 truncate">
+                          {brand.name}
+                        </h4>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })()}
+
+      {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-b border-slate-100/60 mb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-slate-100 text-slate-800 rounded-lg flex items-center justify-center shrink-0">
+            <Factory size={18} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800">تامین مستقیم</h4>
+            <p className="text-[10px] text-slate-400 font-bold">ثبت سفارش خط تولید</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-emerald-50 text-emerald-800 rounded-lg flex items-center justify-center shrink-0">
+            <Truck size={18} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800">لجستیک سراسری</h4>
+            <p className="text-[10px] text-slate-400 font-bold">ارسال بیمه‌شده</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <div className={`w-9 h-9 ${activeColors.iconBg} ${activeColors.iconText} rounded-lg flex items-center justify-center shrink-0`}>
+            <ShieldCheck size={18} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800">فاکتور کارخانه‌ای</h4>
+            <p className="text-[10px] text-slate-400 font-bold">صدور بر اساس ضوابط کارخانه</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-teal-50 text-teal-800 rounded-lg flex items-center justify-center shrink-0">
+            <Zap size={18} />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-800">سود بنکدار</h4>
+            <p className="text-[10px] text-slate-400 font-bold">قیمت کف کارخانه</p>
+          </div>
+        </div>
+      </section>
+
       {/* --- FACTORY DETAIL MODAL --- */}
       <AnimatePresence>
         {selectedHomeFactory && (
@@ -1273,88 +1355,6 @@ export default function DynamicPresentation({
           </div>
         )}
       </AnimatePresence>
-
-      {/* --- PARTNER BRANDS STRIP --- */}
-      {(() => {
-        const activeBrands = b2bConfig?.brands && b2bConfig.brands.length > 0 
-          ? b2bConfig.brands 
-          : Array.from(new Set(products.map(p => p.brand).filter(Boolean))).map((brandName, idx) => ({
-              id: `brand-${idx}`,
-              name: brandName,
-              type: "واحد تولیدی فعال",
-              icon: "🏭",
-              logoUrl: undefined
-            }));
-
-        return (
-          <section className="space-y-2 py-3 border-b border-slate-100/60 mb-2">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-              <span className="text-[11px] sm:text-xs font-black text-slate-800 flex items-center gap-1.5">
-                <Building2 size={14} className={activeColors.brandIconText} />
-                برندهای رسمی کارخانه‌ها
-              </span>
-              <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
-                تامین‌کنندگان مستقیم
-              </span>
-            </div>
-
-            {activeBrands.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-4 text-center bg-white rounded-xl border border-dashed border-slate-200 p-3">
-                <span className="text-xl mb-1">🏭</span>
-                <p className="text-xs font-bold text-slate-600">هنوز هیچ برندی ثبت نشده است</p>
-              </div>
-            ) : (
-              <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-2.5 pb-1 pt-1 hide-scrollbar scroll-smooth">
-                {activeBrands.map((brand, bIdx) => {
-                  const logoSrc = brand.logoUrl || (brand as any).logo;
-                  return (
-                    <button
-                      key={`${brand.id || brand.name}-${bIdx}`}
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
-                        if (setActiveTab) setActiveTab('order');
-                      }}
-                      className="snap-start shrink-0 w-[72px] sm:w-[95px] flex flex-col items-center justify-center p-1 rounded-xl bg-white/70 hover:bg-emerald-50 transition-all duration-200 cursor-pointer group text-center relative"
-                      title={`مشاهده کاتالوگ و اقلام برند ${brand.name}`}
-                    >
-                      {/* Logo Container - Borderless, Clean & Prominent */}
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center relative group-hover:scale-108 transition-transform duration-200">
-                        {logoSrc ? (
-                          <img 
-                            src={logoSrc} 
-                            alt={brand.name} 
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const parent = e.currentTarget.parentElement;
-                              if (parent) {
-                                const fb = parent.querySelector('.brand-vector-fallback');
-                                if (fb) (fb as HTMLElement).style.display = 'flex';
-                              }
-                            }}
-                            className="w-full h-full object-contain p-0.5" 
-                          />
-                        ) : null}
-                        <div 
-                          className="brand-vector-fallback hidden absolute inset-0 bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex-col items-center justify-center rounded-xl shadow-xs"
-                          style={{ display: !logoSrc ? 'flex' : 'none' }}
-                        >
-                          <span className="text-lg">🏭</span>
-                        </div>
-                      </div>
-
-                      <div className="text-center w-full min-w-0 mt-1">
-                        <h4 className="text-[10px] sm:text-xs font-black text-slate-800 group-hover:text-emerald-700 truncate">
-                          {brand.name}
-                        </h4>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        );
-      })()}
 
       {/* --- AI ADVISOR BANNER --- */}
       <section className="bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-purple-500/30">

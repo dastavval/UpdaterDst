@@ -113,6 +113,21 @@ const DEFAULT_B2B_CONFIG = {
 
 let b2bConfig = { ...DEFAULT_B2B_CONFIG };
 
+// Persistent logs for GitHub Updater troubleshooting
+let githubUpdateLogs: any[] = [];
+function addGithubLog(type: 'info' | 'error' | 'success', message: string, details?: any) {
+  const log = {
+    id: Date.now() + Math.random().toString(36).substring(2, 7),
+    timestamp: new Date().toISOString(),
+    type,
+    message,
+    details
+  };
+  githubUpdateLogs.unshift(log);
+  if (githubUpdateLogs.length > 100) githubUpdateLogs.pop();
+  console.log(`[GitHub Log] ${type.toUpperCase()}: ${message}`, details || "");
+}
+
 if (fs.existsSync(B2B_CONFIG_FILE)) {
   try {
     const raw = fs.readFileSync(B2B_CONFIG_FILE, "utf-8");
@@ -187,7 +202,7 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const interaction = await ai.interactions.create({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.6-flash",
         input: prompt,
         system_instruction: systemPrompt
       });
@@ -424,12 +439,21 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
       const rateLimitLimit = response.headers.get("x-ratelimit-limit");
 
       if (response.status === 401 || response.status === 403 || response.status === 429) {
-        console.error(`[GitHub Updater Error] Connection rejected with HTTP ${response.status}. Auth Token Provided: ${!!token}, RateLimit Limit: ${rateLimitLimit}, Remaining: ${rateLimitRemaining}, Reset Timestamp: ${rateLimitReset}`);
+        addGithubLog('error', `Connection rejected with HTTP ${response.status}. Auth Token Provided: ${!!token}`, {
+          rateLimitRemaining,
+          rateLimitReset,
+          rateLimitLimit
+        });
+      }
+
+      if (response.status === 404) {
+        addGithubLog('error', `Resource not found (404) at ${currentUrl}. Check branch name or repository visibility.`);
       }
 
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
         if (location) {
+          addGithubLog('info', `Following redirect to ${location}`);
           currentUrl = location;
           redirectCount++;
           continue;
@@ -440,13 +464,13 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         if (buffer.length > 100 && buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04) {
-          console.log(`[GitHub Updater Success] Successfully downloaded valid ZIP archive from ${currentUrl} (${buffer.length} bytes). RateLimit Remaining: ${rateLimitRemaining ?? 'N/A'}`);
+          addGithubLog('success', `Successfully downloaded valid ZIP archive from ${currentUrl} (${buffer.length} bytes).`);
           return { buffer, finalUrl: currentUrl };
         } else {
-          console.warn(`[GitHub Updater Warning] URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
+          addGithubLog('error', `URL ${currentUrl} returned 200 OK but content is not a valid ZIP file (size: ${buffer.length})`);
         }
       } else {
-        console.warn(`[GitHub Updater Warning] URL ${currentUrl} returned HTTP status ${response.status}`);
+        addGithubLog('error', `URL ${currentUrl} returned HTTP status ${response.status}`);
       }
     } catch (err: any) {
       console.error(`[GitHub Updater Exception] Network error fetching ${currentUrl}:`, err.message);
@@ -566,53 +590,11 @@ app.post("/api/admin/github-diagnostics", async (req, res) => {
   }
 });
 
-app.post("/api/admin/github-diagnostics", async (req, res) => {
-  const { repoUrl, branch, token } = req.body;
-  
-  let cleanUrl = (repoUrl || "").replace(/\/+$/, "");
-  let extractedBranch = branch || "main";
-  let ownerRepo = "";
-  
-  const matches = cleanUrl.match(/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\s\?\#]+)/i);
-  if (matches && matches[1] && matches[2]) {
-    ownerRepo = `${matches[1].trim()}/${matches[2].trim()}`;
-  }
-  ownerRepo = ownerRepo.replace(/\.git$/i, "");
 
-  if (!ownerRepo) {
-    return res.status(400).json({ success: false, error: "Invalid repository" });
-  }
-
-  const testUrls = [
-    `https://api.github.com/repos/${ownerRepo}/zipball/${extractedBranch}`,
-    `https://github.com/${ownerRepo}/archive/refs/heads/${extractedBranch}.zip`,
-    `https://codeload.github.com/${ownerRepo}/zip/refs/heads/${extractedBranch}`
-  ];
-
-  const diagnostics = [];
-  for (const url of testUrls) {
-    try {
-      const headers: any = { "User-Agent": "Dastavval-Diagnostics" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      
-      const response = await fetch(url, { headers, method: "HEAD", redirect: "manual" });
-      diagnostics.push({
-        url,
-        status: response.status,
-        isZip: response.headers.get("content-type")?.includes("zip") || response.status === 302,
-        error: response.status >= 400 ? `HTTP ${response.status}` : null
-      });
-    } catch (e: any) {
-      diagnostics.push({ url, status: "ERROR", error: e.message });
-    }
-  }
-
-  res.json({ success: true, diagnostics });
-});
 
 // Shared function for GitHub updates
 async function performGithubUpdate(repoUrl: string, branch: string, token: string, hardReset: boolean = false) {
-  console.log(`[GitHub Updater Task] Starting update for ${repoUrl} (${branch}, Hard Reset: ${hardReset})`);
+  addGithubLog('info', `Starting update for ${repoUrl} (${branch}, Hard Reset: ${hardReset})`);
   
   let cleanUrl = String(repoUrl).trim().replace(/\/+$/, "");
   cleanUrl = cleanUrl.replace(/^git@github\.com:/i, "https://github.com/");
@@ -647,7 +629,7 @@ async function performGithubUpdate(repoUrl: string, branch: string, token: strin
   let result: { buffer: Buffer; finalUrl: string } | null = null;
   let successfulUrl = "";
   for (const url of zipUrls) {
-    console.log(`[GitHub Updater Task] Trying candidate URL: ${url}`);
+    addGithubLog('info', `Trying candidate URL: ${url}`);
     result = await fetchGithubZip(url, token);
     if (result) {
       successfulUrl = url;
@@ -656,8 +638,11 @@ async function performGithubUpdate(repoUrl: string, branch: string, token: strin
   }
 
   if (!result) {
-    throw new Error(`امکان دسترسی به کدها در شاخه های ${branchesToTry.join(", ")} فراهم نشد.`);
+    addGithubLog('error', `Failed to access code in branches: ${branchesToTry.join(", ")}`);
+    throw new Error(`امکان دسترسی به کدها در شاخه های ${branchesToTry.join(", ")} فراهم نشد. لطفاً از درستی نام مخزن و دسترسی (Token) اطمینان حاصل کنید.`);
   }
+
+  addGithubLog('info', `Extracting ZIP content...`);
 
   const zip = new AdmZip(result.buffer);
   const zipEntries = zip.getEntries();
@@ -711,15 +696,27 @@ async function performGithubUpdate(repoUrl: string, branch: string, token: strin
   b2bConfig.lastGithubUpdate = Date.now();
   try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
 
+  addGithubLog('success', `Update completed. ${updatedFilesCount} files updated. Triggering build...`);
+
   try {
-    exec("npm install --no-save && npm run build", (err) => {
-      if (err) console.error("[GitHub Updater Task] Build error:", err);
-      else console.log("[GitHub Updater Task] Build success.");
+    exec("npm install --no-save && npm run build", (err: any) => {
+      if (err) addGithubLog('error', `Build error: ${err.message}`);
+      else addGithubLog('success', `Build completed successfully.`);
     });
   } catch (e) {}
 
   return { updatedFilesCount, successfulUrl };
 }
+
+// Endpoints for GitHub Logs
+app.get("/api/admin/github-logs", (req, res) => {
+  res.json({ success: true, logs: githubUpdateLogs });
+});
+
+app.post("/api/admin/github-logs/clear", (req, res) => {
+  githubUpdateLogs = [];
+  res.json({ success: true });
+});
 
 app.post("/api/github-webhook", async (req, res) => {
   const event = req.headers["x-github-event"];
@@ -763,9 +760,14 @@ app.post("/api/admin/github-update", async (req, res) => {
 app.get("/api/b2b/config", (req, res) => res.json(b2bConfig));
 
 app.post("/api/b2b/config", (req, res) => {
-  b2bConfig = { ...b2bConfig, ...req.body };
-  fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
-  res.json({ success: true, config: b2bConfig });
+  try {
+    b2bConfig = { ...b2bConfig, ...req.body };
+    fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    res.json({ success: true, config: b2bConfig });
+  } catch (error: any) {
+    console.error("Failed to save config:", error);
+    res.status(500).json({ error: "خطا در ذخیره تنظیمات: " + error.message });
+  }
 });
 
 app.post("/api/ai/describe", async (req, res) => {
