@@ -179,7 +179,7 @@
     "https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80&w=1000"
   ],
   "githubToken": "",
-  "lastGithubUpdate": 1786534826125,
+  "lastGithubUpdate": 1786535405400,
   "buyerCredit": 250000000,
   "minOrderAmount": 3000000,
   "minOrderCartons": 3,
@@ -221,10 +221,10 @@
   "samandehiImage": "",
   "tradeUnionUrl": "https://dastavval.com/license",
   "lastCommitInfo": {
-    "sha": "9fe9898",
+    "sha": "a4a9e2d",
     "author": "dastavval",
-    "date": "۱۴۰۳/۷/۲",
-    "message": "Update README.md"
+    "date": "۱۴۰۵/۵/۲۱",
+    "message": "feat: improve GitHub update reliability and repo defaults"
   },
   "githubRepoUrl": "https://github.com/dastavval/UpdaterDst",
   "githubBranch": "main",

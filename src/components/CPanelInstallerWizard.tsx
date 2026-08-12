@@ -30,7 +30,7 @@ export default function CPanelInstallerWizard({
   const [dbUser, setDbUser] = useState('h353256_dst');
   const [dbPass, setDbPass] = useState('@Ali3360@Ali3360');
   const [dbTestStatus, setDbTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [githubUrl, setGithubUrl] = useState(b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/b2b-platform');
+  const [githubUrl, setGithubUrl] = useState(b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/UpdaterDst');
   const [githubBranch, setGithubBranch] = useState(b2bConfig?.githubBranch || 'main');
   const [githubToken, setGithubToken] = useState(b2bConfig?.githubToken || '');
   const [logs, setLogs] = useState<any[]>([]);

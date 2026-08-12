@@ -44,12 +44,29 @@ export const ConnectedBubblesWidget: React.FC = () => {
       { from: 4, to: 3 }, // Quality -> Warehouse
     ];
 
-    const render = () => {
+    let lastTime = 0;
+    const fpsInterval = 1000 / 30;
+
+    const updateCanvasSize = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      canvas.width = parent.clientWidth * 2;
+      canvas.height = parent.clientHeight * 2;
+    };
+
+    updateCanvasSize();
+
+    const render = (now: number) => {
+      animId = requestAnimationFrame(render);
+      const elapsed = now - lastTime;
+      if (elapsed < fpsInterval) return;
+      lastTime = now - (elapsed % fpsInterval);
+
       const parent = canvas.parentElement;
       if (!parent) return;
 
-      const width = canvas.width = parent.clientWidth * 2;
-      const height = canvas.height = parent.clientHeight * 2;
+      const width = canvas.width;
+      const height = canvas.height;
 
       ctx.clearRect(0, 0, width, height);
       time += 0.025;
@@ -155,14 +172,12 @@ export const ConnectedBubblesWidget: React.FC = () => {
         ctx.fill();
       });
 
-      animId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
 
     const handleResize = () => {
-      cancelAnimationFrame(animId);
-      render();
+      updateCanvasSize();
     };
 
     window.addEventListener('resize', handleResize);

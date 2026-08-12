@@ -323,40 +323,34 @@ export default function DynamicPresentation({
   const prevRepsRef = useRef(0);
   const prevProductsRef = useRef(0);
 
-  // Counter animation from 0 or previous values
+  // Counter animation optimized with throttled steps to prevent main-thread layout thrashing
   useEffect(() => {
-    let startTimestamp: number | null = null;
     const isFirstLoad = prevRepsRef.current === 0;
-    const duration = isFirstLoad ? 1500 : 800; // 1.5 seconds on initial load, 0.8 seconds on small tick updates
+    const duration = isFirstLoad ? 1000 : 500;
     const startReps = prevRepsRef.current;
     const startProducts = prevProductsRef.current;
     const diffReps = liveReps - startReps;
     const diffProducts = liveProducts - startProducts;
 
-    let animationFrameId: number;
-
-    const step = (timestamp: number) => {
-      if (!startTimestamp) startTimestamp = timestamp;
-      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      
-      // Easing outQuad
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
       const ease = progress * (2 - progress);
 
       setDisplayedReps(Math.floor(startReps + ease * diffReps));
       setDisplayedProducts(Math.floor(startProducts + ease * diffProducts));
 
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(step);
-      } else {
+      if (progress >= 1) {
+        clearInterval(timer);
         setDisplayedReps(liveReps);
         setDisplayedProducts(liveProducts);
         prevRepsRef.current = liveReps;
         prevProductsRef.current = liveProducts;
       }
-    };
+    }, 50);
 
-    animationFrameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => clearInterval(timer);
   }, [liveReps, liveProducts]);
 
   // Periodic automatic additions (live ticker counters)

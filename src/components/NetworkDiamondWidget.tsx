@@ -90,7 +90,15 @@ export const NetworkDiamondWidget: React.FC<DiamondProps> = ({ size = 120 }) => 
 
     let pulseTime = 0;
 
-    const render = () => {
+    let lastTime = 0;
+    const fpsInterval = 1000 / 30;
+
+    const render = (now: number) => {
+      animId = requestAnimationFrame(render);
+      const elapsed = now - lastTime;
+      if (elapsed < fpsInterval) return;
+      lastTime = now - (elapsed % fpsInterval);
+
       ctx.clearRect(0, 0, width, height);
       rotationY += 0.015;
       rotationX = 0.2 + Math.sin(pulseTime * 0.3) * 0.1;
@@ -171,10 +179,9 @@ export const NetworkDiamondWidget: React.FC<DiamondProps> = ({ size = 120 }) => 
         }
       });
 
-      animId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animId);

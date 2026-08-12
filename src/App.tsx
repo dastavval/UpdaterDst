@@ -625,13 +625,13 @@ export default function App() {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 300) {
+      if (window.scrollY > 150) {
         setShowScrollTop(true);
       } else {
         setShowScrollTop(false);
       }
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -2554,10 +2554,10 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToTop}
-            className="fixed bottom-6 left-5 z-40 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/40 flex items-center justify-center group"
+            className="fixed bottom-24 left-4 sm:bottom-8 sm:left-8 z-[9999] p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/50 flex items-center justify-center group"
             title="بازگشت به بالای صفحه"
           >
-            <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+            <ArrowUp size={22} className="group-hover:-translate-y-1 transition-transform" />
           </motion.button>
         )}
       </AnimatePresence>
