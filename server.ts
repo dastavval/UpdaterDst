@@ -944,6 +944,66 @@ app.post("/api/admin/github-preview", async (req, res) => {
   }
 });
 
+// Endpoint: Hot-Reload Static & Changed Files Without Server Restart
+app.post("/api/admin/hot-reload", async (req, res) => {
+  const { repoUrl, branch, token } = req.body;
+  addGithubLog('info', 'Starting Hot-Reload of changed static & source files without server restart...');
+  try {
+    const targetRepo = repoUrl || b2bConfig.githubRepoUrl || "https://github.com/dastavval/UpdaterDst.git";
+    const targetBranch = branch || b2bConfig.githubBranch || "main";
+    const targetToken = token || b2bConfig.githubToken || "";
+
+    const inspected = await inspectGithubRepo(targetRepo, targetBranch, targetToken);
+
+    let updatedFilesCount = 0;
+    const updatedFilesList: string[] = [];
+    const excludes = ["node_modules", ".git", ".env"];
+
+    for (const entry of inspected.zipEntries) {
+      if (entry.isDirectory) continue;
+      let relPath = entry.entryName;
+      if (inspected.rootPrefix && relPath.startsWith(inspected.rootPrefix)) {
+        relPath = relPath.substring(inspected.rootPrefix.length);
+      }
+      if (!relPath) continue;
+      const topDir = relPath.split("/")[0];
+      if (excludes.includes(topDir) || excludes.includes(relPath)) continue;
+
+      const targetPaths = [path.join(process.cwd(), relPath)];
+      if (relPath.startsWith("dist/")) {
+        targetPaths.push(path.join(process.cwd(), relPath.substring(5)));
+      }
+
+      for (const targetPath of targetPaths) {
+        const targetDir = path.dirname(targetPath);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        fs.writeFileSync(targetPath, entry.getData());
+      }
+      updatedFilesCount++;
+      updatedFilesList.push(relPath);
+    }
+
+    b2bConfig.lastGithubUpdate = Date.now();
+    try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+
+    addGithubLog('success', `Hot-reload completed! ${updatedFilesCount} static/source files replaced successfully without server restart.`);
+
+    return res.json({
+      success: true,
+      message: `هات‌ریلود فایل‌های استاتیک با موفقیت انجام شد (${updatedFilesCount} فایل بروزرسانی شد بدون نیاز به ریستارت سرور).`,
+      updatedFilesCount,
+      updatedFilesList,
+      commitInfo: inspected.commitInfo
+    });
+  } catch (error: any) {
+    console.error("[Hot-Reload Error]:", error);
+    addGithubLog('error', `Hot-Reload error: ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Endpoint: Trigger Server Rebuild
 app.post("/api/admin/github-rebuild", async (req, res) => {
   addGithubLog('info', 'Manual compilation & rebuild triggered by admin...');

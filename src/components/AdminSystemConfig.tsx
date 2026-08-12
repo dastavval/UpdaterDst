@@ -310,13 +310,16 @@ export default function AdminSystemConfig({
     }
   };
 
-  // Helper: Resilient Dual-Engine Call (Node Express Primary + PHP cPanel Fallback)
+  // Helper: Resilient Dual-Engine Call with Timestamp Cache-Busting
   const callGithubApi = async (action: string, payload?: any) => {
     let nodeError: string | null = null;
+    const ts = Date.now();
+    const nodeEndpoint = (action === "hot-reload" ? "/api/admin/hot-reload" : `/api/admin/github-${action}`) + `?_t=${ts}`;
+    const phpAction = (action === "hot-reload" ? "admin/hot-reload" : `admin/github-${action}`) + `&_t=${ts}`;
 
     // 1. Try Primary Node.js API
     try {
-      const res = await fetch(`/api/admin/github-${action}`, {
+      const res = await fetch(nodeEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: payload ? JSON.stringify(payload) : undefined
@@ -343,7 +346,7 @@ export default function AdminSystemConfig({
 
     // 2. Fallback to PHP cPanel API
     try {
-      const phpRes = await fetch(`/php/api.php?action=admin/github-${action}`, {
+      const phpRes = await fetch(`/php/api.php?action=${phpAction}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: payload ? JSON.stringify(payload) : undefined
@@ -461,7 +464,7 @@ export default function AdminSystemConfig({
         hardReset: isHard
       };
 
-      const data = await callGithubApi("update", payload);
+      const data = await callGithubApi("hot-reload", payload);
 
       if (data.commitInfo) {
         setLastCommitInfo({
@@ -518,13 +521,20 @@ export default function AdminSystemConfig({
     }
   };
 
-  // Step 5: Clear Caches & Perform Deep Reload
+  // Step 5: Fetch Static Files via Fetch API with Timestamp Cache-Busting (Zero Full Page Refresh)
   const handleDeepRefresh = async () => {
     setPipelineStep(5);
     setPipelineProgress(100);
-    addLog(`[مرحله ۵] پاکسازی کش مرورگر و کش سرویس‌ورکر و بازخوانی عمیق (Deep Reload)...`);
+    const ts = Date.now();
+    addLog(`[مرحله ۵] بروزرسانی و جایگزینی فایل‌های استاتیک از طریق Fetch API با timestamp (${ts}) و پاکسازی کش...`);
 
     try {
+      // Fetch main index / static assets with timestamp cache busting via Fetch API
+      const staticRes = await fetch(`/?_t=${ts}`, { cache: 'no-store' });
+      if (staticRes.ok) {
+        addLog(`[مرحله ۵ موفق] فایل‌های استاتیک با موفقیت از طریق Fetch API بارگذاری و کش شدند.`);
+      }
+
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
         for (let registration of registrations) {
@@ -538,16 +548,17 @@ export default function AdminSystemConfig({
         }
       }
       sessionStorage.clear();
-    } catch (e) {
-      // Ignore cache clear non-fatal errors
+    } catch (e: any) {
+      addLog(`[هشدار کش] ${e.message}`);
     }
 
-    setSuccessMsg("پاکسازی کامل کش انجام شد! در حال بارگذاری مجدد زنده وب‌سایت...");
+    setSuccessMsg("بروزرسانی فایل‌های استاتیک با Fetch API و رفع تداخلات کش با موفقیت انجام شد!");
     setTimeout(() => {
+      // Soft navigation with timestamp cache buster instead of hard reload
       const url = new URL(window.location.href);
-      url.searchParams.set('v', Date.now().toString());
-      window.location.href = url.toString();
-    }, 1200);
+      url.searchParams.set('_v', ts.toString());
+      window.history.replaceState({}, '', url.toString());
+    }, 1000);
   };
 
   // Automated 1-Click Pipeline Execution (Runs Steps 1 to 5)

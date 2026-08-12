@@ -217,6 +217,115 @@ switch ($action) {
         echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
         exit();
 
+    case 'admin/hot-reload':
+        header('Content-Type: application/json; charset=utf-8');
+        $input = json_decode(file_get_contents('php://input'), true) ?: [];
+        $repoUrl = isset($input['repoUrl']) && !empty($input['repoUrl']) ? trim($input['repoUrl']) : 'https://github.com/dastavval/UpdaterDst';
+        $branch = isset($input['branch']) && !empty($input['branch']) ? trim($input['branch']) : 'main';
+        $token = isset($input['token']) ? trim($input['token']) : '';
+
+        // Extract owner/repo
+        $ownerRepo = 'dastavval/UpdaterDst';
+        if (preg_match('/(?:github\.com\/|repos\/|^)([^\/\s\?\#]+)\/([^\/\.\?\s\#]+)/i', $repoUrl, $matches)) {
+            $ownerRepo = trim($matches[1]) . '/' . preg_replace('/\.git$/i', '', trim($matches[2]));
+        }
+
+        $zipUrl = "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/" . $branch;
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $zipUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Dastavval-HotReload/6.0');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        if (!empty($token)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $token]);
+        }
+        $zipData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || empty($zipData)) {
+            echo json_encode(['success' => false, 'error' => 'خطا در دریافت فایل زیپ از گیت‌هاب (کد HTTP: ' . $httpCode . ')'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $tempZip = sys_get_temp_dir() . '/dastavval_hotreload_' . time() . '.zip';
+        file_put_contents($tempZip, $zipData);
+
+        if (!class_exists('ZipArchive')) {
+            echo json_encode(['success' => false, 'error' => 'افزونه ZipArchive در سرور فعال نیست.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tempZip) === TRUE) {
+            $root_dir = dirname(__DIR__);
+            $rootPrefix = '';
+            $dirCounts = [];
+            for ($k = 0; $k < $zip->numFiles; $k++) {
+                $name = $zip->getNameIndex($k);
+                $parts = explode('/', $name);
+                if (count($parts) > 1 && !empty($parts[0])) {
+                    $top = $parts[0] . '/';
+                    if ($top !== '__MACOSX/') {
+                        $dirCounts[$top] = isset($dirCounts[$top]) ? $dirCounts[$top] + 1 : 1;
+                    }
+                }
+            }
+            $maxC = 0;
+            foreach ($dirCounts as $dirName => $count) {
+                if ($count > $maxC) {
+                    $maxC = $count;
+                    $rootPrefix = $dirName;
+                }
+            }
+
+            $updatedFilesCount = 0;
+            $excludes = ["node_modules", ".git", ".env"];
+
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entryName = $zip->getNameIndex($i);
+                $relPath = $entryName;
+                if (!empty($rootPrefix) && strpos($entryName, $rootPrefix) === 0) {
+                    $relPath = substr($entryName, strlen($rootPrefix));
+                }
+                if (empty($relPath)) continue;
+
+                $topDir = explode('/', $relPath)[0];
+                if (in_array($topDir, $excludes) || in_array($relPath, $excludes)) continue;
+
+                if (strpos($relPath, 'dist/') === 0) {
+                    $relPath = substr($relPath, 5);
+                }
+                if (empty($relPath)) continue;
+
+                $targetPath = $root_dir . '/' . $relPath;
+                $targetDir = dirname($targetPath);
+                if (!file_exists($targetDir)) {
+                    @mkdir($targetDir, 0755, true);
+                }
+
+                $content = $zip->getFromIndex($i);
+                if ($content !== false) {
+                    @file_put_contents($targetPath, $content);
+                    $updatedFilesCount++;
+                }
+            }
+            $zip->close();
+            @unlink($tempZip);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'هات‌ریلود فایل‌های استاتیک بدون نیاز به ریستارت سرور با موفقیت انجام شد.',
+                'updatedFilesCount' => $updatedFilesCount
+            ], JSON_UNESCAPED_UNICODE);
+            exit();
+        } else {
+            echo json_encode(['success' => false, 'error' => 'خطا در باز کردن فایل زیپ هات‌ریلود.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
     // ۵.۵ وب‌هوک، کرون‌جاب و بروزرسانی سورس‌کد و دیتابیس مستقیم از گیت‌هاب (GitHub Webhook, Cron & Direct Sync)
     case 'github-webhook':
     case 'cron-auto-update':
