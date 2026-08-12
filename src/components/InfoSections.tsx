@@ -3,60 +3,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { Info, BookOpen, TrendingUp, Mail, MapPin, Phone, MessageSquare, BrainCircuit, Lightbulb, Users, BarChart3, Download, Grid, FileText, ShieldCheck, DollarSign, Percent, Gavel, Clock, Send, CheckCircle2, ArrowLeft, Calendar, X, Eye, Search, Building2, ExternalLink, ChevronRight, ChevronLeft, ArrowRight, Scale, ShieldAlert, Leaf } from "lucide-react";
 import { addCallbackRequest } from "../lib/callback-helper";
 import { NetworkDiamondWidget } from "./NetworkDiamondWidget";
+import { CompetitiveAdvantagesAndRoadmap } from "./CompetitiveAdvantagesAndRoadmap";
 
 export function AboutUsSection({ theme }: { articles?: any[]; theme: 'light' | 'dark' | 'classic' }) {
   return (
     <div id="about-us" className="py-6 md:py-10 text-right" dir="rtl">
       <div className="space-y-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="max-w-3xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-800 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
-            <Info size={14} className="animate-pulse" />
-            مزایای رقابتی مرجع دست اول
-          </div>
-          <h2 className="text-xl md:text-2xl font-black tracking-tight leading-tight text-slate-900">
-            <span className="bg-gradient-to-l from-emerald-800 via-teal-700 to-amber-600 bg-clip-text text-transparent">خرید مستقیم و ۱۰۰٪ بی‌واسطه</span>
-            <span className="block mt-1">از خطوط تولید و کارخانجات معتبر کشور</span>
-          </h2>
-          <p className="text-xs md:text-sm font-bold text-slate-500 leading-relaxed">
-            پلتفرم دست اول واسطه‌های سنتی و غیرضروری بازار عمده‌فروشی را حذف کرده است تا کالاها با قیمت واقعی پایه کارخانه، فاکتور مستقیم تولیدی و تضمین سلامت بار به انبار شما برسند.
-          </p>
-        </div>
-
-        {/* 4 Glassmorphic Benefit Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-50/70 to-fuchsia-50/50 border border-purple-200/50 shadow-sm hover:shadow-md hover:border-purple-500/40 transition-all space-y-3">
-             <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-black shadow-inner">
-                <Users size={20} />
-             </div>
-             <h4 className="text-xs md:text-sm font-black text-slate-900">شبکه سراسری بنکداران</h4>
-             <p className="text-[11px] text-slate-500 font-medium leading-relaxed">ارتباط مستقیم بین بیش از ۵,۰۰۰ بنکدار، خریدار عمده و کارخانجات فعال کشور.</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/50 shadow-sm hover:shadow-md hover:border-amber-500/40 transition-all space-y-3">
-             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-black shadow-inner">
-                <BarChart3 size={20} />
-             </div>
-             <h4 className="text-xs md:text-sm font-black text-slate-900">معاملات آنلاین و شفاف</h4>
-             <p className="text-[11px] text-slate-500 font-medium leading-relaxed">از استعلام قیمت لحظه‌ای پایه کارخانه تا صادر شدن صددرصد آنلاین بارنامه رسمی.</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-sky-50/70 to-indigo-50/50 border border-sky-200/50 shadow-sm hover:shadow-md hover:border-blue-500/40 transition-all space-y-3">
-             <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black shadow-inner">
-                <Percent size={20} />
-             </div>
-             <h4 className="text-xs md:text-sm font-black text-slate-900">تضمین قیمت کف کارخانه</h4>
-             <p className="text-[11px] text-slate-500 font-medium leading-relaxed">تطابق کامل و تضمینی قیمت نهایی خرید با نازل‌ترین لیست رسمی مصوب تولیدکننده.</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border border-emerald-200/50 shadow-sm hover:shadow-md hover:border-emerald-500/40 transition-all space-y-3">
-             <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black shadow-inner">
-                <ShieldCheck size={20} />
-             </div>
-             <h4 className="text-xs md:text-sm font-black text-slate-900">تسویه امن و تضمین سلامت</h4>
-             <p className="text-[11px] text-slate-500 font-medium leading-relaxed">وجه پرداختی تا زمان تحویل سالم بار و تایید انباردار، در سامانه امانت می‌ماند.</p>
-          </div>
-        </div>
+        {/* Render Creative Comparison Matrix Table & Newcomer Roles Roadmap */}
+        <CompetitiveAdvantagesAndRoadmap theme={theme} />
       </div>
     </div>
   );
