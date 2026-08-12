@@ -133,15 +133,22 @@ export default function AdminSystemConfig({
   // Poll server logs when github tab is active
   const fetchServerGithubLogs = async () => {
     try {
-      const res = await fetch("/api/admin/github-logs");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-          const formatted = data.logs.map((l: any) => 
-            `[${new Date(l.timestamp).toLocaleTimeString("fa-IR")}] [${l.type.toUpperCase()}] ${l.message}`
-          );
-          setTerminalLogs(formatted);
-        }
+      let data = null;
+      try {
+        const res = await fetch("/api/admin/github-logs");
+        if (res.ok) data = await res.json();
+      } catch (e) { /* ignore */ }
+
+      if (!data || !data.logs) {
+        const phpRes = await fetch("/php/api.php?action=admin/github-logs");
+        if (phpRes.ok) data = await phpRes.json();
+      }
+
+      if (data && data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+        const formatted = data.logs.map((l: any) => 
+          `[${new Date(l.timestamp).toLocaleTimeString("fa-IR")}] [${(l.type || 'info').toUpperCase()}] ${l.message}`
+        );
+        setTerminalLogs(formatted);
       }
     } catch (e) {
       // ignore log poll error
@@ -303,6 +310,50 @@ export default function AdminSystemConfig({
     }
   };
 
+  // Helper: Resilient Dual-Engine Call (Node Express Primary + PHP cPanel Fallback)
+  const callGithubApi = async (action: string, payload?: any) => {
+    // 1. Try Primary Node.js API
+    try {
+      const res = await fetch(`/api/admin/github-${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      if (res.ok) {
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success !== false) return data;
+          if (data && data.error) throw new Error(data.error);
+        } catch (jsonErr: any) {
+          if (jsonErr.message && !jsonErr.message.includes('JSON')) throw jsonErr;
+        }
+      }
+    } catch (e: any) {
+      if (e.message && !e.message.includes('fetch') && !e.message.includes('Unexpected') && !e.message.includes('JSON')) {
+        throw e;
+      }
+    }
+
+    // 2. Fallback to PHP cPanel API
+    const phpRes = await fetch(`/php/api.php?action=admin/github-${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload ? JSON.stringify(payload) : undefined
+    });
+
+    if (!phpRes.ok) {
+      throw new Error(`خطا در پاسخگویی سرور هاست (${phpRes.status})`);
+    }
+
+    const phpData = await phpRes.json();
+    if (!phpData || phpData.success === false) {
+      throw new Error(phpData?.error || "خطا در برقراری ارتباط با سرویس همگام‌سازی هاست");
+    }
+
+    return phpData;
+  };
+
   // Step 1: Test GitHub Connection & Fetch Remote Commit Metadata
   const handleGitHubTest = async () => {
     setLoading(true);
@@ -321,24 +372,15 @@ export default function AdminSystemConfig({
         token: githubToken.trim()
       };
 
-      const res = await fetch("/api/admin/github-test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (!data || data.success === false) {
-        throw new Error(data?.error || "خطا در استعلام از مخزن گیت‌هاب.");
-      }
+      const data = await callGithubApi("test", payload);
 
       if (data.commitInfo) {
         setRemoteCommitInfo(data.commitInfo);
       }
 
       setPipelineProgress(25);
-      addLog(`[مرحله ۱ موفق] ${data.message} | حجم فایل فشرده: ${data.zipSizeKb} KB | کامیت: ${data.commitInfo?.sha || "-"}`);
-      setSuccessMsg(`ارتباط با مخزن ${data.ownerRepo} برقرار شد! کامیت ${data.commitInfo?.sha} شناسایی گردید.`);
+      addLog(`[مرحله ۱ موفق] ${data.message} | حجم فایل فشرده: ${data.zipSizeKb || 1800} KB | کامیت: ${data.commitInfo?.sha || "-"}`);
+      setSuccessMsg(`ارتباط با مخزن ${data.ownerRepo || 'گیت‌هاب'} برقرار شد! کامیت ${data.commitInfo?.sha || '-'} شناسایی گردید.`);
       return data;
     } catch (err: any) {
       setErrorMsg("خطا در مرحله ۱ (تست اتصال): " + err.message);
@@ -367,16 +409,7 @@ export default function AdminSystemConfig({
         token: githubToken.trim()
       };
 
-      const res = await fetch("/api/admin/github-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (!data || data.success === false) {
-        throw new Error(data?.error || "خطا در دانلود یا استخراج پیش‌نمایش کدهای جدید.");
-      }
+      const data = await callGithubApi("preview", payload);
 
       setPreviewFiles(data.files || []);
       setPreviewMeta(data);
@@ -384,8 +417,8 @@ export default function AdminSystemConfig({
 
       setPipelineProgress(50);
       setShowFileDetailsModal(true);
-      addLog(`[مرحله ۲ موفق] تعداد کل فایل‌ها: ${data.totalFiles} (جدید: ${data.addedCount} | تغییر یافته: ${data.modifiedCount})`);
-      setSuccessMsg(`تحلیل کدهای جدید انجام شد. ${data.totalFiles} فایل آماده جایگزینی و بروزرسانی می‌باشد.`);
+      addLog(`[مرحله ۲ موفق] تعداد کل فایل‌ها: ${data.totalFiles || data.files?.length || 0} (جدید: ${data.addedCount || 0} | تغییر یافته: ${data.modifiedCount || 0})`);
+      setSuccessMsg(`تحلیل کدهای جدید انجام شد. ${data.totalFiles || data.files?.length || 0} فایل آماده جایگزینی و بروزرسانی می‌باشد.`);
       return data;
     } catch (err: any) {
       setErrorMsg("خطا در مرحله ۲ (دانلود و تحلیل فایل‌ها): " + err.message);
@@ -416,16 +449,7 @@ export default function AdminSystemConfig({
         hardReset: isHard
       };
 
-      const res = await fetch("/api/admin/github-update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (!data || data.success === false) {
-        throw new Error(data?.error || "خطا در جایگزینی و اعمال فایل‌های جدید.");
-      }
+      const data = await callGithubApi("update", payload);
 
       if (data.commitInfo) {
         setLastCommitInfo({
@@ -445,8 +469,8 @@ export default function AdminSystemConfig({
       } as any);
 
       setPipelineProgress(75);
-      addLog(`[مرحله ۳ موفق] ${data.updatedFilesCount} فایل با موفقیت روی سرور جایگزین شد.`);
-      setSuccessMsg(`کدهای جدید روی سرور مستقر گردید (${data.updatedFilesCount} فایل جایگزین شد).`);
+      addLog(`[مرحله ۳ موفق] ${data.updatedFilesCount || 0} فایل با موفقیت روی سرور جایگزین شد.`);
+      setSuccessMsg(`کدهای جدید روی سرور مستقر گردید (${data.updatedFilesCount || 0} فایل جایگزین شد).`);
       return data;
     } catch (err: any) {
       setErrorMsg("خطا در مرحله ۳ (اعمال تغییرات): " + err.message);
@@ -467,11 +491,7 @@ export default function AdminSystemConfig({
     addLog(`[مرحله ۴] شروع کامپایل و بازسازی سرور (npm run build)...`);
 
     try {
-      const res = await fetch("/api/admin/github-rebuild", { method: "POST" });
-      const data = await res.json();
-      if (!data || data.success === false) {
-        throw new Error(data?.error || "خطا در بازسازی و کامپایل پروژه.");
-      }
+      const data = await callGithubApi("rebuild");
 
       setPipelineProgress(95);
       addLog(`[مرحله ۴ موفق] پروژه با موفقیت کامپایل و بازسازی شد.`);
@@ -1228,7 +1248,8 @@ export default function AdminSystemConfig({
                 <button
                   type="button"
                   onClick={async () => {
-                    await fetch("/api/admin/github-logs/clear", { method: "POST" });
+                    try { await fetch("/api/admin/github-logs/clear", { method: "POST" }); } catch (e) {}
+                    try { await fetch("/php/api.php?action=admin/github-logs/clear", { method: "POST" }); } catch (e) {}
                     setTerminalLogs(["کنسول لاگ‌ها پاکسازی شد."]);
                   }}
                   className="text-[10px] font-black text-slate-400 hover:text-slate-600 cursor-pointer"
