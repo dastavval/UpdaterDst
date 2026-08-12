@@ -413,9 +413,10 @@ export default function DynamicPresentation({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-4.5 py-2 rounded-xl bg-amber-50/90 border border-amber-200/90 text-amber-900 shadow-2xs flex items-center gap-2">
-              <span className="text-xs sm:text-sm font-black tracking-wide text-amber-800 select-none">
-                « برکت در صدق در معامله است »
+            <div className="relative overflow-hidden px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 border border-yellow-200 shadow-lg shadow-amber-500/20 flex items-center gap-2 ring-2 ring-amber-400/50">
+              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/60 to-transparent pointer-events-none"></div>
+              <span className="relative z-10 text-xs sm:text-sm font-black tracking-wider text-amber-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] select-none">
+                ✨ « برکت در صدق در معامله است » ✨
               </span>
             </div>
           </div>
