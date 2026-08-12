@@ -419,29 +419,10 @@ export default function DynamicPresentation({
           </div>
           
           <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-900 via-sky-800 via-indigo-900 via-cyan-950 to-slate-900 border-2 border-cyan-300/80 shadow-[0_0_25px_rgba(6,182,212,0.45),inset_0_2px_10px_rgba(255,255,255,0.8)] flex items-center gap-2.5 group hover:scale-[1.04] active:scale-[0.98] transition-all duration-300">
-              {/* Crystalline Diamond Sheen & Reflection */}
-              <motion.div 
-                animate={{ x: ["-200%", "350%"] }} 
-                transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }} 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-100/60 to-transparent -skew-x-45 pointer-events-none" 
-              />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-400/20 via-transparent to-transparent pointer-events-none" />
-
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-600 text-slate-950 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.8)] text-sm font-black shrink-0 relative z-10 border border-cyan-100/80 animate-pulse">
-                💎
-              </div>
-              
-              <div className="flex flex-col relative z-10 text-right">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-black tracking-widest text-cyan-300 uppercase bg-cyan-950/80 px-2 py-0.5 rounded-md border border-cyan-400/40 shadow-xs">
-                    💎 نشان الماسی صداقت و برکت
-                  </span>
-                </div>
-                <span className="text-xs sm:text-sm font-black tracking-wide text-white pr-0.5 select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                  « خیر و برکت در صدق در معامله است »
-                </span>
-              </div>
+            <div className="relative overflow-hidden px-4.5 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-200 shadow-sm flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-black tracking-wide text-amber-300 select-none">
+                « خیر و برکت در صدق در معامله است »
+              </span>
             </div>
           </div>
         </div>

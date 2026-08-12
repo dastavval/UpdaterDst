@@ -248,16 +248,17 @@ switch ($action) {
             exit();
         }
 
-        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP
-        $zipUrls = [
-            "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/" . $branch,
-            "https://github.com/" . $ownerRepo . "/archive/refs/heads/" . $branch . ".zip",
-            "https://api.github.com/repos/" . $ownerRepo . "/zipball/" . $branch,
-            "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/main",
-            "https://github.com/" . $ownerRepo . "/archive/refs/heads/main.zip",
-            "https://codeload.github.com/" . $ownerRepo . "/zip/refs/heads/master",
-            "https://github.com/" . $ownerRepo . "/archive/refs/heads/master.zip"
-        ];
+        // ساخت آدرس‌های کاندید برای دانلود فایل ZIP (همراه با Fallback مخزن رسمی)
+        $reposToTry = array_unique([$ownerRepo, "dastavval/dastavval.com", "dastavval/b2b-platform"]);
+        $zipUrls = [];
+        foreach ($reposToTry as $repo) {
+            $zipUrls[] = "https://api.github.com/repos/" . $repo . "/zipball/" . $branch;
+            $zipUrls[] = "https://codeload.github.com/" . $repo . "/zip/refs/heads/" . $branch;
+            $zipUrls[] = "https://github.com/" . $repo . "/archive/refs/heads/" . $branch . ".zip";
+            $zipUrls[] = "https://codeload.github.com/" . $repo . "/zip/refs/heads/main";
+            $zipUrls[] = "https://github.com/" . $repo . "/archive/refs/heads/main.zip";
+            $zipUrls[] = "https://codeload.github.com/" . $repo . "/zip/refs/heads/master";
+        }
 
         $zipData = '';
         $httpCode = 0;

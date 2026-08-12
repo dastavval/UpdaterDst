@@ -406,9 +406,8 @@ app.post("/api/admin/ai-config", (req, res) => {
 
 // --- GITHUB AUTO UPDATE ENDPOINT ---
 async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buffer; finalUrl: string } | null> {
-  const isS3orCodeload = (u: string) => 
+  const isS3Url = (u: string) => 
     u.includes("objects.githubusercontent.com") ||
-    u.includes("codeload.github.com") ||
     u.includes("Signature=") ||
     u.includes("X-Amz-");
 
@@ -433,7 +432,7 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
         "Accept": "application/vnd.github+json, application/zip, application/octet-stream, */*"
       };
 
-      if (authHeader && !isS3orCodeload(currentUrl) && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
+      if (authHeader && !isS3Url(currentUrl) && (currentUrl.includes("github.com") || currentUrl.includes("api.github.com"))) {
         headers["Authorization"] = authHeader;
       }
 
@@ -446,8 +445,9 @@ async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buf
         if (response.status >= 300 && response.status < 400) {
           const location = response.headers.get("location");
           if (location) {
-            addGithubLog('info', `Following redirect to ${location}`);
-            currentUrl = location;
+            const nextUrl = new URL(location, currentUrl).toString();
+            addGithubLog('info', `Following redirect to ${nextUrl}`);
+            currentUrl = nextUrl;
             redirectCount++;
             continue;
           }
@@ -612,12 +612,15 @@ async function inspectGithubRepo(repoUrl: string, branch: string, token: string)
     throw new Error("آدرس یا نام مخزن گیت‌هاب معتبر نمی‌باشد.");
   }
 
+  const ownerReposToTry = Array.from(new Set([ownerRepo, "dastavval/dastavval.com", "dastavval/b2b-platform"])).filter(Boolean);
   const branchesToTry = Array.from(new Set([extractedBranch, "main", "master"])).filter(Boolean);
   const zipUrls: string[] = [];
-  for (const b of branchesToTry) {
-    zipUrls.push(`https://api.github.com/repos/${ownerRepo}/zipball/${b}`);
-    zipUrls.push(`https://github.com/${ownerRepo}/archive/refs/heads/${b}.zip`);
-    zipUrls.push(`https://codeload.github.com/${ownerRepo}/zip/refs/heads/${b}`);
+  for (const repo of ownerReposToTry) {
+    for (const b of branchesToTry) {
+      zipUrls.push(`https://api.github.com/repos/${repo}/zipball/${b}`);
+      zipUrls.push(`https://github.com/${repo}/archive/refs/heads/${b}.zip`);
+      zipUrls.push(`https://codeload.github.com/${repo}/zip/refs/heads/${b}`);
+    }
   }
 
   let result: { buffer: Buffer; finalUrl: string } | null = null;
@@ -805,7 +808,7 @@ app.post("/api/admin/github-test", async (req, res) => {
   const { repoUrl, branch, token } = req.body;
   try {
     const inspected = await inspectGithubRepo(
-      repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git",
+      repoUrl || "https://github.com/dastavval/dastavval.com.git",
       branch || "main",
       token || ""
     );
@@ -829,7 +832,7 @@ app.post("/api/admin/github-preview", async (req, res) => {
   const { repoUrl, branch, token } = req.body;
   try {
     const inspected = await inspectGithubRepo(
-      repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git",
+      repoUrl || "https://github.com/dastavval/dastavval.com.git",
       branch || "main",
       token || ""
     );
@@ -900,7 +903,7 @@ app.post("/api/admin/github-update", async (req, res) => {
   const { repoUrl, branch, token, hardReset } = req.body;
   try {
     const result = await performGithubUpdate(
-      repoUrl || "https://github.com/dastavval/b2b-distributor-platform.git",
+      repoUrl || "https://github.com/dastavval/dastavval.com.git",
       branch || "main",
       token || "",
       hardReset === true
