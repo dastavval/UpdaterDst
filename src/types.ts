@@ -29,6 +29,8 @@ export interface Product {
   tags?: string[];
   isNew?: boolean;
   isFeatured?: boolean;
+  isSponsored?: boolean;
+  boostScore?: number;
   disabled?: boolean; // New: to disable product from being listed
   hasHealthApple?: boolean; // نشان سیب سلامت (سازمان غذا و دارو)
   isOrganic?: boolean; // ۱۰۰٪ ارگانیک

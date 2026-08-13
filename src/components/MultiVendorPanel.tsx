@@ -15,15 +15,79 @@ const FACTORIES: { id: string, name: string }[] = [];
 export default function MultiVendorPanel({ 
   currentSellerId, 
   setCurrentSeller, 
-  onRefreshProducts 
+  onRefreshProducts,
+  onTriggerZarinpalPayment,
+  b2bConfig,
+  onUpdateB2bConfig
 }: { 
   currentSellerId: string, 
   setCurrentSeller: (id: string, name: string) => void,
-  onRefreshProducts: () => void
+  onRefreshProducts: () => void,
+  onTriggerZarinpalPayment: (paymentInfo: {
+    amount: number;
+    description: string;
+    callback: (success: boolean) => void;
+  }) => void,
+  b2bConfig: any,
+  onUpdateB2bConfig: (updated: any) => void
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Monetization functions now instantly and for free active features through Direct Administrator Referral
+  const handlePromoteProduct = async (product: Product) => {
+    try {
+      await updateDoc(doc(db, "products", product.id), {
+        isSponsored: true
+      });
+      fetchVendorData();
+      onRefreshProducts();
+      alert(`درخواست ارتقای تبلیغاتی محصول ${product.name} با موفقیت و به صورت رایگان تایید شد! این کالا هم‌اکنون به عنوان کالای تبلیغاتی ویژه نشان‌دار گردید.`);
+    } catch (err) {
+      console.error("Error promoting product:", err);
+    }
+  };
+
+  const handleBoostProduct = async (product: Product) => {
+    try {
+      const currentBoost = product.boostScore || 0;
+      await updateDoc(doc(db, "products", product.id), {
+        boostScore: currentBoost + 10
+      });
+      fetchVendorData();
+      onRefreshProducts();
+      alert(`درخواست افزایش رتبه کالا با موفقیت تایید شد! ضریب رتبه جستجوی محصول ${product.name} به میزان ۱۰ واحد به صورت رایگان افزایش یافت.`);
+    } catch (err) {
+      console.error("Error boosting product:", err);
+    }
+  };
+
+  const handleUpgradeFactory = async () => {
+    if (!sellerProfile) {
+      alert("لطفا ابتدا وارد حساب کارخانه خود شوید.");
+      return;
+    }
+    try {
+      const updatedProfile = { ...sellerProfile, badge: "vip" };
+      setSellerProfile(updatedProfile);
+      localStorage.setItem("dastavval_seller_profile", JSON.stringify(updatedProfile));
+      
+      if (b2bConfig && b2bConfig.factories) {
+        const updatedFactories = b2bConfig.factories.map((f: any) => {
+          if (f.id === sellerProfile.id || f.name === sellerProfile.name) {
+            return { ...f, badge: "vip", isPremium: true };
+          }
+          return f;
+        });
+        onUpdateB2bConfig({ ...b2bConfig, factories: updatedFactories });
+      }
+
+      alert(`تبریک! حساب کارخانه ${sellerProfile.name} به صورت مستقیم و بدون نیاز به پرداخت مالی، با تایید مدیریت به سطح همکار تجاری VIP (طلایی) ارتقا یافت! نشان طلایی در کاتالوگ شما فعال شد.`);
+    } catch (err) {
+      console.error("Error upgrading factory:", err);
+    }
+  };
 
   // Authentication states
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -594,6 +658,31 @@ export default function MultiVendorPanel({
   // Active user's factory selection if logged in
   return (
     <div className="space-y-8 text-right" dir="rtl">
+      {/* Premium Factory-wide Upgrade Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 relative overflow-hidden shadow-xl border border-indigo-500/20">
+        <div className="absolute top-0 left-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-1.5 text-right">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full animate-pulse">
+                👑 سرویس ارتقای طلایی (VIP)
+              </span>
+              <h4 className="font-black text-sm text-slate-100">ارتقای کلان کارخانه به سطح VIP طلایی دست اول</h4>
+            </div>
+            <p className="text-[11px] text-slate-400 font-bold max-w-xl leading-relaxed">
+              با ارتقا به کارخانه VIP، نشان طلایی اصالت در تمام صفحات پلتفرم فعال شده، کاتالوگ شما پین شده و در اولویت اول بنکداران قرار می‌گیرید. همچنین کارمزد تراکنش‌های شما ۵۰٪ کاهش خواهد یافت.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleUpgradeFactory}
+            className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] px-5 py-3 rounded-xl transition-all shadow-lg shadow-amber-400/20 shrink-0 cursor-pointer border border-amber-300"
+          >
+            ⚡ پرداخت زرین‌پال و ارتقا به VIP
+          </button>
+        </div>
+      </div>
+
       {/* Factory Selection Header */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-3">
@@ -831,45 +920,85 @@ export default function MultiVendorPanel({
             ) : (
               <div className="flex overflow-x-auto gap-4 pb-4 px-2 snap-x snap-mandatory hide-scrollbar">
                 {products.map(prod => (
-                  <div key={prod.id} className="min-w-[85vw] sm:min-w-[320px] snap-center shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50/50 rounded-2xl border border-gray-100 gap-3">
-                    <div className="flex items-center gap-3">
-                      {prod.image_url ? (
-                        <img 
-                          src={prod.image_url} 
-                          alt="" 
-                          className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0" 
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 text-[8px] font-black text-gray-400">
-                          بدون تصویر
+                  <div key={prod.id} className="min-w-[85vw] sm:min-w-[360px] snap-center shrink-0 flex flex-col p-5 bg-gray-50/50 rounded-2xl border border-gray-100 gap-4">
+                    {/* Top Row: Details */}
+                    <div className="flex justify-between items-center w-full">
+                      <div className="flex items-center gap-3">
+                        {prod.image_url ? (
+                          <img 
+                            src={prod.image_url} 
+                            alt="" 
+                            className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0" 
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 text-[8px] font-black text-gray-400">
+                            بدون تصویر
+                          </div>
+                        )}
+                        <div>
+                          <h5 className="font-black text-sm text-gray-900">{prod.name}</h5>
+                          <p className="text-[10px] text-gray-400">کارتن {prod.carton_pack_count} تایی | حداقل سفارش {prod.min_order_cartons} کارتن</p>
                         </div>
-                      )}
-                      <div>
-                        <h5 className="font-black text-sm text-gray-900">{prod.name}</h5>
-                        <p className="text-[10px] text-gray-400">کارتن {prod.carton_pack_count} تایی | حداقل سفارش {prod.min_order_cartons} کارتن</p>
+                      </div>
+                      
+                      {/* Product Status Badges (Sponsored, Boosted) */}
+                      <div className="flex flex-col gap-1 items-end">
+                        {prod.isSponsored && (
+                          <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                            📢 ویژه تبلیغاتی
+                          </span>
+                        )}
+                        {(prod.boostScore || 0) > 0 && (
+                          <span className="bg-indigo-100 text-indigo-800 border border-indigo-200 text-[8px] font-black px-2 py-0.5 rounded-full">
+                            🚀 رتبه جستجو: +{prod.boostScore}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="text-left sm">
-                        <span className="text-xs text-gray-400 font-bold block">موجودی کارتن:</span>
-                        <span className="text-base font-black text-gray-900">{prod.stock_quantity_cartons} کارتن</span>
+                    {/* Middle Row: Stock Control */}
+                    <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 font-bold block">موجودی کارخانه:</span>
+                        <span className="text-xs font-black text-gray-900">{prod.stock_quantity_cartons} کارتن</span>
                       </div>
                       <div className="flex gap-1.5">
                         <button 
                           onClick={() => updateProductStock(prod.id, prod.stock_quantity_cartons, -5)}
-                          className="px-2.5 py-1 text-xs font-bold text-red-600 bg-red-50 hover rounded-lg transition-colors"
+                          className="px-2.5 py-1 text-[11px] font-black text-red-600 bg-red-50 hover rounded-lg transition-colors cursor-pointer"
                         >
                           ۵-
                         </button>
                         <button 
                           onClick={() => updateProductStock(prod.id, prod.stock_quantity_cartons, 5)}
-                          className="px-2.5 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover rounded-lg transition-colors"
+                          className="px-2.5 py-1 text-[11px] font-black text-emerald-600 bg-emerald-50 hover rounded-lg transition-colors cursor-pointer"
                         >
                           ۵+
                         </button>
                       </div>
+                    </div>
+
+                    {/* Bottom Row: Marketing & Boosting Upgrades */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handlePromoteProduct(prod)}
+                        className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs border border-amber-400"
+                        title="ویژه کردن کالا و نمایش اول کارتابل"
+                      >
+                        <Sparkles size={11} />
+                        <span>📢 تبلیغ ویژه (آگهی)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBoostProduct(prod)}
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs border border-indigo-500"
+                        title="افزایش ضریب شانس رتبه در جستجوی اول"
+                      >
+                        <Plus size={11} />
+                        <span>🚀 ارتقای رتبه جستجو</span>
+                      </button>
                     </div>
                   </div>
                 ))}

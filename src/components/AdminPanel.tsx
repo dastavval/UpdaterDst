@@ -613,6 +613,7 @@ export default function AdminPanel({
 
   // AI Settings states
   const [showAiSettings, setShowAiSettings] = useState(false);
+  const [adminCategory, setAdminCategory] = useState<'monitoring' | 'catalog' | 'sales' | 'system'>('monitoring');
   const [aiProvider, setAiProvider] = useState("gemini");
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiEndpointUrl, setAiEndpointUrl] = useState("https://api.gapgpt.ir/v1");
@@ -852,6 +853,24 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   // Create Direct Invoice States
   const [showDirectInvoiceModal, setShowDirectInvoiceModal] = useState<any | null>(null);
   const [directInvoiceItems, setDirectInvoiceItems] = useState<{ product: any; quantity: number }[]>([]);
+
+  useEffect(() => {
+    if (activeSubTab === 'dashboard' || activeSubTab === 'reports') {
+      setAdminCategory('monitoring');
+    } else if (activeSubTab === 'products' || activeSubTab === 'categories' || activeSubTab === 'brands' || activeSubTab === 'factories' || activeSubTab === 'catalog' || activeSubTab === 'branding') {
+      setAdminCategory('catalog');
+    } else if (activeSubTab === 'orders' || activeSubTab === 'crm' || activeSubTab === 'representatives' || activeSubTab === 'invoice' || activeSubTab === 'accounting' || activeSubTab === 'barter' || activeSubTab === ('vip-wallet' as any) || activeSubTab === ('ai-marketing' as any)) {
+      setAdminCategory('sales');
+    } else {
+      setAdminCategory('system');
+    }
+  }, [activeSubTab]);
+
+  useEffect(() => {
+    if (showImporterDashboard || showAiSettings) {
+      setAdminCategory('system');
+    }
+  }, [showImporterDashboard, showAiSettings]);
 
   const handleDeleteAllProducts = async () => {
     confirmAction(
@@ -3347,160 +3366,301 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         )}
 
-        {/* UNIFIED ADVANCED TOP NAVIGATION BAR */}
-        <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-3 rounded-[1.5rem] shadow-sm flex flex-wrap items-center gap-2">
+        {/* UNIFIED ADVANCED TOP NAVIGATION BAR CATEGORIES */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* CATEGORY 1: Monitoring */}
           <button
-            onClick={() => { setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'dashboard' && !showImporterDashboard && !showAiSettings
-                ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
-                : "text-slate-600 hover:bg-slate-100"
+            onClick={() => { setAdminCategory('monitoring'); setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+            className={`p-4 rounded-[1.25rem] border text-right transition-all duration-300 relative overflow-hidden group cursor-pointer ${
+              adminCategory === 'monitoring'
+                ? "bg-emerald-50/70 border-emerald-400 shadow-xs"
+                : "bg-white border-slate-100 hover:border-slate-300"
             }`}
           >
-            <Activity size={15} />
-            <span>مانیتورینگ و آمار</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`p-2 rounded-xl ${adminCategory === 'monitoring' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
+                <Activity size={18} />
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">۰۱</span>
+            </div>
+            <h3 className="text-xs font-black text-slate-800">آمارهای اصلی و پایش</h3>
+            <p className="text-[9px] text-slate-400 font-medium mt-1">میزکار، گزارش‌ها، فروش</p>
+            {adminCategory === 'monitoring' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-emerald-600" />}
           </button>
 
+          {/* CATEGORY 2: Catalog & Factories */}
           <button
-            onClick={() => { setActiveSubTab('products'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'products'
-                ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
-                : "text-slate-600 hover:bg-slate-100"
+            onClick={() => { setAdminCategory('catalog'); setActiveSubTab('products'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+            className={`p-4 rounded-[1.25rem] border text-right transition-all duration-300 relative overflow-hidden group cursor-pointer ${
+              adminCategory === 'catalog'
+                ? "bg-amber-50/70 border-amber-400 shadow-xs"
+                : "bg-white border-slate-100 hover:border-slate-300"
             }`}
           >
-            <Package size={15} />
-            <span>کاتالوگ و انبار</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`p-2 rounded-xl ${adminCategory === 'catalog' ? 'bg-amber-500 text-slate-950' : 'bg-slate-50 text-slate-500'}`}>
+                <Package size={18} />
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">۰۲</span>
+            </div>
+            <h3 className="text-xs font-black text-slate-800">محصولات و تولیدکنندگان</h3>
+            <p className="text-[9px] text-slate-400 font-medium mt-1">کاتالوگ، دسته‌ها، کارخانجات</p>
+            {adminCategory === 'catalog' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-amber-500" />}
           </button>
 
+          {/* CATEGORY 3: Sales & Commerce */}
           <button
-            onClick={() => { setActiveSubTab('categories'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'categories'
-                ? "bg-fuchsia-600 text-white shadow-md shadow-fuchsia-600/20"
-                : "text-slate-600 hover:bg-slate-100"
+            onClick={() => { setAdminCategory('sales'); setActiveSubTab('orders'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+            className={`p-4 rounded-[1.25rem] border text-right transition-all duration-300 relative overflow-hidden group cursor-pointer ${
+              adminCategory === 'sales'
+                ? "bg-indigo-50/70 border-indigo-400 shadow-xs"
+                : "bg-white border-slate-100 hover:border-slate-300"
             }`}
           >
-            <Layers size={15} />
-            <span>دسته‌بندی‌ها</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`p-2 rounded-xl ${adminCategory === 'sales' ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
+                <ClipboardList size={18} />
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">۰۳</span>
+            </div>
+            <h3 className="text-xs font-black text-slate-800">عملیات تجاری و CRM</h3>
+            <p className="text-[9px] text-slate-400 font-medium mt-1">سفارشات، باشگاه مشتریان، فاکتور</p>
+            {adminCategory === 'sales' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-indigo-600" />}
           </button>
 
+          {/* CATEGORY 4: System & Infrastructure */}
           <button
-            onClick={() => { setActiveSubTab('brands'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'brands'
-                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black"
-                : "text-slate-600 hover:bg-slate-100"
+            onClick={() => { setAdminCategory('system'); setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+            className={`p-4 rounded-[1.25rem] border text-right transition-all duration-300 relative overflow-hidden group cursor-pointer ${
+              adminCategory === 'system'
+                ? "bg-purple-50/70 border-purple-400 shadow-xs"
+                : "bg-white border-slate-100 hover:border-slate-300"
             }`}
           >
-            <Award size={15} />
-            <span>برندهای همکار</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`p-2 rounded-xl ${adminCategory === 'system' ? 'bg-purple-600 text-white' : 'bg-slate-50 text-slate-500'}`}>
+                <Server size={18} />
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">۰۴</span>
+            </div>
+            <h3 className="text-xs font-black text-slate-800">تنظیمات و زیرساخت</h3>
+            <p className="text-[9px] text-slate-400 font-medium mt-1">بروزرسانی گیت‌هاب، هوش مصنوعی</p>
+            {adminCategory === 'system' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-purple-600" />}
           </button>
+        </div>
 
-          <button
-            onClick={() => { setActiveSubTab('factories'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'factories'
-                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <Building2 size={15} />
-            <span>کارخانجات</span>
-          </button>
+        {/* SUB-PILLS BELONGING TO ACTIVE CATEGORY */}
+        <div className="bg-slate-50/80 border border-slate-150 p-2 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Category 1: Monitoring and Stats */}
+            {adminCategory === 'monitoring' && (
+              <>
+                <button
+                  onClick={() => { setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'dashboard' && !showImporterDashboard && !showAiSettings
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Activity size={12} />
+                  <span>مانیتورینگ و آمار اصلی</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('reports' as any); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'reports'
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <BarChart2 size={12} />
+                  <span>آنالیز هوشمند فروش</span>
+                </button>
+              </>
+            )}
 
-          <button
-            onClick={() => { setActiveSubTab('orders'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'orders'
-                ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <ClipboardList size={15} />
-            <span>سفارشات عمده</span>
-          </button>
+            {/* Category 2: Catalog */}
+            {adminCategory === 'catalog' && (
+              <>
+                <button
+                  onClick={() => { setActiveSubTab('products'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'products'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Package size={12} />
+                  <span>انبار محصولات کاتالوگ</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('categories'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'categories'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Layers size={12} />
+                  <span>دسته‌بندی‌های کالا</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('brands'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'brands'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Award size={12} />
+                  <span>برندهای همکار</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('factories'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'factories'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Building2 size={12} />
+                  <span>مشخصات کارخانجات</span>
+                </button>
+              </>
+            )}
 
-          <button
-            onClick={() => { setActiveSubTab('crm'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'crm'
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <Users size={15} />
-            <span>مشتریان (CRM)</span>
-          </button>
+            {/* Category 3: Commerce */}
+            {adminCategory === 'sales' && (
+              <>
+                <button
+                  onClick={() => { setActiveSubTab('orders'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'orders'
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <ClipboardList size={12} />
+                  <span>سفارشات عمده فعال</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('crm'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'crm'
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Users size={12} />
+                  <span>مدیریت مشتریان (CRM)</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('representatives'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'representatives'
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Building2 size={12} />
+                  <span>نمایندگان توزیع</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('invoice'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'invoice'
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <FileText size={12} />
+                  <span>تنظیمات فاکتور رسمی</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('barter'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'barter'
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <RefreshCw size={12} />
+                  <span>سامانه تهاتر کالا</span>
+                </button>
+              </>
+            )}
 
-          <button
-            onClick={() => { setShowImporterDashboard(true); setShowForm(false); setShowAiSettings(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              showImporterDashboard
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <RefreshCw size={15} />
-            <span>واردکننده هوشمند</span>
-          </button>
+            {/* Category 4: Infrastructure */}
+            {adminCategory === 'system' && (
+              <>
+                <button
+                  onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    activeSubTab === 'system' && !showAiSettings && !showImporterDashboard
+                      ? "bg-purple-600 text-white border-purple-500 shadow-xs"
+                      : "text-slate-600 bg-white border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <Server size={12} />
+                  <span>بروزرسانی از گیت‌هاب</span>
+                </button>
+                <button
+                  onClick={() => { setShowImporterDashboard(true); setShowForm(false); setShowAiSettings(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    showImporterDashboard
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <RefreshCw size={12} />
+                  <span>واردکننده هوشمند اکسل/CSV</span>
+                </button>
+                <button
+                  onClick={() => { setShowAiSettings(true); setShowForm(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    showAiSettings
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Cpu size={12} />
+                  <span>تنظیمات هوش مصنوعی</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('news'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'news'
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Newspaper size={12} />
+                  <span>اخبار و وبلاگ سامانه</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('profile'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'profile'
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <User size={12} />
+                  <span>پروفایل و کلیدها</span>
+                </button>
+              </>
+            )}
+          </div>
 
-          <button
-            onClick={() => { setActiveSubTab('invoice'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'invoice'
-                ? "bg-purple-600 text-white shadow-md shadow-purple-600/20"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <FileText size={15} />
-            <span>فاکتور رسمی</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveSubTab('representatives'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'representatives'
-                ? "bg-teal-600 text-white shadow-md shadow-teal-600/20"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <Building2 size={15} />
-            <span>مدیریت نمایندگان</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveSubTab('news'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'news'
-                ? "bg-rose-600 text-white shadow-md shadow-rose-600/20"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <Newspaper size={15} />
-            <span>مدیریت اخبار و مقالات</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer border-2 ${
-              activeSubTab === 'system'
-                ? "bg-slate-900 text-white border-purple-500 shadow-lg shadow-purple-900/30"
-                : "bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100"
-            }`}
-          >
-            <Server size={15} className="text-amber-400 animate-pulse" />
-            <span>🚀 بروزرسانی هوشمند سیستم (گیت‌هاب)</span>
-          </button>
-
-          <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleDownloadSourceZip}
-              className="px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer bg-gradient-to-r from-amber-500 to-emerald-600 text-slate-950 font-black shadow-md shadow-amber-500/20 hover:brightness-110 active:scale-95"
+              className="px-3 py-1.5 rounded-xl text-[9px] font-black transition-all flex items-center gap-1.5 cursor-pointer bg-amber-400 text-slate-950 font-black shadow-xs hover:bg-amber-500 active:scale-95"
               title="دانلود مستقیم سورس کد کامل به صورت فایل فشرده زیپ"
             >
-              <Download size={15} />
-              <span>دانلود سورس کد (.ZIP)</span>
+              <Download size={11} />
+              <span>دانلود کامل سورس (.ZIP)</span>
             </button>
             <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[9px] font-black border border-emerald-150 shadow-xs">
               <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />

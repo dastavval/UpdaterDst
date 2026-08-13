@@ -37,6 +37,7 @@ import { db } from "../lib/firebase";
 import { Product, Order } from "../types";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import ConfirmModal from "./ConfirmModal";
+import MultiVendorPanel from "./MultiVendorPanel";
 
 interface UserPanelProps {
   user: any;
@@ -48,6 +49,9 @@ interface UserPanelProps {
   onUpdateUser?: (updatedUser: any) => void;
   onUpdateB2bConfig?: (updatedConfig: any) => Promise<void>;
   onAddProduct?: (product: Omit<Product, 'id'>) => Promise<void>;
+  currentSellerId?: string;
+  setCurrentSeller?: (id: string, name: string) => void;
+  onRefreshProducts?: () => void;
 }
 
 export default function UserPanel({
@@ -59,7 +63,10 @@ export default function UserPanel({
   setActiveTab,
   onUpdateUser,
   onUpdateB2bConfig,
-  onAddProduct
+  onAddProduct,
+  currentSellerId,
+  setCurrentSeller,
+  onRefreshProducts
 }: UserPanelProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'orders' | 'price_alerts' | 'supplier'>('profile');
   
@@ -455,17 +462,15 @@ export default function UserPanel({
             )}
           </button>
 
-          {isSupplier && (
-            <button
-              onClick={() => setActiveSubTab('supplier')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeSubTab === 'supplier' ? "bg-indigo-600 text-white shadow-lg" : "text-indigo-200 hover"
-              }`}
-            >
-              <Store size={15} />
-              <span>پنل اختصاصی تامین‌کننده / کارخانه</span>
-            </button>
-          )}
+          <button
+            onClick={() => setActiveSubTab('supplier')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'supplier' ? "bg-indigo-600 text-white shadow-lg" : "text-indigo-200 hover:text-indigo-100"
+            }`}
+          >
+            <Store size={15} />
+            <span>پنل کارخانجات و ثبت تولیدات</span>
+          </button>
         </div>
       </div>
 
@@ -974,6 +979,20 @@ export default function UserPanel({
 
       {/* Supplier / Factory Exclusive Portal Tab */}
       {activeSubTab === 'supplier' && (
+        <div className="space-y-6 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/85 dark:border-slate-800 shadow-sm">
+          <MultiVendorPanel
+            currentSellerId={currentSellerId || user?.id || ""}
+            setCurrentSeller={setCurrentSeller || (() => {})}
+            onRefreshProducts={onRefreshProducts || (() => {})}
+            onTriggerZarinpalPayment={() => {}}
+            b2bConfig={b2bConfig}
+            onUpdateB2bConfig={onUpdateB2bConfig || (() => {})}
+          />
+        </div>
+      )}
+
+      {/* Legacy Supplier Tab Disabled */}
+      {false && activeSubTab === 'supplier' && (
         <div className="space-y-6">
           {/* Supplier Header Card */}
           <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 border border-indigo-500/20 shadow-xl space-y-4">

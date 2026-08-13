@@ -11,6 +11,15 @@ export const HeroGlobeWidget: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'xl' }> = (
 
     let animId: number;
     let rotationY = 0;
+    let isVisible = true;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        isVisible = entry.isIntersecting;
+      });
+    }, { threshold: 0.05 });
+    
+    observer.observe(canvas);
 
     const dimensions = size === 'sm' ? 80 : size === 'md' ? 120 : size === 'xl' ? 180 : 150;
     const width = canvas.width = dimensions * 2;
@@ -45,6 +54,8 @@ export const HeroGlobeWidget: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'xl' }> = (
 
     const render = (now: number) => {
       animId = requestAnimationFrame(render);
+      if (!isVisible) return; // pause drawing when out of view to save CPU
+      
       const elapsed = now - lastTime;
       if (elapsed < fpsInterval) return;
       lastTime = now - (elapsed % fpsInterval);
@@ -134,7 +145,10 @@ export const HeroGlobeWidget: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'xl' }> = (
 
     animId = requestAnimationFrame(render);
 
-    return () => cancelAnimationFrame(animId);
+    return () => {
+      cancelAnimationFrame(animId);
+      observer.disconnect();
+    };
   }, [size]);
 
   const containerSizeClasses = size === 'sm' 

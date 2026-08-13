@@ -217,6 +217,21 @@ switch ($action) {
         echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
         exit();
 
+    case 'admin/purge-cache':
+        header('Content-Type: application/json; charset=utf-8');
+        $root_dir = dirname(__DIR__);
+        $versionData = json_encode([
+            'version' => time(),
+            'timestamp' => time() * 1000,
+            'date' => date('Y-m-d H:i:s')
+        ], JSON_UNESCAPED_UNICODE);
+        @file_put_contents($root_dir . '/version.json', $versionData);
+        if (function_exists('opcache_reset')) {
+            @opcache_reset();
+        }
+        echo json_encode(['success' => true, 'message' => 'کش سرور و OPcache با موفقیت پاکسازی و نسخه جدید ثبت شد.'], JSON_UNESCAPED_UNICODE);
+        exit();
+
     case 'admin/hot-reload':
         header('Content-Type: application/json; charset=utf-8');
         $input = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -314,6 +329,17 @@ switch ($action) {
             }
             $zip->close();
             @unlink($tempZip);
+
+            // Write version.json and clear OPcache for shared hosting zero-restart effect
+            $versionData = json_encode([
+                'version' => time(),
+                'timestamp' => time() * 1000,
+                'date' => date('Y-m-d H:i:s')
+            ], JSON_UNESCAPED_UNICODE);
+            @file_put_contents($root_dir . '/version.json', $versionData);
+            if (function_exists('opcache_reset')) {
+                @opcache_reset();
+            }
 
             echo json_encode([
                 'success' => true,

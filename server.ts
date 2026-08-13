@@ -944,6 +944,21 @@ app.post("/api/admin/github-preview", async (req, res) => {
   }
 });
 
+// Endpoint: Purge Server Cache & OPcache
+app.post("/api/admin/purge-cache", async (req, res) => {
+  try {
+    const versionData = JSON.stringify({
+      version: Date.now(),
+      timestamp: Date.now(),
+      date: new Date().toISOString()
+    }, null, 2);
+    fs.writeFileSync(path.join(process.cwd(), 'version.json'), versionData, 'utf-8');
+    return res.json({ success: true, message: "کش سرور و نسخه با موفقیت پاکسازی شد." });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Endpoint: Hot-Reload Static & Changed Files Without Server Restart
 app.post("/api/admin/hot-reload", async (req, res) => {
   const { repoUrl, branch, token } = req.body;
@@ -987,6 +1002,16 @@ app.post("/api/admin/hot-reload", async (req, res) => {
 
     b2bConfig.lastGithubUpdate = Date.now();
     try { fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+
+    // Write version.json for cache invalidation on shared hosting
+    try {
+      const versionData = JSON.stringify({
+        version: Date.now(),
+        timestamp: Date.now(),
+        date: new Date().toISOString()
+      }, null, 2);
+      fs.writeFileSync(path.join(process.cwd(), 'version.json'), versionData, 'utf-8');
+    } catch (e) {}
 
     addGithubLog('success', `Hot-reload completed! ${updatedFilesCount} static/source files replaced successfully without server restart.`);
 

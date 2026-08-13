@@ -28,6 +28,9 @@ import MagazineSection from "./components/MagazineSection";
 import OrderSuccessModal from "./components/OrderSuccessModal";
 import ProductDetailModal from "./components/ProductDetailModal";
 import B2BBusinessDashboard from "./components/B2BBusinessDashboard";
+import MultiVendorPanel from "./components/MultiVendorPanel";
+import AdBoard from "./components/AdBoard";
+import ZarinpalPaymentModal from "./components/ZarinpalPaymentModal";
 import CheckoutWizard from "./components/CheckoutWizard";
 import WholesaleInvoiceView from "./components/WholesaleInvoiceView";
 import DastavvalLogo from "./components/DastavvalLogo";
@@ -215,9 +218,17 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
-  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support'>('presentation');
+  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard'>('presentation');
+  const [currentSellerId, setCurrentSellerId] = useState<string>("factory_cheetoz");
+  const [currentSellerName, setCurrentSellerName] = useState<string>("مزمز و چیتوز");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Live GitHub Hot-Update Sync and Cache-Busting engine states
+  const [currentVersion, setCurrentVersion] = useState<any>(null);
+  const [newVersionAvailable, setNewVersionAvailable] = useState<boolean>(false);
+  const [newVersionInfo, setNewVersionInfo] = useState<any>(null);
+  const [isUpdatingState, setIsUpdatingState] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
@@ -240,6 +251,23 @@ export default function App() {
   const [lastOrderTracking, setLastOrderTracking] = useState("");
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
+
+  // Real Zarinpal online payment gateway orchestration engine
+  const [zarinpalOpen, setZarinpalOpen] = useState(false);
+  const [zarinpalAmount, setZarinpalAmount] = useState(0);
+  const [zarinpalDescription, setZarinpalDescription] = useState("");
+  const [zarinpalCallback, setZarinpalCallback] = useState<(success: boolean) => void>(() => () => {});
+
+  const triggerZarinpalPayment = (paymentInfo: {
+    amount: number;
+    description: string;
+    callback: (success: boolean) => void;
+  }) => {
+    setZarinpalAmount(paymentInfo.amount);
+    setZarinpalDescription(paymentInfo.description);
+    setZarinpalCallback(() => paymentInfo.callback);
+    setZarinpalOpen(true);
+  };
 
   // Interactive Categories management states
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -662,6 +690,89 @@ export default function App() {
     }
   }, [userBadge]);
 
+  // GitHub Hot-Reload & Cache Busting Version Engine
+  useEffect(() => {
+    let active = true;
+    
+    const checkVersion = async (isFirstLoad = false) => {
+      try {
+        const res = await fetch(`/version.json?_t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.timestamp || data.version)) {
+            if (isFirstLoad) {
+              setCurrentVersion(data);
+            } else {
+              setCurrentVersion(prev => {
+                if (prev) {
+                  const currentTs = prev.timestamp || prev.version;
+                  const newTs = data.timestamp || data.version;
+                  if (newTs !== currentTs) {
+                    setNewVersionAvailable(true);
+                    setNewVersionInfo(data);
+                  }
+                }
+                return prev;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Version check failed:", e);
+      }
+    };
+
+    // Run first check after a short delay
+    const firstTimeout = setTimeout(() => {
+      if (active) checkVersion(true);
+    }, 3000);
+
+    // Set up polling interval every 120 seconds (much lighter on CPU and network)
+    const interval = setInterval(() => {
+      if (active) checkVersion(false);
+    }, 120000);
+
+    return () => {
+      active = false;
+      clearTimeout(firstTimeout);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Restore saved cart and state after a hot update reload
+  useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem('dastavval_saved_cart');
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCart(parsed);
+          setPaletteToast("سبد خرید و فاکتور در دست اقدام شما با موفقیت بازیابی شد! 🛒✨");
+          setTimeout(() => setPaletteToast(null), 5000);
+        }
+        localStorage.removeItem('dastavval_saved_cart');
+      }
+    } catch (e) {
+      console.warn("Restoring saved cart failed:", e);
+    }
+  }, []);
+
+  const handleApplyLiveUpdate = () => {
+    setIsUpdatingState(true);
+    try {
+      localStorage.setItem('dastavval_saved_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.warn("Saving cart before hot-update failed:", e);
+    }
+    
+    setTimeout(() => {
+      const ts = newVersionInfo?.timestamp || Date.now();
+      const url = new URL(window.location.href);
+      url.searchParams.set('_v', ts.toString());
+      window.location.replace(url.toString());
+    }, 1500);
+  };
+
   useEffect(() => {
     initApp();
     const handleOpenAuth = () => {
@@ -1012,6 +1123,22 @@ export default function App() {
       normalizeStr((product as any).factory_name || "").includes(q);
       
     return matchesCategory && matchesBrand && matchesSearch;
+  }).sort((a, b) => {
+    // 1. Sponsored products first
+    const aSponsored = a.isSponsored ? 1 : 0;
+    const bSponsored = b.isSponsored ? 1 : 0;
+    if (aSponsored !== bSponsored) {
+      return bSponsored - aSponsored;
+    }
+    
+    // 2. Sort by boostScore descending
+    const aBoost = a.boostScore || 0;
+    const bBoost = b.boostScore || 0;
+    if (aBoost !== bBoost) {
+      return bBoost - aBoost;
+    }
+    
+    return 0;
   });
 
   const getBadgeDetails = (badge: string) => {
@@ -1143,6 +1270,62 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* GitHub Hot-Reload & Cache-Buster Live Notification Bar */}
+      <AnimatePresence>
+        {newVersionAvailable && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="sticky top-0 z-[120] w-full bg-slate-900 text-white border-b border-slate-800 shadow-xl"
+            dir="rtl"
+          >
+            <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center animate-pulse">
+                  <Zap size={16} />
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] sm:text-xs font-black text-slate-100">
+                    🚀 نسخه جدید پلتفرم هم‌اکنون با موفقیت بارگذاری شد!
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold mt-0.5">
+                    تغییرات گیت‌هاب در هاست اشتراکی آماده است. می‌توانید بدون تخلیه سبد خرید یا پیش‌فاکتور، کدها را به‌روزرسانی کنید.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewVersionAvailable(false)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  بعداً
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingState}
+                  onClick={handleApplyLiveUpdate}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-[10px] sm:text-xs flex items-center gap-1.5 hover:bg-emerald-400 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                >
+                  {isUpdatingState ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      <span>در حال جایگزینی...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={12} />
+                      <span>⚡ اعمال آنی کدهای جدید</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Navbar with Cart */}
       <Navbar 
         cartCount={cart.reduce((s, i) => s + i.quantityCartons, 0)} 
@@ -1212,6 +1395,7 @@ export default function App() {
                 user={user}
               />
               <AboutUsSection articles={articles} theme={theme} />
+              <AdBoard isMini={true} onNavigateToBillboard={() => setActiveTab('billboard')} />
               <TrustSection theme={theme} />
             </motion.div>
           )}
@@ -1703,6 +1887,12 @@ export default function App() {
                 setActiveTab={setActiveTab as any}
                 onUpdateB2bConfig={handleUpdateB2bConfig}
                 onAddProduct={handleAddProduct}
+                currentSellerId={currentSellerId}
+                setCurrentSeller={(id, name) => {
+                  setCurrentSellerId(id);
+                  setCurrentSellerName(name);
+                }}
+                onRefreshProducts={fetchProducts}
               />
             </motion.div>
           )}
@@ -1723,6 +1913,12 @@ export default function App() {
                 onAddToCart={addToCart}
                 setActiveTab={setActiveTab as any}
                 onUpdateUser={(updated) => setUser(updated)}
+                currentSellerId={currentSellerId}
+                setCurrentSeller={(id, name) => {
+                  setCurrentSellerId(id);
+                  setCurrentSellerName(name);
+                }}
+                onRefreshProducts={fetchProducts}
               />
             </motion.div>
           )}
@@ -1893,12 +2089,42 @@ export default function App() {
               <SupportCenter theme={theme === 'dark' ? 'dark' : 'light'} />
             </motion.div>
           )}
+
+          {activeTab === 'billboard' && (
+            <motion.div
+              key="billboard"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              <div className="flex justify-between items-center bg-white/70 backdrop-blur-md px-6 py-4 rounded-3xl border border-slate-100 shadow-sm" dir="rtl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                    📢
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-850">بیلبورد سراسری تبلیغات تجاری و سفارش‌های خرید</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">بستر هوشمند مبادلات مستقیم و بدون واسطه کالا در کشور</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setActiveTab('presentation')}
+                  className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>صفحه نخست</span>
+                  <ArrowUpRight size={14} className="rotate-90" />
+                </button>
+              </div>
+              <AdBoard isMini={false} onTriggerPayment={triggerZarinpalPayment} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
       {(activeTab === 'presentation' || activeTab === 'about') && (
         <>
-          <ContactSection theme={theme} userBadge={userBadge} userCity={user?.city} />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
             <MagazineSection articles={articles} />
           </div>
@@ -2390,151 +2616,148 @@ export default function App() {
         }}
       />
 
-      {/* Clean Light Material B2B Responsive Footer */}
-      <footer className="bg-white text-slate-800 border-t border-slate-200/90 pt-16 pb-10 mt-12 relative" dir="rtl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 text-right">
+      {/* Real Zarinpal Payment Modal for platform paid upgrades */}
+      <ZarinpalPaymentModal 
+        isOpen={zarinpalOpen}
+        onClose={() => setZarinpalOpen(false)}
+        amount={zarinpalAmount}
+        description={zarinpalDescription}
+        onSuccess={() => {
+          if (zarinpalCallback) {
+            zarinpalCallback(true);
+          }
+        }}
+      />
+
+      {/* Direct communication and contact with support globally above the footer */}
+      <ContactSection theme={theme} userBadge={userBadge} userCity={user?.city} />
+
+      {/* Clean, Pure White, Short & Creative Footer */}
+      <footer className="bg-white text-slate-700 border-t border-slate-200/80 pt-10 pb-8 mt-12 relative overflow-hidden shadow-sm" dir="rtl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           
-          {/* Column 1: Brand & Logo */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center p-1.5 text-white shadow-md shadow-emerald-600/20">
-                <DastavvalLogo size={32} showText={false} logoUrl={b2bConfig.logoUrl} />
+          {/* Top Compact Diamond Slogan Banner */}
+          <div className="mb-8 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-right shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                <Sparkles size={16} className="animate-spin" style={{ animationDuration: '6s' }} />
               </div>
               <div>
-                <h3 className="text-lg font-black tracking-tight text-slate-900">{b2bConfig.appName || "بازرگانی دست اول"}</h3>
-                <p className="text-[10px] text-emerald-700 font-bold">پلتفرم مبادلات مستقیم کارخانه به بنکدار</p>
+                <span className="text-[9px] font-bold text-emerald-700 tracking-wider block">قاعده تجارت پایدار</span>
+                <h4 className="text-xs sm:text-sm font-black text-slate-900">« برکت در صدق در معامله است »</h4>
               </div>
             </div>
-            <p className="text-slate-600 text-xs font-bold leading-relaxed">
-              سامانه هوشمند و شفاف بدون واسطه تامین مستقیم صنایع غذایی کشور. دسترسی آنی به تولیدکنندگان برتر و ثبت سفارشات عمده.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { name: 'ایتا', icon: '🇮🇷', href: 'https://eitaa.com/dastavval_b2b' },
-                { name: 'تلگرام', icon: '✈️', href: 'https://t.me/dastavval_b2b' },
-                { name: 'واتساپ', icon: '💬', href: 'https://wa.me/989044502900' },
-                { name: 'تماس تلفنی', icon: '📞', href: 'tel:09044502900' }
-              ].map(social => (
-                <a 
-                  key={social.name} 
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all cursor-pointer flex items-center gap-1 text-xs font-black shadow-2xs hover:shadow-xs text-slate-800"
-                >
-                  <span className="text-xs">{social.icon}</span>
-                  <span className="text-[10px]">{social.name}</span>
-                </a>
-              ))}
+            <div className="text-[11px] text-slate-600 font-bold">
+              تأمین مستقیم و بدون واسطه از کارخانجات تراز اول کشور
             </div>
           </div>
 
-          {/* Column 2: Quick Links */}
-          <div>
-            <h4 className="text-xs font-black mb-4 text-emerald-800 border-r-2 border-emerald-600 pr-2">دسترسی سریع به بخش‌ها</h4>
-            <ul className="space-y-2.5 text-xs font-bold text-slate-600">
-              <li 
-                onClick={() => {
-                  setActiveTab('order');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }} 
-                className="hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <span className="text-emerald-600 font-black">‹</span>
-                <span>ثبت سفارش و خرید عمده</span>
-              </li>
-              <li 
-                onClick={() => {
-                  setActiveTab('factories');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }} 
-                className="hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <span className="text-emerald-600 font-black">‹</span>
-                <span>ویترین کارخانجات برتر</span>
-              </li>
-              <li 
-                onClick={() => {
-                  setActiveTab('order');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }} 
-                className="hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <span className="text-emerald-600 font-black">‹</span>
-                <span>استعلام قیمت رسمی (RFQ)</span>
-              </li>
-              <li 
-                onClick={() => {
-                  setActiveTab('factories');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }} 
-                className="hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <span className="text-emerald-600 font-black">‹</span>
-                <span>شبکه نمایندگی‌های استانی</span>
-              </li>
-              <li 
-                onClick={() => {
-                  setActiveTab('news');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }} 
-                className="hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <span className="text-emerald-600 font-black">‹</span>
-                <span>اخبار و تحلیلهای بازار</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 3: Contact & Headquarters */}
-          <div>
-            <h4 className="text-xs font-black mb-4 text-emerald-800 border-r-2 border-emerald-600 pr-2">ارتباط با ستاد مرکزی</h4>
-            <ul className="space-y-3 text-xs font-bold text-slate-600">
-              <li className="flex items-start gap-2">
-                <MapPin size={15} className="text-emerald-600 shrink-0 mt-0.5" />
-                <span className="leading-relaxed text-[11px]">{b2bConfig.hqAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد، مجتمع انبار مرکزی"}</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone size={15} className="text-emerald-600 shrink-0" />
-                <a href={`tel:${b2bConfig.supportPhone || '09044502900'}`} className="font-mono text-slate-900 font-black hover:text-emerald-700 transition-colors" dir="ltr">
-                  {b2bConfig.supportPhone || "0904 450 2900"}
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail size={15} className="text-emerald-600 shrink-0" />
-                <span className="font-mono text-slate-700 text-[11px]">info@dastavval.com</span>
-              </li>
-              <li className="pt-1">
-                <div className="p-2.5 bg-emerald-50/80 border border-emerald-200/80 rounded-xl text-[10px] text-emerald-900 font-bold leading-snug">
-                  ⏰ ساعات پاسخگویی: شنبه تا چهارشنبه ۸:۰۰ الی ۱۸:۰۰
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-right pb-8 border-b border-slate-100">
+            
+            {/* Column 1: Brand */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center p-1.5 text-white shadow-sm">
+                  <DastavvalLogo size={28} showText={false} logoUrl={b2bConfig.logoUrl} />
                 </div>
-              </li>
-            </ul>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">{b2bConfig.appName || "بازرگانی دست اول"}</h3>
+                  <span className="text-[9px] text-emerald-600 font-bold">پلتفرم عمده‌فروشی کارخانه</span>
+                </div>
+              </div>
+              <p className="text-slate-500 text-[11px] font-bold leading-relaxed">
+                پل ارتباطی امن میان کارخانجات مواد غذایی و بنکداران سراسر کشور.
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {[
+                  { name: 'ایتا', icon: '🇮🇷', href: 'https://eitaa.com/dastavval_b2b' },
+                  { name: 'تلگرام', icon: '✈️', href: 'https://t.me/dastavval_b2b' },
+                  { name: 'واتساپ', icon: '💬', href: 'https://wa.me/989044502900' },
+                  { name: 'تماس', icon: '📞', href: 'tel:09044502900' }
+                ].map(social => (
+                  <a 
+                    key={social.name} 
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 text-slate-700 transition-all text-[10px] font-black flex items-center gap-1 shadow-2xs"
+                  >
+                    <span>{social.icon}</span>
+                    <span>{social.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Column 2: Quick Links */}
+            <div>
+              <h4 className="text-[11px] font-black mb-3 text-slate-900 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                دسترسی سریع
+              </h4>
+              <ul className="space-y-2 text-[11px] font-bold text-slate-600">
+                <li onClick={() => { setActiveTab('order'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
+                  <span className="text-emerald-600">›</span> ثبت سفارش عمده
+                </li>
+                <li onClick={() => { setActiveTab('factories'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
+                  <span className="text-emerald-600">›</span> ویترین کارخانجات
+                </li>
+                <li onClick={() => { setActiveTab('order'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
+                  <span className="text-emerald-600">›</span> استعلام قیمت رسمی
+                </li>
+                <li onClick={() => { setActiveTab('news'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
+                  <span className="text-emerald-600">›</span> مجله و اخبار بازار
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 3: Contact */}
+            <div>
+              <h4 className="text-[11px] font-black mb-3 text-slate-900 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-600"></span>
+                ارتباط با ما
+              </h4>
+              <ul className="space-y-2 text-[11px] font-bold text-slate-600">
+                <li className="flex items-start gap-1.5">
+                  <MapPin size={13} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="leading-tight text-[10px]">{b2bConfig.hqAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد"}</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Phone size={13} className="text-emerald-600 shrink-0" />
+                  <a href={`tel:${b2bConfig.supportPhone || '09044502900'}`} className="font-mono text-slate-900 font-black" dir="ltr">
+                    {b2bConfig.supportPhone || "0904 450 2900"}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 4: Trust */}
+            <div className="space-y-2">
+              <h4 className="text-[11px] font-black mb-2 text-slate-900 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                مجوزها و اصالت
+              </h4>
+              <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
+                <div className="flex flex-wrap gap-1.5 justify-start">
+                  <TrustBadges b2bConfig={b2bConfig} />
+                </div>
+                <p className="text-[9px] text-slate-500 font-bold leading-tight">
+                  تضمین اصالت کالا و بیمه باربری رسمی.
+                </p>
+              </div>
+            </div>
+
           </div>
 
-          {/* Column 4: Legal Guarantees & Trust Symbols */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black mb-2 text-emerald-800 border-r-2 border-emerald-600 pr-2">مجوزها و نمادهای اعتماد</h4>
-            <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-2">
-              <div className="flex flex-wrap gap-2 justify-start">
-                <TrustBadges b2bConfig={b2bConfig} />
-              </div>
-              <p className="text-[10px] text-slate-500 font-bold leading-relaxed pt-1 border-t border-slate-100">
-                تضمین اصالت کالای کارخانه، بیمه ترانزیت بار و نظارت مستقیم اتاق بازرگانی.
-              </p>
+          {/* Bottom Bar */}
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-[10px] font-bold text-slate-500">
+            <p>© {new Date().getFullYear()} {b2bConfig.appName || "بازرگانی دست اول"}. تمامی حقوق محفوظ است.</p>
+            <div className="flex gap-4">
+              <span onClick={() => setActiveTab('support')} className="hover:text-emerald-750 cursor-pointer">قوانین و مقررات</span>
+              <span onClick={() => setActiveTab('support')} className="hover:text-emerald-750 cursor-pointer">حریم خصوصی</span>
             </div>
           </div>
 
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-12 pt-6 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-3 text-[11px] font-bold text-slate-500">
-          <p>© {new Date().getFullYear()} {b2bConfig.appName || "بازرگانی دست اول"}. تمامی حقوق مادی و معنوی محفوظ است.</p>
-          <div className="flex gap-4">
-            <span onClick={() => setActiveTab('support')} className="hover:text-emerald-700 cursor-pointer transition-colors">قوانین و مقررات B2B</span>
-            <span onClick={() => setActiveTab('support')} className="hover:text-emerald-700 cursor-pointer transition-colors">حریم خصوصی</span>
-            <span onClick={() => setActiveTab('order')} className="hover:text-emerald-700 cursor-pointer transition-colors">ضوابط فاکتور رسمی</span>
-          </div>
         </div>
       </footer>
       <AIAdvisor mascotUrl={b2bConfig.mascotUrl} />

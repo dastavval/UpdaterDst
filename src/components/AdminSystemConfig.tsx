@@ -521,6 +521,24 @@ export default function AdminSystemConfig({
     }
   };
 
+  // Purge Server Cache & OPcache
+  const handlePurgeCache = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog(`[پاکسازی سرور] در حال پاکسازی کش سرور، OPcache و ثبت نسخه جدید...`);
+    try {
+      const data = await callGithubApi("purge-cache");
+      setSuccessMsg(data.message || "کش سرور و OPcache با موفقیت پاکسازی شد.");
+      addLog(`[پاکسازی موفق] کش سرور و OPcache پاکسازی شد.`);
+    } catch (err: any) {
+      setErrorMsg("خطا در پاکسازی کش: " + err.message);
+      addLog("خطا در پاکسازی کش: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Step 5: Fetch Static Files via Fetch API with Timestamp Cache-Busting (Zero Full Page Refresh)
   const handleDeepRefresh = async () => {
     setPipelineStep(5);
@@ -554,11 +572,11 @@ export default function AdminSystemConfig({
 
     setSuccessMsg("بروزرسانی فایل‌های استاتیک با Fetch API و رفع تداخلات کش با موفقیت انجام شد!");
     setTimeout(() => {
-      // Soft navigation with timestamp cache buster instead of hard reload
+      // Full browser reload with timestamp cache buster to force downloading newly built JS/CSS on shared hosting
       const url = new URL(window.location.href);
       url.searchParams.set('_v', ts.toString());
-      window.history.replaceState({}, '', url.toString());
-    }, 1000);
+      window.location.replace(url.toString());
+    }, 1500);
   };
 
   // Automated 1-Click Pipeline Execution (Runs Steps 1 to 5)
@@ -1199,6 +1217,27 @@ export default function AdminSystemConfig({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Shared Hosting Zero-Restart & OPcache Control Card */}
+          <div className="bg-gradient-to-r from-sky-50 via-indigo-50 to-purple-50 p-6 rounded-3xl border border-sky-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-sky-600 text-white text-[10px] font-black rounded-xl">هاست اشتراکی / cPanel</span>
+                <h5 className="text-sm font-black text-slate-900">بروزرسانی بدون نیاز به ریبوت سرور (Zero-Restart Hot-Reload)</h5>
+              </div>
+              <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                در هاست‌های اشتراکی امکان ری‌استارت سرویس وجود ندارد. سیستم هات‌ریلود پیشرفته ما فایل‌های استاتیک را مستقیماً روی دیسک جایگزین کرده، نسخه <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono">version.json</code> را آپدیت می‌کند و با پاکسازی OPcache سرور، تغییرات رایگان و آنی در مرورگر کاربران اعمال می‌کند.
+              </p>
+            </div>
+            <button
+              onClick={handlePurgeCache}
+              disabled={loading}
+              className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs rounded-2xl shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+            >
+              <RotateCcw size={16} />
+              پاکسازی کش سرور (OPcache Purge)
+            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -531,10 +531,10 @@ export default function FactoriesView({
                     key={factory.id}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`overflow-hidden bg-white rounded-3xl border border-slate-200 shadow-xs flex flex-col justify-between transition-all duration-300 hover:shadow-lg hover:border-emerald-300 relative group`}
+                    className={`overflow-hidden bg-white rounded-[2rem] border border-slate-100 shadow-xs flex flex-col justify-between transition-all duration-300 hover:shadow-lg hover:border-emerald-300 relative group`}
                   >
-                    {/* Factory Cover Photo Banner */}
-                    <div className="relative h-36 sm:h-40 w-full bg-slate-900 overflow-hidden cursor-pointer" onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}>
+                    {/* Factory Cover Photo Banner with secure tags */}
+                    <div className="relative h-32 sm:h-36 w-full bg-slate-900 overflow-hidden cursor-pointer" onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}>
                       <img 
                         src={cover} 
                         alt={factory.name} 
@@ -543,81 +543,84 @@ export default function FactoriesView({
                         }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" 
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
-                      <span className="absolute top-3 right-3 text-[10px] font-black text-emerald-800 bg-white/95 backdrop-blur-md px-3 py-1 rounded-xl border border-white/60 shadow-md">
-                        {categoryLabel}
-                      </span>
-                      {isFeatured && (
-                        <span className="absolute top-3 left-3 text-[10px] font-black text-amber-950 bg-amber-400 px-2.5 py-1 rounded-xl shadow-md border border-amber-300">
-                          ⭐ ویژه کارخانه
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
+                      
+                      {/* Floating badging moved inside cover securely */}
+                      <div className="absolute top-2.5 right-2.5 flex flex-wrap gap-1.5 z-20">
+                        <span className="text-[9px] font-black text-emerald-800 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/60 shadow-xs">
+                          {categoryLabel}
                         </span>
-                      )}
+                        {isFeatured && (
+                          <span className="text-[9px] font-black text-amber-950 bg-amber-400 px-2.5 py-1 rounded-lg shadow-xs border border-amber-300">
+                            ⭐ ویژه
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="p-4 pt-0 -mt-10 relative z-10">
+                    {/* Logo and metadata without overlapping issues */}
+                    <div className="p-4 relative z-10 flex-1 flex flex-col">
                       {/* Brand & Category Header Row */}
-                      <div className="flex items-end justify-between gap-3 mb-3" dir="rtl">
-                        <div className="flex items-end gap-3 min-w-0">
+                      <div className="flex items-start gap-3 mb-3 -mt-10" dir="rtl">
+                        <div 
+                          onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white border-2 border-emerald-200 p-1.5 shrink-0 flex items-center justify-center overflow-hidden cursor-pointer shadow-md group-hover:border-emerald-500 transition-all relative z-20"
+                        >
+                          {logo ? (
+                            <img 
+                              src={logo} 
+                              alt={factory.name} 
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                  const fb = parent.querySelector('.fac-vector-fallback');
+                                  if (fb) (fb as HTMLElement).style.display = 'flex';
+                                }
+                              }}
+                              className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform clean-logo-filter" 
+                            />
+                          ) : null}
                           <div 
-                            onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
-                            className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white border-2 border-emerald-200 p-2 shrink-0 flex items-center justify-center overflow-hidden cursor-pointer shadow-xl group-hover:border-emerald-500 transition-all relative"
+                            className="fac-vector-fallback hidden absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex-col items-center justify-center p-1 rounded-lg text-center shadow-inner"
+                            style={{ display: !logo ? 'flex' : 'none' }}
                           >
-                            {logo ? (
-                              <img 
-                                src={logo} 
-                                alt={factory.name} 
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  const parent = e.currentTarget.parentElement;
-                                  if (parent) {
-                                    const fb = parent.querySelector('.fac-vector-fallback');
-                                    if (fb) (fb as HTMLElement).style.display = 'flex';
-                                  }
-                                }}
-                                className="w-full h-full object-contain rounded-xl p-0.5 group-hover:scale-105 transition-transform clean-logo-filter" 
-                              />
-                            ) : null}
-                            <div 
-                              className="fac-vector-fallback hidden absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex-col items-center justify-center p-2 rounded-xl text-center shadow-inner"
-                              style={{ display: !logo ? 'flex' : 'none' }}
-                            >
-                              <span className="text-2xl mb-0.5">🏭</span>
-                              <span className="text-[9px] font-black leading-tight text-amber-300 line-clamp-1">{factory.name}</span>
-                            </div>
+                            <span className="text-xl mb-0.5">🏭</span>
+                            <span className="text-[8px] font-black leading-tight text-amber-300 line-clamp-1">{factory.name}</span>
                           </div>
+                        </div>
 
-                          <div className="min-w-0 text-right pb-1">
-                            <h3 
-                              onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
-                              className="text-sm sm:text-base font-black text-slate-900 leading-tight truncate cursor-pointer hover:text-emerald-700 transition-colors flex items-center gap-1.5"
-                            >
-                              <span className="truncate">{factory.name}</span>
-                              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                            </h3>
-                            <p className="text-xs font-bold text-slate-400 truncate flex items-center gap-1 mt-1">
-                              <MapPin size={12} className="text-slate-400 shrink-0" />
-                              <span className="truncate">{location}</span>
-                            </p>
-                          </div>
+                        <div className="min-w-0 text-right pt-8 flex-1">
+                          <h3 
+                            onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
+                            className="text-xs sm:text-sm font-black text-slate-900 leading-tight truncate cursor-pointer hover:text-emerald-700 transition-colors flex items-center gap-1"
+                          >
+                            <span className="truncate">{factory.name}</span>
+                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                          </h3>
+                          <p className="text-[10px] font-bold text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                            <MapPin size={10} className="text-slate-400 shrink-0" />
+                            <span className="truncate">{location}</span>
+                          </p>
                         </div>
                       </div>
 
                       {/* Description */}
-                      <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-relaxed mb-2 text-right" dir="rtl">
+                      <p className="text-[10px] text-slate-500 font-medium line-clamp-2 leading-relaxed mb-3 text-right" dir="rtl">
                         {desc}
                       </p>
 
                       {/* Interactive Star Rating Row */}
-                      <div className="flex items-center justify-between my-2 px-2.5 py-1 rounded-xl bg-amber-50/70 border border-amber-200/60" dir="rtl">
-                        <span className="text-[10px] font-black text-amber-900">رتبه‌بندی ۵ ستاره:</span>
-                        <StarRating rating={ratingScore} size={13} interactive={true} showScore={true} />
+                      <div className="flex items-center justify-between my-2 px-2 py-1 rounded-xl bg-amber-50/70 border border-amber-200/40" dir="rtl">
+                        <span className="text-[9px] font-black text-amber-900">امتیاز:</span>
+                        <StarRating rating={ratingScore} size={11} interactive={true} showScore={true} />
                       </div>
 
                       {/* Products Preview Chips */}
                       {factory.mainProducts && factory.mainProducts.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-3 justify-start" dir="rtl">
+                        <div className="flex flex-wrap gap-1 mb-2 justify-start mt-auto" dir="rtl">
                           {factory.mainProducts.slice(0, 3).map((prod, idx) => (
-                            <span key={idx} className="text-[9px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded-lg font-bold border border-slate-100 truncate max-w-[120px]">
+                            <span key={idx} className="text-[8px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded-md font-bold border border-slate-100 truncate max-w-[100px]">
                               {prod}
                             </span>
                           ))}
@@ -626,13 +629,13 @@ export default function FactoriesView({
                     </div>
 
                     {/* Action buttons */}
-                    <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 relative z-0">
+                    <div className="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2 relative z-0 rounded-b-[2rem]">
                       <button
                         onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
-                        className="bg-emerald-800 hover:bg-emerald-900 text-white font-black py-2 px-3 rounded-xl text-[10px] transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                        className="bg-emerald-800 hover:bg-emerald-900 text-white font-black py-2 px-2.5 rounded-xl text-[9px] transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                         title="صفحه اختصاصی کارخانه"
                       >
-                        <Eye size={12} className="text-amber-300 shrink-0" />
+                        <Eye size={11} className="text-amber-300 shrink-0" />
                         <span className="truncate">مشاهده کارخانه</span>
                       </button>
 
@@ -642,10 +645,10 @@ export default function FactoriesView({
                             onSelectFactoryForOrder(factory.name);
                           }
                         }}
-                        className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black py-2 px-3 rounded-xl text-[10px] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+                        className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black py-2 px-2.5 rounded-xl text-[9px] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                         title="ثبت سفارش مستقیم"
                       >
-                        <ShoppingBag size={12} className="shrink-0" />
+                        <ShoppingBag size={11} className="shrink-0" />
                         <span>ثبت سفارش</span>
                       </button>
                     </div>

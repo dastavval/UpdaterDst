@@ -24,6 +24,15 @@ export const ConnectedBubblesWidget: React.FC = () => {
 
     let animId: number;
     let time = 0;
+    let isVisible = true;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        isVisible = entry.isIntersecting;
+      });
+    }, { threshold: 0.05 });
+
+    observer.observe(canvas);
 
     // Define node anchor points relative to canvas width/height
     const nodes = [
@@ -58,6 +67,8 @@ export const ConnectedBubblesWidget: React.FC = () => {
 
     const render = (now: number) => {
       animId = requestAnimationFrame(render);
+      if (!isVisible) return; // skip rendering if out of view
+      
       const elapsed = now - lastTime;
       if (elapsed < fpsInterval) return;
       lastTime = now - (elapsed % fpsInterval);
@@ -185,6 +196,7 @@ export const ConnectedBubblesWidget: React.FC = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animId);
+      observer.disconnect();
     };
   }, []);
 

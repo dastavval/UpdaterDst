@@ -32,6 +32,7 @@ import { Language } from "../lib/translations";
 import ProductCard from "./ProductCard";
 import MagazineSection from "./MagazineSection";
 import { ReferralRewardModal } from "./ReferralRewardModal";
+import EngagementHub from "./EngagementHub";
 
 interface DynamicPresentationProps {
   products: Product[];
@@ -193,7 +194,7 @@ export default function DynamicPresentation({
   });
 
   const categoriesList = [
-    { id: "همه", label: "همه اقلام", icon: "✨", image: "" },
+    { id: "همه", label: "همه اقلام", icon: "🔖", image: "" },
     ...Array.from(mergedCatMap.values())
   ];
 
@@ -224,7 +225,7 @@ export default function DynamicPresentation({
     return matchesCategory && matchesSearch;
   });
 
-  const featuredDisplayProducts = filteredProducts.slice(0, 8);
+  const featuredDisplayProducts = filteredProducts.slice(0, 4);
 
   const primaryColor = b2bConfig.primaryColor || "emerald";
 
@@ -458,13 +459,13 @@ export default function DynamicPresentation({
             <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
               <Grid size={16} />
             </div>
-            <span>دسته بندی ها</span>
+            <span>دسته بندی محصولات</span>
           </h2>
           <button 
             onClick={() => setActiveTab?.('order')}
             className="text-[11px] font-black text-emerald-800 hover:text-emerald-900 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/60"
           >
-            <span>مشاهده</span>
+            <span>مشاهده همه</span>
             <ArrowLeft size={13} />
           </button>
         </div>
@@ -512,12 +513,11 @@ export default function DynamicPresentation({
                         ? "bg-gradient-to-br from-emerald-800 via-teal-700 to-indigo-900 text-amber-300" 
                         : "bg-gradient-to-br from-emerald-900 via-slate-900 to-teal-950 text-emerald-300 group-hover:from-emerald-800 group-hover:to-slate-900"
                     }`}>
-                      {/* B2B All Items Special Badge */}
                       <span className="text-3xl sm:text-4xl transform group-hover:scale-120 group-hover:rotate-6 transition-all duration-300 drop-shadow-md">
-                        {cat.icon || "✨"}
+                        {cat.icon || "🔖"}
                       </span>
                       <span className="text-[10px] font-black tracking-wider uppercase mt-1 opacity-90 text-amber-200 bg-black/30 px-2 py-0.5 rounded-md border border-white/10">
-                        کاتالوگ کامل
+                        تامین کارخانه
                       </span>
                     </div>
                   )}
@@ -534,7 +534,7 @@ export default function DynamicPresentation({
                     {cat.label}
                   </h3>
                   <p className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
-                    تامین مستقیم کارخانه
+                    نمایش محصولات
                   </p>
                 </div>
               </button>
@@ -543,35 +543,46 @@ export default function DynamicPresentation({
         </div>
       </section>
 
-      {/* --- FEATURED PRODUCTS SECTION --- */}
-      <section className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
-          <div>
-            <h2 className="text-sm sm font-black text-slate-900 flex items-center gap-1.5">
-              <Store size={18} className="text-amber-500" />
-              کالاهای منتخب کارخانه
-            </h2>
+      {/* --- SMART B2B SEARCH & FEATURED PRODUCTS --- */}
+      <section className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/70 pb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+              <Store size={20} className="text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">
+                کالاهای منتخب کارخانه
+              </h2>
+              <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                جدیدترین محصولات عرضه شده با قیمت کارخانه
+              </p>
+            </div>
           </div>
 
-          {/* Search Box */}
-          <div className="w-full sm:w-56 relative">
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-              <Search size={14} />
+          {/* Smart Search Box */}
+          <div className="w-full md:w-80 relative group">
+            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+              <Sparkles size={16} className="text-emerald-500 animate-pulse" />
             </div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجوی کالا..."
-              className="w-full py-1.5 pr-8 pl-8 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus text-slate-900 text-right"
+              placeholder="جستجوی هوشمند کالا، برند یا کارخانه..."
+              className="w-full py-3 pr-10 pl-10 bg-white border border-slate-200 group-hover:border-emerald-300 focus:border-emerald-500 rounded-2xl text-xs font-bold outline-none text-slate-900 text-right shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] transition-all"
             />
-            {searchQuery && (
+            {searchQuery ? (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400"
+                className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 hover:text-red-500 transition-colors"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
+            ) : (
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-300">
+                <Search size={14} />
+              </div>
             )}
           </div>
         </div>
@@ -750,7 +761,7 @@ export default function DynamicPresentation({
             }))
           : [];
 
-        const sortedDisplayFactories = configFactories.sort((a, b) => b.rating - a.rating);
+        const sortedDisplayFactories = configFactories.sort((a, b) => b.rating - a.rating).slice(0, 3);
 
         return (
           <section className="space-y-6 relative overflow-hidden text-right py-4 border-b border-slate-100/60" dir="rtl">
@@ -1339,6 +1350,14 @@ export default function DynamicPresentation({
           </div>
         )}
       </AnimatePresence>
+
+      {/* --- ENGAGEMENT LOYALTY & OPERATIONS SUITE --- */}
+      <EngagementHub
+        products={products}
+        onAddToCart={onAddToCart || (() => {})}
+        userBadge={userBadge}
+        theme={theme}
+      />
 
       {/* --- AI ADVISOR BANNER --- */}
       <section className="bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-purple-500/30">

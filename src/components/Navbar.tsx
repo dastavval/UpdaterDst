@@ -1,4 +1,4 @@
-import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall } from "lucide-react";
+import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
@@ -185,6 +185,7 @@ export default function Navbar({
     { id: 'presentation', label: t.home, icon: <Home size={18} /> },
     { id: 'order', label: t.wholesaleBuy, icon: <ShoppingBag size={18} /> },
     { id: 'factories', label: "کارخانجات", icon: <Building2 size={18} /> },
+    { id: 'billboard', label: "بیلبورد تبلیغاتی", icon: <Megaphone size={18} /> },
     { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <User size={18} /> },
   ];
 
@@ -410,6 +411,20 @@ export default function Navbar({
               >
                 <Building2 size={15} />
                 <span>کارخانجات</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab?.('billboard');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'billboard'
+                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
+                    : "text-slate-700 hover:text-indigo-600"
+                }`}
+              >
+                <Megaphone size={15} />
+                <span>بیلبورد تبلیغاتی</span>
               </button>
 
               {/* Health Apple & Natural Badge Nav Button */}
