@@ -71,8 +71,8 @@ const FACTORIES_DATA: any[] = [
     capacity: "۵۰,۰۰۰ کارتن در ماه",
     contact: "۰۴۱۳۸۲۵۹۰۰۰",
     logo: "🏭",
-    desc: "تولیدکننده تخصصی انواع کیک، کلوچه، ویفر و شکلات کاکائویی با استانداردهای ملی و بین‌المللی سیب سلامت.",
-    specs: ["سیب سلامت سازمان غذا و دارو", "گواهینامه ISO 22000", "استاندارد ملی ایران", "مجوز صادرات به CIS"]
+    desc: "تولیدکننده تخصصی انواع کیک، کلوچه، ویفر و شکلات کاکائویی با استانداردهای کیفی و بین‌المللی سیب سلامت.",
+    specs: ["سیب سلامت سازمان غذا و دارو", "گواهینامه ISO 22000", "استاندارد کیفی ایران", "مجوز صادرات به CIS"]
   },
   {
     id: "fac-2",
@@ -83,7 +83,7 @@ const FACTORIES_DATA: any[] = [
     contact: "۰۴۵۳۳۵۵۴۰۰۰",
     logo: "🥫",
     desc: "تولید انواع رب گوجه‌فرنگی، کنسروجات گوشتی و غیرگوشتی، ترشیجات و مرباجات صنعتی با مواد اولیه تازه.",
-    specs: ["سیب سلامت", "استاندارد ملی کیفی", "پلمپ جاده‌ای مسقف"]
+    specs: ["سیب سلامت", "استاندارد معتبر کیفی", "پلمپ جاده‌ای مسقف"]
   },
   {
     id: "fac-3",
@@ -355,7 +355,7 @@ export default function B2BNews({
                   {/* Certifications and Specs */}
                   {fac.specs && fac.specs.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">گواهینامه‌ها و مجوزهای ملی صنعتی:</div>
+                      <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">گواهینامه‌ها و استانداردهای معتبر صنعتی:</div>
                       <div className="flex flex-wrap gap-2">
                         {fac.specs.map((spec: string, i: number) => (
                           <span key={i} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-lg font-black">
@@ -615,14 +615,14 @@ export default function B2BNews({
 
               <div className="bg-amber-50/40 border border-amber-150/50 rounded-2xl p-5 text-center space-y-4">
                 <span className="text-3xl select-none block">🏆</span>
-                <h4 className="text-xs sm font-black text-slate-900 font-sans">گواهینامه رسمی نماینده</h4>
+                <h4 className="text-xs sm font-black text-slate-900 font-sans">گواهی تایید فعالیت نماینده</h4>
                 <p className="text-[10px] text-slate-400 font-bold leading-relaxed">با مطالعه کامل تمامی دروس، دکمه فعال شده و گواهی شما صادر می‌شود.</p>
                 <button
                   disabled={completedLessons.length < 4}
-                  onClick={() => alert("درخواست شما برای بررسی و صدور گواهینامه به تیم پشتیبانی دست اول ارسال شد. نتیجه تا ۲۴ ساعت آینده به شما پیامک خواهد شد.")}
+                  onClick={() => alert("درخواست شما برای بررسی و صدور گواهی به تیم پشتیبانی دست اول ارسال شد. نتیجه تا ۲۴ ساعت آینده به شما پیامک خواهد شد.")}
                   className="w-full py-2.5 bg-emerald-600 hover disabled disabled text-white font-black text-[10px] sm rounded-xl cursor-pointer transition-all disabled:cursor-not-allowed"
                 >
-                  دریافت گواهی الکترونیک معتبر نمایندگی
+                  دریافت گواهی الکترونیک نمایندگی
                 </button>
               </div>
             </div>

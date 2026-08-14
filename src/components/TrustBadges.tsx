@@ -86,13 +86,13 @@ export default function TrustBadges({ b2bConfig, className = "", badgeSize = 'md
           href={tradeUnionUrl}
           target="_blank"
           rel="noopener noreferrer"
-          title="مشاهده پروانه ثبت قانونی تعاونی / انجمن صنفی"
+          title="مشاهده تاییدیه و گواهی فعالیت تجاری"
           className="group bg-white border border-amber-200 hover:border-amber-500 p-2.5 rounded-2xl flex flex-col items-center justify-center text-center w-24 h-28 transition-all shadow-xs hover:shadow-md cursor-pointer"
         >
           <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
             <CheckCircle2 size={24} />
           </div>
-          <span className="text-[10px] text-slate-800 font-black leading-tight">پروانه تعاونی</span>
+          <span className="text-[10px] text-slate-800 font-black leading-tight">گواهی فعالیت</span>
           <span className="text-[8px] text-amber-600 font-mono font-bold mt-0.5">
             {tradeUnionCode}
           </span>

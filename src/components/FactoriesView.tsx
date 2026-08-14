@@ -177,7 +177,7 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
           {isFeatured && (
             <div className="bg-amber-400 border border-amber-500 px-3 py-1.5 rounded-2xl flex items-center gap-1 shadow-lg shadow-amber-500/20">
               <Sparkles size={10} className="text-amber-900" />
-              <span className="text-[10px] font-black text-amber-900">برند برتر صنف</span>
+              <span className="text-[10px] font-black text-amber-900">برند برتر</span>
             </div>
           )}
         </div>
@@ -209,7 +209,7 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
                 <span>{location}</span>
               </div>
               <div className="w-1 h-1 rounded-full bg-slate-200" />
-              <span>کد صنف: {toPersianNum(1000 + idx)}</span>
+              <span>کد شناسایی: {toPersianNum(1000 + idx)}</span>
             </div>
           </div>
 
@@ -589,7 +589,7 @@ export default function FactoriesView({
                   <h2 className="text-sm sm:text-base font-black text-slate-900">رصد هوشمند خطوط ترانزیت و تولیدکنندگان فعال صنایع غذایی</h2>
                 </div>
                 <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                  پایش زنده کارخانجات دارای پروانه صنف، رهگیری پلمپ جاده‌ای و ثبت فاکتورهای رسمی در بستر شبکه یکپارچه دست‌اول.
+                  پایش زنده کارخانجات فعال، رهگیری پلمپ جاده‌ای و ثبت فاکتورهای رسمی در بستر شبکه یکپارچه دست‌اول.
                 </p>
               </div>
 

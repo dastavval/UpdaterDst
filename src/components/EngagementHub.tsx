@@ -507,7 +507,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
         bids: []
       },
       amount: 2000000, // 200,000 Tomans
-      description: `تعرفه احراز هویت مالی، امنیت اطلاعات صنف و صدور آگهی مناقصه خرید عمده (RFQ) - کالا: ${newTender.productName}`
+      description: `تعرفه احراز هویت مالی، امنیت اطلاعات تجاری و صدور آگهی مناقصه خرید عمده (RFQ) - کالا: ${newTender.productName}`
     });
 
     setIsZarinpalOpen(true);
@@ -1129,7 +1129,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none"
                 >
                   <option value="cash">نقدی پیش‌پرداخت (تخفیف نقدی بالا)</option>
-                  <option value="check">چک صیادی صنف بنکداران (۴۵ روزه)</option>
+                  <option value="check">چک صیادی معتبر بنکداری (۴۵ روزه)</option>
                   <option value="lc">اعتبار اسنادی LC بانکی (۹۰ روزه)</option>
                 </select>
               </div>
@@ -1184,7 +1184,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 </div>
 
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">
-                  به منظور حذف واسطه‌ها و حفظ امنیت کامل معاملات تهاتری و مناقصات خرید عمده، سیستم پرداخت آنلاین موقتاً غیرفعال شده است. آگهی شما به صورت مستقیم به دست مدیریت کل پلتفرم ملی دست‌اول ارسال می‌گردد و پس از تایید (کمتر از ۱ ساعت)، منتشر خواهد شد.
+                  به منظور حذف واسطه‌ها و حفظ امنیت کامل معاملات تهاتری و مناقصات خرید عمده، سیستم پرداخت آنلاین موقتاً غیرفعال شده است. آگهی شما به صورت مستقیم به دست مدیریت کل پلتفرم دست‌اول ارسال می‌گردد و پس از تایید (کمتر از ۱ ساعت)، منتشر خواهد شد.
                 </p>
 
                 {/* Direct Call & Support */}

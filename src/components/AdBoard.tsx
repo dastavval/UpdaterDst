@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { db } from "../lib/firebase";
+import { collection, addDoc } from "../lib/firebase-mock";
 import { 
   Plus, 
   Sparkles, 
@@ -120,7 +122,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   const initialAds: AdItem[] = [
     {
       id: "ad-1",
-      title: "قند شکسته درجه یک ۵ کیلویی مازاد صنف (عدم ذکر برند انحصاری)",
+      title: "قند شکسته درجه یک ۵ کیلویی مازاد خط تولید (بدون افشای برند)",
       description: "تعداد ۵۰ تن بار مازاد قند کله شکسته درجه یک در بسته‌بندی‌های نایلونی ۵ کیلویی استاندارد با سیب سلامت بدون ذکر برند جهت ممانعت از تنش قیمتی در بازار مصرف.",
       factoryName: "صنایع قند و شکر مرودشت",
       contactPerson: "مهندس رسولی",
@@ -138,12 +140,12 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     },
     {
       id: "ad-2",
-      title: "روغن سویا صنف و صنعت حلب ۱۶ کیلویی استاندارد",
+      title: "روغن سویا مصارف صنعتی حلب ۱۶ کیلویی استاندارد",
       description: "روغن مایع خوراکی تصفیه شده سویا حلب فلزی ۱۶ کیلویی با فاکتور رسمی مستقیم کارخانه شیراز بدون نام برند انحصاری جهت حفظ ثبات و اعتبار تجاری کارخانه.",
       factoryName: "کشت و صنعت روغن شمال",
       contactPerson: "حاج علی رحیمی",
       contactPhone: "۰۹۱۲۹۹۹۸۸۷۷",
-      badgeText: "🔥 حراج مفت صنف",
+      badgeText: "🔥 حراج مفت بازار",
       category: "liquid",
       quantity: "۱۵ تن",
       wholesalePrice: "۶۲۰,۰۰۰ تومان",
@@ -157,7 +159,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     {
       id: "ad-3",
       title: "رب گوجه فرنگی قوطی ۸۰۰ گرمی صادراتی بریکس ۲۷",
-      description: "بار مازاد ۴۰ هزار قوطی رب گوجه فرنگی غلیظ با کیفیت استثنایی و رنگ فوق‌العاده. به دستور مستقیم صنف، برند کالا محرمانه مانده و تحویل از طریق واسطه امین انجام می‌پذیرد.",
+      description: "بار مازاد ۴۰ هزار قوطی رب گوجه فرنگی غلیظ با کیفیت استثنایی و رنگ فوق‌العاده. به منظور حفظ ثبات قیمت بازار، برند کالا محرمانه مانده و تحویل از طریق واسطه امین انجام می‌پذیرد.",
       factoryName: "توسعه صنایع غذایی دشت شیراز",
       contactPerson: "مهندس سلیمانی",
       contactPhone: "۰۹۱۷۳۳۳۴۴۵۵",
@@ -184,7 +186,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       quantity: "۲ تن",
       wholesalePrice: "۲,۵۰۰ تومان",
       marketPrice: "۴,۰۰0 تومان",
-      buyerProfit: "۳۷٪ سود خالص صنف (۱,۵۰۰ تومان سود در هر عدد)",
+      buyerProfit: "۳۷٪ سود خالص بازار (۱,۵۰۰ تومان سود در هر عدد)",
       isSponsored: false,
       date: "۱۴۰۵/۰۵/۱۹",
       imageUrl: "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400",
@@ -258,9 +260,9 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     const newAd: AdItem = {
       id: `ad-${Date.now()}`,
       title: finalTitle,
-      description: finalDesc || "درخواست خرید کالا با شرایط توافقی و ضمانت پرداخت امن واسطه‌ای صنف دست‌اول.",
+      description: finalDesc || "درخواست خرید کالا با شرایط توافقی و ضمانت پرداخت امن واسطه‌ای دست اول.",
       factoryName: factoryName || "متقاضی تامین مستقیم",
-      contactPerson: contactPerson || "مدیریت خرید صنف",
+      contactPerson: contactPerson || "مدیریت خرید",
       contactPhone: contactPhone, // Saved privately for admin use
       badgeText: "⏳ در انتظار بررسی مدیر",
       category,
@@ -304,7 +306,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         return { 
           ...ad, 
           status: "approved" as const,
-          badgeText: ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔥 حراج صنف" : "📦 تامین مستقیم" 
+          badgeText: ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔥 حراج عمده" : "📦 تامین مستقیم" 
         };
       }
       return ad;
@@ -350,13 +352,44 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   const pendingAds = ads.filter(ad => ad.status === "pending" || !ad.status);
 
   // Escrow Handler
-  const handleEscrowSubmit = (e: React.FormEvent) => {
+  const handleEscrowSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!buyerPhoneInput) return;
+    if (!buyerPhoneInput || !escrowModalAd) return;
     setEscrowLoading(true);
+    
+    const newId = `SB-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newReq = {
+      id: newId,
+      adId: escrowModalAd.id || '',
+      productTitle: escrowModalAd.title || 'کالای زیر قیمت',
+      wholesalePrice: escrowModalAd.wholesalePrice || 'توافقی',
+      marketPrice: escrowModalAd.marketPrice || '',
+      buyerProfit: escrowModalAd.buyerProfit || '',
+      quantity: escrowModalAd.quantity || 'نامشخص',
+      brand: escrowModalAd.factoryName || 'نامشخص',
+      description: escrowModalAd.description || '',
+      buyerPhone: buyerPhoneInput,
+      buyerMessage: buyerMessage || '',
+      status: 'pending',
+      date: new Date().toLocaleDateString('fa-IR'),
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      // 1. Save to mock/real Firestore
+      await addDoc(collection(db, "safe_buy_requests"), newReq);
+      
+      // 2. Also save to localStorage as a fallback
+      const existing = JSON.parse(localStorage.getItem("dastavval_safe_buy_requests") || "[]");
+      localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify([newReq, ...existing]));
+    } catch (err) {
+      console.error("Error saving safe buy request", err);
+    }
+
     setTimeout(() => {
       setEscrowLoading(false);
       setEscrowSuccess(true);
+
       setTimeout(() => {
         setEscrowSuccess(false);
         setEscrowModalAd(null);
@@ -412,7 +445,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs px-3 py-1 rounded-xl text-[10px] font-black text-slate-800 shadow-xs">
-                  {selectedAdDetail.category === "liquid" ? "🔥 حراج مازاد صنف" : selectedAdDetail.category === "under_market" ? "📉 کف قیمت بازار" : "📦 تامین کارخانه"}
+                  {selectedAdDetail.category === "liquid" ? "🔥 حراج مازاد خط تولید" : selectedAdDetail.category === "under_market" ? "📉 کف قیمت بازار" : "📦 تامین کارخانه"}
                 </div>
               </div>
 
@@ -459,7 +492,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 <div className="space-y-1">
                   <h5 className="text-[11px] font-black text-amber-900">سیاست صیانت و محافظت از ارزش برندهای تولیدی</h5>
                   <p className="text-[10px] text-amber-800/80 font-bold leading-relaxed">
-                    به منظور ممانعت از ریزش ناگهانی قیمت رسمی و آسیب به شبکه نمایندگی‌های فعال کارخانه در کل کشور، مشخصات دقیق برند صرفاً به خریدار واقعی و پس از تایید توسط واسطه امن صنف دست‌اول ارائه خواهد شد.
+                    به منظور ممانعت از ریزش ناگهانی قیمت رسمی و آسیب به شبکه نمایندگی‌های فعال کارخانه در کل کشور، مشخصات دقیق برند صرفاً به خریدار واقعی و پس از تایید توسط واسطه امن دست‌اول ارائه خواهد شد.
                   </p>
                 </div>
               </div>
@@ -476,10 +509,10 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
               <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-2 text-indigo-800">
                   <LockKeyhole size={16} />
-                  <span className="text-[11px] font-black">اطلاعات تماس مستقیم (پنهان به دستور صنف):</span>
+                  <span className="text-[11px] font-black">اطلاعات تماس مستقیم (پنهان به دستور پلتفرم):</span>
                 </div>
                 <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
-                  طبق قوانین پیشگیری از تخلف و انحصار صنف، برای برقراری ارتباط با مالک کالا باید درخواست انجام معامله خود را از طریق دکمه واسطه زیر ثبت نمایید. کارشناسان ما تا ۱۵ دقیقه آینده جهت اعزام ناظر باسکول هماهنگی‌ها را انجام می‌دهند.
+                  طبق قوانین پیشگیری از تخلف و انحصار بازار، برای برقراری ارتباط با مالک کالا باید درخواست انجام معامله خود را از طریق دکمه واسطه زیر ثبت نمایید. کارشناسان ما تا ۱۵ دقیقه آینده جهت هماهنگی‌های لازم اقدام می‌کنند.
                 </p>
 
                 <button
@@ -516,7 +549,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 <h3 className="font-black text-sm text-slate-800">سامانه ملی «کف قیمت» کالا با ضمانت واسطه‌گری امن</h3>
               </div>
               <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-2xl">
-                بستری انحصاری برای ثبت درخواست کالا زیر قیمت بازار آزاد. کلیه معاملات با نظارت مستقیم و واسطه‌گری امین صنف صورت می‌پذیرد.
+                بستری انحصاری برای ثبت درخواست کالا زیر قیمت بازار آزاد. کلیه معاملات با نظارت مستقیم و واسطه‌گری امین پلتفرم صورت می‌پذیرد.
               </p>
             </div>
           </div>
@@ -635,7 +668,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                   <TrendingDown size={20} />
                 </div>
                 <div>
-                  <span className="text-amber-300 font-black text-[9px] uppercase tracking-wider block">سامانه هوشمند صنف</span>
+                  <span className="text-amber-300 font-black text-[9px] uppercase tracking-wider block">سامانه هوشمند دست اول</span>
                   <h1 className="font-black text-base sm:text-xl text-white">سامانه ملی «کف قیمت» کالا زیر قیمت بازار آزاد</h1>
                 </div>
               </div>
@@ -718,14 +751,14 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-amber-200/60 pb-4 mb-4 gap-2">
               <div className="flex items-center gap-2">
                 <UserCheck size={18} className="text-amber-800" />
-                <h3 className="font-black text-xs sm:text-sm text-amber-900">میز کارشناس ناظر و ارزیاب کیفیت صنف دست‌اول (تأیید فاکتور و تناژ)</h3>
+                <h3 className="font-black text-xs sm:text-sm text-amber-900">میز کارشناس ناظر و ارزیاب کیفیت دست‌اول (تأیید فاکتور و تناژ)</h3>
               </div>
               <div className="flex items-center gap-2 self-end">
                 <button 
                   onClick={handleResetDemoData}
                   className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
                 >
-                  بازنشانی کل لیست به پیش‌فرض صنف
+                  بازنشانی کل لیست به پیش‌فرض پلتفرم
                 </button>
                 <span className="text-[10px] text-amber-800 font-black bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200">
                   {pendingAds.length} پرونده در دست بررسی و ارزیابی قیمتی
@@ -789,7 +822,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="w-1.5 h-8 bg-indigo-600 rounded-full shrink-0" />
           <div className="text-right">
-            <h3 className="text-xs sm:text-sm font-black text-slate-800">فهرست رصد فرصت‌های کف قیمت صنف</h3>
+            <h3 className="text-xs sm:text-sm font-black text-slate-800">فهرست رصد فرصت‌های کف قیمت</h3>
             <p className="text-[10px] text-slate-400 font-bold">بارهای مازاد، کف قیمت تولیدی و تامین دست‌اول</p>
           </div>
         </div>
@@ -810,7 +843,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             {[
               { value: "all", label: "همه موارد" },
               { value: "under_market", label: "📉 کف قیمت" },
-              { value: "liquid", label: "🔥 مازاد صنف" },
+              { value: "liquid", label: "🔥 مازاد کارخانه" },
               { value: "direct_supply", label: "📦 تامین مستقیم" },
             ].map((filter) => (
               <button
@@ -833,7 +866,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       <div className="w-full max-w-4xl mx-auto space-y-4">
         {filteredAds.length === 0 ? (
           <div className="p-12 text-center text-slate-400 font-bold bg-white border border-slate-100 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
-            هیچ آگهی معتبری در این دسته‌بندی یافت نشد. می‌توانید با کلیک بر روی دکمه ثبت درخواست، اولین تقاضای خود را ثبت و پس از ممیزی در پنل نظارت مدیریت صنف تایید نمایید.
+            هیچ آگهی معتبری در این دسته‌بندی یافت نشد. می‌توانید با کلیک بر روی دکمه ثبت درخواست، اولین تقاضای خود را ثبت و پس از ممیزی در پنل نظارت مدیریت پلتفرم تایید نمایید.
           </div>
         ) : (
           <div className="flex flex-col gap-4 animate-in fade-in duration-500">
@@ -873,7 +906,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                           {ad.isSponsored && (
                             <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black border border-amber-200/60 flex items-center gap-0.5">
                               <Sparkles size={8} />
-                              طلایی صنف
+                              طلایی دست اول
                             </span>
                           )}
                         </div>
@@ -954,7 +987,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 <form onSubmit={handleEscrowSubmit} className="space-y-4">
                   <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
                     <ShieldCheck className="text-indigo-600 animate-pulse" size={18} />
-                    <h4 className="font-black text-slate-800 text-sm">شروع معامله امن (واسطه‌گری صنف دست‌اول)</h4>
+                    <h4 className="font-black text-slate-800 text-sm">شروع معامله امن (واسطه‌گری پلتفرم دست‌اول)</h4>
                   </div>
 
                   <p className="text-[11px] text-slate-500 font-bold leading-relaxed bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
@@ -965,7 +998,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1.5">شماره موبایل خریدار جهت هماهنگی صنف:</label>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5">شماره موبایل خریدار جهت هماهنگی کارشناس:</label>
                       <input
                         type="tel"
                         required
@@ -992,7 +1025,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     disabled={escrowLoading}
                     className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                   >
-                    {escrowLoading ? "در حال ثبت درخواست..." : "ارسال درخواست معامله به بخش نظارت صنف"}
+                    {escrowLoading ? "در حال ثبت درخواست..." : "ارسال درخواست معامله به بخش نظارت پلتفرم"}
                   </button>
                 </form>
               )}
@@ -1093,7 +1126,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     onChange={(e) => {
                       setTitle(e.target.value);
                       if (/(۰|0|۹|9)[۰-۹0-9]{9,10}/.test(e.target.value)) {
-                        setPhoneWarning("طبق قوانین واسطه‌گری صنف، درج شماره تماس مستقیم در عنوان ممنوع است.");
+                        setPhoneWarning("طبق قوانین واسطه‌گری پلتفرم، درج شماره تماس مستقیم در عنوان ممنوع است.");
                       } else {
                         setPhoneWarning("");
                       }
@@ -1107,7 +1140,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 {/* Target Brand / Factory */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 mb-1.5">
-                    کارخانه یا صنف تولیدکننده (اختیاری):
+                    کارخانه یا برند تولیدکننده (اختیاری):
                   </label>
                   <input
                     type="text"
@@ -1159,7 +1192,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 <div className="grid grid-cols-2 gap-3 bg-indigo-50/40 p-3 rounded-2xl border border-indigo-100/30">
                   <div className="col-span-2 flex items-center gap-1.5 text-indigo-800 text-[10px] font-black mb-1">
                     <Lock size={12} />
-                    <span>اطلاعات هماهنگی صنف (محفوظ نزد ادمین جهت معامله امن):</span>
+                    <span>اطلاعات هماهنگی کارشناسان (محفوظ نزد ادمین جهت معامله امن):</span>
                   </div>
                   <div>
                     <label className="block text-[9px] font-black text-slate-400 mb-1">نام و نام خانوادگی خریدار:</label>
@@ -1217,7 +1250,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={2.5}
-                    placeholder="مثال: بار سالم بدون زدگی بسته‌بندی، تحویل درب انبار، پرداخت پس از تخلیه و تایید باسکول صنف..."
+                    placeholder="مثال: بار سالم بدون زدگی بسته‌بندی، تحویل درب انبار، پرداخت پس از تخلیه و تایید باسکول خریدار..."
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 resize-none"
                   />
                 </div>
@@ -1231,11 +1264,11 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                       onChange={(e) => setIsSpecialRequested(e.target.checked)}
                       className="w-4 h-4 rounded accent-amber-600 cursor-pointer"
                     />
-                    <span className="text-[10px] font-black text-amber-800">درخواست کارگزاری ناظر اختصاصی صنف (تایید فوری)</span>
+                    <span className="text-[10px] font-black text-amber-800">درخواست کارگزاری ناظر اختصاصی معامله (تایید فوری)</span>
                   </label>
                   {isSpecialRequested && (
                     <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <label className="block text-[9px] font-black text-amber-600/70 mb-1">پیام برای نظارت عالیه صنف:</label>
+                      <label className="block text-[9px] font-black text-amber-600/70 mb-1">پیام برای مدیریت معامله:</label>
                       <textarea
                         value={specialMessage}
                         onChange={(e) => setSpecialMessage(e.target.value)}

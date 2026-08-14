@@ -236,7 +236,7 @@ export default function B2BBusinessDashboard({
         origin: "کارخانه مرکزی دست اول - خط تولید جور",
         destination: user?.company || "انبار ثبت‌شده شما در سامانه",
         status: "production_line",
-        operator: "ترابری لجستیک ملی دست اول",
+        operator: "ترابری لجستیک اختصاصی دست اول",
         amount: lastOrderAmount,
         date: "۱۴۰۲/۰۴/۱۶"
       });
@@ -402,7 +402,7 @@ export default function B2BBusinessDashboard({
                 origin: "کارخانه مرکزی دست اول - خط تولید جور",
                 destination: user?.company || "انبار ثبت‌شده شما در سامانه",
                 status: "production_line",
-                operator: "ترابری لجستیک ملی دست اول",
+                operator: "ترابری لجستیک اختصاصی دست اول",
                 amount: lastOrderAmount,
                 date: "۱۴۰۲/۰۴/۱۶"
               });

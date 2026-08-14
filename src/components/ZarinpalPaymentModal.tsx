@@ -50,7 +50,7 @@ export default function ZarinpalPaymentModal({
             </div>
             <div>
               <h4 className="font-black text-sm">سامانه فعال‌سازی و تایید خدمات دست‌اول</h4>
-              <p className="text-[10px] text-emerald-200 font-bold mt-1">پل ارتباطی مستقیم تولیدکنندگان با مدیریت پلتفرم ملی</p>
+              <p className="text-[10px] text-emerald-200 font-bold mt-1">پل ارتباطی مستقیم تولیدکنندگان با مدیریت پلتفرم</p>
             </div>
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function ZarinpalPaymentModal({
                   <span className="font-black text-xs text-slate-800 dark:text-slate-200">اطلاعیه عدم نیاز به پرداخت آنلاین:</span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">
-                  به جهت حفظ امنیت مالی معاملات صنف و تضمین سلامت استعلام‌های خط تولید، فرآیند فعال‌سازی کلیه حساب‌های کارخانجات، نشان‌های اصالت، ارتقای VIP و کاتالوگ‌ها توسط <strong className="text-slate-800 dark:text-slate-100">مدیریت پلتفرم</strong> به صورت مستقیم، دستی و پس از هماهنگی تلفنی تایید و فعال می‌گردد.
+                  به جهت حفظ امنیت مالی معاملات عمده و تضمین سلامت استعلام‌های خط تولید، فرآیند فعال‌سازی کلیه حساب‌های کارخانجات، نشان‌های اصالت، ارتقای VIP و کاتالوگ‌ها توسط <strong className="text-slate-800 dark:text-slate-100">مدیریت پلتفرم</strong> به صورت مستقیم، دستی و پس از هماهنگی تلفنی تایید و فعال می‌گردد.
                 </p>
               </div>
 

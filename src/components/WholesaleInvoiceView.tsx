@@ -205,11 +205,11 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
   const multiplier = currencyUnit === 'rial' ? 10 : 1;
   const currencyLabel = currencyUnit === 'rial' ? 'ریال' : 'تومان';
 
-  // Fast PDF download using direct jsPDF and html2canvas with non-blocking async execution to prevent page freezing
+  // Fast PDF download using direct jsPDF and html2canvas with blob download
   const handleDownloadPdf = async () => {
     const invoiceElem = document.getElementById("printable-invoice");
     if (!invoiceElem) {
-      handlePrint();
+      alert("محتوای فاکتور یافت نشد.");
       return;
     }
 
@@ -220,7 +220,7 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
       await new Promise((resolve) => setTimeout(resolve, 80));
 
       const canvas = await html2canvas(invoiceElem, {
-        scale: 1.5,
+        scale: 1.2,
         useCORS: true,
         logging: false,
         allowTaint: false,
@@ -266,10 +266,18 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
         heightLeft -= pdfHeight;
       }
 
-      pdf.save(`فاکتور_رسمی_${invoiceSerial}.pdf`);
+      const pdfOutput = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfOutput);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `فاکتور_رسمی_${invoiceSerial}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
     } catch (error) {
-      console.warn("jsPDF download error, falling back to print:", error);
-      handlePrint();
+      console.warn("PDF download error:", error);
+      alert("خطا در تولید PDF. لطفاً مجدداً تلاش کنید.");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -638,11 +646,11 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
             </div>
           </div>
 
-          {/* Printable Sheet Wrapper (Responsive Horizontal Scroll on Mobile) */}
-          <div className="w-full overflow-x-auto pb-4">
+          {/* Printable Sheet Wrapper (Responsive Horizontal Scroll and Auto-scaling on Mobile) */}
+          <div className="w-full overflow-x-auto pb-4 flex justify-center">
             <div 
               id="printable-invoice" 
-              className="p-6 sm:p-7 bg-white text-slate-900 border border-slate-300 w-[210mm] min-w-[210mm] mx-auto relative overflow-hidden shadow-xs rounded-lg" 
+              className="p-5 sm:p-7 bg-white text-slate-900 border border-slate-300 w-[210mm] min-w-[210mm] max-w-[210mm] mx-auto relative overflow-hidden shadow-xs rounded-lg transform scale-[0.62] sm:scale-100 origin-top my-[-50px] sm:my-0" 
               dir="rtl" 
               style={{ fontFamily: "'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: '#0f172a', boxSizing: 'border-box', backgroundColor: '#ffffff', minHeight: '270mm', maxHeight: '287mm' }}
             >

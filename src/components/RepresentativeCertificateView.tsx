@@ -261,9 +261,9 @@ export default function RepresentativeCertificateView({
 
               {/* Central Top Emblem */}
               <div className="text-center">
-                <div className="text-[10px] text-slate-400 font-normal tracking-[0.2em] mb-1">باسمه تعالی</div>
-                <h2 className="text-base font-black text-amber-900 tracking-wider">جمهوری اسلامی ایران</h2>
-                <p className="text-[9px] text-slate-400 font-bold">پلتفرم ملی توزیع و پخش کالا و خط تولید کارخانجات</p>
+                <div className="text-[10px] text-slate-400 font-normal tracking-[0.2em] mb-1">گواهی فعالیت</div>
+                <h2 className="text-base font-black text-amber-900 tracking-wider">پلتفرم مستقل دست اول</h2>
+                <p className="text-[9px] text-slate-400 font-bold">بستر هوشمند توزیع مستقیم کالا و خطوط تولید کارخانجات</p>
               </div>
 
               <div className="text-left space-y-1">

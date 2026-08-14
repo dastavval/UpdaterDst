@@ -117,7 +117,7 @@ export default function DynamicPresentation({
     {
       id: "4",
       title: "نوشیدنی، آبمیوه طبیعی و نکتار صادراتی",
-      subtitle: "پخش پالتی انواع آبمیوه تک‌نفره و خانواده با استاندارد ملی و حمل مسقف بیمه‌شده تا انبار شما",
+      subtitle: "پخش پالتی انواع آبمیوه تک‌نفره و خانواده با استانداردهای بهداشتی و حمل مسقف بیمه‌شده تا انبار شما",
       imageUrl: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=1200",
       badge: "حمل مسقف و بیمه جاده‌ای 🥤",
       accentColor: "bg-slate-100",

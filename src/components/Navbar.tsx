@@ -907,7 +907,7 @@ export default function Navbar({
 
                 {/* About Us (درباره ما) */}
                 <div className="space-y-2 pt-4 border-t border-slate-100">
-                  <h4 className="text-[10px] text-emerald-600 font-black tracking-wider uppercase">درباره پلتفرم ملی دست اول:</h4>
+                  <h4 className="text-[10px] text-emerald-600 font-black tracking-wider uppercase">درباره پلتفرم دست اول:</h4>
                   <p className="text-[11px] text-slate-500 leading-relaxed font-bold">
                     «دست اول» به عنوان جامع‌ترین بستر دیجیتال توزیع مستقیم کالاهای صنایع غذایی ایران، با حذف واسطه‌های تجاری زائد، بنکداران سراسر کشور را مستقیماً به خطوط تولید کارخانجات متصل می‌سازد. ما تجارت امن عمده را تسهیل می‌کنیم.
                   </p>

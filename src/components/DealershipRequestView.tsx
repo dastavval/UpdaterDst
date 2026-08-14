@@ -340,7 +340,7 @@ export default function DealershipRequestView({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-700">سابقه فعالیت در صنف مواد غذایی:</label>
+                      <label className="text-xs font-black text-slate-700">سابقه فعالیت در حوزه مواد غذایی:</label>
                       <select
                         value={experienceYears}
                         onChange={(e) => setExperienceYears(e.target.value)}

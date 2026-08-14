@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -54,7 +54,7 @@ interface AdminPanelProps {
 import { AdminSalesCharts } from "./AdminSalesCharts";
 import { getCacheStatus, CacheStatus } from "../lib/db";
 
-type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads';
+type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy';
 
 export default function AdminPanel({ 
   products, 
@@ -297,6 +297,92 @@ export default function AdminPanel({
     }
   };
 
+  const fetchSafeBuyRequests = async () => {
+    try {
+      const q = query(collection(db, "safe_buy_requests"));
+      const querySnapshot = await getDocs(q);
+      const fetched: any[] = [];
+      querySnapshot.forEach((docSnap) => {
+        fetched.push({ firebaseId: docSnap.id, ...docSnap.data() });
+      });
+      
+      if (fetched.length > 0) {
+        fetched.sort((a, b) => {
+          const idA = a.id || '';
+          const idB = b.id || '';
+          return idB.localeCompare(idA);
+        });
+        setSafeBuyRequests(fetched);
+        localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(fetched));
+      } else {
+        const local = localStorage.getItem("dastavval_safe_buy_requests");
+        if (local) {
+          const parsed = JSON.parse(local);
+          setSafeBuyRequests(parsed);
+          for (const req of parsed) {
+            await addDoc(collection(db, "safe_buy_requests"), req);
+          }
+        } else {
+          const defaultRequests = [
+            { id: 'SB-1001', productTitle: 'برنج طارم هاشمی درجه یک (کیسه ۱۰ کیلویی)', wholesalePrice: '۲,۸۵۰,۰۰۰ تومان', marketPrice: '۳,۲۰۰,۰۰۰ تومان', buyerProfit: '۳۵۰,۰۰۰ تومان (۱۱٪)', quantity: '۲ تن (۲۰۰ کیسه)', brand: 'طارم هاشمی گیلان', description: 'برنج معطر با پخت عالی و ضمانت اصالت فیزیکی کالا', buyerPhone: '09123456789', buyerMessage: 'درخواست خرید ۲ تنی با فاکتور رسمی و ارسال به انبار کرج', status: 'pending', date: '۱۴۰۵/۰۵/۲۴', createdAt: new Date().toISOString() },
+            { id: 'SB-1002', productTitle: 'روغن آفتابگردان ۱.۵ لیتری (کارتن ۱۲ عددی)', wholesalePrice: '۹۸۰,۰۰۰ تومان', marketPrice: '۱,۱۲۰,۰۰۰ تومان', buyerProfit: '۱۴۰,۰۰۰ تومان (۱۲.۵٪)', quantity: '۱۰۰ کارتن', brand: 'اویلا', description: 'روغن مایع خالص درجه یک کارخانه‌ای بدون چربی ترانس', buyerPhone: '09198765432', buyerMessage: 'خرید عمده تناژ بالا جهت فروشگاه‌های زنجیره‌ای زنجان', status: 'approved', date: '۱۴۰۵/۰۵/۲۳', createdAt: new Date().toISOString() }
+          ];
+          setSafeBuyRequests(defaultRequests);
+          localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(defaultRequests));
+          for (const req of defaultRequests) {
+            await addDoc(collection(db, "safe_buy_requests"), req);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching safe buy requests:", e);
+      const local = localStorage.getItem("dastavval_safe_buy_requests");
+      if (local) {
+        try { setSafeBuyRequests(JSON.parse(local)); } catch (err) {}
+      }
+    }
+  };
+
+  const handleUpdateSafeBuyStatus = async (reqId: string, firebaseId: string | undefined, nextStatus: 'approved' | 'rejected' | 'pending') => {
+    try {
+      const updated = safeBuyRequests.map(item => item.id === reqId ? { ...item, status: nextStatus } : item);
+      setSafeBuyRequests(updated);
+      localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(updated));
+
+      if (firebaseId) {
+        const docRef = doc(db, "safe_buy_requests", firebaseId);
+        await updateDoc(docRef, { status: nextStatus });
+      } else {
+        const q = query(collection(db, "safe_buy_requests"));
+        const snapshot = await getDocs(q);
+        let foundAndUpdated = false;
+        snapshot.forEach(async (docSnap) => {
+          const data = docSnap.data();
+          if (data.id === reqId) {
+            const docRef = doc(db, "safe_buy_requests", docSnap.id);
+            await updateDoc(docRef, { status: nextStatus });
+            foundAndUpdated = true;
+          }
+        });
+        
+        // If it wasn't found in mock firestore, we can add it or let it persist locally
+        if (!foundAndUpdated) {
+          const match = updated.find(item => item.id === reqId);
+          if (match) {
+            await addDoc(collection(db, "safe_buy_requests"), match);
+          }
+        }
+      }
+
+      setSuccessMsg(nextStatus === 'approved' ? "درخواست خرید امن تایید شد." : "درخواست خرید امن رد شد.");
+      setTimeout(() => setSuccessMsg(null), 2500);
+    } catch (e) {
+      console.error("Error updating safe buy status:", e);
+      setErrorMsg("خطا در به روز رسانی وضعیت در دیتابیس.");
+      setTimeout(() => setErrorMsg(null), 2500);
+    }
+  };
+
   const loadCrmCustomers = async () => {
     setCrmLoading(true);
     try {
@@ -316,11 +402,8 @@ export default function AdminPanel({
       loadCrmCustomers();
       loadCallbackRequests();
       loadSupportTickets();
-    } else if (activeSubTab === 'ads') {
-      const saved = localStorage.getItem("dastavval_sponsored_ads_v2");
-      if (saved) {
-        try { setSponsoredAds(JSON.parse(saved)); } catch (e) {}
-      }
+    } else if (activeSubTab === 'safe_buy') {
+      fetchSafeBuyRequests();
     } else if (activeSubTab === 'dashboard') {
       loadCallbackRequests();
       loadSupportTickets();
@@ -661,6 +744,68 @@ export default function AdminPanel({
   const [officialSealUrl, setOfficialSealUrl] = useState("");
   const [brandImages, setBrandImages] = useState<any[]>([]);
   const [sponsoredAds, setSponsoredAds] = useState<any[]>([]);
+  const [safeBuyRequests, setSafeBuyRequests] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("dastavval_safe_buy_requests");
+      return saved ? JSON.parse(saved) : [
+        { id: 'SB-1001', productTitle: 'برنج طارم هاشمی درجه یک (کیسه ۱۰ کیلویی)', wholesalePrice: '۲,۸۵۰,۰۰۰ تومان', buyerPhone: '09123456789', buyerMessage: 'درخواست خرید ۲ تنی با فاکتور رسمی و ارسال به انبار کرج', status: 'pending', date: '۱۴۰۵/۰۵/۲۴' },
+        { id: 'SB-1002', productTitle: 'روغن آفتابگردان ۱.۵ لیتری (کارتن ۱۲ عددی)', wholesalePrice: '۹۸۰,۰۰۰ تومان', buyerPhone: '09198765432', buyerMessage: 'خرید عمده تناژ بالا', status: 'approved', date: '۱۴۰۵/۰۵/۲۳' }
+      ];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [safeBuyFilter, setSafeBuyFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [selectedSafeBuyDetail, setSelectedSafeBuyDetail] = useState<any | null>(null);
+
+  const getProductDetailsForSafeBuy = (req: any) => {
+    if (!req) return {
+      title: 'کالای سفارشی دست‌اول (زیر قیمت کف)',
+      brand: 'تأمین‌کننده رسمی / معتبر همکار',
+      quantity: '۱۰۰ عدد (بسته‌بندی عمده)',
+      wholesalePrice: 'توافقی (زیر قیمت بازار)',
+      marketPrice: 'تعیین نشده',
+      buyerProfit: '۱۲٪ الی ۱۵٪ سود ناخالص عمده‌فروشی',
+      description: 'این کالا به صورت مستقیم و بدون واسطه از کارخانه یا تأمین‌کننده دست‌اول تهیه می‌شود و دارای ضمانت اصالت و سلامت فیزیکی است.',
+      imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400'
+    };
+    
+    // 1. Try to find in sponsoredAds
+    const adsRaw = localStorage.getItem("dastavval_sponsored_ads_v2");
+    let adsList: any[] = sponsoredAds;
+    if (adsRaw) {
+      try {
+        adsList = JSON.parse(adsRaw);
+      } catch (e) {}
+    }
+    
+    const ad = adsList.find(a => String(a.id) === String(req.adId) || String(a.id) === String(req.productId));
+    // 2. Try to find in products prop
+    const prod = products?.find(p => String(p.id) === String(req.productId) || String(p.id) === String(req.adId));
+    
+    const isInvalid = (val: any) => !val || val === 'نامشخص' || val === 'undefined';
+    
+    const title = (!isInvalid(req.productTitle) ? req.productTitle : '') || (!isInvalid(req.productName) ? req.productName : '') || ad?.title || prod?.name || 'کالای سفارشی دست‌اول (زیر قیمت کف)';
+    const brand = (!isInvalid(req.brand) ? req.brand : '') || ad?.factoryName || prod?.brand || prod?.factoryName || 'تأمین‌کننده رسمی / معتبر همکار';
+    const quantity = (!isInvalid(req.quantity) ? req.quantity : '') || ad?.quantity || '۱۰۰ عدد (بسته‌بندی عمده)';
+    const wholesalePrice = (!isInvalid(req.wholesalePrice) ? req.wholesalePrice : '') || ad?.wholesalePrice || (prod?.price ? prod.price.toLocaleString('fa-IR') + ' تومان' : '') || 'توافقی (زیر قیمت بازار)';
+    const marketPrice = (!isInvalid(req.marketPrice) ? req.marketPrice : '') || ad?.marketPrice || (prod?.consumer_price ? prod.consumer_price.toLocaleString('fa-IR') + ' تومان' : '') || 'تعیین نشده';
+    const buyerProfit = (!isInvalid(req.buyerProfit) ? req.buyerProfit : '') || ad?.buyerProfit || '۱۲٪ الی ۱۵٪ سود ناخالص عمده‌فروشی';
+    const description = (!isInvalid(req.description) ? req.description : '') || ad?.description || prod?.description || 'توضیحات تکمیلی توسط خریدار ارائه نشده است. کالا با تضمین سلامت فیزیکی و اصالت کالا تحت بستر امن دست‌اول معامله می‌شود.';
+    const imageUrl = ad?.imageUrl || prod?.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400';
+    
+    return {
+      title,
+      brand,
+      quantity,
+      wholesalePrice,
+      marketPrice,
+      buyerProfit,
+      description,
+      imageUrl
+    };
+  };
+
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
   const [selectedAdForView, setSelectedAdForView] = useState<any | null>(null);
   const [adsFilter, setAdsFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
@@ -3391,6 +3536,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         </div>
 
+
+
         {panelRole === 'suppliers' && (
           <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 text-xs font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-2.5">
@@ -3558,6 +3705,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 >
                   <Megaphone size={12} />
                   <span>بیلبورد آگهی‌ها</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('safe_buy'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'safe_buy'
+                      ? "bg-rose-500 text-white shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <ShieldCheck size={12} />
+                  <span>درخواست‌های خرید امن (Safe Buy)</span>
                 </button>
               </>
             )}
@@ -5388,7 +5546,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     </div>
                     <div>
                       <h4 className="text-sm font-black text-slate-800">درگاه اعزام آنلاین ناوگان ترانزیت جاده‌ای</h4>
-                      <p className="text-[10px] text-slate-400 font-bold">باربری و حمل مستقیم سبد کالاهای فاکتور شده کارخانه به مرکز توزیع ملی</p>
+                      <p className="text-[10px] text-slate-400 font-bold">باربری و حمل مستقیم سبد کالاهای فاکتور شده کارخانه به انبار خریدار</p>
                     </div>
                   </div>
 
@@ -5466,46 +5624,25 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             {panelRole === 'customers' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* TRANSIT FLEET LOCATOR */}
-                <div className="lg:col-span-2 bg-white border border-slate-100 p-6 sm:p-8 rounded-[2.5rem] shadow-xl space-y-6">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                        <Map size={20} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-slate-800">ردیاب زنده ناوگان حمل بار جاده‌ای</h4>
-                        <p className="text-[10px] text-slate-400 font-bold">پایش لحظه‌ای موقعیت کامیون‌های باری اعزامی از کارخانجات به سمت انبار شما</p>
-                      </div>
+                {/* GUIDE TO AD BOARD / FLOOR PRICE */}
+                <div className="lg:col-span-2 bg-gradient-to-br from-emerald-900 to-slate-900 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl space-y-6 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center border border-emerald-500/30">
+                      <TrendingDown size={24} />
                     </div>
+                    <h4 className="text-base font-black text-white">تالار کف قیمت و آگهی‌های زیر بازار</h4>
+                    <p className="text-xs text-emerald-100 font-bold leading-relaxed">
+                      برای مشاهده لیست درخواست‌های خرید کالا زیر قیمت کف، استعلام بارهای مازاد کارخانجات و ثبت تقاضای عمده، از بخش «کف قیمت» در منوی اصلی بالای صفحه استفاده کنید. تمامی درخواست‌ها پس از تایید مدیریت در بیلبورد عمومی نمایش داده می‌شوند.
+                    </p>
                   </div>
-
-                  {/* VISUAL TRANSIT MAP-LIKE INTERACTION */}
-                  <div className="bg-slate-50 border border-slate-100 p-6 rounded-3xl space-y-6">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-black text-indigo-600">ترانزیت شبستر به مقصد اصفهان</span>
-                      <span className="font-mono text-[10px] text-slate-500">کامیون ایسوزو ۸ تن | راننده: حبیبی</span>
-                    </div>
-
-                    <div className="relative flex justify-between items-center">
-                      <div className="absolute left-0 right-0 h-1 bg-slate-200 z-0 rounded-full" />
-                      <div className="absolute left-[65%] right-0 h-1 bg-indigo-500 z-0 rounded-full transition-all" />
-                      
-                      <div className="z-10 bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] shadow-lg">
-                        کارخانه
-                      </div>
-
-                      <div className="z-10 bg-indigo-500 text-white p-2 rounded-2xl flex items-center gap-1.5 shadow-md">
-                        <Truck size={14} className="animate-bounce" />
-                        <span className="text-[9px] font-black">کوارج (زنجان)</span>
-                      </div>
-
-                      <div className="z-10 bg-slate-200 text-slate-500 w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px]">
-                        مقصد
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] text-center text-slate-400 font-bold">موقعیت تقریبی GPS: اتوبان زنجان - قزوین | تحویل برآوردی: فردا ساعت ۱۴:۰۰</p>
+                  <div className="pt-4 border-t border-emerald-800/50 flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-300 font-bold">دسترسی سریع و امن با ضمانت واسطه‌گری</span>
+                    <button
+                      onClick={() => setActiveSubTab('ads')}
+                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md cursor-pointer"
+                    >
+                      مدیریت و تایید آگهی‌های کف قیمت
+                    </button>
                   </div>
                 </div>
 
@@ -11583,7 +11720,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       onChange={e => setDirectShippingMethod(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus font-sans"
                     >
-                      <option value="باربری صنف">باربری تخصصی و معتبر (سراسری)</option>
+                      <option value="باربری همکار">باربری تخصصی و معتبر (سراسری)</option>
                       <option value="تحویل درب کارخانه">تحویل مستقیم درب کارخانه (EXW)</option>
                       <option value="پست پیشتاز">ارسال فوری پست پیشتاز</option>
                     </select>
@@ -11917,6 +12054,313 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         )}
       </AnimatePresence>
+
+
+
+      {activeSubTab === 'safe_buy' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl shadow-inner">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت درخواست‌های خرید امن (Safe Buy / زیر قیمت کف)</h3>
+                <p className="text-[11px] text-slate-400 font-bold mt-1">بررسی، تایید یا رد درخواست‌های خرید ثبت‌شده توسط کاربران از طریق سیستم واسطه‌گری امن.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                {[
+                  { id: 'pending', label: 'در انتظار', count: safeBuyRequests.filter(r => (r.status || 'pending') === 'pending').length },
+                  { id: 'approved', label: 'تایید شده', count: safeBuyRequests.filter(r => r.status === 'approved').length },
+                  { id: 'rejected', label: 'رد شده', count: safeBuyRequests.filter(r => r.status === 'rejected').length },
+                  { id: 'all', label: 'همه', count: safeBuyRequests.length },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setSafeBuyFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                      safeBuyFilter === f.id 
+                        ? "bg-white text-emerald-700 shadow-sm" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {f.label} ({f.count})
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  const saved = localStorage.getItem("dastavval_safe_buy_requests");
+                  if (saved) {
+                    try { setSafeBuyRequests(JSON.parse(saved)); } catch(e){}
+                    setSuccessMsg("درخواست‌ها مجدداً بارگیری شد.");
+                    setTimeout(() => setSuccessMsg(null), 2000);
+                  }
+                }}
+                className="p-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl cursor-pointer transition-all"
+                title="بروزرسانی"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-right border-separate border-spacing-y-2">
+              <thead>
+                <tr className="text-[10px] font-black text-slate-400">
+                  <th className="px-4 py-2 font-black text-right">شناسه / تاریخ</th>
+                  <th className="px-4 py-2 font-black text-right">عنوان کالا / قیمت پیشنهادی</th>
+                  <th className="px-4 py-2 font-black text-right">اطلاعات خریدار</th>
+                  <th className="px-4 py-2 font-black text-right">توضیحات خریدار</th>
+                  <th className="px-4 py-2 font-black text-right">وضعیت</th>
+                  <th className="px-4 py-2 font-black text-left">عملیات نظارت</th>
+                </tr>
+              </thead>
+              <tbody className="text-xs">
+                {(() => {
+                  const filtered = safeBuyRequests.filter(r => safeBuyFilter === 'all' || (r.status || 'pending') === safeBuyFilter);
+                  if (filtered.length === 0) {
+                    return <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">هیچ درخواست خرید امنی در این وضعیت یافت نشد.</td></tr>;
+                  }
+                  return filtered.map((req: any) => (
+                    <tr key={req.id} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 rounded-r-2xl border-y border-r border-slate-100">
+                        <div className="font-mono font-black text-slate-800">{req.id}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{req.date}</div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <div className="font-black text-slate-900 text-sm">{req.productTitle}</div>
+                        <div className="text-[11px] text-emerald-700 font-black mt-1">قیمت کف: {req.wholesalePrice}</div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <div className="font-bold text-slate-800">📞 {req.buyerPhone}</div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <div className="text-[11px] text-slate-600 font-medium max-w-xs truncate">{req.buyerMessage || 'بدون توضیحات تکمیلی'}</div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <span className={`inline-block px-3 py-1 rounded-xl text-[10px] font-black ${
+                          req.status === 'approved' ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" :
+                          req.status === 'rejected' ? "bg-rose-50 text-rose-700 border border-rose-200/50" :
+                          "bg-amber-50 text-amber-700 border border-amber-200/50"
+                        }`}>
+                          {req.status === 'approved' ? 'تایید شده' : req.status === 'rejected' ? 'رد شده' : 'در انتظار بررسی'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 rounded-l-2xl border-y border-l border-slate-100 text-left">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setSelectedSafeBuyDetail(req)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <Eye size={12} /> جزئیات کالا
+                          </button>
+                          <button
+                            onClick={() => handleUpdateSafeBuyStatus(req.id, req.firebaseId, 'approved')}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <Check size={12} /> تایید
+                          </button>
+                          <button
+                            onClick={() => handleUpdateSafeBuyStatus(req.id, req.firebaseId, 'rejected')}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-[10px] rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <X size={12} /> رد
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+
+          {/* SAFE BUY REQUEST DETAILS MODAL */}
+          <AnimatePresence>
+            {selectedSafeBuyDetail && (() => {
+              const details = getProductDetailsForSafeBuy(selectedSafeBuyDetail);
+              return (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="bg-white rounded-[2.5rem] w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-100 text-right space-y-6 relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                    
+                    {/* Header */}
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                          <ShieldCheck size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black text-slate-800">جزئیات کامل درخواست خرید امن</h4>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">شناسه معامله: {selectedSafeBuyDetail.id}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedSafeBuyDetail(null)}
+                        className="p-1.5 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Details List */}
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                      
+                      {/* CATEGORY 1: Product Specifications */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                        <div className="flex items-center gap-2 text-emerald-700 font-black text-[11px] uppercase tracking-wider">
+                          <Package size={14} />
+                          <span>مشخصات عمومی و برند کالا</span>
+                        </div>
+                        
+                        <div className="flex gap-4 items-start bg-white p-3 rounded-xl border border-slate-100/80">
+                          {details.imageUrl && (
+                            <img 
+                              src={details.imageUrl} 
+                              alt={details.title} 
+                              className="w-16 h-16 object-cover rounded-xl border border-slate-200 shrink-0 mt-0.5" 
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          <div className="space-y-1">
+                            <h5 className="font-black text-slate-800 text-xs leading-relaxed">{details.title}</h5>
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 mt-1">
+                              <Building2 size={12} className="text-slate-400" />
+                              <span>برند: {details.brand}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-xs space-y-2 mt-2 pt-2 border-t border-slate-200/40">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-slate-400 font-bold">توضیحات و مشخصات فنی کالا:</span>
+                            <span className="text-slate-600 leading-relaxed font-bold bg-white p-2.5 rounded-xl border border-slate-100/80 mt-1">
+                              {details.description}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CATEGORY 2: Financials & Conditions */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                        <div className="flex items-center gap-2 text-emerald-700 font-black text-[11px] uppercase tracking-wider">
+                          <DollarSign size={14} />
+                          <span>شرایط قیمت‌گذاری و تعداد درخواستی</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 block">قیمت پیشنهادی کاربر:</span>
+                            <span className="text-xs font-black text-emerald-600 block">{details.wholesalePrice}</span>
+                          </div>
+                          
+                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 block">تعداد درخواستی خریدار:</span>
+                            <span className="text-xs font-black text-slate-800 block">{details.quantity}</span>
+                          </div>
+
+                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 block">قیمت بازار آزاد (مصرف‌کننده):</span>
+                            <span className="text-xs font-bold text-slate-500 line-through block">{details.marketPrice || 'ثبت نشده'}</span>
+                          </div>
+
+                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 block">سود ناخالص خریدار:</span>
+                            <span className="text-xs font-black text-amber-600 block">{details.buyerProfit}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CATEGORY 3: Submission & Buyer Details */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                        <div className="flex items-center gap-2 text-emerald-700 font-black text-[11px] uppercase tracking-wider">
+                          <ClipboardList size={14} />
+                          <span>اطلاعات ثبت درخواست و متقاضی</span>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                              <Calendar size={13} className="text-slate-400" />
+                              تاریخ ثبت تقاضا:
+                            </span>
+                            <span className="text-slate-800 font-black">{selectedSafeBuyDetail.date || '۱۴۰۵/۰۵/۲۴'}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                              <Phone size={13} className="text-slate-400" />
+                              شماره تماس خریدار:
+                            </span>
+                            <span className="text-slate-800 font-black select-all" dir="ltr">{selectedSafeBuyDetail.buyerPhone}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 font-bold flex items-center gap-1.5">
+                              <Activity size={13} className="text-slate-400" />
+                              وضعیت در سیستم:
+                            </span>
+                            <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[10px] font-black ${
+                              selectedSafeBuyDetail.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
+                              selectedSafeBuyDetail.status === 'rejected' ? 'bg-rose-50 text-rose-700' :
+                              'bg-amber-50 text-amber-700'
+                            }`}>
+                              {selectedSafeBuyDetail.status === 'approved' ? 'تایید شده' :
+                               selectedSafeBuyDetail.status === 'rejected' ? 'رد شده' : 'در انتظار بررسی'}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-1 pt-2 border-t border-slate-200/40">
+                            <span className="text-slate-400 font-bold">پیام و توضیحات تکمیلی خریدار:</span>
+                            <p className="text-slate-700 leading-relaxed font-medium bg-white p-3 rounded-xl border border-slate-100 mt-1">
+                              {selectedSafeBuyDetail.buyerMessage || 'هیچ توضیحات یا پیامی توسط خریدار ثبت نشده است.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Action Controls */}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => {
+                          handleUpdateSafeBuyStatus(selectedSafeBuyDetail.id, selectedSafeBuyDetail.firebaseId, 'approved');
+                          setSelectedSafeBuyDetail(null);
+                        }}
+                        className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Check size={14} /> تایید معامله امن
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleUpdateSafeBuyStatus(selectedSafeBuyDetail.id, selectedSafeBuyDetail.firebaseId, 'rejected');
+                          setSelectedSafeBuyDetail(null);
+                        }}
+                        className="flex-1 py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <X size={14} /> رد درخواست
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              );
+            })()}
+          </AnimatePresence>
+        </div>
+      )}
+
+
+
       </main>
     </div>
     </>

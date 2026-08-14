@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Building2, 
   Sparkles, 
@@ -25,6 +25,63 @@ interface FactoryHeroPowerhouseProps {
   onAddToCart?: (product: Product, quantityCartons: number) => void;
 }
 
+const initialAdsFallback = [
+  {
+    id: "ad-1",
+    title: "قند شکسته درجه یک ۵ کیلویی مازاد خط تولید (بدون افشای برند)",
+    description: "تعداد ۵۰ تن بار مازاد قند کله شکسته درجه یک در بسته‌بندی‌های نایلونی ۵ کیلویی استاندارد با سیب سلامت بدون ذکر برند جهت ممانعت از تنش قیمتی در بازار مصرف.",
+    factoryName: "صنایع قند و شکر مرودشت",
+    contactPerson: "مهندس رسولی",
+    contactPhone: "۰۹۱۲۳۴۵۶۷۸۹",
+    badgeText: "📉 زیر قیمت بازار",
+    category: "under_market",
+    quantity: "۵۰ تن",
+    wholesalePrice: "۳۸,۰۰۰ تومان",
+    marketPrice: "۵۴,۰۰۰ تومان",
+    buyerProfit: "۳۰٪ سود ناخالص (۱۶,۰۰۰ تومان حاشیه سود)",
+    isSponsored: true,
+    date: "۱۴۰۵/۰۵/۲۲",
+    imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&q=80&w=400",
+    status: "approved"
+  },
+  {
+    id: "ad-2",
+    title: "روغن سویا مصارف صنعتی حلب ۱۶ کیلویی استاندارد",
+    description: "روغن مایع خوراکی تصفیه شده سویا حلب فلزی ۱۶ کیلویی با فاکتور رسمی مستقیم کارخانه شیراز بدون نام برند انحصاری جهت حفظ ثبات و اعتبار تجاری کارخانه.",
+    factoryName: "کشت و صنعت روغن شمال",
+    contactPerson: "حاج علی رحیمی",
+    contactPhone: "۰۹۱۲۹۹۹۸۸۷۷",
+    badgeText: "🔥 حراج مفت کارخانه",
+    category: "liquid",
+    quantity: "۱۵ تن",
+    wholesalePrice: "۶۲۰,۰۰۰ تومان",
+    marketPrice: "۸۴۰,۰۰۰ تومان",
+    buyerProfit: "۲۶٪ حاشیه سود واقعی (۲۲۰,۰۰۰ تومان صرفه‌جویی)",
+    isSponsored: true,
+    date: "۱۴۰۵/۰۵/۲۱",
+    imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400",
+    status: "approved"
+  },
+  {
+    id: "ad-3",
+    title: "رب گوجه فرنگی قوطی ۸۰۰ گرمی صادراتی بریکس ۲۷",
+    description: "بار مازاد ۴۰ هزار قوطی رب گوجه فرنگی غلیظ با کیفیت استثنایی و رنگ فوق‌العاده. به جهت حفظ ثبات قیمت بازار، برند کالا محرمانه مانده و تحویل از طریق واسطه امین انجام می‌پذیرد.",
+    factoryName: "توسعه صنایع غذایی دشت شیراز",
+    contactPerson: "مهندس سلیمانی",
+    contactPhone: "۰۹۱۷۳۳۳۴۴۵۵",
+    badgeText: "📉 کف قیمت بازار",
+    category: "under_market",
+    quantity: "۴۰,۰۰۰ قوطی",
+    wholesalePrice: "۳۲,۰۰۰ تومان",
+    marketPrice: "۴۹,۰۰0 تومان",
+    buyerProfit: "۳۵٪ سود تضمینی (۱۷,۰۰۰ تومان اختلاف قیمت)",
+    isSponsored: true,
+    date: "۱۴۰۵/۰۵/۲۰",
+    imageUrl: "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=400",
+    status: "approved"
+  }
+];
+
 export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
   products = [],
   onOrderClick,
@@ -35,6 +92,18 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
 }) => {
   const [activeMode, setActiveMode] = useState<'under_market' | 'liquid' | 'featured'>('under_market');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [ads, setAds] = useState<any[]>([]);
+
+  useEffect(() => {
+    const savedAds = localStorage.getItem("dastavval_sponsored_ads_v2");
+    if (savedAds) {
+      try {
+        setAds(JSON.parse(savedAds));
+      } catch (e) {
+        console.error("Error reading ads in hero powerhouse", e);
+      }
+    }
+  }, []);
 
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
@@ -44,54 +113,116 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
     return num.toString().replace(/[0-9]/g, (w) => persian[w] || w);
   };
 
-  // 1. Process REAL products from database / props
-  const { underMarketList, liquidList, featuredList } = useMemo(() => {
-    if (!products || products.length === 0) {
-      return { underMarketList: [], liquidList: [], featuredList: [] };
-    }
+  const normalizeItem = (item: any, isAd: boolean): any => {
+    if (isAd) {
+      const wholesalePriceStr = item.wholesalePrice || 'توافقی';
+      const marketPriceStr = item.marketPrice || 'نامشخص';
+      const buyerProfitStr = item.buyerProfit || '۱۲٪ سود ناخالص';
+      
+      const extractPercent = (str: string) => {
+        if (!str) return 30;
+        const englishDigits = str.replace(/[۰-۹]/g, (w) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(w)));
+        const match = englishDigits.match(/(\d+)\s*%/ ) || englishDigits.match(/(\d+)\s*٪/);
+        if (match) return parseInt(match[1]);
+        const anyNum = englishDigits.match(/\d+/);
+        if (anyNum) {
+          const val = parseInt(anyNum[0]);
+          if (val > 0 && val < 100) return val;
+        }
+        return 30;
+      };
+      
+      const discountPercent = extractPercent(buyerProfitStr);
 
-    // Calculate real profit margin & discount for every product
-    const processed = products.map((prod) => {
-      const wholesaleUnitPrice = prod.bulk_price || prod.price;
-      const marketUnitPrice = prod.consumer_price || Math.round(prod.price * 1.35);
+      return {
+        id: item.id,
+        name: item.title || 'کالای زیر قیمت بازار',
+        title: item.title || 'کالای زیر قیمت بازار',
+        brand: item.factoryName || 'تامین‌کننده معتبر',
+        factoryName: item.factoryName || 'تامین‌کننده معتبر',
+        description: item.description || '',
+        imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400',
+        image_url: item.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400',
+        wholesalePriceStr,
+        marketPriceStr,
+        buyerProfitStr,
+        discountPercent,
+        min_order_cartons: 1,
+        carton_pack_count: 1,
+        isAd: true,
+        quantity: item.quantity || 'نامشخص',
+        rawAd: item
+      };
+    } else {
+      const wholesaleUnitPrice = item.bulk_price || item.price;
+      const marketUnitPrice = item.consumer_price || Math.round(item.price * 1.35);
       const discountPercent = marketUnitPrice > wholesaleUnitPrice 
         ? Math.round(((marketUnitPrice - wholesaleUnitPrice) / marketUnitPrice) * 100)
         : 25;
       
-      const cartonWholesale = wholesaleUnitPrice * (prod.carton_pack_count || 1);
-      const cartonMarket = marketUnitPrice * (prod.carton_pack_count || 1);
-      const cartonSavings = cartonMarket - cartonWholesale;
+      const wholesalePriceStr = wholesaleUnitPrice.toLocaleString('fa-IR') + ' تومان';
+      const marketPriceStr = marketUnitPrice.toLocaleString('fa-IR') + ' تومان';
+      const buyerProfitStr = discountPercent + '٪ حاشیه سود';
 
       return {
-        ...prod,
-        wholesaleUnitPrice,
-        marketUnitPrice,
+        id: item.id,
+        name: item.name,
+        title: item.name,
+        brand: item.brand || item.factoryName || 'کارخانه تولیدکننده رسمی',
+        factoryName: item.factoryName || item.factory_name || item.brand || 'کارخانه تولیدکننده رسمی',
+        description: item.description || '',
+        imageUrl: item.image_url,
+        image_url: item.image_url,
+        wholesalePriceStr,
+        marketPriceStr,
+        buyerProfitStr,
         discountPercent,
-        cartonWholesale,
-        cartonMarket,
-        cartonSavings,
-        isLiquidStock: (prod.stock_quantity_cartons && prod.stock_quantity_cartons > 300) || (prod.min_order_cartons && prod.min_order_cartons <= 2)
+        min_order_cartons: item.min_order_cartons || 2,
+        carton_pack_count: item.carton_pack_count || 24,
+        isAd: false
       };
-    });
+    }
+  };
 
-    // Top discounted (Under Market Deals)
-    const sortedByDiscount = [...processed].sort((a, b) => b.discountPercent - a.discountPercent);
-    const underMarket = sortedByDiscount.slice(0, 4);
+  // 1. Process REAL products from database / props / localStorage ads
+  const { underMarketList, liquidList, featuredList } = useMemo(() => {
+    const activeAds = ads.length > 0 ? ads : initialAdsFallback;
+    const approvedAds = activeAds.filter((ad: any) => ad.status === 'approved' || !ad.status);
 
-    // Liquid / Stagnant & High Stock items
-    const liquid = [...processed]
-      .sort((a, b) => (b.stock_quantity_cartons || 0) - (a.stock_quantity_cartons || 0))
+    // Filter under_market ads
+    const underMarketAds = approvedAds
+      .filter((ad: any) => ad.category === 'under_market')
+      .map((ad: any) => normalizeItem(ad, true));
+
+    // Filter liquid ads
+    const liquidAds = approvedAds
+      .filter((ad: any) => ad.category === 'liquid')
+      .map((ad: any) => normalizeItem(ad, true));
+
+    // Process Catalog Products
+    const processedProducts = (products || []).map((prod) => normalizeItem(prod, false));
+
+    // Fallbacks if ads of specific category are empty
+    const finalUnderMarket = underMarketAds.length > 0 
+      ? underMarketAds.slice(0, 4)
+      : processedProducts.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
+
+    const finalLiquid = liquidAds.length > 0 
+      ? liquidAds.slice(0, 4)
+      : processedProducts.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
+
+    // Featured / High reputation factories (from catalog products)
+    const featured = processedProducts
+      .filter(p => p.isFeatured || (p.rating && p.rating >= 4.8))
       .slice(0, 4);
-
-    // Featured / High reputation factories
-    const featured = processed.filter(p => p.isFeatured || p.rating && p.rating >= 4.8).slice(0, 4);
+    const finalFeatured = featured.length > 0 ? featured : processedProducts.slice(0, 4);
 
     return {
-      underMarketList: underMarket.length > 0 ? underMarket : processed.slice(0, 4),
-      liquidList: liquid.length > 0 ? liquid : processed.slice(0, 4),
-      featuredList: featured.length > 0 ? featured : processed.slice(0, 4)
+      underMarketList: finalUnderMarket,
+      liquidList: finalLiquid,
+      featuredList: finalFeatured
     };
-  }, [products]);
+  }, [products, ads]);
 
   const currentList = activeMode === 'under_market' 
     ? underMarketList 
@@ -99,17 +230,23 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
     ? liquidList 
     : featuredList;
 
-  const currentProduct = currentList[selectedIndex] || currentList[0] || (products[0] as any);
+  const currentProduct = currentList[selectedIndex] || currentList[0];
 
   if (!currentProduct) {
     return null;
   }
 
   const handleQuickAdd = () => {
-    if (onAddToCart && currentProduct) {
-      onAddToCart(currentProduct, currentProduct.min_order_cartons || 2);
-    } else if (onOrderClick) {
-      onOrderClick();
+    if (currentProduct.isAd) {
+      if (onBillboardClick) {
+        onBillboardClick();
+      }
+    } else {
+      if (onAddToCart && currentProduct) {
+        onAddToCart(currentProduct, currentProduct.min_order_cartons || 2);
+      } else if (onOrderClick) {
+        onOrderClick();
+      }
     }
   };
 
@@ -217,25 +354,41 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
               <span className="truncate">{currentProduct.factoryName || currentProduct.brand || 'کارخانه رسمی طرف قرارداد'}</span>
             </div>
             <div className="text-[9px] text-slate-400 font-bold">
-              حداقل سفارش: {toPersianNum(currentProduct.min_order_cartons || 2)} کارتن ({toPersianNum(currentProduct.carton_pack_count || 24)} عددی)
+              {currentProduct.isAd ? (
+                <>مقدار موجود: {toPersianNum(currentProduct.quantity)}</>
+              ) : (
+                <>حداقل سفارش: {toPersianNum(currentProduct.min_order_cartons)} کارتن ({toPersianNum(currentProduct.carton_pack_count)} عددی)</>
+              )}
             </div>
           </div>
 
           <div className="text-left space-y-1 shrink-0">
             <div className="flex items-center gap-1 justify-end">
               <span className="text-[10px] text-slate-400 line-through">
-                {toPersianNum((currentProduct.marketUnitPrice || currentProduct.price * 1.3).toLocaleString())}
+                {currentProduct.isAd ? (
+                  toPersianNum(currentProduct.marketPriceStr)
+                ) : (
+                  toPersianNum(currentProduct.marketPriceStr)
+                )}
               </span>
               <span className="text-[9px] bg-rose-100 text-rose-700 font-black px-1.5 py-0.2 rounded">بازار آزاد</span>
             </div>
             <div className="flex items-center gap-1 justify-end">
               <span className="text-sm font-black text-emerald-600">
-                {toPersianNum((currentProduct.wholesaleUnitPrice || currentProduct.bulk_price || currentProduct.price).toLocaleString())}
+                {currentProduct.isAd ? (
+                  toPersianNum(currentProduct.wholesalePriceStr)
+                ) : (
+                  toPersianNum(currentProduct.wholesalePriceStr)
+                )}
               </span>
               <span className="text-[9px] bg-emerald-600 text-white font-black px-1.5 py-0.2 rounded">کف کارخانه</span>
             </div>
-            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded block text-center">
-              سود شما: {toPersianNum(currentProduct.discountPercent || 30)}٪
+            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded block text-center truncate max-w-[130px]">
+              {currentProduct.isAd ? (
+                toPersianNum(currentProduct.buyerProfitStr)
+              ) : (
+                <>سود شما: {toPersianNum(currentProduct.discountPercent)}٪</>
+              )}
             </span>
           </div>
         </div>
@@ -247,7 +400,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2.5 px-3 rounded-2xl transition-all shadow-md shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Package size={14} />
-            <span>ثبت سفارش مستقیم این کالا</span>
+            <span>{currentProduct.isAd ? "شروع معامله امن" : "ثبت سفارش مستقیم این کالا"}</span>
           </button>
 
           <button
