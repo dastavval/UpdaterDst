@@ -168,13 +168,22 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
     }
   ];
 
-  const orderItems = rawItems.map((it: any, i: number) => ({
-    productId: it.productId || `prod-${i}`,
-    name: it.name || it.title || "کالای سفارشی B2B",
-    pricePerCarton: Number(it.pricePerCarton || it.bulk_price || it.price || safeOrder.totalAmount || 5000000),
-    quantityCartons: Number(it.quantityCartons || it.quantity || 1),
-    productCode: it.productCode || it.code || `DS-${101 + i}`
-  }));
+  const orderItems = rawItems.map((it: any, i: number) => {
+    const qty = Number(it.quantityCartons || it.quantity || 1);
+    const unitPrice = Number(
+      it.pricePerCarton || 
+      it.bulk_price || 
+      it.price || 
+      (safeOrder.totalAmount ? Math.round(safeOrder.totalAmount / (rawItems.length * qty)) : 5000000)
+    );
+    return {
+      productId: it.productId || `prod-${i}`,
+      name: it.name || it.title || "کالای سفارشی B2B",
+      pricePerCarton: unitPrice,
+      quantityCartons: qty,
+      productCode: it.productCode || it.code || `DS-${101 + i}`
+    };
+  });
 
   // Math Calculations
   const rawSubtotal = orderItems.reduce((sum: number, item: any) => sum + (item.pricePerCarton * item.quantityCartons), 0);
@@ -220,21 +229,23 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
       await new Promise((resolve) => setTimeout(resolve, 80));
 
       const canvas = await html2canvas(invoiceElem, {
-        scale: 1.2,
+        scale: 1.8,
         useCORS: true,
         logging: false,
         allowTaint: false,
+        backgroundColor: "#ffffff",
         onclone: (clonedDoc: Document) => {
           cleanClonedDocForPdf(clonedDoc);
           const elem = clonedDoc.getElementById("printable-invoice");
           if (elem) {
-            elem.style.margin = "0";
+            elem.style.transform = "none";
+            elem.style.margin = "0 auto";
             elem.style.boxShadow = "none";
             elem.style.borderRadius = "0";
             elem.style.border = "none";
             elem.style.width = "210mm";
             elem.style.minHeight = "297mm";
-            elem.style.maxHeight = "297mm";
+            elem.style.maxHeight = "none";
             elem.style.padding = "8mm 6mm";
             elem.style.fontFamily = "'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif";
           }
@@ -316,41 +327,48 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
         <title>فاکتور_رسمی_${invoiceSerial}</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
         <style>
-          * { box-sizing: border-box; }
-          body { 
-            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; 
-            padding: 0; 
-            margin: 0; 
-            background: #ffffff; 
-            color: #0f172a; 
-            direction: rtl; 
-            text-align: right; 
+          * { box-sizing: border-box !important; }
+          @page {
+            size: A4 portrait;
+            margin: 5mm !important;
+          }
+          html, body { 
+            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            width: 100% !important;
+            height: auto !important;
+            background: #ffffff !important; 
+            color: #0f172a !important; 
+            direction: rtl !important; 
+            text-align: right !important; 
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            font-feature-settings: "tabular-nums", "ss01";
+            font-feature-settings: "tabular-nums", "ss01" !important;
           }
           .no-print { display: none !important; }
           #printable-invoice {
             width: 100% !important;
-            max-width: 210mm !important;
+            max-width: 198mm !important;
             box-sizing: border-box !important;
-            padding: 8mm 6mm !important;
+            padding: 0 !important;
             margin: 0 auto !important;
-            font-family: 'Vazirmatn', sans-serif !important;
+            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important;
           }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+          table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 6px !important; }
           th, td { 
-            border: 1px solid #cbd5e1 !important; 
-            padding: 5px 8px !important; 
-            font-size: 8.5px; 
-            line-height: 1.4; 
-            font-family: 'Vazirmatn', sans-serif !important;
-            font-variant-numeric: tabular-nums;
+            border: 0.5px solid #94a3b8 !important; 
+            padding: 6px 8px !important; 
+            font-size: 8.5px !important; 
+            line-height: 1.4 !important; 
+            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important;
+            font-variant-numeric: tabular-nums !important;
           }
-          th { background-color: #f1f5f9 !important; font-weight: 900; text-align: center; color: #0f172a !important; }
+          th { background-color: #f1f5f9 !important; font-weight: 900 !important; text-align: center !important; color: #020617 !important; }
           @media print {
-            @page { size: A4 portrait; margin: 4mm; }
-            body { background: white !important; }
+            @page { size: A4 portrait; margin: 5mm !important; }
+            html, body { background: #ffffff !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            #printable-invoice { width: 100% !important; max-width: 198mm !important; margin: 0 auto !important; padding: 0 !important; }
             tr { page-break-inside: avoid !important; }
           }
         </style>
@@ -410,11 +428,42 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
   };
 
   return (
-    <div className="fixed inset-0 z-[110] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto no-print" dir="rtl">
-      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[96vh] font-sans text-right border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-[110] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static print:inset-auto print:block print:overflow-visible" dir="rtl">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-invoice, #printable-invoice * {
+            visibility: visible !important;
+          }
+          #printable-invoice {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 198mm !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            transform: none !important;
+            background: #ffffff !important;
+          }
+          .no-print, .no-print * {
+            display: none !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 5mm !important;
+          }
+        }
+      `}</style>
+
+      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[96vh] font-sans text-right border border-slate-200 overflow-hidden print:shadow-none print:border-none print:rounded-none print:max-w-none print:max-h-none print:block">
         
         {/* Top Material Action Bar */}
-        <div className="p-3 sm:p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-2.5 bg-slate-900 text-white rounded-t-3xl no-print">
+        <div className="p-3 sm:p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-2.5 bg-slate-900 text-white rounded-t-3xl no-print print:hidden">
           <div className="flex flex-wrap items-center gap-2">
             <button 
               onClick={handleDownloadPdf}
@@ -478,11 +527,11 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
         </div>
 
         {/* Scrollable Container with Horizontal Overflow protection for mobile */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-6 bg-slate-100">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible print:block">
           
           {/* Quick Fields Editor Form */}
           {isEditMode && (
-            <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-3 text-right animate-in fade-in duration-300 no-print" dir="rtl">
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-3 text-right animate-in fade-in duration-300 no-print print:hidden" dir="rtl">
               <div className="flex items-center justify-between pb-2 border-b border-amber-200">
                 <div className="flex items-center gap-2">
                   <Edit3 size={16} className="text-amber-700" />
@@ -536,6 +585,10 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
                   <input type="text" value={buyerNationalId} onChange={(e) => setBuyerNationalId(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
                 </div>
                 <div className="space-y-1">
+                  <label className="font-black text-slate-700">کد اقتصادی خریدار (۱۲ رقمی):</label>
+                  <input type="text" value={buyerEconomicCode} onChange={(e) => setBuyerEconomicCode(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
+                </div>
+                <div className="space-y-1">
                   <label className="font-black text-slate-700">تلفن تماس خریدار:</label>
                   <input type="text" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
                 </div>
@@ -553,7 +606,7 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
           )}
 
           {/* Mobile Smart Invoice Summary Card (Responsive only on Mobile/Tablet) */}
-          <div className="block lg:hidden mb-6 bg-white border border-slate-100 rounded-[2rem] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] space-y-4 text-right" dir="rtl">
+          <div className="block lg:hidden mb-6 bg-white border border-slate-100 rounded-[2rem] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] space-y-4 text-right no-print print:hidden" dir="rtl">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center border border-indigo-200">
@@ -647,242 +700,272 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
           </div>
 
           {/* Printable Sheet Wrapper (Responsive Horizontal Scroll and Auto-scaling on Mobile) */}
-          <div className="w-full overflow-x-auto pb-4 flex justify-center">
+          <div className="w-full overflow-x-auto pb-4 flex justify-center print:overflow-visible print:pb-0 print:p-0 print:block">
             <div 
               id="printable-invoice" 
-              className="p-5 sm:p-7 bg-white text-slate-900 border border-slate-300 w-[210mm] min-w-[210mm] max-w-[210mm] mx-auto relative overflow-hidden shadow-xs rounded-lg transform scale-[0.62] sm:scale-100 origin-top my-[-50px] sm:my-0" 
+              className="p-5 sm:p-7 bg-white text-slate-900 border border-slate-300 print:border-none w-[210mm] min-w-[210mm] max-w-[210mm] print:w-full print:min-w-0 print:max-w-[198mm] print:shadow-none print:rounded-none print:scale-100 print:my-0 mx-auto relative overflow-hidden shadow-xs rounded-lg transform scale-[0.62] sm:scale-100 origin-top my-[-50px] sm:my-0 font-['Vazirmatn','IRANSans',sans-serif]" 
               dir="rtl" 
               style={{ fontFamily: "'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: '#0f172a', boxSizing: 'border-box', backgroundColor: '#ffffff', minHeight: '270mm', maxHeight: '287mm' }}
             >
               <div className="relative z-10 flex flex-col justify-between h-full space-y-3.5">
                 <div>
                   {/* Official Header */}
-                  <div className="flex justify-between items-stretch border border-slate-300 mb-3.5 rounded-xl overflow-hidden bg-white shadow-xs">
-                    <div className="flex-1 p-3 border-l border-slate-200 flex items-center gap-3 bg-slate-50/80">
+                  <div className="flex justify-between items-stretch border border-slate-300 mb-3 rounded-lg overflow-hidden bg-white">
+                    <div className="flex-1 p-2.5 border-l border-slate-300 flex items-center gap-2.5 bg-white">
                       {b2bConfig?.logoUrl ? (
                         <img src={b2bConfig.logoUrl} alt="Logo" className="w-10 h-10 object-contain" />
                       ) : (
-                        <div className="w-9.5 h-9.5 bg-emerald-700 text-white rounded-lg flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+                        <div className="w-9 h-9 bg-slate-900 text-white rounded flex items-center justify-center font-black text-xs shrink-0">
                           دست
                         </div>
                       )}
                       <div className="leading-snug">
-                        <h2 className="text-[12.5px] font-black text-slate-900">{sellerTitle}</h2>
-                        <p className="text-[9px] text-emerald-800 font-bold mt-0.5">سامانه مبادلات مستقیم تولیدات صنایع غذایی کشور</p>
+                        <h2 className="text-[12px] font-black text-slate-950">{sellerTitle}</h2>
+                        <p className="text-[8.5px] text-slate-700 font-bold mt-0.5">سامانه رسمی مبادلات مستمر صنایع غذایی</p>
                       </div>
                     </div>
 
-                    <div className="flex-1 p-3 flex flex-col items-center justify-center text-center border-l border-slate-200 bg-white">
-                      <h1 className="text-[12.5px] font-black text-slate-800">بسم الله الرحمن الرحیم</h1>
-                      <div className="mt-1 px-3.5 py-0.5 bg-emerald-100 text-emerald-950 rounded-full text-[9.5px] font-black border border-emerald-300/80">
+                    <div className="flex-1 p-2.5 flex flex-col items-center justify-center text-center border-l border-slate-300 bg-white">
+                      <h1 className="text-[11px] font-black text-slate-800">بسم الله الرحمن الرحیم</h1>
+                      <div className="mt-1 px-3 py-0.5 bg-slate-100 text-slate-950 rounded text-[9.5px] font-black border border-slate-300">
                         صورتحساب رسمی فروش کالا و خدمات
                       </div>
                     </div>
 
-                    <div className="w-48 p-3 flex flex-col justify-center space-y-1 text-[9px] font-bold bg-slate-50/80">
+                    <div className="w-48 p-2.5 flex flex-col justify-center space-y-1 text-[8.5px] font-bold bg-white">
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">شماره فاکتور:</span>
-                        <span className="font-mono text-slate-900 font-black text-[9.5px]">{toPersianNum(invoiceSerial)}</span>
+                        <span className="text-slate-600 font-medium">شماره فاکتور:</span>
+                        <span className="font-sans font-black text-slate-950 text-[9px] tabular-nums">{toPersianNum(invoiceSerial)}</span>
                       </div>
-                      <div className="flex justify-between items-center border-t border-slate-200/80 pt-1">
-                        <span className="text-slate-500 font-medium">تاریخ صدور:</span>
-                        <span className="font-mono text-slate-900">{formatPersianDate(safeOrder.createdAt)}</span>
+                      <div className="flex justify-between items-center border-t border-slate-200 pt-1">
+                        <span className="text-slate-600 font-medium">تاریخ صدور:</span>
+                        <span className="font-sans font-extrabold text-slate-950 tabular-nums">{formatPersianDate(safeOrder.createdAt)}</span>
                       </div>
-                      <div className="flex justify-between items-center border-t border-slate-200/80 pt-1">
-                        <span className="text-slate-500 font-medium">کد رهگیری:</span>
-                        <span className="font-mono text-slate-900 text-[8.5px]">{toPersianNum(orderId.substring(0, 10))}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SELLER & BUYER SECTIONS */}
-                  <div className="grid grid-cols-2 gap-2.5 mb-3.5">
-                    {/* SECTION 1: SELLER */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                      <div className="bg-slate-100/90 border-b border-slate-200 px-3 py-1.5 text-[9.5px] font-black text-slate-800 flex justify-between items-center">
-                        <span>مشخصات فروشنده (تامین‌کننده)</span>
-                        <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">شناسه معتبر</span>
-                      </div>
-                      <div className="p-2.5 sm:p-3 text-[9px] font-bold space-y-1.5 bg-slate-50/20">
-                        <div className="flex justify-between border-b border-slate-100/80 pb-1">
-                          <span className="text-slate-500 font-medium">فروشنده:</span>
-                          <strong className="text-slate-900 font-black">{sellerTitle}</strong>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 border-b border-slate-100/80 pb-1">
-                          <div>
-                            <span className="text-slate-500 font-medium">شناسه ملی: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(sellerNationalId)}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 font-medium">کد اقتصادی: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(sellerEconomicCode)}</strong>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 border-b border-slate-100/80 pb-1">
-                          <div>
-                            <span className="text-slate-500 font-medium">شماره ثبت: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(sellerRegNumber)}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 font-medium">تلفن: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(sellerPhone)}</strong>
-                          </div>
-                        </div>
-                        <div className="text-[8.5px] text-slate-700 pt-0.5 leading-snug">
-                          <span className="text-slate-500 font-medium">نشانی کامل: </span>
-                          <span className="font-semibold text-slate-800">{sellerAddress}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SECTION 2: BUYER */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                      <div className="bg-slate-100/90 border-b border-slate-200 px-3 py-1.5 text-[9.5px] font-black text-slate-800 flex justify-between items-center">
-                        <span>مشخصات خریدار (تحویل‌گیرنده)</span>
-                        <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">خریدار B2B</span>
-                      </div>
-                      <div className="p-2.5 sm:p-3 text-[9px] font-bold space-y-1.5 bg-slate-50/20">
-                        <div className="flex justify-between border-b border-slate-100/80 pb-1">
-                          <span className="text-slate-500 font-medium">خریدار:</span>
-                          <strong className="text-slate-900 font-black">{buyerCompany} ({buyerName})</strong>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 border-b border-slate-100/80 pb-1">
-                          <div>
-                            <span className="text-slate-500 font-medium">کد ملی/شناسه: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(buyerNationalId)}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 font-medium">کد اقتصادی: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(buyerEconomicCode)}</strong>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 border-b border-slate-100/80 pb-1">
-                          <div>
-                            <span className="text-slate-500 font-medium">تلفن تماس: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(buyerPhone)}</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 font-medium">کد پستی: </span>
-                            <strong className="font-mono text-slate-900">{toPersianNum(buyerPostalCode)}</strong>
-                          </div>
-                        </div>
-                        <div className="text-[8.5px] text-slate-700 pt-0.5 leading-snug">
-                          <span className="text-slate-500 font-medium">نشانی تخلیه: </span>
-                          <span className="font-semibold text-slate-800">{buyerAddress}</span>
-                        </div>
+                      <div className="flex justify-between items-center border-t border-slate-200 pt-1">
+                        <span className="text-slate-600 font-medium">کد پیگیری:</span>
+                        <span className="font-sans font-bold text-slate-950 text-[8.5px] tabular-nums">{toPersianNum(orderId.substring(0, 10))}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* SECTION 3: OFFICIAL ITEMS TABLE */}
-                  <div className="mb-3.5 rounded-xl overflow-hidden border border-slate-300 shadow-xs">
-                    <table className="w-full text-[9px] border-collapse">
+                  {/* SELLER & BUYER SECTIONS - OFFICIAL TAX OFFICE (DARAYI) FORMAT */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {/* SECTION 1: SELLER TABLE */}
+                    <div className="border-[0.5px] border-slate-400 rounded-lg overflow-hidden bg-white">
+                      <div className="bg-slate-100 border-b-[0.5px] border-slate-400 px-3 py-1.5 text-[9.5px] font-black text-slate-950 flex justify-between items-center">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 bg-slate-900 rounded-full inline-block"></span>
+                          ۱. مشخصات فروشنده (تامین‌کننده / کارخانه)
+                        </span>
+                        <span className="text-[7.5px] font-bold text-slate-800 bg-slate-200/80 px-1.5 py-0.5 rounded border border-slate-300">ثبت‌شده در سامانه مؤدیان</span>
+                      </div>
+                      
+                      {/* Structured Table for Seller Specs */}
+                      <table className="w-full text-[8.5px] border-collapse font-sans font-['Vazirmatn','IRANSans',sans-serif]">
+                        <tbody>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium w-32 bg-slate-50/50 border-l-[0.5px] border-slate-300">نام شخص حقیقی/حقوقی:</td>
+                            <td colSpan={3} className="py-1 px-2 font-black text-slate-950 text-[9px]">{sellerTitle}</td>
+                          </tr>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شناسه / کد ملی:</td>
+                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(sellerNationalId)}</td>
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره اقتصادی:</td>
+                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] tabular-nums">{toPersianNum(sellerEconomicCode)}</td>
+                          </tr>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره ثبت / شناسنامه:</td>
+                            <td className="py-1 px-2 font-bold text-slate-950 border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(sellerRegNumber)}</td>
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">کد پستی ۱۰ رقمی:</td>
+                            <td className="py-1 px-2 font-bold text-slate-950 tabular-nums">{toPersianNum(sellerPostalCode)}</td>
+                          </tr>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">تلفن / نمابر کارخانه:</td>
+                            <td colSpan={3} className="py-1 px-2 font-bold text-slate-950 tabular-nums">{toPersianNum(sellerPhone)}</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300 align-top">نشانی اقامتگاه قانونی:</td>
+                            <td colSpan={3} className="py-1.5 px-2 font-black text-slate-950 text-[8.5px] leading-relaxed">{sellerAddress}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* SECTION 2: BUYER TABLE */}
+                    <div className="border-[0.5px] border-slate-400 rounded-lg overflow-hidden bg-white">
+                      <div className="bg-slate-100 border-b-[0.5px] border-slate-400 px-3 py-1.5 text-[9.5px] font-black text-slate-950 flex justify-between items-center">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 bg-slate-900 rounded-full inline-block"></span>
+                          ۲. مشخصات خریدار (مشتری / بنکدار)
+                        </span>
+                        <span className="text-[7.5px] font-bold text-slate-800 bg-slate-200/80 px-1.5 py-0.5 rounded border border-slate-300">مؤدی مالیاتی معتبر</span>
+                      </div>
+                      
+                      {/* Structured Table for Buyer Specs */}
+                      <table className="w-full text-[8.5px] border-collapse font-sans font-['Vazirmatn','IRANSans',sans-serif]">
+                        <tbody>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium w-32 bg-slate-50/50 border-l-[0.5px] border-slate-300">نام شخص حقیقی/حقوقی:</td>
+                            <td colSpan={3} className="py-1 px-2 font-black text-slate-950 text-[9px]">{buyerCompany} ({buyerName})</td>
+                          </tr>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شناسه / کد ملی خریدار:</td>
+                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(buyerNationalId)}</td>
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره اقتصادی خریدار:</td>
+                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] tabular-nums">{toPersianNum(buyerEconomicCode)}</td>
+                          </tr>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره تماس / همراه:</td>
+                            <td className="py-1 px-2 font-bold text-slate-950 border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(buyerPhone)}</td>
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">کد پستی ۱۰ رقمی:</td>
+                            <td className="py-1 px-2 font-bold text-slate-950 tabular-nums">{toPersianNum(buyerPostalCode)}</td>
+                          </tr>
+                          <tr className="border-b-[0.5px] border-slate-300">
+                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">مسئول تحویل‌گیرنده:</td>
+                            <td colSpan={3} className="py-1 px-2 font-bold text-slate-950">{buyerName}</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300 align-top">نشانی تخلیه بار / انبار:</td>
+                            <td colSpan={3} className="py-1.5 px-2 font-black text-slate-950 text-[8.5px] leading-relaxed">{buyerAddress}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* SECTION 3: OFFICIAL ITEMS TABLE - LASER PRINT OPTIMIZED */}
+                  <div className="mb-3 rounded-lg overflow-hidden border-[0.5px] border-slate-400 bg-white">
+                    <table className="w-full text-[9px] border-collapse font-sans font-['Vazirmatn','IRANSans',sans-serif]">
                       <thead>
-                        <tr className="bg-slate-100/90 font-black text-center border-b border-slate-300 text-slate-900">
-                          <th className="py-2.5 px-2 w-8 border-l border-slate-200">ردیف</th>
-                          <th className="py-2.5 px-3 text-right border-l border-slate-200">شرح کالا یا خدمات</th>
-                          <th className="py-2.5 px-2 w-12 border-l border-slate-200">تعداد</th>
-                          <th className="py-2.5 px-2 w-12 border-l border-slate-200">واحد</th>
-                          <th className="py-2.5 px-2.5 w-24 border-l border-slate-200">قیمت واحد ({currencyLabel})</th>
-                          <th className="py-2.5 px-2.5 w-28 border-l border-slate-200">مبلغ کل ({currencyLabel})</th>
-                          <th className="py-2.5 px-2.5 w-20 border-l border-slate-200">تخفیف ({currencyLabel})</th>
-                          <th className="py-2.5 px-2.5 w-28">مبلغ نهایی ({currencyLabel})</th>
+                        <tr className="bg-slate-100 font-black text-center border-b-[0.5px] border-slate-400 text-slate-950">
+                          <th className="py-2.5 px-1.5 w-8 border-l-[0.5px] border-slate-400">ردیف</th>
+                          <th className="py-2.5 px-2 text-right border-l-[0.5px] border-slate-400">شرح کالا یا خدمات</th>
+                          <th className="py-2.5 px-1.5 w-12 border-l-[0.5px] border-slate-400">تعداد</th>
+                          <th className="py-2.5 px-1.5 w-12 border-l-[0.5px] border-slate-400">واحد</th>
+                          <th className="py-2.5 px-2 w-24 border-l-[0.5px] border-slate-400">قیمت واحد ({currencyLabel})</th>
+                          <th className="py-2.5 px-2 w-28 border-l-[0.5px] border-slate-400">مبلغ کل ({currencyLabel})</th>
+                          <th className="py-2.5 px-2 w-20 border-l-[0.5px] border-slate-400">تخفیف ({currencyLabel})</th>
+                          <th className="py-2.5 px-2 w-28">مبلغ نهایی ({currencyLabel})</th>
                         </tr>
                       </thead>
-                      <tbody className="font-bold text-center divide-y divide-slate-200">
+                      <tbody className="font-bold text-center">
                         {calculatedItems.map((item: any, idx: number) => (
-                          <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
-                            <td className="py-2.5 px-2 border-l border-slate-200 text-slate-600 font-semibold">{toPersianNum(idx + 1)}</td>
-                            <td className="py-2.5 px-3 text-right border-l border-slate-200 font-black text-slate-900 leading-snug">{item.name}</td>
-                            <td className="py-2.5 px-2 border-l border-slate-200 font-mono text-slate-800 text-[9.5px]">{toPersianNum(item.qty)}</td>
-                            <td className="py-2.5 px-2 border-l border-slate-200 text-slate-700 font-medium">کارتن</td>
-                            <td className="py-2.5 px-2.5 border-l border-slate-200 font-mono text-slate-800 text-[9.5px]">{toPersianNum((item.price * multiplier).toLocaleString())}</td>
-                            <td className="py-2.5 px-2.5 border-l border-slate-200 font-mono text-slate-800 text-[9.5px]">{toPersianNum((item.gross * multiplier).toLocaleString())}</td>
-                            <td className="py-2.5 px-2.5 border-l border-slate-200 font-mono text-rose-600 text-[9.5px]">{item.discount > 0 ? toPersianNum((item.discount * multiplier).toLocaleString()) : '۰'}</td>
-                            <td className="py-2.5 px-2.5 font-mono font-black text-slate-950 text-[10px] bg-slate-100/70">{toPersianNum((item.total * multiplier).toLocaleString())}</td>
+                          <tr key={idx} className={`border-b-[0.5px] border-slate-400 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}>
+                            <td className="py-2.5 px-1.5 border-l-[0.5px] border-slate-400 text-slate-800 font-sans font-bold tabular-nums">{toPersianNum(idx + 1)}</td>
+                            <td className="py-2.5 px-2 text-right border-l-[0.5px] border-slate-400 font-sans font-black text-slate-950 leading-snug">{item.name}</td>
+                            <td className="py-2.5 px-1.5 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-slate-950 text-[9.5px] tabular-nums">{toPersianNum(item.qty)}</td>
+                            <td className="py-2.5 px-1.5 border-l-[0.5px] border-slate-400 text-slate-800 font-sans font-medium">کارتن</td>
+                            <td className="py-2.5 px-2 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-slate-950 text-[9.5px] tabular-nums">{toPersianNum((item.price * multiplier).toLocaleString())}</td>
+                            <td className="py-2.5 px-2 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-slate-950 text-[9.5px] tabular-nums">{toPersianNum((item.gross * multiplier).toLocaleString())}</td>
+                            <td className="py-2.5 px-2 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-rose-700 text-[9.5px] tabular-nums">{item.discount > 0 ? toPersianNum((item.discount * multiplier).toLocaleString()) : '۰'}</td>
+                            <td className="py-2.5 px-2 font-sans font-black text-slate-950 text-[10px] bg-slate-100/60 tabular-nums">{toPersianNum((item.total * multiplier).toLocaleString())}</td>
                           </tr>
                         ))}
-                        <tr className="font-black bg-slate-100/90 text-slate-900 border-t-2 border-slate-300">
-                          <td colSpan={5} className="py-2.5 px-3.5 text-right font-black text-[9.5px]">جمع کل صورتحساب ({currencyLabel}):</td>
-                          <td className="py-2.5 px-2.5 font-mono text-[10px]">{toPersianNum((sumGross * multiplier).toLocaleString())}</td>
-                          <td className="py-2.5 px-2.5 font-mono text-rose-600 text-[10px]">{sumDiscount > 0 ? toPersianNum((sumDiscount * multiplier).toLocaleString()) : '۰'}</td>
-                          <td className="py-2.5 px-2.5 font-mono text-white bg-slate-900 text-[10.5px]">{toPersianNum((grandTotal * multiplier).toLocaleString())}</td>
+                        <tr className="font-black bg-slate-100 text-slate-950 border-t-[1px] border-slate-500">
+                          <td colSpan={5} className="py-2.5 px-3 text-right font-black text-[9.5px] border-l-[0.5px] border-slate-400">جمع کل صورتحساب ({currencyLabel}):</td>
+                          <td className="py-2.5 px-2 font-sans font-black text-[10px] border-l-[0.5px] border-slate-400 tabular-nums">{toPersianNum((sumGross * multiplier).toLocaleString())}</td>
+                          <td className="py-2.5 px-2 font-sans font-black text-rose-700 text-[10px] border-l-[0.5px] border-slate-400 tabular-nums">{sumDiscount > 0 ? toPersianNum((sumDiscount * multiplier).toLocaleString()) : '۰'}</td>
+                          <td className="py-2.5 px-2 font-sans text-slate-950 bg-slate-200 text-[10.5px] font-black tabular-nums">{toPersianNum((grandTotal * multiplier).toLocaleString())}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
 
                   {/* GRAND TOTAL IN WORDS & PAYMENT METHOD */}
-                  <div className="grid grid-cols-3 gap-2.5 mb-3.5 border border-slate-200 p-3 bg-slate-50/80 rounded-xl shadow-xs">
-                    <div className="col-span-2 space-y-1">
-                      <span className="text-[9px] font-black text-slate-600 block">مبلغ قابل پرداخت به حروف ({currencyLabel}):</span>
-                      <div className="text-[10px] font-black text-slate-950 bg-white p-2.5 border border-slate-200 rounded-lg shadow-2xs leading-relaxed">
+                  <div className="grid grid-cols-3 gap-2 mb-3 border border-slate-300 p-2.5 bg-white rounded-lg">
+                    <div className="col-span-2 space-y-0.5">
+                      <span className="text-[8.5px] font-black text-slate-700 block">مبلغ کل قابل پرداخت به حروف ({currencyLabel}):</span>
+                      <div className="text-[9.5px] font-black text-slate-950 bg-slate-50 p-2 border border-slate-200 rounded leading-relaxed">
                         {numberToPersianWords(grandTotal * multiplier)} {currencyLabel} تمام
                       </div>
                     </div>
-                    <div className="space-y-1 text-left border-r border-slate-200 pr-3.5 flex flex-col justify-center">
-                      <span className="text-[9px] font-black text-slate-600 block">شرایط تسویه:</span>
-                      <span className="inline-block px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-[9px] font-black shadow-2xs">
+                    <div className="space-y-0.5 text-left border-r border-slate-300 pr-3 flex flex-col justify-center">
+                      <span className="text-[8.5px] font-black text-slate-700 block">شرایط تسویه و پرداخت:</span>
+                      <span className="inline-block px-2.5 py-1 bg-slate-900 text-white rounded text-[8.5px] font-black">
                         {getPaymentMethodLabel()}
                       </span>
                     </div>
                   </div>
 
                   {/* AUTHENTICITY BLOCK */}
-                  <div className="grid grid-cols-4 gap-2.5 mb-3.5 border border-slate-200 p-3 bg-white rounded-xl shadow-xs items-center">
-                    <div className="col-span-3 flex items-center gap-3.5">
-                      <div className="p-1.5 border border-slate-200 rounded-lg bg-slate-50 flex flex-col items-center shrink-0">
-                        <div className="flex gap-0.5 h-5.5 items-center px-1">
+                  <div className="grid grid-cols-4 gap-2 mb-2 border border-slate-300 p-2 bg-white rounded-lg items-center">
+                    <div className="col-span-3 flex items-center gap-3">
+                      <div className="p-1 border border-slate-300 rounded bg-slate-50 flex flex-col items-center shrink-0">
+                        <div className="flex gap-0.5 h-5 items-center px-1">
                           {[2,1,3,1,2,1,1,3,2,1,2,1,3,1,2].map((w, idx) => (
-                            <div key={idx} className="bg-slate-800 h-full" style={{ width: `${w}px` }} />
+                            <div key={idx} className="bg-slate-900 h-full" style={{ width: `${w}px` }} />
                           ))}
                         </div>
-                        <span className="text-[7.5px] font-mono font-bold text-slate-500 mt-0.5">{toPersianNum(invoiceSerial)}</span>
+                        <span className="text-[7.5px] font-sans font-bold text-slate-700 mt-0.5 tabular-nums">{toPersianNum(invoiceSerial)}</span>
                       </div>
 
                       <div className="space-y-0.5">
-                        <h5 className="text-[9.5px] font-black text-slate-900">استعلام اصالت هوشمند صورتحساب</h5>
-                        <p className="text-[8px] font-bold text-slate-500 leading-tight">
-                          این فاکتور رسمی دارای شناسه یکتا و امضای دیجیتال ثبت شده در انبار مرکزی است.
+                        <h5 className="text-[9px] font-black text-slate-950">استعلام اصالت هوشمند صورتحساب</h5>
+                        <p className="text-[8px] font-bold text-slate-600 leading-tight">
+                          این فاکتور رسمی دارای شناسه یکتا و امضای دیجیتال ثبت شده در انبار مرکزی تولیدکننده است.
                         </p>
                       </div>
                     </div>
 
                     <div className="flex justify-end items-center">
-                      <div className="w-10.5 h-10.5 border border-slate-200 rounded-lg p-1 bg-slate-50 flex flex-col items-center justify-center text-slate-800 shadow-2xs">
-                        <QrCode size={28} strokeWidth={1.5} />
+                      <div className="w-10 h-10 border border-slate-300 rounded p-1 bg-white flex flex-col items-center justify-center text-slate-900">
+                        <QrCode size={26} strokeWidth={1.5} />
                       </div>
                     </div>
                   </div>
 
                   {/* RIZQ & BLESSING BANNER */}
-                  <div className="my-2 p-2 bg-emerald-50/80 border border-emerald-200 rounded-xl text-center text-[9px] font-black text-emerald-900">
-                    ✨ «الکاسِبُ حَبِیبُ اللهِ» — با آرزوی خیر و برکت، رونق روزافزون و رزق حلال فراوان برای کسب‌وکار شما همکار محترم.
+                  <div className="my-1.5 p-1.5 bg-slate-100 border border-slate-300 rounded text-center text-[8.5px] font-black text-slate-900">
+                    «الکاسِبُ حَبِیبُ اللهِ» — با آرزوی خیر و برکت، رونق روزافزون و رزق حلال فراوان برای کسب‌وکار شما همکار محترم.
                   </div>
                 </div>
 
-                {/* FOOTER & SIGNATURES */}
+                {/* FOOTER & SIGNATURES - STANDARD TAX OFFICE (DARAYI) FORMAT */}
                 <div>
-                  <div className="grid grid-cols-2 gap-2.5 border border-slate-200 rounded-xl p-1 bg-white shadow-xs">
-                    <div className="p-3 border-l border-slate-200 flex flex-col justify-between h-24 text-center">
-                      <span className="text-[9.5px] font-black text-slate-800 underline underline-offset-3">مهر و امضای خریدار / تحویل‌گیرنده بار</span>
-                      <div className="text-[8px] text-slate-500 font-bold">تایید دریافت کالا سالم و مطابق فاکتور</div>
+                  <div className="grid grid-cols-2 gap-2 border border-slate-400 rounded-lg overflow-hidden bg-white shadow-2xs">
+                    {/* Buyer Stamp & Signature Box */}
+                    <div className="p-2.5 border-l border-slate-300 flex flex-col justify-between h-24 text-center bg-white relative">
+                      <div>
+                        <span className="text-[9.5px] font-black text-slate-950 block underline underline-offset-3">
+                          مهر و امضای خریدار (تحویل‌گیرنده / نماینده قانونی)
+                        </span>
+                        <span className="text-[7.5px] text-slate-600 font-bold block mt-1 leading-snug">
+                          تایید دریافت کالا سالم، صحت مشخصات و قبولی صورتحساب بر اساس ماده ۱۹ قانون مالیات بر ارزش افزوده
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-end text-[8px] text-slate-700 font-bold border-t border-dashed border-slate-300 pt-1">
+                        <span>نام و امضای خریدار: {buyerName}</span>
+                        <span>تاریخ: ... / ... / ۱۴۰۵</span>
+                      </div>
                     </div>
 
-                    <div className="p-3 flex flex-col justify-between h-24 text-center relative bg-slate-50/30 rounded-r-lg">
-                      <span className="text-[9.5px] font-black text-slate-800 underline underline-offset-3">مهر و امضای رسمی فروشنده (تامین‌کننده)</span>
+                    {/* Seller Stamp & Signature Box */}
+                    <div className="p-2.5 flex flex-col justify-between h-24 text-center relative bg-white">
+                      <div className="relative z-0">
+                        <span className="text-[9.5px] font-black text-slate-950 block underline underline-offset-3">
+                          مهر و امضای رسمی فروشنده (تامین‌کننده / کارخانه)
+                        </span>
+                        <span className="text-[7.5px] text-slate-600 font-bold block mt-1 leading-snug">
+                          تایید اصالت صدور صورتحساب و ثبت در سامانه مؤدیان سازمان امور مالیاتی کشور
+                        </span>
+                      </div>
+                      
                       {officialSealUrl && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-85">
-                          <img src={officialSealUrl} alt="Seal" className="w-18 h-18 object-contain rotate-6" />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-90 z-10">
+                          <img src={officialSealUrl} alt="مهر رسمی کارخانه" className="w-18 h-18 object-contain rotate-6 drop-shadow-2xs" />
                         </div>
                       )}
-                      <div className="text-[9px] font-black text-slate-800">{sellerTitle}</div>
+
+                      <div className="flex justify-between items-end text-[8px] text-slate-900 font-black border-t border-dashed border-slate-300 pt-1 z-0">
+                        <span>امضای مدیر مالی / صادرکننده</span>
+                        <span>{sellerTitle}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-3 flex justify-between items-center text-[8px] text-slate-500 font-bold border-t border-slate-200 pt-2">
-                    <span>شناسه یکتای صورتحساب: {toPersianNum(invoiceSerial)} | پشتیبانی: ۰۹۰۴۴۵۰۲۹۰۰</span>
-                    <span>سامانه مبادلات B2B دست اول - با آرزوی خیر، برکت و رزق حلال</span>
+                  <div className="mt-1.5 flex justify-between items-center text-[7.5px] text-slate-600 font-bold border-t border-slate-300 pt-1">
+                    <span>* این صورتحساب بر اساس ماده ۱۹ قانون مالیات بر ارزش افزوده و دستورالعمل‌های اداره امور مالیاتی کشور تنظیم گردیده است.</span>
+                    <span>شناسه یکتای صورتحساب مالیاتی: <strong className="font-sans font-bold text-slate-900 tabular-nums">{toPersianNum(invoiceSerial)}</strong></span>
                   </div>
                 </div>
 
