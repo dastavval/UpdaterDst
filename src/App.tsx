@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc } from "./lib/firebase-mock";
 import { db } from "./lib/firebase";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
@@ -6,17 +6,11 @@ import { cacheProducts, getCachedProducts } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
 import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
-import WholesaleCatalogView from "./components/WholesaleCatalogView";
 import CatalogDownloadModal from "./components/CatalogDownloadModal";
-import B2BNews from "./components/B2BNews";
-import SupportCenter from "./components/SupportCenter";
-import FactoriesView from "./components/FactoriesView";
 import AIAdvisor from "./components/AIAdvisor";
 import FloatingSupport from "./components/FloatingSupport";
 import DynamicPresentation from "./components/DynamicPresentation";
 import AuthModal from "./components/AuthModal";
-import AdminPanel from "./components/AdminPanel";
-import UserPanel from "./components/UserPanel";
 import QuickOrderList from "./components/QuickOrderList";
 import NewsSection from "./components/NewsSection";
 import ProductComparison from "./components/ProductComparison";
@@ -27,17 +21,27 @@ import { AboutUsSection, ContactSection, TrustSection } from "./components/InfoS
 import MagazineSection from "./components/MagazineSection";
 import OrderSuccessModal from "./components/OrderSuccessModal";
 import ProductDetailModal from "./components/ProductDetailModal";
-import B2BBusinessDashboard from "./components/B2BBusinessDashboard";
 import MultiVendorPanel from "./components/MultiVendorPanel";
-import AdBoard from "./components/AdBoard";
 import ZarinpalPaymentModal from "./components/ZarinpalPaymentModal";
-import CheckoutWizard from "./components/CheckoutWizard";
-import WholesaleInvoiceView from "./components/WholesaleInvoiceView";
 import DastavvalLogo from "./components/DastavvalLogo";
 import TrustBadges from "./components/TrustBadges";
 import PwaInstallModal from "./components/PwaInstallModal";
 import PwaInstallBanner from "./components/PwaInstallBanner";
-import CPanelInstallerWizard from "./components/CPanelInstallerWizard";
+import LazyViewport from "./components/LazyViewport";
+
+// Lazy loading heavy components for optimal page-load and rendering performance
+const WholesaleCatalogView = React.lazy(() => import("./components/WholesaleCatalogView"));
+const B2BNews = React.lazy(() => import("./components/B2BNews"));
+const SupportCenter = React.lazy(() => import("./components/SupportCenter"));
+const FactoriesView = React.lazy(() => import("./components/FactoriesView"));
+const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
+const UserPanel = React.lazy(() => import("./components/UserPanel"));
+const B2BBusinessDashboard = React.lazy(() => import("./components/B2BBusinessDashboard"));
+const AdBoard = React.lazy(() => import("./components/AdBoard"));
+const CheckoutWizard = React.lazy(() => import("./components/CheckoutWizard"));
+const WholesaleInvoiceView = React.lazy(() => import("./components/WholesaleInvoiceView"));
+const CPanelInstallerWizard = React.lazy(() => import("./components/CPanelInstallerWizard"));
+const DealershipRequestView = React.lazy(() => import("./components/DealershipRequestView"));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
 import { recordCRMOrder } from "./lib/crm-helper";
@@ -218,7 +222,7 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
-  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard'>('presentation');
+  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate'>('presentation');
   const [currentSellerId, setCurrentSellerId] = useState<string>("factory_cheetoz");
   const [currentSellerName, setCurrentSellerName] = useState<string>("مزمز و چیتوز");
   const [products, setProducts] = useState<Product[]>([]);
@@ -229,6 +233,11 @@ export default function App() {
   const [newVersionAvailable, setNewVersionAvailable] = useState<boolean>(false);
   const [newVersionInfo, setNewVersionInfo] = useState<any>(null);
   const [isUpdatingState, setIsUpdatingState] = useState<boolean>(false);
+  // Scroll to top on tab change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1370,7 +1379,13 @@ export default function App() {
       <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 ${
         (activeTab === 'presentation' || activeTab === 'about') ? 'pb-0' : 'pb-24 lg:py-8'
       }`}>
-        <AnimatePresence mode="wait">
+        <Suspense fallback={
+          <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-3xl p-12">
+            <Loader2 className="animate-spin text-emerald-600 mb-3" size={32} />
+            <p className="text-xs text-slate-400 font-bold">در حال بارگذاری بخش مورد نظر...</p>
+          </div>
+        }>
+          <AnimatePresence mode="wait">
           {activeTab === 'presentation' && (
             <motion.div
               key="presentation"
@@ -1490,7 +1505,7 @@ export default function App() {
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-black text-xs text-gray-800 flex items-center gap-2">
-                          <span>📂</span>
+                          <span>🔖</span>
                           <span>دسته‌بندی‌های کالا</span>
                         </h3>
                         <div className="flex items-center gap-1">
@@ -1722,6 +1737,33 @@ export default function App() {
                     </button>
                   </div>
 
+                  {/* Homepage Category Filter */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-4 -mx-2 px-2 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    {[
+                      { id: "home-cat-all", name: "همه محصولات", value: "همه" },
+                      ...Array.from(new Set([
+                        ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? (c.startsWith("🔖") ? c.replace("🔖 ", "") : c) : c.name),
+                        ...products.map(p => p.category).filter(Boolean)
+                      ])).map((catName, idx) => ({ id: `home-cat-${idx}-${catName}`, name: catName, value: catName }))
+                    ].map((cat: any) => {
+                      const isActive = activeCategory === cat.value;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => setActiveCategory(cat.value)}
+                          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[11px] font-black transition-all shrink-0 border cursor-pointer ${
+                            isActive 
+                              ? "bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20" 
+                              : "bg-white text-slate-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-700"
+                          }`}
+                        >
+                          {cat.value !== "همه" && <span>🔖</span>}
+                          <span>{cat.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   {/* Products catalog list */}
                   {loading ? (
                     <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory hide-scrollbar scroll-smooth gap-4 pb-4 px-2">
@@ -1763,18 +1805,19 @@ export default function App() {
                             ? filteredProducts.slice(0, 8)
                             : filteredProducts
                         ).map(product => (
-                          <ProductCard 
-                            key={product.id}
-                            product={product} 
-                            onAddToCart={addToCart} 
-                            userBadge={userBadge}
-                            onCompare={toggleComparison}
-                            isComparing={!!comparisonList.find(p => p.id === product.id)}
-                            onViewDetails={(product) => {
-                              setSelectedDetailProduct(product);
-                              setIsDetailModalOpen(true);
-                            }}
-                          />
+                          <LazyViewport key={product.id} height="320px">
+                            <ProductCard 
+                              product={product} 
+                              onAddToCart={addToCart} 
+                              userBadge={userBadge}
+                              onCompare={toggleComparison}
+                              isComparing={!!comparisonList.find(p => p.id === product.id)}
+                              onViewDetails={(product) => {
+                                setSelectedDetailProduct(product);
+                                setIsDetailModalOpen(true);
+                              }}
+                            />
+                          </LazyViewport>
                         ))}
                       </div>
 
@@ -2120,7 +2163,31 @@ export default function App() {
               <AdBoard isMini={false} onTriggerPayment={triggerZarinpalPayment} />
             </motion.div>
           )}
+
+          {(activeTab === 'agency' || activeTab === 'dealership' || activeTab === 'dealership_request' || activeTab === 'rep_cert' || activeTab === 'certificate') && (
+            <motion.div
+              key="agency"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              <DealershipRequestView 
+                b2bConfig={b2bConfig}
+                user={user}
+                onNavigateHome={() => {
+                  setActiveTab('presentation');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onOpenCertificate={() => {
+                  setActiveTab('rep_cert');
+                }}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
+        </Suspense>
       </main>
 
       {(activeTab === 'presentation' || activeTab === 'about') && (
@@ -2644,11 +2711,11 @@ export default function App() {
               </div>
               <div>
                 <span className="text-[9px] font-bold text-emerald-700 tracking-wider block">قاعده تجارت پایدار</span>
-                <h4 className="text-xs sm:text-sm font-black text-slate-900">« برکت در صدق در معامله است »</h4>
+                <h4 className="text-xs sm:text-sm font-black text-slate-900">تأمین بدون واسطه و مستقیم از کارخانجات تراز اول کشور</h4>
               </div>
             </div>
             <div className="text-[11px] text-slate-600 font-bold">
-              تأمین مستقیم و بدون واسطه از کارخانجات تراز اول کشور
+              شفافیت و اصالت در فاکتورهای عمده سراسر کشور
             </div>
           </div>
 
@@ -2792,7 +2859,11 @@ export default function App() {
           setShowOnboarding(false);
           localStorage.setItem('hasSeenOnboarding_v2', 'true');
         }} 
-        theme={theme} 
+        theme={theme}
+        onSelectAction={(tab: any) => {
+          setActiveTab(tab);
+          setShowOnboarding(false);
+        }}
       />
       <OrderSuccessModal 
         isOpen={showOrderSuccess} 

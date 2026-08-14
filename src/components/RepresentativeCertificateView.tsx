@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Printer, X, Download, Loader2, Award, ShieldCheck, Check } from "lucide-react";
-// @ts-ignore
-import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { runWithOklchPolyfill, cleanClonedDocForPdf } from "../utils/pdfPolyfill";
 
 interface RepresentativeCertificateViewProps {
@@ -44,32 +44,62 @@ export default function RepresentativeCertificateView({
 
     try {
       setIsDownloading(true);
-      const opt = {
-        margin: 4,
-        filename: `حکم_نمایندگی_رسمی_${agencyCode}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
+
+      // Yield execution to allow UI loading spinner to render smoothly
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
+      const downloadPromise = runWithOklchPolyfill(async () => {
+        const canvas = await html2canvas(certElem, {
+          scale: 1.5,
+          useCORS: true,
           logging: false,
+          allowTaint: false,
           onclone: (clonedDoc: Document) => {
             cleanClonedDocForPdf(clonedDoc);
           }
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
-      };
+        });
 
-      await runWithOklchPolyfill(async () => {
-        if (typeof html2pdf === 'function') {
-          await html2pdf().set(opt).from(certElem).save();
-        } else if (html2pdf && typeof (html2pdf as any).default === 'function') {
-          await (html2pdf as any).default().set(opt).from(certElem).save();
-        } else {
-          handlePrint();
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const pdf = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4"
+        });
+
+        const pdfWidth = 297;
+        const pdfHeight = 210;
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, Math.min(imgHeight, pdfHeight));
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+          heightLeft -= pdfHeight;
         }
+
+        const pdfOutput = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(pdfOutput);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `حکم_نمایندگی_رسمی_${agencyCode}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
       });
+
+      // 3.5-second safety timeout race
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3500));
+      await Promise.race([downloadPromise, timeoutPromise]);
     } catch (error) {
-      console.error("PDF generation failed, falling back to print window:", error);
+      console.warn("PDF generation timeout or error, falling back to print window:", error);
       handlePrint();
     } finally {
       setIsDownloading(false);

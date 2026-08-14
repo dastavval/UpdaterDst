@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -54,7 +54,7 @@ interface AdminPanelProps {
 import { AdminSalesCharts } from "./AdminSalesCharts";
 import { getCacheStatus, CacheStatus } from "../lib/db";
 
-type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives';
+type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads';
 
 export default function AdminPanel({ 
   products, 
@@ -316,10 +316,27 @@ export default function AdminPanel({
       loadCrmCustomers();
       loadCallbackRequests();
       loadSupportTickets();
+    } else if (activeSubTab === 'ads') {
+      const saved = localStorage.getItem("dastavval_sponsored_ads_v2");
+      if (saved) {
+        try { setSponsoredAds(JSON.parse(saved)); } catch (e) {}
+      }
     } else if (activeSubTab === 'dashboard') {
       loadCallbackRequests();
       loadSupportTickets();
     }
+  }, [activeSubTab]);
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "dastavval_sponsored_ads_v2" && activeSubTab === 'ads') {
+        try {
+          if (e.newValue) setSponsoredAds(JSON.parse(e.newValue));
+        } catch (err) {}
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [activeSubTab]);
 
   useEffect(() => {
@@ -613,7 +630,7 @@ export default function AdminPanel({
 
   // AI Settings states
   const [showAiSettings, setShowAiSettings] = useState(false);
-  const [adminCategory, setAdminCategory] = useState<'monitoring' | 'catalog' | 'sales' | 'system'>('monitoring');
+  const [adminCategory, setAdminCategory] = useState<'monitoring' | 'catalog' | 'sales' | 'system' | 'ads'>('monitoring');
   const [aiProvider, setAiProvider] = useState("gemini");
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiEndpointUrl, setAiEndpointUrl] = useState("https://api.gapgpt.ir/v1");
@@ -643,6 +660,33 @@ export default function AdminPanel({
   const [zarinpalMerchantCode, setZarinpalMerchantCode] = useState("");
   const [officialSealUrl, setOfficialSealUrl] = useState("");
   const [brandImages, setBrandImages] = useState<any[]>([]);
+  const [sponsoredAds, setSponsoredAds] = useState<any[]>([]);
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+  const [selectedAdForView, setSelectedAdForView] = useState<any | null>(null);
+  const [adsFilter, setAdsFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [adsCategoryFilter, setAdsCategoryFilter] = useState<'all' | 'under_market' | 'buy' | 'sell' | 'barter' | 'liquid' | 'direct_supply'>('all');
+  const [showRejectionReasonModal, setShowRejectionReasonModal] = useState(false);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+  const [adToReject, setAdToReject] = useState<any | null>(null);
+  const [adToEdit, setAdToEdit] = useState<any>(null);
+  const [editAdForm, setEditAdForm] = useState<any>(null);
+
+  const updateAdsState = (newAds: any[], msg: string) => {
+    setSponsoredAds(newAds);
+    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 2000);
+  };
+
+  const handleUpdateAd = () => {
+    if (!editAdForm) return;
+    const newAds = sponsoredAds.map(a => a.id === editAdForm.id ? editAdForm : a);
+    updateAdsState(newAds, "آگهی با موفقیت به‌روزرسانی شد.");
+    setAdToEdit(null);
+    setEditAdForm(null);
+  };
   const [hqAddress, setHqAddress] = useState("آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد");
   const [supportPhone, setSupportPhone] = useState("۰۹۰۴ ۴۵۰ ۲۹۰۰");
   const [hideHqAddress, setHideHqAddress] = useState(false);
@@ -3367,7 +3411,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         )}
 
         {/* UNIFIED ADVANCED TOP NAVIGATION BAR CATEGORIES */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {/* CATEGORY 1: Monitoring */}
           <button
             onClick={() => { setAdminCategory('monitoring'); setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
@@ -3447,6 +3491,26 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             <p className="text-[9px] text-slate-400 font-medium mt-1">بروزرسانی گیت‌هاب، هوش مصنوعی</p>
             {adminCategory === 'system' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-purple-600" />}
           </button>
+
+          {/* CATEGORY 5: Ads Billboard */}
+          <button
+            onClick={() => { setAdminCategory('ads'); setActiveSubTab('ads'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+            className={`p-4 rounded-[1.25rem] border text-right transition-all duration-300 relative overflow-hidden group cursor-pointer ${
+              adminCategory === 'ads'
+                ? "bg-rose-50/70 border-rose-400 shadow-xs"
+                : "bg-white border-slate-100 hover:border-slate-300 shadow-sm"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`p-2 rounded-xl ${adminCategory === 'ads' ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-slate-50 text-slate-500'}`}>
+                <Megaphone size={18} />
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">۰۵</span>
+            </div>
+            <h3 className="text-xs font-black text-slate-800">پیشخوان آگهی‌ها</h3>
+            <p className="text-[9px] text-slate-400 font-medium mt-1">کف قیمت بازار و تهاتر کالا</p>
+            {adminCategory === 'ads' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-rose-500" />}
+          </button>
         </div>
 
         {/* SUB-PILLS BELONGING TO ACTIVE CATEGORY */}
@@ -3480,6 +3544,24 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </>
             )}
 
+            
+            {/* Category 5: Ads */}
+            {adminCategory === 'ads' && (
+              <>
+                <button
+                  onClick={() => { setActiveSubTab('ads'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'ads'
+                      ? "bg-rose-500 text-white shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Megaphone size={12} />
+                  <span>بیلبورد آگهی‌ها</span>
+                </button>
+              </>
+            )}
+            
             {/* Category 2: Catalog */}
             {adminCategory === 'catalog' && (
               <>
@@ -3526,6 +3608,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 >
                   <Building2 size={12} />
                   <span>مشخصات کارخانجات</span>
+                </button>
+                <button
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'ads'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Megaphone size={12} />
+                  <span>مدیریت بیلبورد آگهی‌ها</span>
                 </button>
               </>
             )}
@@ -8861,7 +8953,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       {activeSubTab === 'crm' && (
         <div className="space-y-6" dir="rtl">
           {/* CRM Quick Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-slate-400 font-bold block mb-0.5">کل بنکداران ثبت‌شده</span>
@@ -10595,12 +10687,310 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* Invoice Printing Overlay */}
+      {activeSubTab === 'ads' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl shadow-inner">
+                <Megaphone size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت بیلبورد آگهی‌ها</h3>
+                <p className="text-[11px] text-slate-400 font-bold mt-1">تایید، رد و ویژه کردن آگهی‌های ثبت شده کاربران.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                {[
+                  { id: 'pending', label: 'در انتظار تایید', count: sponsoredAds.filter(a => (a.status || 'pending') === 'pending').length },
+                  { id: 'approved', label: 'تایید شده', count: sponsoredAds.filter(a => a.status === 'approved').length },
+                  { id: 'rejected', label: 'رد شده', count: sponsoredAds.filter(a => a.status === 'rejected').length },
+                  { id: 'all', label: 'همه', count: sponsoredAds.length },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setAdsFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                      adsFilter === f.id 
+                        ? "bg-white text-indigo-600 shadow-sm" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {f.label} ({f.count})
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                {[
+                  { id: 'all', label: 'همه دسته‌ها' },
+                  { id: 'under_market', label: '📉 زیر قیمت' },
+                  { id: 'buy', label: '📥 خرید' },
+                  { id: 'sell', label: '📤 فروش' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setAdsCategoryFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                      adsCategoryFilter === f.id 
+                        ? "bg-white text-rose-600 shadow-sm" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+               <button
+                 onClick={() => {
+                   const adsRaw = localStorage.getItem("dastavval_sponsored_ads_v2");
+                   if (adsRaw) {
+                     try { setSponsoredAds(JSON.parse(adsRaw)); } catch(e){}
+                     setSuccessMsg("اطلاعات آگهی‌ها مجددا بارگیری شد.");
+                     setTimeout(() => setSuccessMsg(null), 3000);
+                   }
+                 }}
+                 className="p-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl cursor-pointer transition-all"
+                 title="بروزرسانی"
+               >
+                 <RefreshCw size={14} />
+               </button>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-right border-separate border-spacing-y-2">
+              <thead>
+                <tr className="text-[10px] font-black text-slate-400">
+                  <th className="px-4 py-2 font-black text-right">تصویر</th>
+                  <th className="px-4 py-2 font-black text-right">عنوان آگهی / کاربر</th>
+                  <th className="px-4 py-2 font-black text-right">دسته‌بندی و قیمت</th>
+                  <th className="px-4 py-2 font-black text-right">وضعیت</th>
+                  <th className="px-4 py-2 font-black text-right">ویژه</th>
+                  <th className="px-4 py-2 font-black text-left">عملیات</th>
+                </tr>
+              </thead>
+              <tbody className="text-xs">
+                {(() => {
+                  const filtered = sponsoredAds.filter(ad => {
+                    const statusMatch = adsFilter === 'all' || (ad.status || 'pending') === adsFilter;
+                    const categoryMatch = adsCategoryFilter === 'all' || ad.category === adsCategoryFilter;
+                    return statusMatch && categoryMatch;
+                  });
+
+                  if (filtered.length === 0) {
+                    return <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">هیچ آگهی در این وضعیت یافت نشد.</td></tr>;
+                  }
+
+                  return filtered.map((ad: any) => (
+                    <tr key={ad.id} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 rounded-r-2xl border-y border-r border-slate-100">
+                        <div className="relative group">
+                          <img 
+                            src={ad.imageUrl} 
+                            alt={ad.title} 
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm" 
+                            referrerPolicy="no-referrer"
+                          />
+                          {ad.specialRequest && (
+                            <div className="absolute -top-1 -right-1 bg-amber-500 text-white p-1 rounded-full border-2 border-white shadow-sm" title="درخواست ویژه سازی">
+                              <Sparkles size={8} />
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <div className="font-black text-slate-800 text-sm">{ad.title}</div>
+                        <div className="text-[10px] text-slate-500 font-bold mt-1 flex items-center gap-2">
+                          <span>👤 {ad.factoryName}</span>
+                          <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                          <span>📞 {ad.contactPhone}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <div className="flex flex-col gap-1.5">
+                          <span className={`inline-block w-fit px-2 py-1 rounded-lg text-[10px] font-black ${
+                            ad.category === "under_market" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔄 تهاتر" : ad.category === "buy" ? "📥 خرید" : ad.category === "sell" ? "📤 فروش" : ad.category === "jobs" ? "💼 استخدام" : ad.category === "services" ? "🛠️ خدمات" : ad.category}
+                          </span>
+                          {(ad.wholesalePrice || ad.marketPrice) && (
+                            <div className="text-[10px] font-bold text-indigo-700 flex items-center gap-2">
+                              <span>💰 عمده: {ad.wholesalePrice}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border ${
+                          (ad.status || 'pending') === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                          ad.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
+                          'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${
+                            (ad.status || 'pending') === 'pending' ? 'bg-amber-500' : 
+                            ad.status === 'rejected' ? 'bg-rose-500' : 
+                            'bg-emerald-500'
+                          }`} />
+                          {(ad.status || 'pending') === 'pending' ? 'در انتظار تایید' : 
+                           ad.status === 'rejected' ? 'رد شده' : 'تایید شده'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-y border-slate-100">
+                        <button
+                          onClick={() => {
+                             const newAds = sponsoredAds.map(a => a.id === ad.id ? {...a, isSponsored: !a.isSponsored} : a);
+                             localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                             setSponsoredAds(newAds);
+                             setSuccessMsg(ad.isSponsored ? "آگهی از حالت ویژه خارج شد." : "آگهی ویژه شد.");
+                             setTimeout(() => setSuccessMsg(null), 2000);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border flex items-center gap-1.5 cursor-pointer ${ad.isSponsored ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-600'}`}
+                        >
+                          <Sparkles size={12} />
+                          {ad.isSponsored ? "ویژه" : "عادی"}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 rounded-l-2xl border-y border-l border-slate-100 text-left">
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            onClick={() => setSelectedAdForView(ad)}
+                            className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm"
+                            title="مشاهده جزئیات و تایید"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAdToEdit(ad);
+                              setEditAdForm({...ad});
+                            }}
+                            className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors shadow-sm"
+                            title="ویرایش سریع آگهی"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                             onClick={() => {
+                                if(window.confirm("آیا از حذف این آگهی مطمئن هستید؟")) {
+                                   const newAds = sponsoredAds.filter(a => a.id !== ad.id);
+                                   localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                                   setSponsoredAds(newAds);
+                                   window.dispatchEvent(new Event("storage"));
+                                   window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                                   setSuccessMsg("آگهی حذف شد.");
+                                   setTimeout(() => setSuccessMsg(null), 2000);
+                                }
+                             }}
+                             className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
+                             title="حذف آگهی"
+                          >
+                             <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Ad Modal */}
+      {adToEdit && editAdForm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" dir="rtl">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100"
+          >
+            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-amber-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500 text-white rounded-xl">
+                  <Edit2 size={20} />
+                </div>
+                <h3 className="text-sm font-black text-slate-800">ویرایش آگهی: {adToEdit.title}</h3>
+              </div>
+              <button onClick={() => setAdToEdit(null)} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 block px-1">عنوان آگهی کالا</label>
+                <input 
+                  type="text" 
+                  value={editAdForm.title}
+                  onChange={(e) => setEditAdForm({...editAdForm, title: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 block px-1">قیمت پیشنهادی عمده</label>
+                  <input 
+                    type="text" 
+                    value={editAdForm.wholesalePrice}
+                    onChange={(e) => setEditAdForm({...editAdForm, wholesalePrice: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                    placeholder="مثال: ۱۲۵,۰۰۰ تومان"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 block px-1">قیمت کف بازار</label>
+                  <input 
+                    type="text" 
+                    value={editAdForm.marketPrice}
+                    onChange={(e) => setEditAdForm({...editAdForm, marketPrice: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                    placeholder="مثال: ۱۵۰,۰۰۰ تومان"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 block px-1">دسته‌بندی</label>
+                <select 
+                  value={editAdForm.category}
+                  onChange={(e) => setEditAdForm({...editAdForm, category: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                >
+                  <option value="under_market">📉 زیر قیمت بازار</option>
+                  <option value="liquid">🔥 حراج مازاد</option>
+                  <option value="direct_supply">📦 تامین مستقیم</option>
+                  <option value="barter">🔄 تهاتر کالا</option>
+                  <option value="sell">📤 فروش عادی</option>
+                  <option value="buy">📥 درخواست خرید</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button 
+                onClick={() => setAdToEdit(null)}
+                className="px-6 py-3 rounded-2xl text-xs font-bold text-slate-500 hover:bg-white transition-all"
+              >
+                انصراف
+              </button>
+              <button 
+                onClick={handleUpdateAd}
+                className="px-10 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2"
+              >
+                <Save size={16} />
+                <span>ذخیره تغییرات آگهی</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
       {showPrintInvoice && (
         <WholesaleInvoiceView 
           order={showPrintInvoice} 
@@ -10608,6 +10998,219 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           onClose={() => setShowPrintInvoice(null)} 
           isAdmin={true}
         />
+      )}
+
+      {selectedAdForView && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row text-right font-sans"
+            dir="rtl"
+          >
+            {/* Ad Image Container */}
+            <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-slate-100 overflow-hidden group">
+              <img 
+                src={selectedAdForView.imageUrl} 
+                alt={selectedAdForView.title}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <button 
+                onClick={() => setSelectedAdForView(null)}
+                className="absolute top-6 right-6 p-2.5 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl hover:bg-white transition-all md:hidden text-slate-800"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Ad Content Container */}
+            <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col overflow-y-auto max-h-[60vh] md:max-h-none custom-scrollbar">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-indigo-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-md shadow-indigo-600/20">
+                      {selectedAdForView.category === "under_market" ? "📉 زیر قیمت بازار" : selectedAdForView.category === "liquid" ? "🔥 حراج مازاد" : selectedAdForView.category === "direct_supply" ? "📦 تامین مستقیم" : selectedAdForView.category === "barter" ? "🔄 تهاتر" : selectedAdForView.category === "buy" ? "📥 خرید" : selectedAdForView.category === "sell" ? "📤 فروش" : selectedAdForView.category === "jobs" ? "💼 استخدام" : "🛠️ خدمات"}
+                    </span>
+                    {selectedAdForView.isSponsored && (
+                      <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-4 py-1.5 rounded-full border border-amber-200 flex items-center gap-1.5 animate-pulse">
+                        <Sparkles size={12} />
+                        آگهی ویژه
+                      </span>
+                    )}
+                    {selectedAdForView.specialRequest && (
+                      <span className="bg-rose-50 text-rose-700 text-[10px] font-black px-4 py-1.5 rounded-full border border-rose-100">
+                        🔔 درخواست ارتقا به ویژه
+                      </span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => setSelectedAdForView(null)}
+                    className="hidden md:block p-3 hover:bg-slate-100 rounded-2xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <h3 className="text-2xl font-black text-slate-800 mb-6 leading-tight">
+                  {selectedAdForView.title}
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                  <div className="bg-slate-50 p-4 rounded-[1.5rem] border border-slate-100">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 mb-2">
+                      <Building2 size={14} className="text-indigo-500" />
+                      <span>واحد تجاری / کارفرما</span>
+                    </div>
+                    <div className="text-sm font-black text-slate-700">{selectedAdForView.factoryName}</div>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-[1.5rem] border border-slate-100">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 mb-2">
+                      <Phone size={14} className="text-indigo-500" />
+                      <span>شماره تماس مستقیم</span>
+                    </div>
+                    <div className="text-sm font-black text-slate-700 font-mono tracking-wider">{selectedAdForView.contactPhone}</div>
+                  </div>
+                  {/* Pricing metrics for Under Market Price items */}
+                  {selectedAdForView.wholesalePrice && (
+                    <div className="bg-emerald-50/50 p-4 rounded-[1.5rem] border border-emerald-100">
+                      <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 mb-2">
+                        <DollarSign size={14} />
+                        <span>قیمت عمده پیشنهادی</span>
+                      </div>
+                      <div className="text-sm font-black text-emerald-700">{selectedAdForView.wholesalePrice}</div>
+                    </div>
+                  )}
+                  {selectedAdForView.marketPrice && (
+                    <div className="bg-rose-50/50 p-4 rounded-[1.5rem] border border-rose-100">
+                      <div className="flex items-center gap-2 text-[10px] font-black text-rose-600 mb-2">
+                        <Tag size={14} />
+                        <span>قیمت بازار آزاد</span>
+                      </div>
+                      <div className="text-sm font-black text-rose-700 line-through opacity-70">{selectedAdForView.marketPrice}</div>
+                    </div>
+                  )}
+                </div>
+
+                {selectedAdForView.specialRequest && selectedAdForView.specialRequestMessage && (
+                  <div className="bg-amber-50 border border-amber-100 p-5 rounded-[1.5rem] mb-8">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-amber-600 mb-3 uppercase tracking-tighter">
+                      <Sparkles size={14} />
+                      <span>پیام درخواست ویژه سازی:</span>
+                    </div>
+                    <p className="text-xs font-bold text-amber-800 leading-relaxed italic">
+                      " {selectedAdForView.specialRequestMessage} "
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-slate-50 p-6 rounded-[1.5rem] border border-slate-100">
+                  <label className="block text-[10px] font-black text-slate-400 mb-4 flex items-center gap-2">
+                    <FileText size={14} className="text-slate-400" />
+                    شرح جزئیات و شرایط آگهی:
+                  </label>
+                  <div className="text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {selectedAdForView.description}
+                  </div>
+                </div>
+
+                {selectedAdForView.rejectionReason && (
+                   <div className="bg-rose-50 border border-rose-100 p-5 rounded-[1.5rem] mt-6">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-rose-600 mb-3">
+                      <ShieldAlert size={14} />
+                      <span>دلیل رد قبلی:</span>
+                    </div>
+                    <p className="text-xs font-bold text-rose-800 leading-relaxed">
+                      {selectedAdForView.rejectionReason}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-10 pt-6 border-t border-slate-100 flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    const newAds = sponsoredAds.map(a => a.id === selectedAdForView.id ? {...a, status: "approved", rejectionReason: undefined} : a);
+                    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                    setSponsoredAds(newAds);
+                    setSelectedAdForView({...selectedAdForView, status: "approved", rejectionReason: undefined});
+                    setSuccessMsg("آگهی با موفقیت تایید و منتشر شد.");
+                    setTimeout(() => setSuccessMsg(null), 2000);
+                  }}
+                  className={`flex-1 py-4 rounded-2xl text-[13px] font-black transition-all shadow-xl flex items-center justify-center gap-2.5 ${selectedAdForView.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30 hover:-translate-y-0.5 cursor-pointer active:translate-y-0'}`}
+                >
+                  {selectedAdForView.status === 'approved' ? <CheckCircle size={18} /> : null}
+                  {selectedAdForView.status === 'approved' ? "آگهی تایید شده" : "تایید و انتشار آگهی"}
+                </button>
+                <button
+                  onClick={() => {
+                    setAdToReject(selectedAdForView);
+                    setShowRejectionReasonModal(true);
+                  }}
+                  className={`flex-1 py-4 rounded-2xl text-[13px] font-black transition-all border flex items-center justify-center gap-2.5 ${selectedAdForView.status === 'rejected' ? 'bg-rose-50 text-rose-600 border-rose-100 cursor-default' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-rose-300 hover:text-rose-600 cursor-pointer'}`}
+                >
+                  {selectedAdForView.status === 'rejected' ? <XCircle size={18} /> : null}
+                  {selectedAdForView.status === 'rejected' ? "رد شده" : "رد و اعلام نقص"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showRejectionReasonModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-right" dir="rtl"
+          >
+            <h4 className="text-lg font-black text-slate-800 mb-2">علت رد آگهی</h4>
+            <p className="text-[10px] text-slate-400 font-bold mb-6">دلیل رد یا موارد اصلاحی را برای کاربر بنویسید:</p>
+            
+            <textarea
+              value={rejectionReasonInput}
+              onChange={(e) => setRejectionReasonInput(e.target.value)}
+              placeholder="مثال: تصویر آگهی نامناسب است یا اطلاعات تماس اشتباه وارد شده..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-800 outline-none focus:border-rose-500 h-32 resize-none mb-6"
+              autoFocus
+            />
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (!rejectionReasonInput.trim()) return;
+                  const newAds = sponsoredAds.map(a => a.id === adToReject.id ? {...a, status: "rejected", rejectionReason: rejectionReasonInput} : a);
+                  localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                  setSponsoredAds(newAds);
+                  if (selectedAdForView && selectedAdForView.id === adToReject.id) {
+                    setSelectedAdForView({...selectedAdForView, status: "rejected", rejectionReason: rejectionReasonInput});
+                  }
+                  setShowRejectionReasonModal(false);
+                  setRejectionReasonInput("");
+                  setAdToReject(null);
+                  setSuccessMsg("آگهی رد و علت ثبت شد.");
+                  setTimeout(() => setSuccessMsg(null), 2000);
+                }}
+                className="flex-1 bg-rose-600 text-white py-3.5 rounded-2xl text-xs font-black hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20"
+              >
+                تایید نهایی رد آگهی
+              </button>
+              <button
+                onClick={() => {
+                  setShowRejectionReasonModal(false);
+                  setRejectionReasonInput("");
+                  setAdToReject(null);
+                }}
+                className="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-2xl text-xs font-black hover:bg-slate-200 transition-all"
+              >
+                انصراف
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* Representative Certificate Print View */}

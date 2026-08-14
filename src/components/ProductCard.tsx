@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, Building2 } from "lucide-react";
 import { Product } from "../types";
@@ -14,7 +14,7 @@ interface ProductCardProps {
   index?: number;
 }
 
-export default function ProductCard({ product, onAddToCart, userBadge, onViewDetails, index = 0 }: ProductCardProps) {
+const ProductCard = memo(({ product, onAddToCart, userBadge, onViewDetails, index = 0 }: ProductCardProps) => {
   const [cartons, setCartons] = useState(product.min_order_cartons);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -225,48 +225,67 @@ export default function ProductCard({ product, onAddToCart, userBadge, onViewDet
         </div>
 
         {/* Title */}
-        <div>
+        <div className="flex-1">
           <h3 
             onClick={() => onViewDetails?.(product)}
-            className="text-xs sm:text-sm font-black text-slate-900 leading-snug line-clamp-2 group-hover:text-emerald-700 transition-colors cursor-pointer"
+            className="text-xs sm:text-[13px] font-black text-slate-900 leading-snug line-clamp-2 group-hover:text-emerald-700 transition-colors cursor-pointer"
           >
             {product.name}
           </h3>
 
           {/* Factory Name */}
-          <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 mt-1">
-            <Building2 size={11} className="shrink-0 text-emerald-600" />
-            <span className="truncate">کارخانه: {product.factory_name || (product as any).factoryName || product.brand || "دست اول"}</span>
+          <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 mt-1.5 uppercase tracking-tight">
+            <Building2 size={10} className="shrink-0" />
+            <span className="truncate">تأمین مستقیم: {product.factory_name || (product as any).factoryName || product.brand || "دست اول"}</span>
           </div>
         </div>
 
-        {/* Pricing & Carton count simple block */}
-        <div className="bg-slate-50/90 p-2.5 rounded-2xl border border-slate-200/80 space-y-1.5 text-[10px] mt-auto">
-          <div className="flex justify-between items-center font-bold text-slate-600">
-            <span>قیمت عمده کارخانه (هر عدد):</span>
-            <span className="font-mono text-indigo-700 font-black text-xs">{toPersianNum(discountedBulkPrice.toLocaleString())} ت</span>
+        {/* Pricing & Product Details Block */}
+        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-2 mt-auto">
+          {/* Main Price Info */}
+          <div className="flex justify-between items-end">
+            <span className="text-[10px] font-bold text-slate-400">قیمت عمده واحد:</span>
+            <div className="text-left">
+              {discountPercent > 0 && product.bulk_price > discountedBulkPrice && (
+                <div className="text-[9px] font-bold text-slate-400 line-through decoration-rose-300 decoration-1 mb-[-2px]">
+                  {toPersianNum(product.bulk_price.toLocaleString())}
+                </div>
+              )}
+              <span className="font-mono text-indigo-700 font-black text-sm">
+                {toPersianNum(discountedBulkPrice.toLocaleString())}
+                <span className="text-[9px] font-bold text-slate-400 mr-1">تومان</span>
+              </span>
+            </div>
           </div>
 
-          <div className="flex justify-between items-center font-bold text-slate-500">
-            <span>قیمت مصرف‌کننده (روی جلد):</span>
-            <span className="font-mono text-slate-500 font-bold text-[10.5px] line-through decoration-rose-500/50">{toPersianNum(displayConsumerPrice.toLocaleString())} ت</span>
+          {/* Consumer Price & Margin */}
+          <div className="flex justify-between items-center py-1.5 border-t border-slate-200/50">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-slate-400">قیمت مصرف‌کننده:</span>
+              <span className="text-[10px] font-black text-slate-700">
+                {toPersianNum(displayConsumerPrice.toLocaleString())} ت
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold text-emerald-600">سود بنکداری:</span>
+              <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md text-[9px] font-black border border-emerald-100">
+                {toPersianNum(Math.round(((displayConsumerPrice - discountedBulkPrice) / discountedBulkPrice) * 100))}٪ سود خالص
+              </span>
+            </div>
           </div>
 
-          <div className="flex justify-between items-center font-bold text-slate-500">
-            <span>تعداد در کارتن:</span>
-            <span className="font-mono text-slate-850 font-black">{toPersianNum(product.carton_pack_count)} {product.unit || "عدد"}</span>
-          </div>
-
-          <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/70 font-black text-slate-900">
-            <span>قیمت کل کارتن خرید:</span>
-            <span className="font-mono text-indigo-950 font-black text-xs">{toPersianNum(pricePerCarton.toLocaleString())} ت</span>
-          </div>
-
-          <div className="flex justify-between items-center pt-1.5 border-t border-dashed border-slate-200/80 text-[10px] text-emerald-700 font-black">
-            <span>حاشیه سود مغازه‌دار:</span>
-            <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md text-[9px] font-black border border-emerald-200">
-              {toPersianNum(Math.round(((displayConsumerPrice - discountedBulkPrice) / discountedBulkPrice) * 100))}٪ سود (+{toPersianNum((displayConsumerPrice - discountedBulkPrice).toLocaleString())} ت)
+          {/* Carton Details */}
+          <div className="flex justify-between items-center pt-1.5 border-t border-dashed border-slate-200/80">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+              <Package size={12} className="text-slate-400" />
+              تعداد در کارتن:
             </span>
+            <span className="text-slate-900 font-black text-[10px]">{toPersianNum(product.carton_pack_count)} {product.unit || "عدد"}</span>
+          </div>
+
+          <div className="flex justify-between items-center pt-1 text-[10px] font-black text-slate-900">
+            <span className="text-slate-500">مجموع سبد کارتن:</span>
+            <span className="text-indigo-900">{toPersianNum(pricePerCarton.toLocaleString())} تومان</span>
           </div>
         </div>
 
@@ -424,5 +443,7 @@ export default function ProductCard({ product, onAddToCart, userBadge, onViewDet
       />
     </motion.div>
   );
-}
+});
+
+export default ProductCard;
 

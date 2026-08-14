@@ -258,11 +258,11 @@ export const INITIAL_PRODUCTS: Omit<Product, "id">[] = [
 ];
 
 export const INITIAL_CATEGORIES = [
-  { id: "cat-1", name: "تنقلات و شکلات", label: "تنقلات و شکلات", image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600" },
-  { id: "cat-2", name: "کیک، کلوچه و بیسکویت", label: "کیک، کلوچه و بیسکویت", image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600" },
-  { id: "cat-3", name: "مواد غذایی و کنسروجات", label: "مواد غذایی و کنسروجات", image: "https://images.unsplash.com/photo-1534483509719-3feaee7c30da?auto=format&fit=crop&q=80&w=600" },
-  { id: "cat-4", name: "نوشیدنی‌ها", label: "نوشیدنی‌ها", image: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600" },
-  { id: "cat-5", name: "شوینده و بهداشتی", label: "شوینده و بهداشتی", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600" }
+  { id: "cat-1", name: "تنقلات و شکلات", label: "🔖 تنقلات و شکلات", image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600" },
+  { id: "cat-2", name: "کیک، کلوچه و بیسکویت", label: "🔖 کیک، کلوچه و بیسکویت", image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600" },
+  { id: "cat-3", name: "مواد غذایی و کنسروجات", label: "🔖 مواد غذایی و کنسروجات", image: "https://images.unsplash.com/photo-1534483509719-3feaee7c30da?auto=format&fit=crop&q=80&w=600" },
+  { id: "cat-4", name: "نوشیدنی‌ها", label: "🔖 نوشیدنی‌ها", image: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600" },
+  { id: "cat-5", name: "شوینده و بهداشتی", label: "🔖 شوینده و بهداشتی", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600" }
 ];
 
 export async function seedProductsIfEmpty() {

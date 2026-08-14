@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import StarRating from "./StarRating";
+import LazyViewport from "./LazyViewport";
+import DastavvalLogo from "./DastavvalLogo";
 import { 
   Building2, 
   MapPin, 
@@ -31,7 +33,10 @@ import {
   Clock,
   Filter,
   QrCode,
-  Share2
+  Share2,
+  ChevronDown,
+  Zap,
+  ShieldAlert
 } from "lucide-react";
 import { 
   INITIAL_RAW_MATERIALS, 
@@ -129,6 +134,150 @@ const RAW_MATERIAL_CATEGORIES = [
 
 // Initial mock reviews
 const INITIAL_REVIEWS: Record<string, FactoryReviewItem[]> = {};
+
+// Factory Card Component - Memoized for performance
+const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: { 
+  factory: any; 
+  idx: number; 
+  onSelect: (f: any) => void; 
+  onOrder: (name: string) => void;
+}) => {
+  const cover = factory.coverUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800";
+  const desc = factory.description || factory.desc || "تولیدکننده رسمی محصولات استاندارد مواد غذایی با سیب سلامت و استانداردهای کیفی.";
+  const categoryLabel = factory.category || "صنایع غذایی و مصرفی";
+  const established = factory.establishedYear || factory.established || "۱۳۸۰";
+  const location = factory.location || "شهرک صنعتی";
+  const isFeatured = factory.isFeatured || factory.isPinned || factory.isPremium;
+  const ratingScore = factory.rating || 5;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -8 }}
+      className="group relative bg-white rounded-[2.5rem] border border-slate-200/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] hover:border-emerald-300 transition-all duration-500 overflow-hidden flex flex-col h-[480px] text-right"
+    >
+      {/* Visual Header Section */}
+      <div className="relative h-44 shrink-0 overflow-hidden bg-slate-900">
+        <img 
+          src={cover} 
+          alt={factory.name} 
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-90"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/10 to-transparent" />
+        
+        {/* Top Badges */}
+        <div className="absolute top-4 right-4 flex flex-wrap gap-2 z-10">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-2xl flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-black text-white">{categoryLabel}</span>
+          </div>
+          {isFeatured && (
+            <div className="bg-amber-400 border border-amber-500 px-3 py-1.5 rounded-2xl flex items-center gap-1 shadow-lg shadow-amber-500/20">
+              <Sparkles size={10} className="text-amber-900" />
+              <span className="text-[10px] font-black text-amber-900">برند برتر صنف</span>
+            </div>
+          )}
+        </div>
+
+        {/* Floating ID / Year */}
+        <div className="absolute bottom-4 left-4 bg-slate-900/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+          <span className="text-[10px] text-white/90 font-bold">تاسیس {toPersianNum(established)}</span>
+        </div>
+      </div>
+
+      {/* Main Content Body */}
+      <div className="p-6 flex-1 flex flex-col justify-between relative">
+        <div className="space-y-4">
+          {/* Identity Header */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <h3 
+                onClick={() => onSelect(factory)}
+                className="text-sm sm:text-base font-black text-slate-900 hover:text-emerald-700 transition-colors cursor-pointer line-clamp-1 flex items-center gap-1.5"
+              >
+                {factory.name}
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              </h3>
+            </div>
+            
+            <div className="flex items-center gap-3 text-[11px] font-bold text-slate-400">
+              <div className="flex items-center gap-1 text-emerald-600/80">
+                <MapPin size={12} />
+                <span>{location}</span>
+              </div>
+              <div className="w-1 h-1 rounded-full bg-slate-200" />
+              <span>کد صنف: {toPersianNum(1000 + idx)}</span>
+            </div>
+          </div>
+
+          {/* Core Description */}
+          <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+            {desc}
+          </p>
+
+          {/* Industrial Status Panel */}
+          <div className="bg-slate-50/50 border border-slate-100 rounded-3xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[10px] font-black text-slate-600">
+                <Zap size={14} className="text-amber-500" />
+                <span>بهره‌وری خط تولید:</span>
+              </div>
+              <span className="text-[10px] font-black text-emerald-700">{factory.id === "fac-1" ? "۹۵٪" : "۸۸٪"} فعال</span>
+            </div>
+            
+            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                whileInView={{ width: factory.id === "fac-1" ? "95%" : "88%" }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                className="h-full bg-emerald-500 rounded-full" 
+              />
+            </div>
+
+            <div className="flex justify-between items-center pt-1">
+              <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
+                <ShieldCheck size={12} className="text-indigo-500" />
+                <span>ضمانت اصالت بار</span>
+              </div>
+              <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
+                <Truck size={12} className="text-emerald-500" />
+                <span>تحویل درب انبار</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Metrics & Actions */}
+        <div className="mt-auto pt-4 space-y-4">
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+            <div className="flex items-center gap-1.5">
+              <div className="flex text-amber-400">
+                {[...Array(5)].map((_, i) => <Star key={i} size={11} fill={i < Math.floor(ratingScore) ? "currentColor" : "none"} />)}
+              </div>
+              <span className="text-[10px] font-black text-slate-900">{ratingScore.toFixed(1)}</span>
+            </div>
+            <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-0.5 rounded-lg text-[9px] font-black">
+              استاندارد ملی فعال
+            </div>
+          </div>
+
+          <div className="w-full">
+            <button
+              onClick={() => onOrder(factory.name)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-2xl text-[12px] font-black transition-all active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/20"
+            >
+              <ShoppingBag size={16} />
+              <span>ثبت سفارش مستقیم از درب کارخانه</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
 
 export default function FactoriesView({ 
   factories = [], 
@@ -371,17 +520,20 @@ export default function FactoriesView({
         <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200/90 px-3 py-1 rounded-full text-[10px] font-black text-amber-900 shadow-2xs">
-              <Award size={13} className="text-amber-600" />
-              <span>ارتباط مستقیم بنکداران و کارخانجات کشور</span>
+          <div className="flex items-center gap-4">
+            <DastavvalLogo size={52} showText={false} className="flex bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60 shrink-0 shadow-xs" />
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200/90 px-3 py-1 rounded-full text-[10px] font-black text-amber-900 shadow-2xs">
+                <Award size={13} className="text-amber-600" />
+                <span>ارتباط مستقیم بنکداران و کارخانجات کشور</span>
+              </div>
+              <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug">
+                فهرست کارخانجات و واحدهای تولیدی معتبر
+              </h1>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                خرید مستقیم به قیمت درب کارخانه، دریافت کاتالوگ و QR کد اختصاصی تولیدکنندگان کشور
+              </p>
             </div>
-            <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug">
-              فهرست کارخانجات و واحدهای تولیدی معتبر
-            </h1>
-            <p className="text-xs text-slate-600 font-medium leading-relaxed">
-              خرید مستقیم به قیمت درب کارخانه، دریافت کاتالوگ و QR کد اختصاصی تولیدکنندگان کشور
-            </p>
           </div>
 
           {/* Clean Segmented Sub-Tab Switcher - Light Background */}
@@ -429,35 +581,53 @@ export default function FactoriesView({
       {activeSubTab === 'factories' && (
         <div className="space-y-6">
           {/* Category Filter Tabs & Search Bar */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-7 rounded-full bg-emerald-600" />
-                <h2 className="text-lg font-black text-slate-900">دسته‌بندی صنایع و کارخانجات</h2>
+          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.02)] space-y-4 text-right" dir="rtl">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-6 rounded-full bg-emerald-650 animate-pulse" />
+                  <h2 className="text-sm sm:text-base font-black text-slate-900">رصد هوشمند خطوط ترانزیت و تولیدکنندگان فعال صنایع غذایی</h2>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
+                  پایش زنده کارخانجات دارای پروانه صنف، رهگیری پلمپ جاده‌ای و ثبت فاکتورهای رسمی در بستر شبکه یکپارچه دست‌اول.
+                </p>
               </div>
 
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="جستجوی نام کارخانه، شهر یا کالا..."
-                  className="w-full bg-white border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery("")}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Live Active Factories Counter Card */}
+                <div className="bg-slate-50 border border-slate-100/80 px-4 py-2 rounded-2xl flex items-center justify-between gap-4 shrink-0">
+                  <div className="space-y-0.5">
+                    <span className="text-[8px] text-slate-400 font-bold block">تعداد کارخانجات پورتال:</span>
+                    <span className="text-xs font-black text-slate-800">{toPersianNum(sortedFactories.length)} واحد فعال</span>
+                  </div>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                </div>
+
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="جستجوی نام کارخانه، شهر یا کالا..."
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pr-10 pl-4 py-3 text-xs font-black focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white focus:border-emerald-500 shadow-2xs transition-all text-slate-800"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery("")}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Categories Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none pt-1">
+            {/* Separator */}
+            <div className="border-t border-slate-100 pt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[9px] text-slate-400 font-black shrink-0">صنایع تحت پایش:</span>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
               {(() => {
                 // Determine categories from config or defaults
                 let dynamicCats: string[] = [];
@@ -492,6 +662,7 @@ export default function FactoriesView({
                   );
                 });
               })()}
+              </div>
             </div>
           </div>
 
@@ -515,146 +686,21 @@ export default function FactoriesView({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-              {sortedFactories.map((factory) => {
-                const logo = factory.logoUrl || factory.logo;
-                const cover = factory.coverUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800";
-                const desc = factory.description || factory.desc || "تولیدکننده رسمی محصولات استاندارد مواد غذایی با سیب سلامت و استانداردهای کیفی.";
-                const categoryLabel = factory.category || "صنایع غذایی و مصرفی";
-                const established = factory.establishedYear || factory.established || "۱۳۸۰";
-                const location = factory.location || "شهرک صنعتی";
-                const isFeatured = factory.isFeatured || factory.isPinned || factory.isPremium;
-                const ratingScore = factory.rating || 5;
-
-                return (
-                  <motion.div
-                    key={factory.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`overflow-hidden bg-white rounded-[2rem] border border-slate-100 shadow-xs flex flex-col justify-between transition-all duration-300 hover:shadow-lg hover:border-emerald-300 relative group`}
-                  >
-                    {/* Factory Cover Photo Banner with secure tags */}
-                    <div className="relative h-32 sm:h-36 w-full bg-slate-900 overflow-hidden cursor-pointer" onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}>
-                      <img 
-                        src={cover} 
-                        alt={factory.name} 
-                        onError={(e) => {
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80";
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" 
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
-                      
-                      {/* Floating badging moved inside cover securely */}
-                      <div className="absolute top-2.5 right-2.5 flex flex-wrap gap-1.5 z-20">
-                        <span className="text-[9px] font-black text-emerald-800 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/60 shadow-xs">
-                          {categoryLabel}
-                        </span>
-                        {isFeatured && (
-                          <span className="text-[9px] font-black text-amber-950 bg-amber-400 px-2.5 py-1 rounded-lg shadow-xs border border-amber-300">
-                            ⭐ ویژه
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Logo and metadata without overlapping issues */}
-                    <div className="p-4 relative z-10 flex-1 flex flex-col">
-                      {/* Brand & Category Header Row */}
-                      <div className="flex items-start gap-3 mb-3 -mt-10" dir="rtl">
-                        <div 
-                          onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-white border-2 border-emerald-200 p-1.5 shrink-0 flex items-center justify-center overflow-hidden cursor-pointer shadow-md group-hover:border-emerald-500 transition-all relative z-20"
-                        >
-                          {logo ? (
-                            <img 
-                              src={logo} 
-                              alt={factory.name} 
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                const parent = e.currentTarget.parentElement;
-                                if (parent) {
-                                  const fb = parent.querySelector('.fac-vector-fallback');
-                                  if (fb) (fb as HTMLElement).style.display = 'flex';
-                                }
-                              }}
-                              className="w-full h-full object-contain rounded-lg group-hover:scale-105 transition-transform clean-logo-filter" 
-                            />
-                          ) : null}
-                          <div 
-                            className="fac-vector-fallback hidden absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex-col items-center justify-center p-1 rounded-lg text-center shadow-inner"
-                            style={{ display: !logo ? 'flex' : 'none' }}
-                          >
-                            <span className="text-xl mb-0.5">🏭</span>
-                            <span className="text-[8px] font-black leading-tight text-amber-300 line-clamp-1">{factory.name}</span>
-                          </div>
-                        </div>
-
-                        <div className="min-w-0 text-right pt-8 flex-1">
-                          <h3 
-                            onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
-                            className="text-xs sm:text-sm font-black text-slate-900 leading-tight truncate cursor-pointer hover:text-emerald-700 transition-colors flex items-center gap-1"
-                          >
-                            <span className="truncate">{factory.name}</span>
-                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                          </h3>
-                          <p className="text-[10px] font-bold text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                            <MapPin size={10} className="text-slate-400 shrink-0" />
-                            <span className="truncate">{location}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <p className="text-[10px] text-slate-500 font-medium line-clamp-2 leading-relaxed mb-3 text-right" dir="rtl">
-                        {desc}
-                      </p>
-
-                      {/* Interactive Star Rating Row */}
-                      <div className="flex items-center justify-between my-2 px-2 py-1 rounded-xl bg-amber-50/70 border border-amber-200/40" dir="rtl">
-                        <span className="text-[9px] font-black text-amber-900">امتیاز:</span>
-                        <StarRating rating={ratingScore} size={11} interactive={true} showScore={true} />
-                      </div>
-
-                      {/* Products Preview Chips */}
-                      {factory.mainProducts && factory.mainProducts.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2 justify-start mt-auto" dir="rtl">
-                          {factory.mainProducts.slice(0, 3).map((prod, idx) => (
-                            <span key={idx} className="text-[8px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded-md font-bold border border-slate-100 truncate max-w-[100px]">
-                              {prod}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2 relative z-0 rounded-b-[2rem]">
-                      <button
-                        onClick={() => setSelectedDedicatedFactory(factory as FactoryProfile)}
-                        className="bg-emerald-800 hover:bg-emerald-900 text-white font-black py-2 px-2.5 rounded-xl text-[9px] transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
-                        title="صفحه اختصاصی کارخانه"
-                      >
-                        <Eye size={11} className="text-amber-300 shrink-0" />
-                        <span className="truncate">مشاهده کارخانه</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (onSelectFactoryForOrder) {
-                            onSelectFactoryForOrder(factory.name);
-                          }
-                        }}
-                        className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black py-2 px-2.5 rounded-xl text-[9px] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
-                        title="ثبت سفارش مستقیم"
-                      >
-                        <ShoppingBag size={11} className="shrink-0" />
-                        <span>ثبت سفارش</span>
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 pb-10">
+              {sortedFactories.map((factory, idx) => (
+                <LazyViewport key={factory.id} height="480px">
+                  <FactoryCard 
+                    factory={factory} 
+                    idx={idx} 
+                    onSelect={(f) => setSelectedDedicatedFactory(f as FactoryProfile)} 
+                    onOrder={(name) => {
+                      if (onSelectFactoryForOrder) {
+                        onSelectFactoryForOrder(name);
+                      }
+                    }} 
+                  />
+                </LazyViewport>
+              ))}
             </div>
           )}
         </div>

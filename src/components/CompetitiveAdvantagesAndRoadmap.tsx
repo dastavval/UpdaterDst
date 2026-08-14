@@ -219,8 +219,41 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
             </h3>
           </div>
 
-          {/* COMPACT & RESPONSIVE TABLE FOR MOBILE */}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          {/* MOBILE CARDS VIEW (Clean, No Horizontal Scroll needed on Phone) */}
+          <div className="grid grid-cols-1 gap-2.5 sm:hidden">
+            {comparisonData.map((row, idx) => {
+              const RowIcon = row.icon;
+              return (
+                <div key={idx} className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200 space-y-2">
+                  <div className="flex items-center gap-2 text-slate-900 font-black text-xs border-b border-slate-200/60 pb-1.5">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      <RowIcon size={13} />
+                    </div>
+                    <span>{row.metric}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10.5px]">
+                    <div className="p-2 bg-red-50/70 border border-red-200/70 rounded-xl space-y-0.5">
+                      <span className="text-[9px] font-black text-red-600 flex items-center gap-0.5">
+                        <X size={10} />
+                        بازار واسطه‌ای
+                      </span>
+                      <p className="text-red-950 font-bold leading-tight">{row.traditional}</p>
+                    </div>
+                    <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl space-y-0.5">
+                      <span className="text-[9px] font-black text-emerald-700 flex items-center gap-0.5">
+                        <Check size={10} />
+                        سامانه دست اول
+                      </span>
+                      <p className="text-emerald-950 font-black leading-tight">{row.dastavval}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* TABLE VIEW FOR TABLET & DESKTOP (or swipeable view) */}
+          <div className="hidden sm:block overflow-x-auto rounded-2xl border border-slate-200">
             <table className="w-full text-right border-collapse min-w-[500px] text-[11px] sm:text-xs">
               <thead>
                 <tr className="bg-slate-100 text-slate-800 font-black">

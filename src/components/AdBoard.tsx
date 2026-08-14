@@ -1,6 +1,33 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Sparkles, Building2, Phone, Calendar, CheckCircle2, Eye, FileText, Search, ShieldCheck, Megaphone, ArrowLeftRight, ChevronLeft, Info, X, ArrowUpRight, Upload } from "lucide-react";
+import { 
+  Plus, 
+  Sparkles, 
+  Building2, 
+  Phone, 
+  Calendar, 
+  CheckCircle2, 
+  Eye, 
+  FileText, 
+  Search, 
+  ShieldCheck, 
+  Megaphone, 
+  ArrowLeftRight, 
+  ChevronLeft, 
+  Info, 
+  X, 
+  ArrowUpRight, 
+  Upload,
+  AlertTriangle,
+  BadgePercent,
+  TrendingDown,
+  Lock,
+  Check,
+  UserCheck,
+  ShieldAlert,
+  ChevronDown,
+  LockKeyhole
+} from "lucide-react";
 
 export interface AdItem {
   id: string;
@@ -8,14 +35,20 @@ export interface AdItem {
   description: string;
   factoryName: string;
   contactPerson: string;
-  contactPhone: string;
+  contactPhone: string; // Admin eyes only - proxied securely
   badgeText: string;
-  category: "barter" | "buy" | "sell";
+  category: "under_market" | "liquid" | "direct_supply";
   quantity: string;
+  wholesalePrice: string; // قیمت عمده پیشنهادی
+  marketPrice: string;    // قیمت مصرف کننده یا بازار آزاد
+  buyerProfit: string;    // سود تخمینی خریدار (اختلاف قیمت)
   isSponsored?: boolean;
   date: string;
   imageUrl?: string;
-  status?: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
+  specialRequest?: boolean;
+  specialRequestMessage?: string;
 }
 
 export const getAdFallbackImage = (title: string, category: string): string => {
@@ -29,17 +62,11 @@ export const getAdFallbackImage = (title: string, category: string): string => {
   if (norm.includes("نشاسته") || norm.includes("آرد") || norm.includes("گلوتن")) {
     return "https://images.unsplash.com/photo-1574316071802-0d684efa7bf5?auto=format&fit=crop&q=80&w=400";
   }
-  if (norm.includes("کارتن") || norm.includes("جعبه") || norm.includes("بسته") || norm.includes("سلفون")) {
-    return "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&q=80&w=400";
+  if (norm.includes("رب") || norm.includes("گوجه")) {
+    return "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=400";
   }
-  if (norm.includes("سیب") || norm.includes("کنسانتره") || norm.includes("پوره") || norm.includes("میوه")) {
-    return "https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?auto=format&fit=crop&q=80&w=400";
-  }
-  if (category === "barter") {
-    return "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=400";
-  }
-  if (category === "buy") {
-    return "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=400";
+  if (norm.includes("نوشمک") || norm.includes("یخی") || norm.includes("شربت")) {
+    return "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400";
   }
   return "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400";
 };
@@ -60,79 +87,113 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   const [selectedAdDetail, setSelectedAdDetail] = useState<AdItem | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<"all" | "barter" | "buy" | "sell">("all");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<"all" | "under_market" | "liquid" | "direct_supply">("all");
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [showRuleOverlay, setShowRuleOverlay] = useState(false);
+  const [isIntroExpanded, setIsIntroExpanded] = useState(false);
 
-  // Form states (100% free admin approval submission)
+  // Secure Escrow Interaction Modal State
+  const [escrowModalAd, setEscrowModalAd] = useState<AdItem | null>(null);
+  const [escrowSuccess, setEscrowSuccess] = useState(false);
+  const [escrowLoading, setEscrowLoading] = useState(false);
+  const [buyerPhoneInput, setBuyerPhoneInput] = useState("");
+  const [buyerMessage, setBuyerMessage] = useState("");
+
+  // Form states (Proxying phone inputs internally and forbidding public publishing)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [factoryName, setFactoryName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [category, setCategory] = useState<"barter" | "buy" | "sell">("buy");
-  const [badgeText, setBadgeText] = useState("خرید فوری");
+  const [category, setCategory] = useState<"under_market" | "liquid" | "direct_supply">("under_market");
+  const [wholesalePrice, setWholesalePrice] = useState("");
+  const [marketPrice, setMarketPrice] = useState("");
+  const [buyerProfit, setBuyerProfit] = useState("");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [isSpecialRequested, setIsSpecialRequested] = useState(false);
+  const [specialMessage, setSpecialMessage] = useState("تماس فوری جهت تایید پلمپ");
+  
+  // Validation Warnings
+  const [phoneWarning, setPhoneWarning] = useState("");
+
   const initialAds: AdItem[] = [
     {
       id: "ad-1",
-      title: "تهاتر روغن حلب صنف و صنعت ۱۶ کیلویی با کنسانتره سیب غلیظ",
-      description: "آمادگی کارخانه کشت و صنعت شمال جهت تهاتر کلان میزان ۲۰ تن روغن جامد سویا حلب با کنسانتره سیب صادراتی (بریکس ۷۰) جهت تامین مواد اولیه خط تولید لواشک و مارمالاد کارخانجات مرتبط.",
-      factoryName: "صنایع کشت و صنعت شمال",
-      contactPerson: "مهندس علیزاده (بخش بازرگانی تامین)",
-      contactPhone: "۰۹۱۴۴۷۱۳۴۰۵",
-      badgeText: "تهاتر کلان صنایع",
-      category: "barter",
-      quantity: "۲۰ تن",
+      title: "قند شکسته درجه یک ۵ کیلویی مازاد صنف (عدم ذکر برند انحصاری)",
+      description: "تعداد ۵۰ تن بار مازاد قند کله شکسته درجه یک در بسته‌بندی‌های نایلونی ۵ کیلویی استاندارد با سیب سلامت بدون ذکر برند جهت ممانعت از تنش قیمتی در بازار مصرف.",
+      factoryName: "صنایع قند و شکر مرودشت",
+      contactPerson: "مهندس رسولی",
+      contactPhone: "۰۹۱۲۳۴۵۶۷۸۹",
+      badgeText: "📉 زیر قیمت بازار",
+      category: "under_market",
+      quantity: "۵۰ تن",
+      wholesalePrice: "۳۸,۰۰۰ تومان",
+      marketPrice: "۵۴,۰۰۰ تومان",
+      buyerProfit: "۳۰٪ سود ناخالص (۱۶,۰۰۰ تومان حاشیه سود)",
       isSponsored: true,
       date: "۱۴۰۵/۰۵/۲۲",
-      imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400"
+      imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=400",
+      status: "approved"
     },
     {
       id: "ad-2",
-      title: "تقاضای خرید نقدی تناژ بالا شکر سفید استاندارد کارخانه‌ای",
-      description: "صنایع بیسکویت‌سازی تبریز خریدار نقدی شکر سفید درجه یک کیسه ۵۰ کیلویی استاندارد با تسویه فوری نقدی و بارگیری از درب کارخانه قند سراسر کشور.",
-      factoryName: "صنایع غذایی شونیز تبریز",
-      contactPerson: "حاج علی رسولی (تامین مواد اولیه)",
-      contactPhone: "۰۹۱۴۴۷۱۳۴۰۵",
-      badgeText: "خرید نقدی عمده",
-      category: "buy",
-      quantity: "۵۰ تن",
+      title: "روغن سویا صنف و صنعت حلب ۱۶ کیلویی استاندارد",
+      description: "روغن مایع خوراکی تصفیه شده سویا حلب فلزی ۱۶ کیلویی با فاکتور رسمی مستقیم کارخانه شیراز بدون نام برند انحصاری جهت حفظ ثبات و اعتبار تجاری کارخانه.",
+      factoryName: "کشت و صنعت روغن شمال",
+      contactPerson: "حاج علی رحیمی",
+      contactPhone: "۰۹۱۲۹۹۹۸۸۷۷",
+      badgeText: "🔥 حراج مفت صنف",
+      category: "liquid",
+      quantity: "۱۵ تن",
+      wholesalePrice: "۶۲۰,۰۰۰ تومان",
+      marketPrice: "۸۴۰,۰۰۰ تومان",
+      buyerProfit: "۲۶٪ حاشیه سود واقعی (۲۲۰,۰۰۰ تومان صرفه‌جویی)",
       isSponsored: true,
       date: "۱۴۰۵/۰۵/۲۱",
-      imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&q=80&w=400"
+      imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
     },
     {
       id: "ad-3",
-      title: "تامین عمده نشاسته گندم فوق تصفیه مجهز به سیب سلامت",
-      description: "فروش مستقیم و بی واسطه نشاسته گندم و گلوتن فعال با رطوبت استاندارد جهت مصرف کارخانجات نان صنعتی، سوسیس و کالباس و فرآورده‌های حجیم شده غلات.",
-      factoryName: "توسعه صنایع گلوکز و نشاسته ایران زمین",
-      contactPerson: "دکتر مهدوی (واحد فروش عمده)",
-      contactPhone: "۰۹۱۴۴۷۱۳۴۰۵",
-      badgeText: "تامین بی واسطه",
-      category: "sell",
-      quantity: "نامحدود",
+      title: "رب گوجه فرنگی قوطی ۸۰۰ گرمی صادراتی بریکس ۲۷",
+      description: "بار مازاد ۴۰ هزار قوطی رب گوجه فرنگی غلیظ با کیفیت استثنایی و رنگ فوق‌العاده. به دستور مستقیم صنف، برند کالا محرمانه مانده و تحویل از طریق واسطه امین انجام می‌پذیرد.",
+      factoryName: "توسعه صنایع غذایی دشت شیراز",
+      contactPerson: "مهندس سلیمانی",
+      contactPhone: "۰۹۱۷۳۳۳۴۴۵۵",
+      badgeText: "📉 کف قیمت بازار",
+      category: "under_market",
+      quantity: "۴۰,۰۰۰ قوطی",
+      wholesalePrice: "۳۲,۰۰۰ تومان",
+      marketPrice: "۴۹,۰۰0 تومان",
+      buyerProfit: "۳۵٪ سود تضمینی (۱۷,۰۰۰ تومان اختلاف قیمت)",
       isSponsored: true,
       date: "۱۴۰۵/۰۵/۲۰",
-      imageUrl: "https://images.unsplash.com/photo-1574316071802-0d684efa7bf5?auto=format&fit=crop&q=80&w=400"
+      imageUrl: "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
     },
     {
       id: "ad-4",
-      title: "تهاتر کارتن بسته‌بندی ۵ لایه و سلفون چاپدار با شکر سفید یا آرد نول",
-      description: "صنایع چاپ و بسته‌بندی برتر آمادگی دارد سفارشات جعبه‌های لمینتی و سلفون‌های دولایه کارخانجات غذایی را به صورت تهاتر با شکر، آرد نول درجه یک تبریز یا نشاسته گندم انجام دهد.",
-      factoryName: "صنایع بسته‌بندی و کارتن‌سازی برتر",
-      contactPerson: "مهندس خسروی (مدیر بازرگانی)",
-      contactPhone: "۰۹۱۲۳۴۵۶۷۸۹",
-      badgeText: "تهاتر ملزومات بسته‌بندی",
-      category: "barter",
-      quantity: "۱۰۰ هزار عدد",
+      title: "نوشمک میوه‌ای یخی بسته‌بندی بهداشتی ۲ تن بدون درج برند",
+      description: "نوشمک یخی در طعم‌های آلبالویی، پرتقالی و طالبی با بسته‌بندی عالی ۲ تنی به قیمت فوق‌العاده رقابتی. مناسب پخش استانی بدون درج عمومی نام تجاری جهت حفاظت از قیمت نمایندگی‌ها.",
+      factoryName: "صنایع فرآورده‌های یخی آذربایجان",
+      contactPerson: "آقای علیزاده",
+      contactPhone: "۰۹۱۴۱۱۱۲۲۳۳",
+      badgeText: "📦 تامین مستقیم",
+      category: "direct_supply",
+      quantity: "۲ تن",
+      wholesalePrice: "۲,۵۰۰ تومان",
+      marketPrice: "۴,۰۰0 تومان",
+      buyerProfit: "۳۷٪ سود خالص صنف (۱,۵۰۰ تومان سود در هر عدد)",
       isSponsored: false,
       date: "۱۴۰۵/۰۵/۱۹",
-      imageUrl: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&q=80&w=400"
+      imageUrl: "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
     }
   ];
 
   useEffect(() => {
-    const savedAds = localStorage.getItem("dastavval_sponsored_ads");
+    const savedAds = localStorage.getItem("dastavval_sponsored_ads_v2");
     if (savedAds) {
       try {
         setAds(JSON.parse(savedAds));
@@ -141,13 +202,13 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       }
     } else {
       setAds(initialAds);
-      localStorage.setItem("dastavval_sponsored_ads", JSON.stringify(initialAds));
+      localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(initialAds));
     }
   }, []);
 
   const saveAdsToStorage = (newAds: AdItem[]) => {
     setAds(newAds);
-    localStorage.setItem("dastavval_sponsored_ads", JSON.stringify(newAds));
+    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,24 +222,58 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     }
   };
 
+  // Helper to validate and clean phone number inputs in descriptions to ensure site mediation
+  const detectAndScrubPhoneNumbers = (text: string) => {
+    const phoneRegex = /(۰|0|۹|9)[۰-۹0-9]{9,10}/g;
+    return text.replace(phoneRegex, "[تلفن مستقیم طبق قوانین حذف شد - معامله از طریق واسطه امن]");
+  };
+
   const handleCreateAdAdminApproval = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description || !factoryName || !contactPhone) return;
+    if (!title || !wholesalePrice || !marketPrice || !contactPhone) return;
+
+    // Reject direct public display of phones and ensure rules are met
+    const cleanTitle = detectAndScrubPhoneNumbers(title);
+    const cleanDescription = detectAndScrubPhoneNumbers(description);
+
+    // Rule enforcement: Check if user mentions a common forbidden brand to protect reputation
+    const forbiddenBrands = ["چی‌توز", "مینو", "میهن", "تبرک", "یک‌ویک", "تبرک", "چی توز", "دامداران", "کاله"];
+    let finalTitle = cleanTitle;
+    let finalDesc = cleanDescription;
+    
+    forbiddenBrands.forEach(brand => {
+      if (finalTitle.includes(brand) || finalDesc.includes(brand)) {
+        finalTitle = finalTitle.replace(new RegExp(brand, "g"), "[برند تجاری طبق قوانین سانسور شد]");
+        finalDesc = finalDesc.replace(new RegExp(brand, "g"), "[به منظور جلوگیری از آسیب به اعتبار نمایندگی‌های رسمی، نام برند تجاری حذف و با کلمه عمومی جایگزین گردید]");
+      }
+    });
+
+    // Auto calculate buyer savings if empty
+    const numericWholesale = parseInt(wholesalePrice.replace(/[^0-9]/g, "")) || 10000;
+    const numericMarket = parseInt(marketPrice.replace(/[^0-9]/g, "")) || 15000;
+    const savings = numericMarket - numericWholesale;
+    const profitPercentage = Math.round((savings / numericMarket) * 100) || 30;
+    const calculatedProfitText = `${profitPercentage}٪ سود ناخالص (${savings.toLocaleString()} تومان اختلاف)`;
 
     const newAd: AdItem = {
       id: `ad-${Date.now()}`,
-      title,
-      description,
-      factoryName,
-      contactPerson: contactPerson || "مدیریت بازرگانی",
-      contactPhone,
-      badgeText: badgeText || (category === "barter" ? "تهاتر صنعتی" : category === "buy" ? "تقاضای خرید" : "فروش بی واسطه"),
+      title: finalTitle,
+      description: finalDesc || "درخواست خرید کالا با شرایط توافقی و ضمانت پرداخت امن واسطه‌ای صنف دست‌اول.",
+      factoryName: factoryName || "متقاضی تامین مستقیم",
+      contactPerson: contactPerson || "مدیریت خرید صنف",
+      contactPhone: contactPhone, // Saved privately for admin use
+      badgeText: "⏳ در انتظار بررسی مدیر",
       category,
       quantity: quantity || "توافقی",
-      isSponsored: true,
+      wholesalePrice: wholesalePrice.includes("تومان") ? wholesalePrice : `${wholesalePrice} تومان`,
+      marketPrice: marketPrice.includes("تومان") ? marketPrice : `${marketPrice} تومان`,
+      buyerProfit: buyerProfit || calculatedProfitText,
+      isSponsored: false,
       date: new Date().toLocaleDateString("fa-IR"),
-      imageUrl: uploadedImage || getAdFallbackImage(title, category),
-      status: "pending"
+      imageUrl: uploadedImage || getAdFallbackImage(finalTitle, category),
+      status: "pending", // Starts as pending, needs admin approval!
+      specialRequest: isSpecialRequested,
+      specialRequestMessage: isSpecialRequested ? specialMessage : undefined
     };
 
     const updated = [newAd, ...ads];
@@ -188,21 +283,54 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     setTimeout(() => {
       setSubmitSuccess(false);
       setIsSubmitModalOpen(false);
-      // Reset form fields
+      // Reset form
       setTitle("");
       setDescription("");
       setFactoryName("");
       setContactPerson("");
       setContactPhone("");
       setQuantity("");
-      setCategory("buy");
-      setBadgeText("خرید فوری");
+      setWholesalePrice("");
+      setMarketPrice("");
+      setBuyerProfit("");
       setUploadedImage(null);
-    }, 4000); // Increased timeout to let user read the success message
+    }, 4500);
   };
 
+  // Admin Actions to approve/reject
+  const handleApproveAd = (id: string) => {
+    const updated = ads.map(ad => {
+      if (ad.id === id) {
+        return { 
+          ...ad, 
+          status: "approved" as const,
+          badgeText: ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔥 حراج صنف" : "📦 تامین مستقیم" 
+        };
+      }
+      return ad;
+    });
+    saveAdsToStorage(updated);
+  };
+
+  const handleRejectAd = (id: string, reason: string = "عدم انطباق با قوانین عدم افشای مستقیم برند") => {
+    const updated = ads.map(ad => {
+      if (ad.id === id) {
+        return { ...ad, status: "rejected" as const, rejectionReason: reason };
+      }
+      return ad;
+    });
+    saveAdsToStorage(updated);
+  };
+
+  // Reset demo data to default to clean slate
+  const handleResetDemoData = () => {
+    saveAdsToStorage(initialAds);
+  };
+
+  // Filtering Logic
   const filteredAds = ads.filter((ad) => {
-    const isApproved = ad.status !== "pending" && ad.status !== "rejected"; // Existing default ads without status are considered approved
+    // Show only approved ones on the main public dashboard
+    const isApproved = ad.status === "approved";
     
     const matchesSearch = 
       ad.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -212,10 +340,31 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     const matchesCategory = activeCategoryFilter === "all" || ad.category === activeCategoryFilter;
     
     return isApproved && matchesSearch && matchesCategory;
+  }).sort((a, b) => {
+    if (a.isSponsored && !b.isSponsored) return -1;
+    if (!a.isSponsored && b.isSponsored) return 1;
+    return 0;
   });
 
-  // Material Design Card Palette (Pure White with elegant shadow)
-  const cardClassName = "bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_10px_30px_-6px_rgba(0,0,0,0.06)] transition-all duration-300 text-right";
+  // Pending ads for admin view
+  const pendingAds = ads.filter(ad => ad.status === "pending" || !ad.status);
+
+  // Escrow Handler
+  const handleEscrowSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!buyerPhoneInput) return;
+    setEscrowLoading(true);
+    setTimeout(() => {
+      setEscrowLoading(false);
+      setEscrowSuccess(true);
+      setTimeout(() => {
+        setEscrowSuccess(false);
+        setEscrowModalAd(null);
+        setBuyerPhoneInput("");
+        setBuyerMessage("");
+      }, 3500);
+    }, 1500);
+  };
 
   const renderDetailModal = () => (
     <AnimatePresence>
@@ -224,7 +373,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md overflow-y-auto animate-fade-in"
           onClick={() => setSelectedAdDetail(null)}
         >
           <motion.div
@@ -232,77 +381,117 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-lg border border-slate-100 text-right relative overflow-y-auto max-h-[90vh]"
+            className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-2xl w-full max-w-xl border border-slate-100 text-right relative overflow-y-auto max-h-[90vh]"
+            dir="rtl"
           >
             <button
               onClick={() => setSelectedAdDetail(null)}
-              className="absolute top-4 left-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              className="absolute top-5 left-5 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all cursor-pointer"
             >
               <X size={16} />
             </button>
 
-            <div className="space-y-5 flex flex-col justify-between mt-2">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="bg-indigo-600 text-white text-[9px] font-black px-2.5 py-0.5 rounded-md">
-                    👑 تایید اصالت کاتالوگ
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                    <Calendar size={11} />
-                    ثبت در {selectedAdDetail.date}
-                  </span>
-                </div>
+            <div className="space-y-6 mt-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
+                  <ShieldCheck size={12} />
+                  واسطه‌گری امن پلتفرم دست‌اول
+                </span>
+                <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                  <Calendar size={11} />
+                  ثبت در {selectedAdDetail.date}
+                </span>
+              </div>
 
-                {/* Main Ad Image Banner */}
-                <div className="w-full h-48 rounded-2xl overflow-hidden bg-slate-50 relative shrink-0">
-                  <img
-                    src={selectedAdDetail.imageUrl || getAdFallbackImage(selectedAdDetail.title, selectedAdDetail.category)}
-                    alt={selectedAdDetail.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-indigo-600 font-black block mb-1">
-                    🏢 کارخانه ثبت‌کننده: {selectedAdDetail.factoryName}
-                  </span>
-                  <h4 className="font-black text-sm md:text-base text-slate-900 leading-relaxed">
-                    {selectedAdDetail.title}
-                  </h4>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black text-slate-400 block">مشخصات دقیق پیشنهاد صنعتی:</span>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs text-slate-600 leading-relaxed font-bold whitespace-pre-line">
-                    {selectedAdDetail.description}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[10px] text-slate-400 font-bold block">حجم مبادله یا تحویل:</span>
-                  <span className="text-xs font-black text-slate-800 block bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
-                    📦 میزان کالا: {selectedAdDetail.quantity}
-                  </span>
+              {/* Product Image */}
+              <div className="w-full h-56 rounded-2xl overflow-hidden bg-slate-50 relative">
+                <img
+                  src={selectedAdDetail.imageUrl || getAdFallbackImage(selectedAdDetail.title, selectedAdDetail.category)}
+                  alt={selectedAdDetail.title}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs px-3 py-1 rounded-xl text-[10px] font-black text-slate-800 shadow-xs">
+                  {selectedAdDetail.category === "liquid" ? "🔥 حراج مازاد صنف" : selectedAdDetail.category === "under_market" ? "📉 کف قیمت بازار" : "📦 تامین کارخانه"}
                 </div>
               </div>
 
-              {/* Contact Info Card */}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2.5 mt-4">
-                <div className="flex items-center gap-2 text-indigo-700">
-                  <ShieldCheck size={16} />
-                  <span className="text-[11px] font-black">اطلاعات تماس مستقیم بدون واسطه:</span>
+              <div>
+                <span className="text-[10px] text-indigo-600 font-black block mb-1">
+                  🏢 کارخانه یا تامین‌کننده: {selectedAdDetail.factoryName}
+                </span>
+                <h4 className="font-black text-sm sm:text-base text-slate-900 leading-relaxed">
+                  {selectedAdDetail.title}
+                </h4>
+              </div>
+
+              {/* PRICING TABULAR CARD (WHOLSALE vs MARKET vs DIFFERENCE) */}
+              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-3.5">
+                <div className="flex items-center gap-1.5 border-b border-slate-200/50 pb-2">
+                  <BadgePercent size={16} className="text-emerald-600" />
+                  <span className="text-xs font-black text-slate-800">شفاف‌سازی و تحلیل قیمت کالا (زیر قیمت بازار):</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-800">
-                  <div>
-                    <span className="text-[8px] text-slate-400 block">مسئول هماهنگی:</span>
-                    <span>{selectedAdDetail.contactPerson}</span>
+
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-2xs">
+                    <span className="text-[9px] text-slate-400 font-black block mb-1">قیمت بازار آزاد:</span>
+                    <span className="text-xs font-bold text-slate-500 line-through block">{selectedAdDetail.marketPrice}</span>
                   </div>
-                  <div>
-                    <span className="text-[8px] text-slate-400 block">تلفن تماس:</span>
-                    <span className="font-mono">{selectedAdDetail.contactPhone}</span>
+                  <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50 shadow-2xs">
+                    <span className="text-[9px] text-emerald-800 font-black block mb-1">قیمت پیشنهادی کف:</span>
+                    <span className="text-xs font-black text-emerald-700 block">{selectedAdDetail.wholesalePrice}</span>
+                  </div>
+                  <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50 shadow-2xs">
+                    <span className="text-[9px] text-amber-800 font-black block mb-1">حاشیه سود خریدار:</span>
+                    <span className="text-[10px] font-black text-amber-700 block leading-tight">{selectedAdDetail.buyerProfit}</span>
                   </div>
                 </div>
+
+                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold pt-1.5">
+                  <span>میزان بار موجود جهت بارگیری:</span>
+                  <span className="text-slate-800 font-black">📦 {selectedAdDetail.quantity}</span>
+                </div>
+              </div>
+
+              {/* Brand Protection Warning */}
+              <div className="bg-amber-50/40 border border-amber-100 rounded-2xl p-4 flex gap-3 text-right">
+                <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                <div className="space-y-1">
+                  <h5 className="text-[11px] font-black text-amber-900">سیاست صیانت و محافظت از ارزش برندهای تولیدی</h5>
+                  <p className="text-[10px] text-amber-800/80 font-bold leading-relaxed">
+                    به منظور ممانعت از ریزش ناگهانی قیمت رسمی و آسیب به شبکه نمایندگی‌های فعال کارخانه در کل کشور، مشخصات دقیق برند صرفاً به خریدار واقعی و پس از تایید توسط واسطه امن صنف دست‌اول ارائه خواهد شد.
+                  </p>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 block">شرح کامل درخواست و شرایط تحویل:</span>
+                <p className="text-xs text-slate-600 leading-relaxed font-bold bg-slate-50 p-4 rounded-xl border border-slate-100 whitespace-pre-line">
+                  {selectedAdDetail.description}
+                </p>
+              </div>
+
+              {/* Contact Proxy & Site Mediation Block */}
+              <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2 text-indigo-800">
+                  <LockKeyhole size={16} />
+                  <span className="text-[11px] font-black">اطلاعات تماس مستقیم (پنهان به دستور صنف):</span>
+                </div>
+                <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
+                  طبق قوانین پیشگیری از تخلف و انحصار صنف، برای برقراری ارتباط با مالک کالا باید درخواست انجام معامله خود را از طریق دکمه واسطه زیر ثبت نمایید. کارشناسان ما تا ۱۵ دقیقه آینده جهت اعزام ناظر باسکول هماهنگی‌ها را انجام می‌دهند.
+                </p>
+
+                <button
+                  onClick={() => {
+                    setEscrowModalAd(selectedAdDetail);
+                    setSelectedAdDetail(null);
+                  }}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  <ShieldCheck size={14} />
+                  <span>ثبت درخواست معامله امن با واسطه‌گری دست‌اول</span>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -311,22 +500,23 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     </AnimatePresence>
   );
 
+  // Simple render implementation for Mini block on Main landing page
   if (isMini) {
     return (
       <div className="w-full mt-6 mb-12 max-w-7xl mx-auto px-4" id="ad-board-mini-container" dir="rtl">
         {/* Billboard Styled Header */}
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.04)] flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
-              <Megaphone size={22} className="animate-bounce" />
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+              <TrendingDown size={22} className="animate-pulse" />
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="bg-indigo-600 text-white text-[9px] font-black px-2.5 py-0.5 rounded-lg">بیلبورد تجاری</span>
-                <h3 className="font-black text-sm text-slate-800">جدیدترین آگهی‌های بیلبورد تبلیغات تجاری و تقاضای کالا</h3>
+                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-3 py-0.5 rounded-full">کف قیمت</span>
+                <h3 className="font-black text-sm text-slate-800">سامانه ملی «کف قیمت» کالا با ضمانت واسطه‌گری امن</h3>
               </div>
               <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-2xl">
-                اطلاعیه‌ها، آگهی‌های رسمی خرید نقدی و تبادلات مستقیم مواد اولیه کارخانجات بزرگ صنایع غذایی کشور.
+                بستری انحصاری برای ثبت درخواست کالا زیر قیمت بازار آزاد. کلیه معاملات با نظارت مستقیم و واسطه‌گری امین صنف صورت می‌پذیرد.
               </p>
             </div>
           </div>
@@ -334,30 +524,30 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
           <div className="flex items-center gap-3 shrink-0 w-full lg:w-auto justify-end">
             <button
               onClick={onNavigateToBillboard}
-              className="bg-indigo-600 hover:bg-indigo-755 text-white text-xs font-black px-5 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-indigo-600/10 cursor-pointer"
+              className="bg-slate-900 hover:bg-slate-850 text-white text-xs font-black px-5 py-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
-              <span>ورود به صفحه بیلبورد ({ads.length} آگهی)</span>
+              <span>مشاهده تالار کف قیمت ({filteredAds.length} مورد)</span>
               <ChevronLeft size={14} />
             </button>
             <button
               onClick={() => setIsSubmitModalOpen(true)}
-              className="bg-white hover:bg-slate-50 text-slate-700 text-xs font-black px-5 py-3 rounded-xl transition-all flex items-center gap-1.5 border border-slate-200 cursor-pointer"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-5 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Plus size={14} />
-              <span>ثبت رایگان آگهی</span>
+              <span>ثبت درخواست خرید کالا زیر قیمت</span>
             </button>
           </div>
         </div>
 
         {/* 3 Columns Displaying Latest Items with Beautiful Material Styling */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
-          {ads.slice(0, 3).map((ad) => {
+          {filteredAds.slice(0, 3).map((ad) => {
             const adImg = ad.imageUrl || getAdFallbackImage(ad.title, ad.category);
             return (
               <div
                 key={ad.id}
                 onClick={() => setSelectedAdDetail(ad)}
-                className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_10px_30px_-6px_rgba(0,0,0,0.06)] transition-all duration-300 text-right cursor-pointer group flex flex-col justify-between h-[360px] relative"
+                className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_10px_30px_-6px_rgba(0,0,0,0.06)] transition-all duration-300 text-right cursor-pointer group flex flex-col justify-between h-[390px] relative"
               >
                 {/* Image Banner */}
                 <div className="h-32 w-full overflow-hidden bg-slate-50 relative shrink-0">
@@ -367,8 +557,8 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[9px] font-black text-slate-800 shadow-sm flex items-center gap-1">
-                    <span>{ad.category === "barter" ? "🔄 تهاتر" : ad.category === "buy" ? "📥 خرید نقدی" : "📤 تامین کالا"}</span>
+                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-xl text-[9px] font-black text-slate-800 shadow-sm flex items-center gap-1">
+                    <span>{ad.category === "under_market" ? "📉 کف قیمت" : ad.category === "liquid" ? "🔥 حراج" : "📦 تامین"}</span>
                   </div>
                 </div>
 
@@ -376,8 +566,16 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-slate-400 font-black">{ad.date}</span>
-                      <span className="bg-slate-50 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-lg border border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-slate-400 font-black">{ad.date}</span>
+                        {ad.isSponsored && (
+                          <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-lg text-[9px] font-black border border-amber-200 flex items-center gap-1">
+                            <Sparkles size={10} />
+                            ویژه
+                          </span>
+                        )}
+                      </div>
+                      <span className="bg-slate-50 text-slate-600 text-[9px] font-black px-2.5 py-0.5 rounded-lg border border-slate-100">
                         {ad.badgeText}
                       </span>
                     </div>
@@ -385,16 +583,25 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     <h4 className="font-black text-xs text-slate-800 leading-relaxed group-hover:text-indigo-600 transition-colors line-clamp-1">
                       {ad.title}
                     </h4>
-                    <p className="text-[11px] text-slate-500 font-bold leading-relaxed line-clamp-2">
-                      {ad.description}
-                    </p>
+                    
+                    {/* Clear price highlights for buyers */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-[10px] font-bold text-slate-600 my-1">
+                      <div>
+                        <span className="text-slate-400 block text-[8px]">قیمت عمده:</span>
+                        <span className="text-emerald-700 font-black">{ad.wholesalePrice}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[8px]">سود شما:</span>
+                        <span className="text-amber-700 font-black">{ad.buyerProfit.split(" ")[0]} سود</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-[10px] text-slate-400 font-bold">
                     <span className="text-indigo-600 font-black">{ad.factoryName}</span>
-                    <span className="flex items-center gap-0.5 text-slate-500 group-hover:text-indigo-600 transition-colors">
-                      <span>اطلاعات تماس</span>
-                      <Phone size={11} />
+                    <span className="flex items-center gap-1 text-emerald-600 font-black group-hover:translate-x-1 transition-transform">
+                      <span>ثبت معامله امن</span>
+                      <ArrowUpRight size={11} className="rotate-90" />
                     </span>
                   </div>
                 </div>
@@ -414,61 +621,211 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   // FULL PAGE / TAB MODE
   return (
     <div className="w-full mt-6 mb-12 max-w-7xl mx-auto px-4" id="ad-board-full-container" dir="rtl">
-      {/* Upper Brand Billboard Card */}
-      <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.04)] flex flex-col md:flex-row items-center justify-between gap-6 text-right mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
-            <Megaphone size={22} />
+      
+      {/* Brand Protection and Guidelines Panel (Collapsible) */}
+      <div className="bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-950 rounded-[2.5rem] p-6 sm:p-8 text-white shadow-xl mb-8 relative overflow-hidden transition-all duration-500">
+        <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-700/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-0 bottom-0 w-64 h-64 bg-emerald-700/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-4 flex-1">
+            <div className="flex items-center justify-between lg:justify-start gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 bg-amber-400 text-slate-950 rounded-xl flex items-center justify-center font-black shadow-lg">
+                  <TrendingDown size={20} />
+                </div>
+                <div>
+                  <span className="text-amber-300 font-black text-[9px] uppercase tracking-wider block">سامانه هوشمند صنف</span>
+                  <h1 className="font-black text-base sm:text-xl text-white">سامانه ملی «کف قیمت» کالا زیر قیمت بازار آزاد</h1>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setIsIntroExpanded(!isIntroExpanded)}
+                className="lg:hidden w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"
+              >
+                <ChevronDown size={18} className={`transition-transform duration-300 ${isIntroExpanded ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+            
+            <motion.div 
+              initial={false}
+              animate={{ height: isIntroExpanded || window.innerWidth > 1024 ? "auto" : 0, opacity: isIntroExpanded || window.innerWidth > 1024 ? 1 : 0 }}
+              className="overflow-hidden space-y-4"
+            >
+              <p className="text-xs text-slate-300 font-medium leading-relaxed max-w-3xl">
+                این پلتفرم فضایی اختصاصی جهت عرضه بارهای مازاد کارخانجات و ثبت رسمی تقاضای خرید کالا با حاشیه سودهای استثنایی است. کلیه تعاملات با واسطه‌گری امین دست‌اول انجام می‌گردد تا امنیت و حفظ هویت خریداران و فروشندگان کاملاً صیانت شود.
+              </p>
+
+              {/* Crucial brand safety instruction card */}
+              <div className="bg-white/5 backdrop-blur-md rounded-3xl p-5 border border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
+                <div className="space-y-2">
+                  <h4 className="text-amber-300 font-black text-xs flex items-center gap-1.5">
+                    <ShieldAlert size={14} />
+                    دستورالعمل صیانت از اعتبار برندها:
+                  </h4>
+                  <p className="text-[10px] text-slate-200 font-bold leading-relaxed">
+                    ذکر مستقیم نام تجاری و تجاری کارخانه ممنوع است. نام‌ها باید به صورت عمومی درج شوند (مثلا: "۲ تن نوشمک یخی" یا "قند کله ۵ کیلویی") تا از ریزش قیمت نمایندگی‌های رسمی کارخانه جلوگیری شده و اعتبار برند حفظ گردد.
+                  </p>
+                </div>
+                <div className="border-t md:border-t-0 md:border-r border-white/15 pt-4 md:pt-0 md:pr-6 space-y-1.5 text-[10px] text-slate-300">
+                  <span className="font-black text-white block mb-1">قوانین حاکم بر معاملات تالار:</span>
+                  <div className="flex items-start gap-2">
+                    <span className="text-emerald-400">✔️</span>
+                    <span>لزوم ثبت قیمت عمده واقعی و قیمت بازار جهت شفاف‌سازی.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-emerald-400">✔️</span>
+                    <span>ممنوعیت کامل درج شماره تلفن مستقیم در عناوین یا شرح جهت واسطه‌گری امن.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-emerald-400">✔️</span>
+                    <span>تمامی بارها پیش از بارگیری باید به تایید کارشناسی ناظر دست‌اول برسند.</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
-          <div className="space-y-1">
-            <h2 className="font-black text-base text-slate-800">صفحه اختصاصی بیلبورد تبلیغات تجاری و اعلام خرید نقدی کارخانجات</h2>
-            <p className="text-[11px] text-slate-500 font-bold">
-              فرصت‌های ناب تجاری، تامین فوری ملزومات و مواد اولیه بدون واسطه را در بیلبورد سراسری دست‌اول رصد کنید.
-            </p>
+
+          <div className="w-full lg:w-auto shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3">
+            <button
+              onClick={() => setIsSubmitModalOpen(true)}
+              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+            >
+              <Plus size={16} />
+              <span>ثبت عرضه کالا زیر قیمت</span>
+            </button>
+            <button 
+              onClick={() => setIsIntroExpanded(!isIntroExpanded)}
+              className="hidden lg:flex items-center justify-center gap-1.5 text-[10px] font-black text-slate-400 hover:text-white transition-colors"
+            >
+              {isIntroExpanded ? "بستن راهنما" : "مشاهده راهنما و قوانین"}
+              <ChevronDown size={12} className={`transition-transform duration-300 ${isIntroExpanded ? 'rotate-180' : ''}`} />
+            </button>
           </div>
         </div>
-
-        <button
-          onClick={() => setIsSubmitModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-6 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-md shadow-indigo-600/10 cursor-pointer w-full md:w-auto justify-center"
-        >
-          <Plus size={14} />
-          <span>ثبت رایگان آگهی در بیلبورد</span>
-        </button>
       </div>
 
+      {/* REAL-TIME GUILD AUDIT & INSPECTION PANEL */}
+      <AnimatePresence>
+        {isAdminPanelOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-amber-50/70 border border-amber-200/80 rounded-3xl p-6 mb-6 text-right overflow-hidden shadow-sm"
+          >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-amber-200/60 pb-4 mb-4 gap-2">
+              <div className="flex items-center gap-2">
+                <UserCheck size={18} className="text-amber-800" />
+                <h3 className="font-black text-xs sm:text-sm text-amber-900">میز کارشناس ناظر و ارزیاب کیفیت صنف دست‌اول (تأیید فاکتور و تناژ)</h3>
+              </div>
+              <div className="flex items-center gap-2 self-end">
+                <button 
+                  onClick={handleResetDemoData}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                >
+                  بازنشانی کل لیست به پیش‌فرض صنف
+                </button>
+                <span className="text-[10px] text-amber-800 font-black bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200">
+                  {pendingAds.length} پرونده در دست بررسی و ارزیابی قیمتی
+                </span>
+              </div>
+            </div>
+
+            {pendingAds.length === 0 ? (
+              <p className="text-xs text-amber-800/80 font-bold text-center py-6">
+                هیچ درخواست جدیدی در صف بازرسی فنی وجود ندارد. تولیدکنندگان محترم می‌توانند درخواست عرضه بار خود را از دکمه ثبت کالا بالا ارسال نمایند.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {pendingAds.map((pAd) => (
+                  <div key={pAd.id} className="bg-white border border-amber-200/50 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-1.5 max-w-3xl">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-md">
+                          ⏳ منتظر بررسی
+                        </span>
+                        <span className="text-slate-400 text-[10px] font-mono">{pAd.date}</span>
+                        <span className="text-[10px] text-slate-500 font-bold">متقاضی: {pAd.contactPerson}</span>
+                        <span className="text-[10px] text-indigo-600 font-black bg-indigo-50 px-2 rounded-md">تلفن محفوظ: {pAd.contactPhone}</span>
+                      </div>
+                      <h4 className="font-black text-xs text-slate-800">{pAd.title}</h4>
+                      <p className="text-[10px] text-slate-500 font-bold leading-relaxed line-clamp-1">{pAd.description}</p>
+                      
+                      <div className="flex flex-wrap gap-4 text-[10px] font-bold text-slate-700 pt-1">
+                        <span>💰 عمده پیشنهادی: <strong className="text-emerald-600">{pAd.wholesalePrice}</strong></span>
+                        <span>💸 قیمت بازار: <strong className="text-slate-500">{pAd.marketPrice}</strong></span>
+                        <span>📈 سود خریدار: <strong className="text-amber-600">{pAd.buyerProfit}</strong></span>
+                        <span>📦 میزان: <strong>{pAd.quantity}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                      <button
+                        onClick={() => handleApproveAd(pAd.id)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black px-3.5 py-2 rounded-xl cursor-pointer transition-colors flex items-center gap-1"
+                      >
+                        <Check size={11} />
+                        <span>تأیید و انتشار عمومی</span>
+                      </button>
+                      <button
+                        onClick={() => handleRejectAd(pAd.id)}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-black px-3.5 py-2 rounded-xl cursor-pointer transition-colors"
+                      >
+                        رد درخواست
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Searching and Categorization */}
-      <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.03)] flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
-        <div className="relative w-full md:max-w-xs">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="جستجوی عنوان کالا یا نام کارخانه..."
-            className="w-full bg-slate-50 border border-slate-100 rounded-xl pr-9 pl-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 text-slate-850"
-          />
-          <Search size={14} className="absolute right-3 top-2.5 text-slate-400" />
+      <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] flex flex-col md:flex-row gap-4 items-center justify-between mb-8" dir="rtl">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="w-1.5 h-8 bg-indigo-600 rounded-full shrink-0" />
+          <div className="text-right">
+            <h3 className="text-xs sm:text-sm font-black text-slate-800">فهرست رصد فرصت‌های کف قیمت صنف</h3>
+            <p className="text-[10px] text-slate-400 font-bold">بارهای مازاد، کف قیمت تولیدی و تامین دست‌اول</p>
+          </div>
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {[
-            { value: "all", label: "همه آگهی‌های بیلبورد" },
-            { value: "barter", label: "🔄 تهاتری" },
-            { value: "buy", label: "📥 تقاضای خرید نقدی" },
-            { value: "sell", label: "📤 عرضه مستقیم کالا" },
-          ].map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setActiveCategoryFilter(filter.value as any)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer ${
-                activeCategoryFilter === filter.value
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-50 hover:bg-slate-100 text-slate-600"
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
+          <div className="relative w-full sm:w-60">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="جستجوی عنوان کالا یا کارخانه..."
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl pr-9 pl-3 py-2.5 text-xs font-black outline-none focus:bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 text-slate-800 text-right"
+            />
+            <Search size={14} className="absolute right-3 top-3 text-slate-400" />
+          </div>
+
+          <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none shrink-0">
+            {[
+              { value: "all", label: "همه موارد" },
+              { value: "under_market", label: "📉 کف قیمت" },
+              { value: "liquid", label: "🔥 مازاد صنف" },
+              { value: "direct_supply", label: "📦 تامین مستقیم" },
+            ].map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setActiveCategoryFilter(filter.value as any)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 border ${
+                  activeCategoryFilter === filter.value
+                    ? "bg-indigo-600 text-white border-indigo-700 shadow-md shadow-indigo-600/20 scale-105"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -476,60 +833,84 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       <div className="w-full max-w-4xl mx-auto space-y-4">
         {filteredAds.length === 0 ? (
           <div className="p-12 text-center text-slate-400 font-bold bg-white border border-slate-100 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
-            هیچ آگهی معتبری در این دسته‌بندی یافت نشد.
+            هیچ آگهی معتبری در این دسته‌بندی یافت نشد. می‌توانید با کلیک بر روی دکمه ثبت درخواست، اولین تقاضای خود را ثبت و پس از ممیزی در پنل نظارت مدیریت صنف تایید نمایید.
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 animate-in fade-in duration-500">
             {filteredAds.map((ad) => {
               const adImg = ad.imageUrl || getAdFallbackImage(ad.title, ad.category);
-              const isSelected = selectedAdDetail?.id === ad.id;
               return (
                 <div
                   key={ad.id}
                   onClick={() => setSelectedAdDetail(ad)}
-                  className={`p-4 rounded-3xl border text-right flex gap-4 h-auto md:h-[150px] transition-all cursor-pointer overflow-hidden bg-white border-slate-100 hover:border-slate-200 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] group`}
+                  className={`p-4 rounded-3xl border text-right flex flex-col sm:flex-row gap-4 h-auto sm:h-[160px] transition-all cursor-pointer overflow-hidden bg-white border-slate-100 hover:border-emerald-200 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] group relative hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.05)]`}
                 >
                   {/* Compact Image Thumbnail */}
-                  <div className="w-24 md:w-32 h-24 md:h-full rounded-2xl overflow-hidden shrink-0 bg-slate-50 relative">
+                  <div className="w-full sm:w-36 h-36 sm:h-full rounded-2xl overflow-hidden shrink-0 bg-slate-50 relative">
                     <img
                       src={adImg}
                       alt={ad.title}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className={`absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black text-white shadow-sm ${
-                      ad.category === "barter" 
-                        ? "bg-amber-600/90" 
-                        : ad.category === "buy" 
-                          ? "bg-emerald-600/90" 
-                          : "bg-indigo-600/90"
+                    <div className={`absolute bottom-2 right-2 px-2.5 py-0.5 rounded-lg text-[8px] font-black text-white shadow-sm ${
+                      ad.category === "liquid" 
+                        ? "bg-amber-600" 
+                        : ad.category === "under_market" 
+                          ? "bg-emerald-600" 
+                          : "bg-indigo-600"
                     }`}>
-                      {ad.category === "barter" ? "🔄 تهاتر" : ad.category === "buy" ? "📥 خرید" : "📤 عرضه"}
+                      {ad.category === "liquid" ? "🔥 حراج" : ad.category === "under_market" ? "📉 کف قیمت" : "📦 تامین"}
                     </div>
                   </div>
 
                   {/* Content Section */}
-                  <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
-                    <div className="space-y-1">
+                  <div className="flex-1 flex flex-col justify-between min-w-0 py-1">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] text-slate-400 font-black">{ad.date}</span>
-                        <span className="text-[10px] text-slate-500 font-black flex items-center gap-1 max-w-[150px] truncate">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-slate-400 font-black">{ad.date}</span>
+                          {ad.isSponsored && (
+                            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black border border-amber-200/60 flex items-center gap-0.5">
+                              <Sparkles size={8} />
+                              طلایی صنف
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-black flex items-center gap-1 max-w-[180px] truncate">
                           <Building2 size={11} className="text-slate-400 shrink-0" />
                           {ad.factoryName}
                         </span>
                       </div>
+
                       <h5 className="font-black text-xs md:text-sm text-slate-800 leading-relaxed truncate group-hover:text-indigo-600 transition-colors">
                         {ad.title}
                       </h5>
-                      <p className="text-[11px] text-slate-500 font-bold leading-relaxed line-clamp-2">
+                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed line-clamp-1">
                         {ad.description}
                       </p>
                     </div>
 
+                    {/* Highly readable PRICING strip in list view */}
+                    <div className="grid grid-cols-3 gap-2 bg-slate-50/70 border border-slate-100 p-2 rounded-2xl text-[10px] font-bold text-slate-600 my-1">
+                      <div>
+                        <span className="text-slate-400 text-[8px] block">قیمت بازار آزاد:</span>
+                        <span className="text-slate-500 line-through">{ad.marketPrice}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[8px] block">قیمت پیشنهادی کف:</span>
+                        <span className="text-emerald-700 font-black">{ad.wholesalePrice}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[8px] block">سود ناخالص خریدار:</span>
+                        <span className="text-amber-700 font-black">{ad.buyerProfit.split(" ")[0]}</span>
+                      </div>
+                    </div>
+
                     <div className="flex justify-between items-center pt-2 mt-auto border-t border-slate-100/70 text-[10px]">
-                      <span className="text-slate-400">میزان: <strong className="text-slate-700">{ad.quantity}</strong></span>
-                      <span className="text-indigo-600 font-black flex items-center gap-1">
-                        <span>مشاهده جزئیات و تماس</span>
+                      <span className="text-slate-400">میزان موجودی: <strong className="text-slate-700">{ad.quantity}</strong></span>
+                      <span className="text-indigo-600 font-black flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                        <span>جزئیات و درخواست معامله امن</span>
                         <ArrowUpRight size={12} className="rotate-90" />
                       </span>
                     </div>
@@ -541,6 +922,85 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         )}
       </div>
 
+      {/* Secure Escrow Transaction Modal */}
+      <AnimatePresence>
+        {escrowModalAd && (
+          <div className="fixed inset-0 z-[170] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white w-full max-w-md rounded-3xl border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right"
+              dir="rtl"
+            >
+              <button
+                onClick={() => setEscrowModalAd(null)}
+                className="absolute top-5 left-5 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center transition-colors cursor-pointer text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+
+              {escrowSuccess ? (
+                <div className="py-8 flex flex-col items-center text-center space-y-4">
+                  <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 animate-bounce">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h4 className="font-black text-slate-800 text-sm">درخواست معامله امن ثبت شد</h4>
+                  <p className="text-xs text-slate-500 font-bold max-w-xs leading-relaxed">
+                    درخواست شما در سیستم مدیریت معاملات امین دست‌اول ثبت گردید. کارشناسان ما تا حداکثر ۱۵ دقیقه آینده جهت بررسی تناژ و هماهنگی عقد قرارداد واسطه‌ای با شما تماس خواهند گرفت.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleEscrowSubmit} className="space-y-4">
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                    <ShieldCheck className="text-indigo-600 animate-pulse" size={18} />
+                    <h4 className="font-black text-slate-800 text-sm">شروع معامله امن (واسطه‌گری صنف دست‌اول)</h4>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 font-bold leading-relaxed bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
+                    کالا: <strong className="text-slate-800">{escrowModalAd.title}</strong><br />
+                    قیمت کف پیشنهادی: <strong className="text-emerald-700">{escrowModalAd.wholesalePrice}</strong><br />
+                    تضمین معامله: وجه شما در حساب امانی تا تحویل کامل بار محفوظ می‌ماند.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5">شماره موبایل خریدار جهت هماهنگی صنف:</label>
+                      <input
+                        type="tel"
+                        required
+                        value={buyerPhoneInput}
+                        onChange={(e) => setBuyerPhoneInput(e.target.value)}
+                        placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 font-mono text-left"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5">پیام یا شرایط خاص درخواستی (اختیاری):</label>
+                      <textarea
+                        value={buyerMessage}
+                        onChange={(e) => setBuyerMessage(e.target.value)}
+                        placeholder="مثال: ترجیحاً تحویل در شهرک صنعتی توس مشهد"
+                        rows={2}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={escrowLoading}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                  >
+                    {escrowLoading ? "در حال ثبت درخواست..." : "ارسال درخواست معامله به بخش نظارت صنف"}
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Detail Modal */}
       {renderDetailModal()}
 
@@ -551,15 +1011,15 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     </div>
   );
 
-  // Reusable Material Design Modal
+  // Reusable Material Design Modal for Registering Product Requests
   function renderSubmitModal() {
     return (
-      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right"
+          className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right my-8 max-h-[90vh] overflow-y-auto"
           dir="rtl"
         >
           <button
@@ -574,38 +1034,46 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
               <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 animate-bounce">
                 <CheckCircle2 size={32} />
               </div>
-              <h4 className="font-black text-slate-800 text-sm">آگهی بیلبورد با موفقیت ثبت گردید</h4>
+              <h4 className="font-black text-slate-800 text-sm">درخواست کالا با موفقیت ثبت گردید</h4>
               <p className="text-xs text-slate-500 font-bold max-w-sm leading-relaxed">
-                اطلاعات آگهی تجاری شما ثبت گردید و پس از تایید نهایی مدیران پلتفرم دست‌اول (حداکثر تا ۲ ساعت آینده) بر روی بیلبورد عمومی قرار خواهد گرفت.
+                اطلاعات تقاضای خرید شما با موفقیت ثبت شد و به عنوان **منتظر بررسی (Pending)** به صف ادمین ارسال گردید. شما می‌توانید با زدن دکمه «پنل بررسی مدیریت»، درخواست خود را تایید کنید تا فوراً در تالار کف قیمت عمومی منتشر شود!
               </p>
             </div>
           ) : (
-            <form onSubmit={handleCreateAdAdminApproval} className="space-y-4">
+            <form onSubmit={handleCreateAdAdminApproval} className="space-y-4 text-right">
               <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-                <Sparkles className="text-indigo-600 animate-pulse" size={18} />
-                <h4 className="font-black text-slate-800 text-sm">ثبت آگهی جدید در بیلبورد تجاری و اعلام تقاضای کالا</h4>
+                <TrendingDown className="text-emerald-600 animate-pulse" size={18} />
+                <h4 className="font-black text-slate-800 text-sm">ثبت درخواست محصول زیر قیمت بازار (کف قیمت)</h4>
+              </div>
+
+              {/* brand warning box */}
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3.5 flex gap-2.5 text-[10px] text-amber-900 font-bold leading-relaxed">
+                <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={15} />
+                <div>
+                  <span className="font-black block text-amber-950 mb-0.5">قانون طلایی صیانت از هویت تجاری برندها:</span>
+                  به منظور پیشگیری از ریزش ارزش بازار و تنش قیمت نمایندگی‌ها، نوشتن نام مستقیم برندهای مطرح (مانند کاله، میهن و ...) ممنوع است. لطفاً توصیف عمومی درج کنید (مثال: "۲ تن نوشمک توت‌فرنگی" به‌جای اسم برند). در صورت نوشتن برند، سیستم آن را خودکار سانسور می‌کند.
+                </div>
               </div>
 
               <div className="space-y-3.5">
                 {/* Category Selection */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">نوع درخواست معامله:</label>
+                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">دسته‌بندی درخواست کالا:</label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { value: "barter", label: "🔄 تهاتری" },
-                      { value: "buy", label: "📥 خرید نقدی" },
-                      { value: "sell", label: "📤 اعلام فروش" },
+                      { value: "under_market", label: "📉 کف قیمت بازار" },
+                      { value: "liquid", label: "🔥 حراج مازاد" },
+                      { value: "direct_supply", label: "📦 تامین مستقیم" },
                     ].map((opt) => (
                       <button
                         type="button"
                         key={opt.value}
                         onClick={() => {
                           setCategory(opt.value as any);
-                          setBadgeText(opt.value === "barter" ? "تهاتر خط تولید" : opt.value === "buy" ? "خرید نقدی فوری" : "عرضه مستقیم");
                         }}
-                        className={`py-2 rounded-xl text-[10px] font-black border cursor-pointer transition-all ${
+                        className={`py-2.5 rounded-xl text-[10px] font-black border cursor-pointer transition-all ${
                           category === opt.value
-                            ? "bg-indigo-600 text-white border-indigo-600"
+                            ? "bg-emerald-600 text-white border-emerald-600"
                             : "bg-slate-50 text-slate-600 border-slate-150"
                         }`}
                       >
@@ -615,75 +1083,112 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                   </div>
                 </div>
 
-                {/* Factory Name */}
+                {/* Requested Product Title */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">نام کارخانه یا هلدینگ تجاری:</label>
+                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">نام عمومی محصول یا کالای درخواستی (بدون ذکر برند انحصاری):</label>
                   <input
                     type="text"
                     required
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      if (/(۰|0|۹|9)[۰-۹0-9]{9,10}/.test(e.target.value)) {
+                        setPhoneWarning("طبق قوانین واسطه‌گری صنف، درج شماره تماس مستقیم در عنوان ممنوع است.");
+                      } else {
+                        setPhoneWarning("");
+                      }
+                    }}
+                    placeholder="مثال: ۲ تن نوشمک یخی میوه‌ای یا روغن مایع حلب ۱۶ کیلویی"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                  />
+                  {phoneWarning && <span className="text-[9px] text-rose-500 font-bold block mt-1">{phoneWarning}</span>}
+                </div>
+
+                {/* Target Brand / Factory */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">
+                    کارخانه یا صنف تولیدکننده (اختیاری):
+                  </label>
+                  <input
+                    type="text"
                     value={factoryName}
                     onChange={(e) => setFactoryName(e.target.value)}
-                    placeholder="مثال: کارخانجات مینو"
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
+                    placeholder="مثال: کارخانه قند اصفهان یا فرقی ندارد"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
                   />
                 </div>
 
-                {/* Contact Information */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Three pricing metrics requested by user */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">مسئول پیگیری / سمت:</label>
+                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">قیمت عمده کف پیشنهادی:</label>
+                    <input
+                      type="text"
+                      required
+                      value={wholesalePrice}
+                      onChange={(e) => setWholesalePrice(e.target.value)}
+                      placeholder="مثال: ۱۴,۵۰۰ تومان"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">قیمت بازار آزاد:</label>
+                    <input
+                      type="text"
+                      required
+                      value={marketPrice}
+                      onChange={(e) => setMarketPrice(e.target.value)}
+                      placeholder="مثال: ۲۲,۰۰۰ تومان"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">میزان بار / تناژ درخواستی:</label>
+                    <input
+                      type="text"
+                      required
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      placeholder="مثال: ۲ تن"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Secure Contact Information (Hidden publicly) */}
+                <div className="grid grid-cols-2 gap-3 bg-indigo-50/40 p-3 rounded-2xl border border-indigo-100/30">
+                  <div className="col-span-2 flex items-center gap-1.5 text-indigo-800 text-[10px] font-black mb-1">
+                    <Lock size={12} />
+                    <span>اطلاعات هماهنگی صنف (محفوظ نزد ادمین جهت معامله امن):</span>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black text-slate-400 mb-1">نام و نام خانوادگی خریدار:</label>
                     <input
                       type="text"
                       required
                       value={contactPerson}
                       onChange={(e) => setContactPerson(e.target.value)}
-                      placeholder="مثال: مهندس احمدی"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
+                      placeholder="مثال: قاسمی"
+                      className="w-full bg-white border border-slate-150 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">شماره تماس مستقیم (موبایل):</label>
+                    <label className="block text-[9px] font-black text-slate-400 mb-1">شماره تماس (محفوظ و مخفی):</label>
                     <input
                       type="tel"
                       required
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
                       placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 font-mono text-left"
-                    />
-                  </div>
-                </div>
-
-                {/* Title & Quantity */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">تیتر آگهی:</label>
-                    <input
-                      type="text"
-                      required
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="مثال: خرید عمده شکر چغندری"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">میزان / تناژ:</label>
-                    <input
-                      type="text"
-                      required
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="مثال: ۵۰ تن"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
+                      className="w-full bg-white border border-slate-150 rounded-xl px-3 py-2 text-xs font-bold text-slate-850 outline-none focus:border-indigo-500 font-mono text-left"
                     />
                   </div>
                 </div>
 
                 {/* Image Upload */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">تصویر آگهی (اختیاری):</label>
-                  <label className="cursor-pointer flex items-center justify-center gap-2 w-full bg-slate-50 border border-slate-200 border-dashed rounded-xl px-3.5 py-4 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:border-indigo-400 transition-colors">
+                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">تصویر نمونه کالا یا آنالیز آزمایشگاهی (اختیاری):</label>
+                  <label className="cursor-pointer flex items-center justify-center gap-2 w-full bg-slate-50 border border-slate-200 border-dashed rounded-xl px-3.5 py-3 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:border-emerald-400 transition-colors">
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -693,12 +1198,12 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     {uploadedImage ? (
                       <div className="flex items-center gap-2">
                         <img src={uploadedImage} alt="preview" className="w-8 h-8 rounded-md object-cover" />
-                        <span className="text-emerald-600">تصویر با موفقیت انتخاب شد</span>
+                        <span className="text-emerald-600 text-[10px]">تصویر با موفقیت انتخاب شد</span>
                       </div>
                     ) : (
                       <>
-                        <Upload size={16} />
-                        <span>برای آپلود عکس کلیک کنید</span>
+                        <Upload size={14} />
+                        <span className="text-[10px]">برای آپلود فایل کلیک کنید</span>
                       </>
                     )}
                   </label>
@@ -706,15 +1211,40 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
 
                 {/* Description */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">شرح مشخصات فنی و شرایط دقیق معامله:</label>
+                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">مشخصات تکمیلی، آنالیز فنی و شرایط تسویه درخواستی:</label>
                   <textarea
                     required
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    placeholder="جزئیات فنی کالا، آنالیز آزمایشگاهی، محل تخلیه یا تهاتر را قید بفرمایید..."
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 resize-none"
+                    rows={2.5}
+                    placeholder="مثال: بار سالم بدون زدگی بسته‌بندی، تحویل درب انبار، پرداخت پس از تخلیه و تایید باسکول صنف..."
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 resize-none"
                   />
+                </div>
+
+                {/* Special Request */}
+                <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-3.5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={isSpecialRequested}
+                      onChange={(e) => setIsSpecialRequested(e.target.checked)}
+                      className="w-4 h-4 rounded accent-amber-600 cursor-pointer"
+                    />
+                    <span className="text-[10px] font-black text-amber-800">درخواست کارگزاری ناظر اختصاصی صنف (تایید فوری)</span>
+                  </label>
+                  {isSpecialRequested && (
+                    <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <label className="block text-[9px] font-black text-amber-600/70 mb-1">پیام برای نظارت عالیه صنف:</label>
+                      <textarea
+                        value={specialMessage}
+                        onChange={(e) => setSpecialMessage(e.target.value)}
+                        placeholder="درخواست هماهنگی فوری"
+                        rows={2}
+                        className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-800 outline-none focus:border-amber-500 resize-none"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -729,10 +1259,10 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10"
+                  className="w-1/2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/10"
                 >
                   <FileText size={13} />
-                  <span>ثبت آگهی بیلبورد</span>
+                  <span>ثبت و ارسال به صف بررسی ادمین</span>
                 </button>
               </div>
             </form>

@@ -113,7 +113,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
       title: 'بسته‌بندی پرفروش و شکیل', 
       icon: ShoppingBag,
       shortDesc: 'گردش سریع کالا (Turnover) در شلف و فروش بی‌دردسر', 
-      longDesc: 'بسته‌بندی لمینت صادراتی با بارکد ملی و طرح مشتری‌پسند، باعث تسریع در خروج بار از انبار شما و خرید مجدد مغازه‌داران می‌شود.',
+      longDesc: 'بسته‌بندی لمینت صادراتی با بارکد ملی و طرح مشتری‌پسند، باعث خروج سریع‌تر بار از انبار شما و خرید مجدد مغازه‌داران می‌شود.',
       timeEstimate: 'فروش ۲ برابری',
       profitImpact: 'صفر شدن خواب سرمایه',
       badgeBg: 'bg-amber-100 text-amber-800 border-amber-300',

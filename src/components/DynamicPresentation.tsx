@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { HeroGlobeWidget } from "./NetworkGlobePowerhouse";
+import { DigitalEcoTree } from "./DigitalEcoTree";
 import { SupplyChainLifecycleAnimation } from "./SupplyChainLifecycleAnimation";
+import { FactoryHeroPowerhouse } from "./FactoryHeroPowerhouse";
+import { UserGatewayHub } from "./UserGatewayHub";
+import { CustomerJourneyModal } from "./CustomerJourneyModal";
 import {
   Sparkles,
   ArrowLeft,
@@ -25,6 +28,7 @@ import {
   Download,
   Copy,
   Check,
+  Globe,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -68,6 +72,7 @@ export default function DynamicPresentation({
   const [selectedHomeFactory, setSelectedHomeFactory] = useState<any | null>(null);
   const [copiedCoupon, setCopiedCoupon] = useState(false);
   const [isReferralOpen, setIsReferralOpen] = useState(false);
+  const [isCustomerJourneyOpen, setIsCustomerJourneyOpen] = useState(false);
 
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
@@ -386,49 +391,38 @@ export default function DynamicPresentation({
   const instagramUrl = (b2bConfig as any)?.instagramPageUrl || "https://instagram.com/dastavval_official";
 
   return (
-    <div className="space-y-4 py-1 text-right" dir="rtl">
+    <div className="space-y-6 py-1 text-right" dir="rtl">
       
-      {/* --- CLASSIC EXQUISITE MERCHANT BANNER (WHEN IN CLASSIC MODE) --- */}
-      {theme === 'classic' && (
-        <div className="relative overflow-hidden bg-gradient-to-r from-amber-50/70 via-white/95 to-emerald-50/50 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-[0_12px_40px_rgba(217,119,6,0.06)] border border-amber-200/70 text-right backdrop-blur-md">
-          {/* Decorative glows */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-200/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-200/10 rounded-full blur-2xl pointer-events-none" />
+      {/* --- REVOLUTIONARY FACTORY HERO POWERHOUSE (CONNECTED DIRECTLY TO REAL DATABASE PRODUCTS) --- */}
+      <FactoryHeroPowerhouse 
+        products={products}
+        onOrderClick={() => setActiveTab?.('order')}
+        onFactoryClick={() => setActiveTab?.('factories')}
+        onBillboardClick={() => setActiveTab?.('billboard')}
+        onAgencyClick={() => setActiveTab?.('agency')}
+        onAddToCart={onAddToCart}
+      />
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 relative z-10">
-            {/* 3D Rotating Network Globe element replacing 🏛️ icon - larger and frameless */}
-            <HeroGlobeWidget size="lg" />
-            <div className="space-y-1 text-center sm:text-right">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <span className="bg-amber-100/80 text-amber-900 border border-amber-300/60 px-2.5 py-0.5 rounded-lg text-[10px] font-black">
-                  شبکه سراسری تامین و بنکداری ۳۱ استان
-                </span>
-                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg text-[10px] font-black">
-                  اصالت و تضمین کیفیت فاکتور کارخانه
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-slate-900 mt-1 leading-snug">
-                {(b2bConfig as any).appName || "دست اول"} با بیش از {toPersianNum(displayedReps)} نماینده و بازاریاب و {toPersianNum(displayedProducts)} محصول در سرتاسر ایران
-              </h3>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 shrink-0 relative z-10">
-            <div className="relative overflow-hidden px-5 py-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-200 to-slate-300 border border-slate-300 shadow-lg shadow-slate-500/10 flex items-center gap-2 ring-2 ring-slate-300/60">
-              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/80 to-transparent pointer-events-none"></div>
-              <span className="relative z-10 text-xs sm:text-sm font-black tracking-wider text-slate-800 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)] select-none">
-                ✨ « برکت در صدق در معامله است » ✨
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* --- 3-PILLAR SMART USER GATEWAY HUB (NO USER IS EVER LOST OR CONFUSED) --- */}
+      <UserGatewayHub 
+        onSelectBuyer={() => setActiveTab?.('order')}
+        onSelectAgency={() => setActiveTab?.('agency')}
+        onSelectFactory={() => setActiveTab?.('factories')}
+        onOpenJourneyGuide={() => setIsCustomerJourneyOpen(true)}
+        onOpenBillboard={() => setActiveTab?.('billboard')}
+      />
 
-      {/* --- GLASSMORPHIC LIGHT HERO BANNER WITH CONNECTED BUBBLE NETWORK --- */}
-      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-4 sm:py-6">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+      {/* --- CUSTOMER JOURNEY STEP-BY-STEP MODAL --- */}
+      <CustomerJourneyModal
+        isOpen={isCustomerJourneyOpen}
+        onClose={() => setIsCustomerJourneyOpen(false)}
+        onSelectBuyer={() => setActiveTab?.('order')}
+        onSelectAgency={() => setActiveTab?.('agency')}
+        onSelectFactory={() => setActiveTab?.('factories')}
+      />
 
+      {/* --- SUPPLY CHAIN LIFECYCLE & VALUE BANNER --- */}
+      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-2">
         <div className="relative z-10 space-y-3 max-w-xl flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 text-white px-3.5 py-1 rounded-full text-[11px] font-black shadow-md border border-emerald-500/30">

@@ -553,6 +553,26 @@ export default function CheckoutWizard({
                     placeholder="مثال: تهران، خیابان خیام، انبار مرکزی توزیع..."
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
                   />
+                  {/* Quick-fill address selectors */}
+                  <div className="flex gap-1.5 flex-wrap mt-1.5 justify-start">
+                    {[
+                      { label: "🏢 انبار مرکزی تهران (شوش)", val: "تهران، میدان شوش، خیابان صابونیان، انبار مرکزی بازرگانی" },
+                      { label: "🚛 باربری پایانه اصفهان", val: "اصفهان، بزرگراه امیرکبیر، پایانه ترابری شرق، غرفه باربری همکار" },
+                      { label: "🚚 انبار پخش مشهد", val: "مشهد، بلوار مصلی، بین مصلی ۳۰ و ۳۲، مجتمع اداری پخش پارس" }
+                    ].map((opt, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          setBuyerAddress(opt.val);
+                          if (!buyerCompany) setBuyerCompany(opt.label.substring(2));
+                        }}
+                        className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 text-slate-600 border border-slate-200 rounded-lg text-[9px] font-black cursor-pointer transition-all"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="pt-2 space-y-2">

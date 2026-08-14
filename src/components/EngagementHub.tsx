@@ -41,7 +41,7 @@ interface Tender {
 
 export default function EngagementHub({ products, onAddToCart, userBadge = "bronze", theme = "light" }: EngagementHubProps) {
   // State for Sub-Tabs - Completely redesigned with formal enterprise-grade options
-  const [activeTab, setActiveTab] = useState<"stagnancy" | "logistics" | "barter" | "rfq">("stagnancy");
+  const [activeTab, setActiveTab] = useState<"stagnancy" | "logistics" | "rfq">("stagnancy");
 
   // Zarinpal anti-fraud secure payment gateway states
   const [pendingPayment, setPendingPayment] = useState<{
@@ -600,7 +600,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
       </div>
 
       {/* FORMAL SUB-TABS NAVIGATION - Completely White & Neutral Professional Style */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
         
         <button
           onClick={() => setActiveTab("stagnancy")}
@@ -624,18 +624,6 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
         >
           <Truck size={16} className="text-slate-700" />
           <span>محاسبه‌گر فرابری و لجستیک</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("barter")}
-          className={`py-3 px-2 rounded-xl text-xs font-black transition-all flex flex-col sm:flex-row items-center justify-center gap-2 cursor-pointer ${
-            activeTab === "barter"
-              ? "bg-white text-slate-950 shadow-sm border border-slate-200"
-              : "text-slate-600 hover:bg-white/50"
-          }`}
-        >
-          <ArrowLeftRight size={16} className="text-slate-700" />
-          <span>تالار تهاتر کالای مازاد</span>
         </button>
 
         <button
@@ -870,95 +858,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
             </div>
           )}
 
-          {/* TAB 3: B2B INDUSTRIAL BARTER */}
-          {activeTab === "barter" && (
-            <div className="space-y-5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                    <ArrowLeftRight size={18} className="text-slate-800" />
-                    <span>تالار رسمی تهاتر صنعتی و تبادل اقلام راکد</span>
-                  </h3>
-                  <p className="text-[10px] text-slate-500 font-bold mt-1">
-                    بستری امن برای شرکت‌های پخش سراسری و بنکداران به جهت معاوضه کالاها بدون نیاز به تراکنش‌های نقدی و خروج سرمایه در گردش.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsBarterModalOpen(true)}
-                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>ثبت آگهی تهاتر رسمی</span>
-                </button>
-              </div>
 
-              {/* Barter Search */}
-              <div className="relative">
-                <Search size={14} className="absolute right-3.5 top-3 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="جستجو در بین اقلام معاوضه (کیک، رب گوجه، کلوچه...)"
-                  value={barterSearch}
-                  onChange={(e) => setBarterSearch(e.target.value)}
-                  className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black outline-none focus:bg-white transition-colors"
-                />
-              </div>
-
-              {/* Barter List */}
-              <div className="space-y-3">
-                {filteredBarters.map((b) => (
-                  <div key={b.id} className="border border-slate-200 rounded-xl p-4 bg-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                          ثبت‌شده توسط: {b.companyName} ({b.contactName})
-                        </span>
-                        {b.status === "active" && (
-                          <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black">فعال</span>
-                        )}
-                        {b.status === "negotiating" && (
-                          <span className="text-[9px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-black">در حال مذاکره</span>
-                        )}
-                        {b.status === "completed" && (
-                          <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">معامله شده</span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs font-black text-slate-800">
-                        <div className="flex items-center gap-1 text-slate-900">
-                          <span className="text-slate-400">موجود جهت عرضه:</span>
-                          <span className="text-emerald-700">{b.offeredItem}</span>
-                          <span className="font-mono text-slate-400">({toPersianNum(b.offeredQty)} کارتن)</span>
-                        </div>
-                        <ArrowLeftRight size={12} className="text-slate-400 hidden sm:block" />
-                        <div className="flex items-center gap-1 text-slate-900">
-                          <span className="text-slate-400">مورد نیاز جهت معاوضه:</span>
-                          <span className="text-rose-700">{b.wantedItem}</span>
-                          <span className="font-mono text-slate-400">({toPersianNum(b.wantedQty)} کارتن)</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0">
-                      <span className="text-[10px] font-mono text-slate-500 font-bold ml-2">
-                        تماس مستقیم: <span className="text-slate-800 font-black">{toPersianNum(b.contactPhone)}</span>
-                      </span>
-                      {b.status !== "completed" ? (
-                        <button
-                          onClick={() => handleCompleteBarter(b.id)}
-                          className="px-3 py-1.5 bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black rounded-lg cursor-pointer"
-                        >
-                          تایید نهایی معامله
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 font-bold">معامله خاتمه یافته ✔</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* TAB 4: RFQ & TENDERS */}
           {activeTab === "rfq" && (

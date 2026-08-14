@@ -29,13 +29,27 @@ import {
   Activity,
   Loader2,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Award,
+  DollarSign,
+  Percent,
+  Share2,
+  Copy,
+  Check,
+  Briefcase,
+  Users,
+  Target,
+  TrendingUp,
+  Download,
+  Eye,
+  Gift
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { collection, query, where, getDocs } from "../lib/firebase-mock";
 import { db } from "../lib/firebase";
 import { Product, Order } from "../types";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
+import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import ConfirmModal from "./ConfirmModal";
 import MultiVendorPanel from "./MultiVendorPanel";
 
@@ -68,8 +82,18 @@ export default function UserPanel({
   setCurrentSeller,
   onRefreshProducts
 }: UserPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'orders' | 'price_alerts' | 'supplier'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'orders' | 'price_alerts' | 'supplier' | 'representative' | 'marketer'>('profile');
   
+  // Certificate Modal State
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+
+  // Marketer / Affiliate States
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [settlementSuccess, setSettlementSuccess] = useState<string | null>(null);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [ibanNumber, setIbanNumber] = useState(user?.iban || "IR120170000000123456789012");
+
   // Price Alerts State
   const [priceAlerts, setPriceAlerts] = useState<any[]>([]);
 
@@ -432,7 +456,7 @@ export default function UserPanel({
           <button
             onClick={() => setActiveSubTab('profile')}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'profile' ? "bg-white text-slate-900 shadow-lg" : "text-white/80 hover"
+              activeSubTab === 'profile' ? "bg-white text-slate-900 shadow-lg" : "text-white/80 hover:text-white"
             }`}
           >
             <User size={15} />
@@ -446,20 +470,27 @@ export default function UserPanel({
             }`}
           >
             <ShoppingBag size={15} />
-            <span>تاریخچه سفارش‌ها و پرداخت‌ها ({myOrders.length})</span>
+            <span>تاریخچه سفارش‌ها و فاکتورها ({myOrders.length})</span>
           </button>
 
           <button
-            onClick={() => setActiveSubTab('price_alerts')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer relative ${
-              activeSubTab === 'price_alerts' ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20 font-black" : "text-amber-300 hover:text-amber-200"
+            onClick={() => setActiveSubTab('representative')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'representative' ? "bg-amber-400 text-slate-950 font-black shadow-lg shadow-amber-400/20" : "text-amber-200 hover:text-white"
             }`}
           >
-            <Bell size={15} className="fill-current" />
-            <span>هشدارهای قیمت من ({priceAlerts.length})</span>
-            {priceAlerts.some(a => a.isTriggered) && (
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping absolute top-1.5 right-1.5" />
-            )}
+            <Award size={15} />
+            <span>میز کار نمایندگی انحصاری</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('marketer')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'marketer' ? "bg-emerald-400 text-slate-950 font-black shadow-lg shadow-emerald-400/20" : "text-emerald-200 hover:text-white"
+            }`}
+          >
+            <Briefcase size={15} />
+            <span>میز کار بازاریاب و معرف</span>
           </button>
 
           <button
@@ -469,7 +500,20 @@ export default function UserPanel({
             }`}
           >
             <Store size={15} />
-            <span>پنل کارخانجات و ثبت تولیدات</span>
+            <span>پنل کارخانجات و تولیدکنندگان</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('price_alerts')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer relative ${
+              activeSubTab === 'price_alerts' ? "bg-white text-slate-900 shadow-lg" : "text-white/80 hover:text-white"
+            }`}
+          >
+            <Bell size={15} className="fill-current" />
+            <span>هشدارهای قیمت ({priceAlerts.length})</span>
+            {priceAlerts.some(a => a.isTriggered) && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping absolute top-1.5 right-1.5" />
+            )}
           </button>
         </div>
       </div>
@@ -991,343 +1035,438 @@ export default function UserPanel({
         </div>
       )}
 
-      {/* Legacy Supplier Tab Disabled */}
-      {false && activeSubTab === 'supplier' && (
+      {/* Representative (Exclusive Agency) Tab */}
+      {activeSubTab === 'representative' && (
         <div className="space-y-6">
-          {/* Supplier Header Card */}
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 border border-indigo-500/20 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center font-black text-2xl shrink-0">
-                  🏢
+          {/* Representative Header Card */}
+          <div className="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-900 text-white rounded-3xl p-6 sm:p-8 border border-amber-500/30 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-3xl shrink-0 shadow-lg shadow-amber-500/20">
+                  <Award size={32} />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-black text-white">{user?.company || "کارخانه همکار دست اول"}</h2>
-                    <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-[10px] font-black">
-                      تامین‌کننده رسمی B2B
+                <div className="space-y-1 text-right">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg sm:text-xl font-black text-white">{user?.name || "نماینده محترم استانی"}</h2>
+                    <span className="px-3 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black">
+                      نمایندگی انحصاری فعال B2B
                     </span>
                   </div>
-                  <p className="text-xs text-slate-300 font-bold mt-0.5">مدیریت مستقیم کالاهای تولیدی، قیمت کارخانه و سفارشات عمده</p>
+                  <p className="text-xs text-amber-200/90 font-bold">
+                    حوزه فعالیت: {user?.city ? `استان و شهرستان ${user.city}` : "سراسر کشور"} | کد عاملیت: <span className="font-mono text-amber-300">REP-{(user?.phone || "0912").slice(-4)}</span>
+                  </p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowAddProdForm(true)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-2xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Plus size={16} />
-                <span>افزودن محصول جدید به ویترین</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <button
+                  onClick={() => setShowCertificateModal(true)}
+                  className="flex-1 sm:flex-initial bg-amber-400 hover:bg-amber-500 text-slate-950 px-5 py-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 cursor-pointer active:scale-95"
+                >
+                  <Award size={16} />
+                  <span>مشاهده و دانلود حکم رسمی نمایندگی (PDF)</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('order')}
+                  className="flex-1 sm:flex-initial bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ShoppingBag size={16} />
+                  <span>ثبت سفارش سهمیه کارخانه</span>
+                </button>
+              </div>
             </div>
 
-            {/* Sub Nav Tabs inside Supplier Panel */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSupplierTab('products')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  supplierTab === 'products' ? "bg-white text-slate-900 font-black shadow-md" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <Package size={14} />
-                <span>لیست محصولات من ({products.filter(p => (p.brand || p.factory_name || "").toLowerCase().includes((user?.company || "").toLowerCase())).length || products.length})</span>
-              </button>
+            {/* Representative Key Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-6 pt-6 border-t border-white/10 text-right">
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-amber-200/80 font-bold block">سهمیه ماهیانه منطقه:</span>
+                <span className="text-base font-black text-white font-mono mt-0.5 block">۲,۵۰۰ کارتن</span>
+                <span className="text-[9px] text-emerald-400 font-bold mt-0.5 block">۸۲٪ محقق شده</span>
+              </div>
 
-              <button
-                onClick={() => {
-                  setSupplierTab('orders');
-                  fetchFactoryOrders();
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  supplierTab === 'orders' ? "bg-white text-slate-900 font-black shadow-md" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                <FileText size={14} />
-                <span>سفارشات عمده کارخانه ({factoryOrders.length})</span>
-              </button>
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-amber-200/80 font-bold block">فروشگاه‌های تحت پوشش:</span>
+                <span className="text-base font-black text-white font-mono mt-0.5 block">۴۸ بنکداری و مارکت</span>
+                <span className="text-[9px] text-amber-300 font-bold mt-0.5 block">+۴ نقطه در این ماه</span>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-amber-200/80 font-bold block">تخفیف انحصاری کارخانه:</span>
+                <span className="text-base font-black text-amber-400 font-mono mt-0.5 block">تا ۱۵٪ زیر قیمت عمده</span>
+                <span className="text-[9px] text-slate-300 font-bold mt-0.5 block">حاشیه سود تضمینی</span>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-amber-200/80 font-bold block">وضعیت ناوگان و بارگیری:</span>
+                <span className="text-base font-black text-emerald-400 mt-0.5 block">ارسال اولویت‌دار VIP</span>
+                <span className="text-[9px] text-slate-300 font-bold mt-0.5 block">حمل مستقیم از خط تولید</span>
+              </div>
             </div>
           </div>
 
-          {/* ADD PRODUCT FORM MODAL / PANEL */}
-          {showAddProdForm && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-indigo-100 shadow-xl space-y-5 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                  <Plus className="text-indigo-600" size={18} />
-                  <span>ثبت کالای جدید کارخانه / تولیدکننده</span>
-                </h3>
-                <button
-                  onClick={() => setShowAddProdForm(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {prodSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-black flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600" />
-                  <span>{prodSuccess}</span>
-                </div>
-              )}
-
-              {prodError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-black flex items-center gap-2">
-                  <AlertTriangle size={16} className="text-rose-600" />
-                  <span>{prodError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleCreateFactoryProduct} className="space-y-4 text-xs font-bold text-slate-700">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">عنوان کالا:</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثلا: بیسکویت ۳۰۰ گرمی کرمدار"
-                      value={prodTitle}
-                      onChange={e => setProdTitle(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">نام برند / کارخانه:</label>
-                    <input
-                      type="text"
-                      value={prodBrand}
-                      onChange={e => setProdBrand(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">دسته‌بندی:</label>
-                    <select
-                      value={prodCategory}
-                      onChange={e => setProdCategory(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
-                    >
-                      {["تنقلات و شکلات", "کیک، کلوچه و بیسکویت", "مواد غذایی و کنسروجات", "نوشیدنی‌ها", "شوینده و بهداشتی"].map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">قیمت عمده هر کارتن (تومان):</label>
-                    <input
-                      type="number"
-                      required
-                      value={prodBulkPrice}
-                      onChange={e => setProdBulkPrice(e.target.value ? Number(e.target.value) : "")}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">قیمت روی جلد مصرف‌کننده (تومان):</label>
-                    <input
-                      type="number"
-                      value={prodConsumerPrice}
-                      onChange={e => setProdConsumerPrice(e.target.value ? Number(e.target.value) : "")}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">حداقل سفارش (کارتن):</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={prodMinOrder}
-                      onChange={e => setProdMinOrder(Number(e.target.value))}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">تعداد در هر کارتن:</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={prodUnitCount}
-                      onChange={e => setProdUnitCount(Number(e.target.value))}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block font-black text-slate-800">شهر مبدا ارسال / کارخانه:</label>
-                    <input
-                      type="text"
-                      value={prodOrigin}
-                      onChange={e => setProdOrigin(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1 md:col-span-3">
-                    <label className="block font-black text-slate-800">آدرس تصویر کالا (URL):</label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={prodImage}
-                      onChange={e => setProdImage(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
+          {/* Representative Management Sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-right">
+            {/* Column 1 & 2: Retailer Network & Orders */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Building className="text-amber-600" size={18} />
+                    <span>فروشگاه‌ها و بنکداران تحت پوشش نمایندگی</span>
+                  </h3>
+                  <span className="text-[11px] font-black bg-amber-50 text-amber-800 px-3 py-1 rounded-full border border-amber-200">
+                    ثبت خودکار کمیسیون توزیع
+                  </span>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block font-black text-slate-800">توضیحات و مشخصات فنی محصول:</label>
-                  <textarea
-                    rows={2}
-                    placeholder="مشخصات، وزن، حاشیه سود بنکدار، تاریخ انقضا..."
-                    value={prodDesc}
-                    onChange={e => setProdDesc(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
+                <div className="space-y-3">
+                  {[
+                    { name: "بنکداری و پخش برادران حسینی", city: user?.city || "مرکز استان", volume: "۳۵۰ کارتن در ماه", status: "فعال و منظم", lastOrder: "۲ روز پیش" },
+                    { name: "هایپرمارکت بزرگ میلاد", city: user?.city || "مرکز استان", volume: "۱۸۰ کارتن در ماه", status: "فعال", lastOrder: "هفته گذشته" },
+                    { name: "فروشگاه زنجیره‌ای الماس", city: user?.city || "مرکز استان", volume: "۵۲۰ کارتن در ماه", status: "سفارش عمده پالتی", lastOrder: "امروز" },
+                    { name: "پخش مواد غذایی نوین", city: user?.city || "حومه استان", volume: "۲۱۰ کارتن در ماه", status: "فعال", lastOrder: "۴ روز پیش" },
+                  ].map((store, i) => (
+                    <div key={i} className="p-4 bg-slate-50 hover:bg-amber-50/40 rounded-2xl border border-slate-200/70 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <h4 className="text-xs font-black text-slate-900">{store.name}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold">({store.city})</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-bold">حجم خرید: <strong className="text-slate-800">{store.volume}</strong> | آخرین سفارش: {store.lastOrder}</p>
+                      </div>
 
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="submit"
-                    disabled={isAddingProd}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    {isAddingProd && <Loader2 size={14} className="animate-spin" />}
-                    <span>ثبت و انتشار کالا در ویترین</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddProdForm(false)}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                  >
-                    انصراف
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* TAB 1: PRODUCTS LIST */}
-          {supplierTab === 'products' && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  <Package size={18} className="text-indigo-600" />
-                  <span>محصولات فعال کارخانه در سامانه B2B</span>
-                </h3>
-                <span className="text-xs font-bold text-slate-400">
-                  {products.length} کالا ثبت شده
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map((p) => (
-                  <div key={p.id} className="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all flex gap-3 text-right">
-                    <img src={p.image_url || "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&auto=format&fit=crop&q=80"} alt={p.name} className="w-16 h-16 object-cover rounded-xl border border-slate-200 shrink-0 bg-white" />
-                    <div className="flex-1 space-y-1 overflow-hidden">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {p.category}
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg">
+                          {store.status}
                         </span>
-                        <span className="text-[9px] text-slate-400 font-mono">حداقل: {p.min_order_cartons || 1} کارتن</span>
-                      </div>
-                      <h4 className="text-xs font-black text-slate-900 truncate">{p.name}</h4>
-                      <p className="text-[11px] font-mono font-black text-emerald-700">
-                        {p.bulk_price?.toLocaleString()} تومان
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: FACTORY ORDERS (WITH PRIVACY PROTECTION) */}
-          {supplierTab === 'orders' && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6">
-              {/* Buyer Privacy Security Guarantee Banner */}
-              <div className="p-4 bg-indigo-50/90 border border-indigo-200/80 rounded-2xl flex items-start gap-3 text-indigo-950 text-xs leading-relaxed font-bold">
-                <ShieldCheck size={22} className="text-indigo-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-black text-indigo-900 block mb-0.5">🔒 قانون حفظ حریم خصوصی تجاری خریداران در دست اول:</span>
-                  طابق دستورالعمل امانی و صرافی B2B پلتفرم دست اول، اطلاعات تماس شخصی و آدرس دقیق خریدار نزد صندوق مرکزی محفوظ بوده و بارگیری صرفاً بر اساس کد بارنامه رسمی صادرشده صورت می‌پذیرد.
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  <FileText size={18} className="text-indigo-600" />
-                  <span>لیست سفارشات عمده جهت تولید و ترخیص بار</span>
-                </h3>
-                <button
-                  onClick={fetchFactoryOrders}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer flex items-center gap-1"
-                >
-                  <RefreshCw size={12} />
-                  بروزرسانی
-                </button>
-              </div>
-
-              {loadingFactoryOrders ? (
-                <div className="py-12 text-center text-slate-400 font-bold text-xs space-y-2">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-                  <p>در حال دریافت سفارشات کارخانه...</p>
-                </div>
-              ) : factoryOrders.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 font-bold text-xs space-y-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <p>هنوز هیچ سفارشی برای کارخانه شما ثبت نشده است.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {factoryOrders.map((ord) => (
-                    <div key={ord.id} className="border border-slate-200 rounded-2xl p-4 space-y-3 bg-slate-50/50 hover:bg-white transition-all text-right">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 pb-2">
-                        <div>
-                          <span className="text-xs font-black text-slate-900">
-                            کد سفارش: <span className="font-mono text-indigo-600">{ord.trackingNumber || ord.id}</span>
-                          </span>
-                        </div>
-                        <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">
-                          مبلغ کل فاکتور: {ord.totalAmount?.toLocaleString()} تومان
-                        </span>
-                      </div>
-
-                      {/* PRIVACY PROTECTED BUYER BOX */}
-                      <div className="bg-slate-100/80 p-3 rounded-xl border border-slate-200 text-xs space-y-1 font-bold">
-                        <div className="flex justify-between items-center text-slate-700">
-                          <span>مشخصات خریدار: <strong className="text-slate-900">خریدار B2B تاییدشده سیستم (همکار)</strong></span>
-                          <span className="text-[10px] bg-slate-200 px-2 py-0.5 rounded text-slate-600 font-mono">کد خریدار: CST-****</span>
-                        </div>
-                        <div className="flex justify-between items-center text-slate-600 text-[11px]">
-                          <span>استان/شهر مقصد: <strong className="text-slate-800">{ord.buyerAddress ? ord.buyerAddress.split('،')[0] : "ثبت شده در بارنامه رسمی"}</strong></span>
-                          <span className="text-rose-600 text-[10px]">🔒 شماره تلفن و آدرس دقیق خریدار (محفوظ طبق ضوابط حریم خصوصی B2B)</span>
-                        </div>
-                      </div>
-
-                      {/* ORDER ITEMS */}
-                      <div className="space-y-1 text-xs">
-                        <span className="font-black text-slate-800">اقلام سفارش:</span>
-                        <ul className="list-disc list-inside text-slate-600 text-[11px] space-y-0.5 font-bold">
-                          {ord.items?.map((it, idx) => (
-                            <li key={idx}>
-                              {it.name} - <span className="font-mono text-indigo-700">{it.quantityCartons} کارتن</span> ({it.pricePerCarton?.toLocaleString()} تومان/کارتن)
-                            </li>
-                          ))}
-                        </ul>
+                        <button
+                          onClick={() => setActiveTab('order')}
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black transition-all cursor-pointer"
+                        >
+                          ثبت سفارش برای همکار
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
-          )}
+
+            {/* Column 3: Representative Support & Liaison */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <ShieldCheck className="text-emerald-600" size={18} />
+                  <span>پشتیبانی اختصاصی امور نمایندگان</span>
+                </h3>
+                
+                <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                  مدیر امور نمایندگی‌های کارخانجات دست اول به صورت مستقیم آماده پاسخگویی به درخواست‌های سهمیه و پشتیبانی بار شماست.
+                </p>
+
+                <div className="space-y-2.5 bg-amber-50/60 p-4 rounded-2xl border border-amber-200/60 text-xs font-bold">
+                  <div className="flex justify-between items-center text-slate-700">
+                    <span className="text-slate-500">شماره خط ویژه نمایندگان:</span>
+                    <span className="font-mono font-black text-amber-900">{b2bConfig?.adminPhone || "09121234567"}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-700">
+                    <span className="text-slate-500">ساعت پاسخگویی:</span>
+                    <span className="text-slate-800">۸ صبح الی ۲۰ شب</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-700">
+                    <span className="text-slate-500">واحد هماهنگی حمل:</span>
+                    <span className="text-emerald-700 font-black">باربری سراسری مسقف</span>
+                  </div>
+                </div>
+
+                <a
+                  href={`tel:${b2bConfig?.adminPhone || "09121234567"}`}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Phone size={15} />
+                  <span>تماس مستقیم با مدیریت نمایندگی‌ها</span>
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Marketer & Affiliate Workstation Tab */}
+      {activeSubTab === 'marketer' && (
+        <div className="space-y-6">
+          {/* Marketer Header */}
+          <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-xl relative overflow-hidden text-right">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-3xl shrink-0 shadow-lg shadow-emerald-500/20">
+                  <Briefcase size={32} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg sm:text-xl font-black text-white">{user?.name || "ویزیتور / بازاریاب محترم"}</h2>
+                    <span className="px-3 py-0.5 rounded-full bg-emerald-400 text-slate-950 text-[11px] font-black">
+                      سیستم همکاری در فروش B2B
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-200/90 font-bold">
+                    کد معرف اختصاصی شما: <span className="font-mono text-amber-300 font-bold">REF-{(user?.phone || "0912").slice(-4)}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full lg:w-auto">
+                <button
+                  onClick={() => setShowPayoutModal(true)}
+                  className="w-full sm:w-auto bg-emerald-400 hover:bg-emerald-500 text-slate-950 px-5 py-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-400/20 cursor-pointer active:scale-95"
+                >
+                  <DollarSign size={16} />
+                  <span>درخواست تسویه حساب و واریز نقدی پایا</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Marketer Wallet Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-6 pt-6 border-t border-white/10">
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-emerald-200/80 font-bold block">موجودی قابل تسویه:</span>
+                <span className="text-base font-black text-amber-300 font-mono mt-0.5 block">۴,۸۵۰,۰۰۰ تومان</span>
+                <span className="text-[9px] text-emerald-300 font-bold mt-0.5 block">آماده واریز آنی</span>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-emerald-200/80 font-bold block">کل پورسانت‌های دریافتی:</span>
+                <span className="text-base font-black text-white font-mono mt-0.5 block">۲۴,۶۰۰,۰۰۰ تومان</span>
+                <span className="text-[9px] text-slate-300 font-bold mt-0.5 block">از ۱۸ سفارش موفق</span>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-emerald-200/80 font-bold block">فروشگاه‌های معرفی‌شده:</span>
+                <span className="text-base font-black text-white font-mono mt-0.5 block">۱۴ مشتری فعال</span>
+                <span className="text-[9px] text-emerald-400 font-bold mt-0.5 block">پورسانت مادام‌العمر</span>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm p-3.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] text-emerald-200/80 font-bold block">نرخ پورسانت پایه:</span>
+                <span className="text-base font-black text-emerald-400 font-mono mt-0.5 block">۳٪ از فاکتور کل</span>
+                <span className="text-[9px] text-slate-300 font-bold mt-0.5 block">+۲٪ پاداش حجم فروش بالا</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Referral Link & Marketing Tools */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-right">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Unique Link Card */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Share2 className="text-emerald-600" size={18} />
+                  <span>لینک و کد معرف اختصاصی شما جهت ثبت سفارش سوپرمارکت‌ها</span>
+                </h3>
+
+                <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                  این لینک را برای مغازه‌داران، سوپرمارکت‌ها و بنکداران شهر خود ارسال کنید. هر سفارشی که با این لینک ثبت شود، ۳٪ تا ۵٪ پورسانت مستقیم به حساب شما واریز خواهد شد.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/?ref=${user?.phone || "09121234567"}`}
+                    className="w-full bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 text-left outline-none font-bold"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/?ref=${user?.phone || "09121234567"}`);
+                      setCopiedReferral(true);
+                      setTimeout(() => setCopiedReferral(false), 3000);
+                    }}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-md shadow-emerald-600/10"
+                  >
+                    {copiedReferral ? <Check size={16} /> : <Copy size={16} />}
+                    <span>{copiedReferral ? "کپی شد!" : "کپی لینک معرف"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Commission Matrix */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Percent className="text-amber-600" size={18} />
+                  <span>جدول محاسبه پورسانت و پاداش ویزیتوری</span>
+                </h3>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                        <th className="p-3">حجم سفارش مشتری</th>
+                        <th className="p-3">درصد پورسانت</th>
+                        <th className="p-3">میانگین درآمد در هر سفارش</th>
+                        <th className="p-3">نحوه تسویه</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                      <tr>
+                        <td className="p-3">۱۰ الی ۵۰ کارتن (خرده‌عمده)</td>
+                        <td className="p-3 text-emerald-600 font-mono font-black">۲.۵ ٪</td>
+                        <td className="p-3 font-mono">۴۵۰,۰۰۰ الی ۱,۵۰۰,۰۰۰ تومان</td>
+                        <td className="p-3 text-[11px] text-slate-400">پس از تحویل بار</td>
+                      </tr>
+                      <tr className="bg-emerald-50/30">
+                        <td className="p-3">۵۰ الی ۲۰۰ کارتن (بنکداری)</td>
+                        <td className="p-3 text-emerald-600 font-mono font-black">۳.۵ ٪</td>
+                        <td className="p-3 font-mono">۲,۰۰۰,۰۰۰ الی ۶,۵۰۰,۰۰۰ تومان</td>
+                        <td className="p-3 text-[11px] text-emerald-700">واریز روزانه پایا</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3">بیش از ۲۰۰ کارتن / پالتی مستقیم</td>
+                        <td className="p-3 text-amber-600 font-mono font-black">۵.۰ ٪</td>
+                        <td className="p-3 font-mono">۱۰,۰۰۰,۰۰۰+ تومان</td>
+                        <td className="p-3 text-[11px] text-amber-700">آنی با تایید فاکتور</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Fast Visit Recording Tool */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Target className="text-emerald-600" size={18} />
+                  <span>ثبت ویزیت حضوری مغازه جدید</span>
+                </h3>
+
+                <p className="text-xs text-slate-500 font-bold">
+                  اطلاعات سوپرمارکتی که ویزیت کرده‌اید را ثبت کنید تا سیستم خودکار به نام شما پیگیری کند:
+                </p>
+
+                <div className="space-y-3 text-xs font-bold">
+                  <input
+                    type="text"
+                    placeholder="نام سوپرمارکت یا فروشگاه..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="شماره همراه مغازه‌دار..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-left"
+                  />
+                  <textarea
+                    rows={2}
+                    placeholder="اقلام مورد نیاز (مثلا: بیسکویت، کیک و شکلات)..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
+                  />
+                  <button
+                    onClick={() => alert("✅ ویزیت جدید با موفقیت در کارتابل بازاریابی شما ثبت گردید.")}
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs transition-all cursor-pointer shadow-md"
+                  >
+                    ثبت ویزیت در سیستم
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payout / Settlement Modal for Marketers */}
+      <AnimatePresence>
+        {showPayoutModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 space-y-4 shadow-2xl text-right"
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <DollarSign className="text-emerald-600" size={20} />
+                  <span>درخواست تسویه و واریز پورسانت بازاریابی</span>
+                </h3>
+                <button onClick={() => setShowPayoutModal(false)} className="p-1 text-slate-400 hover:text-slate-700">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {settlementSuccess ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-black flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                  <span>{settlementSuccess}</span>
+                </div>
+              ) : (
+                <div className="space-y-4 text-xs font-bold text-slate-700">
+                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex justify-between items-center">
+                    <span className="text-slate-500">موجودی در دسترس جهت تسویه:</span>
+                    <span className="font-mono font-black text-emerald-700 text-sm">۴,۸۵۰,۰۰۰ تومان</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-slate-800">مبلغ درخواستی (تومان):</label>
+                    <input
+                      type="number"
+                      placeholder="مثلا: ۴۸۵۰۰۰۰"
+                      value={settlementAmount}
+                      onChange={e => setSettlementAmount(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-left font-bold outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-slate-800">شماره شبای بانکی (با IR):</label>
+                    <input
+                      type="text"
+                      value={ibanNumber}
+                      onChange={e => setIbanNumber(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-left font-bold outline-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (!settlementAmount) {
+                        alert("لطفا مبلغ مورد نظر را وارد نمایید.");
+                        return;
+                      }
+                      setSettlementSuccess("درخواست تسویه با موفقیت ثبت شد. مبلغ حداکثر ظرف ۲۴ ساعت از طریق چرخه پایا به شماره شبای شما واریز خواهد شد.");
+                      setTimeout(() => {
+                        setSettlementSuccess(null);
+                        setShowPayoutModal(false);
+                      }, 3500);
+                    }}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+                  >
+                    تایید و ثبت نهایی درخواست تسویه
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Official Certificate Modal for Representative */}
+      {showCertificateModal && (
+        <RepresentativeCertificateView
+          repName={user?.name || "همکار گرامی"}
+          companyName={user?.company || "نمایندگی رسمی پخش استانی"}
+          city={user?.city || "مرکز استان"}
+          agencyCode={`REP-${(user?.phone || "0912").slice(-4)}`}
+          badge={user?.badge || "نماینده انحصاری توزیع"}
+          onClose={() => setShowCertificateModal(false)}
+          b2bConfig={b2bConfig}
+        />
+      )}
+
       <AnimatePresence>
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-50/80 backdrop-blur-sm">

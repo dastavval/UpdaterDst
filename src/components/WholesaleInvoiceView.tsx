@@ -1,8 +1,8 @@
 import React, { useState, Component, ErrorInfo, ReactNode } from "react";
 import { Order } from "../types";
 import { Printer, X, ShieldCheck, Download, Loader2, Edit3, Check, FileText, QrCode, Award, Sparkles, Copy, RotateCcw, CheckCircle2, AlertTriangle, Scale, Maximize2, RefreshCw } from "lucide-react";
-// @ts-ignore
-import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { runWithOklchPolyfill, cleanClonedDocForPdf } from "../utils/pdfPolyfill";
 
 interface WholesaleInvoiceViewProps {
@@ -205,58 +205,70 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
   const multiplier = currencyUnit === 'rial' ? 10 : 1;
   const currencyLabel = currencyUnit === 'rial' ? 'ریال' : 'تومان';
 
-  // Fast PDF download with timeout fallback so site NEVER freezes or hangs
+  // Fast PDF download using direct jsPDF and html2canvas with non-blocking async execution to prevent page freezing
   const handleDownloadPdf = async () => {
     const invoiceElem = document.getElementById("printable-invoice");
-    if (!invoiceElem) return;
+    if (!invoiceElem) {
+      handlePrint();
+      return;
+    }
 
     try {
       setIsDownloadingPdf(true);
 
-      const downloadPromise = runWithOklchPolyfill(async () => {
-        const opt = {
-          margin: 0,
-          filename: `فاکتور_رسمی_${invoiceSerial}.pdf`,
-          image: { type: 'jpeg' as const, quality: 0.98 },
-          html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false,
-            letterRendering: true,
-            allowTaint: false,
-            onclone: (clonedDoc: Document) => {
-              cleanClonedDocForPdf(clonedDoc);
-              const elem = clonedDoc.getElementById("printable-invoice");
-              if (elem) {
-                elem.style.margin = "0";
-                elem.style.boxShadow = "none";
-                elem.style.borderRadius = "0";
-                elem.style.border = "none";
-                elem.style.width = "210mm";
-                elem.style.minHeight = "297mm";
-                elem.style.maxHeight = "297mm";
-                elem.style.padding = "10mm 8mm";
-                elem.style.fontFamily = "'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif";
-              }
-            }
-          },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-        };
+      // Yield execution to allow UI loading spinner and animations to render smoothly
+      await new Promise((resolve) => setTimeout(resolve, 80));
 
-        if (typeof html2pdf === 'function') {
-          await html2pdf().set(opt).from(invoiceElem).save();
-        } else if (html2pdf && typeof (html2pdf as any).default === 'function') {
-          await (html2pdf as any).default().set(opt).from(invoiceElem).save();
-        } else {
-          handlePrint();
+      const canvas = await html2canvas(invoiceElem, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        allowTaint: false,
+        onclone: (clonedDoc: Document) => {
+          cleanClonedDocForPdf(clonedDoc);
+          const elem = clonedDoc.getElementById("printable-invoice");
+          if (elem) {
+            elem.style.margin = "0";
+            elem.style.boxShadow = "none";
+            elem.style.borderRadius = "0";
+            elem.style.border = "none";
+            elem.style.width = "210mm";
+            elem.style.minHeight = "297mm";
+            elem.style.maxHeight = "297mm";
+            elem.style.padding = "8mm 6mm";
+            elem.style.fontFamily = "'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif";
+          }
         }
       });
 
-      // 4-second safety timeout race
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000));
-      await Promise.race([downloadPromise, timeoutPromise]);
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, Math.min(imgHeight, pdfHeight));
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`فاکتور_رسمی_${invoiceSerial}.pdf`);
     } catch (error) {
-      console.warn("PDF generator timeout or error, executing native print fallback:", error);
+      console.warn("jsPDF download error, falling back to print:", error);
       handlePrint();
     } finally {
       setIsDownloadingPdf(false);
@@ -531,6 +543,100 @@ function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoice
               </div>
             </div>
           )}
+
+          {/* Mobile Smart Invoice Summary Card (Responsive only on Mobile/Tablet) */}
+          <div className="block lg:hidden mb-6 bg-white border border-slate-100 rounded-[2rem] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] space-y-4 text-right" dir="rtl">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center border border-indigo-200">
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-800">خلاصه سریع پیش‌فاکتور رسمی</h3>
+                  <p className="text-[10px] text-slate-400 font-bold">سریال فاکتور: {toPersianNum(invoiceSerial)}</p>
+                </div>
+              </div>
+              <div className="text-left">
+                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-black inline-block">
+                  {getPaymentMethodLabel().split(" ")[0]}
+                </span>
+              </div>
+            </div>
+
+            {/* Seller & Buyer Header Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-bold text-slate-700">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1.5">
+                <span className="text-[10px] text-indigo-600 font-black block">مشخصات فروشنده:</span>
+                <span className="text-slate-900 font-black block">{sellerTitle}</span>
+                <span className="text-[10px] text-slate-500 font-medium block">تلفن: {toPersianNum(sellerPhone)}</span>
+              </div>
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1.5">
+                <span className="text-[10px] text-emerald-600 font-black block">مشخصات خریدار (تحویل‌گیرنده):</span>
+                <span className="text-slate-900 font-black block">{buyerCompany} ({buyerName})</span>
+                <span className="text-[10px] text-slate-500 font-medium block">تلفن: {toPersianNum(buyerPhone)} | تخلیه: {buyerAddress}</span>
+              </div>
+            </div>
+
+            {/* Mobile Items List */}
+            <div className="space-y-2.5">
+              <span className="text-[10px] font-black text-slate-400 block">اقلام پیش‌فاکتور کالا:</span>
+              {calculatedItems.map((item: any, idx: number) => (
+                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex justify-between items-center gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-black text-slate-900 block truncate">{item.name}</span>
+                    <span className="text-[10px] text-slate-500 font-bold block mt-1">
+                      {toPersianNum(item.qty)} کارتن × {toPersianNum((item.price * multiplier).toLocaleString())} {currencyLabel}
+                    </span>
+                  </div>
+                  <div className="text-left shrink-0">
+                    <span className="text-xs font-black text-emerald-600 block">
+                      {toPersianNum((item.total * multiplier).toLocaleString())} {currencyLabel}
+                    </span>
+                    {item.discount > 0 && (
+                      <span className="text-[9px] text-rose-500 font-bold block">
+                        تخفیف: -{toPersianNum((item.discount * multiplier).toLocaleString())}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Math Breakdown Card */}
+            <div className="bg-slate-900 text-white p-4.5 rounded-[1.5rem] border border-slate-800 space-y-2 text-xs font-bold">
+              <div className="flex justify-between border-b border-slate-800 pb-2 text-slate-400 text-[11px]">
+                <span>جمع ناخالص اقلام:</span>
+                <span>{toPersianNum((sumGross * multiplier).toLocaleString())} {currencyLabel}</span>
+              </div>
+              {sumDiscount > 0 && (
+                <div className="flex justify-between text-emerald-400 text-[11px]">
+                  <span>مجموع تخفیف‌های تسویه نقدی:</span>
+                  <span>-{toPersianNum((sumDiscount * multiplier).toLocaleString())} {currencyLabel}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-sm font-black pt-1">
+                <span className="text-slate-100">مبلغ خالص قابل پرداخت:</span>
+                <span className="text-base font-black text-emerald-400">
+                  {toPersianNum((grandTotal * multiplier).toLocaleString())} {currencyLabel}
+                </span>
+              </div>
+            </div>
+
+            {/* Sharing Utility Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const itemsText = calculatedItems.map((item: any) => `- ${item.name} (${item.qty} کارتن)`).join("\n");
+                  const textToShare = `🧾 پیش‌فاکتور رسمی صادر شد\nسریال: ${invoiceSerial}\nفروشنده: ${sellerTitle}\nخریدار: ${buyerCompany}\n\nاقلام سفارش:\n${itemsText}\n\nمبلغ خالص قابل پرداخت: ${grandTotal.toLocaleString()} تومان\nتلفن هماهنگی: ${buyerPhone}\nپشتیبانی دست‌اول`;
+                  navigator.clipboard.writeText(textToShare);
+                  alert("متن خلاصه پیش‌فاکتور کپی شد! می‌توانید آن را در واتساپ، ایتا یا پیامک برای همکاران بفرستید.");
+                }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-slate-200"
+              >
+                <span>📤 اشتراک‌گذاری پیش‌فاکتور (کپی خلاصه)</span>
+              </button>
+            </div>
+          </div>
 
           {/* Printable Sheet Wrapper (Responsive Horizontal Scroll on Mobile) */}
           <div className="w-full overflow-x-auto pb-4">
