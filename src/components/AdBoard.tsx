@@ -28,7 +28,13 @@ import {
   UserCheck,
   ShieldAlert,
   ChevronDown,
-  LockKeyhole
+  LockKeyhole,
+  Boxes,
+  UploadCloud,
+  Briefcase,
+  Wrench,
+  Trash2,
+  Camera
 } from "lucide-react";
 
 export interface AdItem {
@@ -39,7 +45,7 @@ export interface AdItem {
   contactPerson: string;
   contactPhone: string; // Admin eyes only - proxied securely
   badgeText: string;
-  category: "under_market" | "liquid" | "direct_supply";
+  category: "under_market" | "liquid" | "direct_supply" | "raw_material" | "service";
   quantity: string;
   wholesalePrice: string; // قیمت عمده پیشنهادی
   marketPrice: string;    // قیمت مصرف کننده یا بازار آزاد
@@ -47,7 +53,8 @@ export interface AdItem {
   isSponsored?: boolean;
   date: string;
   imageUrl?: string;
-  status: "pending" | "approved" | "rejected";
+  imageUrls?: string[];   // Support multiple image uploads
+  status: "approved" | "pending" | "rejected";
   rejectionReason?: string;
   specialRequest?: boolean;
   specialRequestMessage?: string;
@@ -55,6 +62,15 @@ export interface AdItem {
 
 export const getAdFallbackImage = (title: string, category: string): string => {
   const norm = title.toLowerCase();
+  if (category === "service") {
+    if (norm.includes("حساب") || norm.includes("مالی")) {
+      return "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=400";
+    }
+    if (norm.includes("طراحی") || norm.includes("بسته‌بندی") || norm.includes("برند")) {
+      return "https://images.unsplash.com/photo-1542744094-3a31f103e35f?auto=format&fit=crop&q=80&w=400";
+    }
+    return "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=400";
+  }
   if (norm.includes("روغن")) {
     return "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400";
   }
@@ -89,7 +105,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   const [selectedAdDetail, setSelectedAdDetail] = useState<AdItem | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<"all" | "under_market" | "liquid" | "direct_supply">("all");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<"all" | "under_market" | "liquid" | "direct_supply" | "raw_material" | "service">("all");
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [showRuleOverlay, setShowRuleOverlay] = useState(false);
   const [isIntroExpanded, setIsIntroExpanded] = useState(false);
@@ -108,18 +124,56 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   const [contactPerson, setContactPerson] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [category, setCategory] = useState<"under_market" | "liquid" | "direct_supply">("under_market");
+  const [category, setCategory] = useState<"under_market" | "liquid" | "direct_supply" | "raw_material" | "service">("raw_material");
   const [wholesalePrice, setWholesalePrice] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
   const [buyerProfit, setBuyerProfit] = useState("");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]); // Multiple image uploads
   const [isSpecialRequested, setIsSpecialRequested] = useState(false);
   const [specialMessage, setSpecialMessage] = useState("تماس فوری جهت تایید پلمپ");
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
   
   // Validation Warnings
   const [phoneWarning, setPhoneWarning] = useState("");
 
   const initialAds: AdItem[] = [
+    {
+      id: "ad-raw-1",
+      title: "روغن جانشین کره کاکائو CBS مالزی مخصوص کارخانجات شکلات",
+      description: "بار مستقیم روغن CBS مرغوب مالزی با درجه کیفی درجه یک ایده‌آل برای روکش بستنی، قنادی و صنایع شکلات‌سازی. توزیع با تضمین تایید آنالیز و تسویه امن امانی دست‌اول.",
+      factoryName: "مواد اولیه آریا طب",
+      contactPerson: "آقای یزدانی",
+      contactPhone: "۰۹۱۲۷۷۷۶۶۵۵",
+      badgeText: "📦 مواد اولیه صنعتی",
+      category: "raw_material",
+      quantity: "۲۰ تن",
+      wholesalePrice: "۱۴۵,۰۰۰ تومان",
+      marketPrice: "۱۶۵,۰۰۰ تومان",
+      buyerProfit: "۱۲٪ سود عمده (۲۰,۰۰۰ تومان تخفیف در کیلو)",
+      isSponsored: true,
+      date: "۱۴۰۵/۰۵/۲۲",
+      imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
+    },
+    {
+      id: "ad-raw-2",
+      title: "شکر سفید تصفیه‌شده کارخانه کشت و صنعت دهخدا",
+      description: "بسته‌بندی کیسه ۵۰ کیلویی استاندارد با گرید کیفی بسیار بالا و حلالیت فوری، مناسب کارگاه‌ها و کارخانجات صنایع نوشیدنی، شیرینی و قنادی‌ها. تحویل فوری از انبار با تسویه امانی.",
+      factoryName: "صنایع غذایی شکرستان خلیج فارس",
+      contactPerson: "مهندس احمدی",
+      contactPhone: "۰۹۱۶۲۲۲۳۳۴۴",
+      badgeText: "📦 مواد اولیه صنعتی",
+      category: "raw_material",
+      quantity: "۵۰ تن",
+      wholesalePrice: "۳۹,۵۰۰ تومان",
+      marketPrice: "۴۴,۰۰۰ تومان",
+      buyerProfit: "۱۰٪ حاشیه سود (۴,۵۰۰ تومان تخفیف در هر کیلو)",
+      isSponsored: true,
+      date: "۱۴۰۵/۰۵/۲۱",
+      imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
+    },
     {
       id: "ad-1",
       title: "قند شکسته درجه یک ۵ کیلویی مازاد خط تولید (بدون افشای برند)",
@@ -135,7 +189,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       buyerProfit: "۳۰٪ سود ناخالص (۱۶,۰۰۰ تومان حاشیه سود)",
       isSponsored: true,
       date: "۱۴۰۵/۰۵/۲۲",
-      imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=400",
+      imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&q=80&w=400",
       status: "approved"
     },
     {
@@ -191,6 +245,60 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       date: "۱۴۰۵/۰۵/۱۹",
       imageUrl: "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400",
       status: "approved"
+    },
+    {
+      id: "ad-srv-1",
+      title: "خدمات تخصصی ترخیص گمرکی و تخصیص ارز بازرگانی سینا",
+      description: "ترخیص فوری انواع مواد اولیه صنعتی، ماشین‌آلات خط تولید و قطعات یدکی از گمرکات بندرعباس، تهران و بازرگان با کمترین تعرفه و بیشترین سرعت مالی و اداری. مشاوره رایگان تلفنی با ضمانت حسن انجام تعهدات دست‌اول.",
+      factoryName: "شرکت توسعه بازرگانی سینا تجارت زاگرس",
+      contactPerson: "آقای امینی (مشاور گمرکی)",
+      contactPhone: "۰۹۱۲۹۹۹۳۳۲۲",
+      badgeText: "🛠️ خدمات بازرگانی",
+      category: "service",
+      quantity: "نامحدود",
+      wholesalePrice: "تعرفه مصوب گمرکی",
+      marketPrice: "رقابتی و توافقی",
+      buyerProfit: "تسهیل فرآیند ترخیص و ارزیابی پرونده",
+      isSponsored: true,
+      date: "۱۴۰۵/۰۵/۲۲",
+      imageUrl: "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
+    },
+    {
+      id: "ad-srv-2",
+      title: "طراحی هویت بصری، تبلیغات دیجیتال و بسته‌بندی کاتالوگ کارخانجات",
+      description: "طراحی کاملاً حرفه‌ای و متناسب با سلیقه روز بازار برای بسته‌بندی محصولات، چاپ سلفون، جعبه قند و شکر، قوطی رب، کارتن‌های مادر و طراحی کاتالوگ‌های فروش نمایشگاهی. ارتقای جدی جذابیت بصری برند شما.",
+      factoryName: "استودیو طراحی نوین طرح فردا",
+      contactPerson: "خانم مهندس راد",
+      contactPhone: "۰۹۱۲۸۸۸۴۴۳۳",
+      badgeText: "🛠️ خدمات طراحی و تبلیغاتی",
+      category: "service",
+      quantity: "پروژه‌ای",
+      wholesalePrice: "توافقی (زیر قیمت بازار)",
+      marketPrice: "ارزش‌گذاری بر اساس کیفیت کار",
+      buyerProfit: "۳۰٪ تخفیف ویژه اعضای پورتال دست‌اول",
+      isSponsored: true,
+      date: "۱۴۰۵/۰۵/۲۲",
+      imageUrl: "https://images.unsplash.com/photo-1542744094-3a31f103e35f?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
+    },
+    {
+      id: "ad-srv-3",
+      title: "خدمات جامع حسابداری، حسابرسی مالی و تنظیم اظهارنامه کارخانجات",
+      description: "اصلاح و استقرار سیستم‌های یکپارچه انبار، بهای تمام‌شده صنعتی، تنظیم و دفاع از دفاتر قانونی، صورت‌های مالی حسابرسی‌شده و کلیه اظهارنامه‌های فصلی و ارزش افزوده جهت کاهش قانونی ریسک‌های مالیاتی.",
+      factoryName: "موسسه خدمات حسابرسی امین تراز الوند",
+      contactPerson: "جناب آقای دکتر ناصری",
+      contactPhone: "۰۹۱۲۱۱۱۲۲۴۴",
+      badgeText: "🛠️ خدمات حسابداری و مالی",
+      category: "service",
+      quantity: "مشاوره و قرارداد سالانه",
+      wholesalePrice: "قرارداد منعطف ماهانه",
+      marketPrice: "مطابق با تعرفه رسمی کانون",
+      buyerProfit: "کاهش جرائم مالیاتی و استقرار انضباط مالی",
+      isSponsored: false,
+      date: "۱۴۰۵/۰۵/۲۱",
+      imageUrl: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=400",
+      status: "approved"
     }
   ];
 
@@ -198,7 +306,16 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     const savedAds = localStorage.getItem("dastavval_sponsored_ads_v2");
     if (savedAds) {
       try {
-        setAds(JSON.parse(savedAds));
+        const parsed = JSON.parse(savedAds);
+        const hasServices = parsed.some((item: any) => item.category === "service");
+        if (!hasServices) {
+          const services = initialAds.filter(item => item.category === "service");
+          const merged = [...parsed, ...services];
+          setAds(merged);
+          localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(merged));
+        } else {
+          setAds(parsed);
+        }
       } catch (e) {
         setAds(initialAds);
       }
@@ -257,22 +374,29 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     const profitPercentage = Math.round((savings / numericMarket) * 100) || 30;
     const calculatedProfitText = `${profitPercentage}٪ سود ناخالص (${savings.toLocaleString()} تومان اختلاف)`;
 
+    let finalBadge = "📦 تامین مستقیم";
+    if (category === "raw_material") finalBadge = "📦 مواد اولیه صنعتی";
+    else if (category === "service") finalBadge = "🛠️ خدمات صنعتی";
+    else if (category === "under_market") finalBadge = "📉 زیر قیمت بازار";
+    else if (category === "liquid") finalBadge = "🔥 حراج عمده";
+
     const newAd: AdItem = {
       id: `ad-${Date.now()}`,
       title: finalTitle,
-      description: finalDesc || "درخواست خرید کالا با شرایط توافقی و ضمانت پرداخت امن واسطه‌ای دست اول.",
-      factoryName: factoryName || "متقاضی تامین مستقیم",
-      contactPerson: contactPerson || "مدیریت خرید",
+      description: finalDesc || (category === "service" ? "ارائه خدمات صنعتی و تجاری ویژه کارخانجات تحت نظارت و معامله امن دست اول." : "درخواست خرید کالا با شرایط توافقی و ضمانت پرداخت امن واسطه‌ای دست اول."),
+      factoryName: factoryName || (category === "service" ? "مجموعه خدمات صنعتی معتبر" : "متقاضی تامین مستقیم"),
+      contactPerson: contactPerson || "مدیریت مربوطه",
       contactPhone: contactPhone, // Saved privately for admin use
-      badgeText: "⏳ در انتظار بررسی مدیر",
+      badgeText: finalBadge,
       category,
-      quantity: quantity || "توافقی",
-      wholesalePrice: wholesalePrice.includes("تومان") ? wholesalePrice : `${wholesalePrice} تومان`,
-      marketPrice: marketPrice.includes("تومان") ? marketPrice : `${marketPrice} تومان`,
+      quantity: quantity || (category === "service" ? "پروژه‌ای / توافقی" : "توافقی"),
+      wholesalePrice: wholesalePrice.includes("تومان") || wholesalePrice.includes("توافقی") ? wholesalePrice : `${wholesalePrice} تومان`,
+      marketPrice: marketPrice.includes("تومان") || marketPrice.includes("توافقی") ? marketPrice : `${marketPrice} تومان`,
       buyerProfit: buyerProfit || calculatedProfitText,
       isSponsored: false,
       date: new Date().toLocaleDateString("fa-IR"),
-      imageUrl: uploadedImage || getAdFallbackImage(finalTitle, category),
+      imageUrl: uploadedImages[0] || uploadedImage || getAdFallbackImage(finalTitle, category),
+      imageUrls: uploadedImages.length > 0 ? uploadedImages : (uploadedImage ? [uploadedImage] : []),
       status: "pending", // Starts as pending, needs admin approval!
       specialRequest: isSpecialRequested,
       specialRequestMessage: isSpecialRequested ? specialMessage : undefined
@@ -296,6 +420,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       setMarketPrice("");
       setBuyerProfit("");
       setUploadedImage(null);
+      setUploadedImages([]);
     }, 4500);
   };
 
@@ -306,7 +431,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         return { 
           ...ad, 
           status: "approved" as const,
-          badgeText: ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔥 حراج عمده" : "📦 تامین مستقیم" 
+          badgeText: ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔥 حراج عمده" : ad.category === "raw_material" ? "📦 مواد اولیه صنعتی" : ad.category === "service" ? "🛠️ خدمات صنعتی" : "📦 تامین مستقیم" 
         };
       }
       return ad;
@@ -445,7 +570,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs px-3 py-1 rounded-xl text-[10px] font-black text-slate-800 shadow-xs">
-                  {selectedAdDetail.category === "liquid" ? "🔥 حراج مازاد خط تولید" : selectedAdDetail.category === "under_market" ? "📉 کف قیمت بازار" : "📦 تامین کارخانه"}
+                  {selectedAdDetail.category === "liquid" ? "🔥 حراج مازاد خط تولید" : selectedAdDetail.category === "under_market" ? "📉 کف قیمت بازار" : selectedAdDetail.category === "raw_material" ? "📦 مواد اولیه صنعتی" : selectedAdDetail.category === "service" ? "🛠️ خدمات صنعتی و تجاری" : "📦 تامین کارخانه"}
                 </div>
               </div>
 
@@ -545,29 +670,42 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-3 py-0.5 rounded-full">کف قیمت</span>
-                <h3 className="font-black text-sm text-slate-800">سامانه ملی «کف قیمت» کالا با ضمانت واسطه‌گری امن</h3>
+                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-3 py-0.5 rounded-full">کف بازار</span>
+                <h3 className="font-black text-sm text-slate-800">سامانه ملی «کف بازار» کالا و خدمات با ضمانت واسطه‌گری امن</h3>
               </div>
               <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-2xl">
-                بستری انحصاری برای ثبت درخواست کالا زیر قیمت بازار آزاد. کلیه معاملات با نظارت مستقیم و واسطه‌گری امین پلتفرم صورت می‌پذیرد.
+                بستری انحصاری برای ثبت درخواست کالا و مواد اولیه زیر قیمت بازار آزاد. کلیه مبادلات با نظارت مستقیم و واسطه‌گری امین پلتفرم صورت می‌پذیرد.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 w-full lg:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full lg:w-auto justify-end">
             <button
               onClick={onNavigateToBillboard}
-              className="bg-slate-900 hover:bg-slate-850 text-white text-xs font-black px-5 py-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="bg-slate-900 hover:bg-slate-850 text-white text-xs font-black px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
-              <span>مشاهده تالار کف قیمت ({filteredAds.length} مورد)</span>
+              <span>مشاهده تالار کف بازار ({filteredAds.length} مورد)</span>
               <ChevronLeft size={14} />
             </button>
             <button
-              onClick={() => setIsSubmitModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-5 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              onClick={() => {
+                setCategory("raw_material");
+                setIsSubmitModalOpen(true);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
-              <Plus size={14} />
-              <span>ثبت درخواست خرید کالا زیر قیمت</span>
+              <Boxes size={14} />
+              <span>📦 ثبت کالا و مواد اولیه</span>
+            </button>
+            <button
+              onClick={() => {
+                setCategory("service");
+                setIsSubmitModalOpen(true);
+              }}
+              className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-black px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Briefcase size={14} />
+              <span>🛠️ ثبت خدمات صنعتی</span>
             </button>
           </div>
         </div>
@@ -591,7 +729,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-xl text-[9px] font-black text-slate-800 shadow-sm flex items-center gap-1">
-                    <span>{ad.category === "under_market" ? "📉 کف قیمت" : ad.category === "liquid" ? "🔥 حراج" : "📦 تامین"}</span>
+                    <span>{ad.category === "under_market" ? "📉 کف قیمت" : ad.category === "liquid" ? "🔥 حراج" : ad.category === "raw_material" ? "📦 مواد اولیه" : ad.category === "service" ? "🛠️ خدمات" : "📦 تامین"}</span>
                   </div>
                 </div>
 
@@ -669,7 +807,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 </div>
                 <div>
                   <span className="text-amber-300 font-black text-[9px] uppercase tracking-wider block">سامانه هوشمند دست اول</span>
-                  <h1 className="font-black text-base sm:text-xl text-white">سامانه ملی «کف قیمت» کالا زیر قیمت بازار آزاد</h1>
+                  <h1 className="font-black text-base sm:text-xl text-white">سامانه ملی «کف بازار» کالا و خدمات زیر قیمت بازار آزاد</h1>
                 </div>
               </div>
               
@@ -720,13 +858,36 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             </motion.div>
           </div>
 
-          <div className="w-full lg:w-auto shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3">
+          <div className="w-full lg:w-auto shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2.5">
             <button
-              onClick={() => setIsSubmitModalOpen(true)}
-              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+              onClick={() => {
+                setCategory("raw_material");
+                setIsSubmitModalOpen(true);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 cursor-pointer active:scale-95"
+            >
+              <Boxes size={16} />
+              <span>📦 عرضه مستقیم مواد اولیه (تامین‌کننده)</span>
+            </button>
+            <button
+              onClick={() => {
+                setCategory("service");
+                setIsSubmitModalOpen(true);
+              }}
+              className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-black px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-600/20 cursor-pointer active:scale-95"
+            >
+              <Briefcase size={16} />
+              <span>🛠️ ثبت خدمات صنعتی و تجاری (طراحی، گمرک...)</span>
+            </button>
+            <button
+              onClick={() => {
+                setCategory("under_market");
+                setIsSubmitModalOpen(true);
+              }}
+              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95 text-right"
             >
               <Plus size={16} />
-              <span>ثبت عرضه کالا زیر قیمت</span>
+              <span>ثبت عرضه محصول زیر قیمت</span>
             </button>
             <button 
               onClick={() => setIsIntroExpanded(!isIntroExpanded)}
@@ -842,6 +1003,8 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
           <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none shrink-0">
             {[
               { value: "all", label: "همه موارد" },
+              { value: "raw_material", label: "📦 مواد اولیه" },
+              { value: "service", label: "🛠️ خدمات صنعتی" },
               { value: "under_market", label: "📉 کف قیمت" },
               { value: "liquid", label: "🔥 مازاد کارخانه" },
               { value: "direct_supply", label: "📦 تامین مستقیم" },
@@ -891,9 +1054,13 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                         ? "bg-amber-600" 
                         : ad.category === "under_market" 
                           ? "bg-emerald-600" 
-                          : "bg-indigo-600"
+                          : ad.category === "raw_material"
+                            ? "bg-indigo-600"
+                            : ad.category === "service"
+                              ? "bg-teal-600"
+                              : "bg-blue-600"
                     }`}>
-                      {ad.category === "liquid" ? "🔥 حراج" : ad.category === "under_market" ? "📉 کف قیمت" : "📦 تامین"}
+                      {ad.category === "liquid" ? "🔥 حراج" : ad.category === "under_market" ? "📉 کف قیمت" : ad.category === "raw_material" ? "📦 مواد اولیه" : ad.category === "service" ? "🛠️ خدمات" : "📦 تامین"}
                     </div>
                   </div>
 
@@ -1047,78 +1214,120 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   // Reusable Material Design Modal for Registering Product Requests
   function renderSubmitModal() {
     return (
-      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md overflow-y-auto">
+      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right my-8 max-h-[90vh] overflow-y-auto"
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          className="bg-white w-full max-w-xl rounded-[28px] border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right my-8 max-h-[90vh] overflow-y-auto"
           dir="rtl"
         >
+          {/* Close button with subtle hover animation */}
           <button
             onClick={() => setIsSubmitModalOpen(false)}
-            className="absolute top-5 left-5 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center transition-colors cursor-pointer text-slate-400 hover:text-slate-600"
+            className="absolute top-5 left-5 w-9 h-9 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center transition-all hover:bg-slate-200 hover:text-slate-800 cursor-pointer text-sm font-bold"
           >
             ✕
           </button>
 
           {submitSuccess ? (
-            <div className="py-8 flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 animate-bounce">
-                <CheckCircle2 size={32} />
+            <div className="py-10 flex flex-col items-center text-center space-y-5">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shadow-md shadow-emerald-100/50 animate-bounce">
+                <CheckCircle2 size={40} />
               </div>
-              <h4 className="font-black text-slate-800 text-sm">درخواست کالا با موفقیت ثبت گردید</h4>
+              <h4 className="font-black text-slate-900 text-base">درخواست شما با موفقیت ثبت گردید</h4>
               <p className="text-xs text-slate-500 font-bold max-w-sm leading-relaxed">
-                اطلاعات تقاضای خرید شما با موفقیت ثبت شد و به عنوان **منتظر بررسی (Pending)** به صف ادمین ارسال گردید. شما می‌توانید با زدن دکمه «پنل بررسی مدیریت»، درخواست خود را تایید کنید تا فوراً در تالار کف قیمت عمومی منتشر شود!
+                اطلاعات با موفقیت ذخیره گردید و جهت تایید فنی در صف بررسی کارشناسان دست‌اول قرار گرفت. به محض تایید، آگهی شما فعال و قابل معامله امن خواهد شد.
               </p>
+              <button
+                onClick={() => setIsSubmitModalOpen(false)}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md"
+              >
+                بستن پنجره
+              </button>
             </div>
           ) : (
-            <form onSubmit={handleCreateAdAdminApproval} className="space-y-4 text-right">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-                <TrendingDown className="text-emerald-600 animate-pulse" size={18} />
-                <h4 className="font-black text-slate-800 text-sm">ثبت درخواست محصول زیر قیمت بازار (کف قیمت)</h4>
-              </div>
-
-              {/* brand warning box */}
-              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3.5 flex gap-2.5 text-[10px] text-amber-900 font-bold leading-relaxed">
-                <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={15} />
+            <form onSubmit={handleCreateAdAdminApproval} className="space-y-5 text-right">
+              {/* Header Title */}
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-150">
+                <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                  <Briefcase size={20} />
+                </div>
                 <div>
-                  <span className="font-black block text-amber-950 mb-0.5">قانون طلایی صیانت از هویت تجاری برندها:</span>
-                  به منظور پیشگیری از ریزش ارزش بازار و تنش قیمت نمایندگی‌ها، نوشتن نام مستقیم برندهای مطرح (مانند کاله، میهن و ...) ممنوع است. لطفاً توصیف عمومی درج کنید (مثال: "۲ تن نوشمک توت‌فرنگی" به‌جای اسم برند). در صورت نوشتن برند، سیستم آن را خودکار سانسور می‌کند.
+                  <h4 className="font-black text-slate-900 text-base">درج محصول یا خدمات جدید</h4>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">معرفی مستقیم کالا و ظرفیت‌های صنعتی به کارخانجات سراسر کشور</p>
                 </div>
               </div>
 
-              <div className="space-y-3.5">
-                {/* Category Selection */}
+              {/* Informative Security and Compliance Guideline Box */}
+              <div className="bg-gradient-to-r from-indigo-50/70 to-blue-50/70 border border-indigo-100/60 rounded-2xl p-4 flex gap-3 text-[11px] text-indigo-950 font-medium leading-relaxed shadow-xs">
+                <AlertTriangle className="text-indigo-600 shrink-0 mt-0.5" size={16} />
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">دسته‌بندی درخواست کالا:</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: "under_market", label: "📉 کف قیمت بازار" },
-                      { value: "liquid", label: "🔥 حراج مازاد" },
-                      { value: "direct_supply", label: "📦 تامین مستقیم" },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.value}
-                        onClick={() => {
-                          setCategory(opt.value as any);
-                        }}
-                        className={`py-2.5 rounded-xl text-[10px] font-black border cursor-pointer transition-all ${
-                          category === opt.value
-                            ? "bg-emerald-600 text-white border-emerald-600"
-                            : "bg-slate-50 text-slate-600 border-slate-150"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                  <span className="font-black block text-indigo-900 mb-0.5">امنیت و واسطه‌گری امین دست‌اول:</span>
+                  کلیه هماهنگی‌های مالی، آنالیزهای فنی بار و عقد قراردادهای رسمی جهت محافظت از خریدار و فروشنده، به صورت مستقیم و امن توسط مدیریت واسطه‌گری پلتفرم دست‌اول صورت می‌پذیرد.
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Modern Material Card-Based Category Selection */}
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 mb-2">انتخاب دسته‌بندی اصلی درخواست:</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCategory("raw_material")}
+                      className={`p-4 rounded-2xl border text-right transition-all cursor-pointer relative flex flex-col justify-between ${
+                        category === "raw_material"
+                          ? "bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm"
+                          : "bg-slate-50 hover:bg-slate-100 border-slate-200"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center w-full">
+                        <span className="text-sm font-black text-slate-800">📦 تامین مواد اولیه صنعتی</span>
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${category === "raw_material" ? "border-indigo-600" : "border-slate-300"}`}>
+                          {category === "raw_material" && <div className="w-2 h-2 rounded-full bg-indigo-600" />}
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-bold mt-2 leading-relaxed">
+                        بارهای فله، کاتالیزورها، مواد معدنی، شیمیایی، چسب و گرانول‌های خط تولید
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCategory("service")}
+                      className={`p-4 rounded-2xl border text-right transition-all cursor-pointer relative flex flex-col justify-between ${
+                        category === "service"
+                          ? "bg-teal-50/80 border-teal-500 ring-2 ring-teal-500/20 shadow-sm"
+                          : "bg-slate-50 hover:bg-slate-100 border-slate-200"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center w-full">
+                        <span className="text-sm font-black text-slate-800">🛠️ خدمات تجاری و صنعتی</span>
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${category === "service" ? "border-teal-600" : "border-slate-300"}`}>
+                          {category === "service" && <div className="w-2 h-2 rounded-full bg-teal-600" />}
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-bold mt-2 leading-relaxed">
+                        خدمات گمرکی، ترخیص، طراحی قالب و ماشین‌آلات، حسابرسی انبار، بازاریابی و تبلیغات صنعتی
+                      </p>
+                    </button>
                   </div>
                 </div>
 
+                {/* Subcategory helper text specifically requested by user */}
+                {category === "service" && (
+                  <div className="bg-teal-50/40 border border-teal-100/50 rounded-xl p-3 text-[10px] text-teal-900 font-bold flex gap-2">
+                    <span>💡</span>
+                    <span>مثال‌های خدمات قابل ثبت: طراحی صنعتی و قالب‌سازی، تبلیغات تخصصی صنف، امور ترخیص گمرکی و پیله‌وری، بازرسی کالا و حسابرسی صنعتی.</span>
+                  </div>
+                )}
+
                 {/* Requested Product Title */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">نام عمومی محصول یا کالای درخواستی (بدون ذکر برند انحصاری):</label>
+                  <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                    {category === "service" ? "عنوان دقیق خدمت صنعتی یا تجاری:" : "نام عمومی کالا یا مواد اولیه صنعتی (بدون برند انحصاری):"}
+                  </label>
                   <input
                     type="text"
                     required
@@ -1126,137 +1335,228 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     onChange={(e) => {
                       setTitle(e.target.value);
                       if (/(۰|0|۹|9)[۰-۹0-9]{9,10}/.test(e.target.value)) {
-                        setPhoneWarning("طبق قوانین واسطه‌گری پلتفرم، درج شماره تماس مستقیم در عنوان ممنوع است.");
+                        setPhoneWarning("درج شماره تماس مستقیم در فیلد عنوان ممنوع است. هماهنگی‌ها بصورت امن و واسطه‌ای صورت می‌گیرد.");
                       } else {
                         setPhoneWarning("");
                       }
                     }}
-                    placeholder="مثال: ۲ تن نوشمک یخی میوه‌ای یا روغن مایع حلب ۱۶ کیلویی"
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                    placeholder={category === "service" ? "مثال: ترخیص پیله‌وری و گمرک بازرگان یا حسابرسی انبار و بهای تمام‌شده" : "مثال: ۲۰ تن روغن جانشین کره کاکائو مالزی CBS"}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 transition-colors"
                   />
-                  {phoneWarning && <span className="text-[9px] text-rose-500 font-bold block mt-1">{phoneWarning}</span>}
+                  {phoneWarning && <span className="text-[10px] text-rose-500 font-bold block mt-1">{phoneWarning}</span>}
                 </div>
 
                 {/* Target Brand / Factory */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">
-                    کارخانه یا برند تولیدکننده (اختیاری):
+                  <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                    {category === "service" ? "نام مجموعه، کارگزاری یا دفتر خدماتی شما:" : "کارخانه یا برند تولیدکننده (اختیاری):"}
                   </label>
                   <input
                     type="text"
                     value={factoryName}
                     onChange={(e) => setFactoryName(e.target.value)}
-                    placeholder="مثال: کارخانه قند اصفهان یا فرقی ندارد"
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                    placeholder={category === "service" ? "مثال: کارگزاری جهان ترخیص آریا یا استودیو قالب‌سازی راد" : "مثال: کشت و صنعت دهخدا یا فرقی ندارد"}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 transition-colors"
                   />
                 </div>
 
-                {/* Three pricing metrics requested by user */}
+                {/* Pricing Metrics Group */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">قیمت عمده کف پیشنهادی:</label>
+                    <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                      {category === "service" ? "هزینه / تعرفه پایه پیشنهادی:" : "قیمت عمده کف پیشنهادی:"}
+                    </label>
                     <input
                       type="text"
                       required
                       value={wholesalePrice}
                       onChange={(e) => setWholesalePrice(e.target.value)}
-                      placeholder="مثال: ۱۴,۵۰۰ تومان"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                      placeholder={category === "service" ? "مثال: مطابق با تعرفه یا توافقی" : "مثال: ۱۴۵,۰۰۰ تومان"}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">قیمت بازار آزاد:</label>
+                    <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                      {category === "service" ? "تعرفه عمومی صنف (بازار آزاد):" : "قیمت بازار آزاد:"}
+                    </label>
                     <input
                       type="text"
                       required
                       value={marketPrice}
                       onChange={(e) => setMarketPrice(e.target.value)}
-                      placeholder="مثال: ۲۲,۰۰۰ تومان"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                      placeholder={category === "service" ? "مثال: ارزش واقعی کار" : "مثال: ۱۶۵,۰۰۰ تومان"}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5">میزان بار / تناژ درخواستی:</label>
+                    <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                      {category === "service" ? "حداقل پذیرش / ظرفیت کار:" : "میزان بار / تناژ عرضه شده:"}
+                    </label>
                     <input
                       type="text"
                       required
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="مثال: ۲ تن"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
+                      placeholder={category === "service" ? "مثال: قراردادی یا پروژه‌ای" : "مثال: ۲۰ تن"}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
                     />
                   </div>
                 </div>
 
                 {/* Secure Contact Information (Hidden publicly) */}
-                <div className="grid grid-cols-2 gap-3 bg-indigo-50/40 p-3 rounded-2xl border border-indigo-100/30">
-                  <div className="col-span-2 flex items-center gap-1.5 text-indigo-800 text-[10px] font-black mb-1">
-                    <Lock size={12} />
-                    <span>اطلاعات هماهنگی کارشناسان (محفوظ نزد ادمین جهت معامله امن):</span>
+                <div className="grid grid-cols-2 gap-3 bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100/20">
+                  <div className="col-span-2 flex items-center gap-1.5 text-indigo-900 text-[10px] font-black mb-1">
+                    <Lock size={12} className="text-indigo-600" />
+                    <span>اطلاعات هماهنگی کارشناسی (محفوظ نزد ادمین جهت معامله امن واسطه‌ای):</span>
                   </div>
                   <div>
-                    <label className="block text-[9px] font-black text-slate-400 mb-1">نام و نام خانوادگی خریدار:</label>
+                    <label className="block text-[9px] font-black text-slate-500 mb-1">نام و نام خانوادگی:</label>
                     <input
                       type="text"
                       required
                       value={contactPerson}
                       onChange={(e) => setContactPerson(e.target.value)}
-                      placeholder="مثال: قاسمی"
-                      className="w-full bg-white border border-slate-150 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                      placeholder="مثال: مهندس رضوانی"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-black text-slate-400 mb-1">شماره تماس (محفوظ و مخفی):</label>
+                    <label className="block text-[9px] font-black text-slate-500 mb-1">شماره تماس (محفوظ و مخفی):</label>
                     <input
                       type="tel"
                       required
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
                       placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                      className="w-full bg-white border border-slate-150 rounded-xl px-3 py-2 text-xs font-bold text-slate-850 outline-none focus:border-indigo-500 font-mono text-left"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-850 outline-none focus:border-indigo-500 font-mono text-left"
                     />
                   </div>
                 </div>
 
-                {/* Image Upload */}
+                {/* Multiple Image Upload Component with Drag & Drop and clear Counter */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">تصویر نمونه کالا یا آنالیز آزمایشگاهی (اختیاری):</label>
-                  <label className="cursor-pointer flex items-center justify-center gap-2 w-full bg-slate-50 border border-slate-200 border-dashed rounded-xl px-3.5 py-3 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:border-emerald-400 transition-colors">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={handleImageUpload}
-                    />
-                    {uploadedImage ? (
-                      <div className="flex items-center gap-2">
-                        <img src={uploadedImage} alt="preview" className="w-8 h-8 rounded-md object-cover" />
-                        <span className="text-emerald-600 text-[10px]">تصویر با موفقیت انتخاب شد</span>
-                      </div>
-                    ) : (
-                      <>
-                        <Upload size={14} />
-                        <span className="text-[10px]">برای آپلود فایل کلیک کنید</span>
-                      </>
-                    )}
-                  </label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[11px] font-black text-slate-500">
+                      تصاویر محصول، اسناد آنالیز فنی یا کاتالوگ خدمات (آپلود چندگانه):
+                    </label>
+                    <span className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                      {uploadedImages.length} از ۵ تصویر آپلود شده
+                    </span>
+                  </div>
+                  
+                  {uploadedImages.length > 0 ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                      {uploadedImages.map((imgUrl, idx) => (
+                        <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-300 bg-white shadow-xs">
+                          <img src={imgUrl} alt={`preview-${idx}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute top-1 left-1 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-full transition-colors cursor-pointer shadow-sm"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      ))}
+                      {uploadedImages.length < 5 && (
+                        <label className="border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-500 hover:bg-slate-100 hover:border-indigo-400 cursor-pointer aspect-square transition-all">
+                          <Camera size={20} className="text-slate-400 animate-pulse" />
+                          <span className="text-[9px] font-black mt-1">افزودن عکس</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files) {
+                                Array.from(e.target.files).forEach((file) => {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setUploadedImages((prev) => [...prev, reader.result as string]);
+                                  };
+                                  reader.readAsDataURL(file);
+                                });
+                              }
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingImage(true);
+                      }}
+                      onDragLeave={() => setIsDraggingImage(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingImage(false);
+                        if (e.dataTransfer.files) {
+                          Array.from(e.dataTransfer.files).forEach((file) => {
+                            if (file.type.startsWith("image/")) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setUploadedImages((prev) => [...prev, reader.result as string]);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          });
+                        }
+                      }}
+                      className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                        isDraggingImage
+                          ? "border-indigo-500 bg-indigo-50/50"
+                          : "border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-indigo-400"
+                      }`}
+                      onClick={() => document.getElementById("adboard-multi-upload")?.click()}
+                    >
+                      <input
+                        id="adboard-multi-upload"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) {
+                            Array.from(e.target.files).forEach((file) => {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setUploadedImages((prev) => [...prev, reader.result as string]);
+                              };
+                              reader.readAsDataURL(file);
+                            });
+                          }
+                        }}
+                      />
+                      <UploadCloud className="text-indigo-600 mx-auto" size={28} />
+                      <span className="text-xs font-black text-slate-800 block mt-2">
+                        کشیدن و رها کردن تصاویر نمونه کالا یا اسناد آنالیز
+                      </span>
+                      <span className="text-[10px] text-slate-400 block mt-1">
+                        یا جهت انتخاب مستقیم از گالری کلیک کنید (قابلیت انتخاب همزمان چند فایل)
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Description */}
+                {/* Description Textarea */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5">مشخصات تکمیلی، آنالیز فنی و شرایط تسویه درخواستی:</label>
+                  <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                    {category === "service" ? "شرح تخصصی خدمات، توانمندی‌ها و تعهدات:" : "مشخصات فنی بار، آنالیز شیمیایی و فیزیکی، نحوه تسویه:"}
+                  </label>
                   <textarea
                     required
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={2.5}
-                    placeholder="مثال: بار سالم بدون زدگی بسته‌بندی، تحویل درب انبار، پرداخت پس از تخلیه و تایید باسکول خریدار..."
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 resize-none"
+                    rows={3}
+                    placeholder={category === "service" ? "مثال: ارائه خدمات ممیزی انبارها، تهیه گزارشات قیمت تمام شده منطبق با قوانین سازمان مالیاتی کشور به همراه گواهی تضمین کیفیت عملکرد..." : "مثال: محصول با گرید آزمایشگاهی استاندارد و مدارک COA معتبر، حداقل خرید ۵ تن، تحویل روی جک خریدار در محل کارخانه..."}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 resize-none transition-colors"
                   />
                 </div>
 
-                {/* Special Request */}
-                <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-3.5">
+                {/* Special Escrow Brokerage Request Checkbox */}
+                <div className="bg-amber-50/40 border border-amber-100/60 rounded-2xl p-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input 
                       type="checkbox"
@@ -1264,15 +1564,15 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                       onChange={(e) => setIsSpecialRequested(e.target.checked)}
                       className="w-4 h-4 rounded accent-amber-600 cursor-pointer"
                     />
-                    <span className="text-[10px] font-black text-amber-800">درخواست کارگزاری ناظر اختصاصی معامله (تایید فوری)</span>
+                    <span className="text-[10px] font-black text-amber-900">درخواست مشاوره و نظارت کارگزار اختصاصی معامله (عقد قرارداد امن)</span>
                   </label>
                   {isSpecialRequested && (
                     <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <label className="block text-[9px] font-black text-amber-600/70 mb-1">پیام برای مدیریت معامله:</label>
+                      <label className="block text-[9px] font-black text-amber-700 mb-1">توضیحات خاص جهت هماهنگی ناظر پلتفرم:</label>
                       <textarea
                         value={specialMessage}
                         onChange={(e) => setSpecialMessage(e.target.value)}
-                        placeholder="درخواست هماهنگی فوری"
+                        placeholder="شرایط پرداختی مدنظر یا توضیحات تکمیلی بابت ضمانت‌نامه‌های مورد نیاز..."
                         rows={2}
                         className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-[10px] font-bold text-slate-800 outline-none focus:border-amber-500 resize-none"
                       />
@@ -1281,20 +1581,20 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 </div>
               </div>
 
-              {/* Submission buttons */}
-              <div className="pt-4 border-t border-slate-100 flex gap-2">
+              {/* Submission Action Buttons */}
+              <div className="pt-4 border-t border-slate-150 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setIsSubmitModalOpen(false)}
-                  className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black cursor-pointer"
+                  className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black cursor-pointer transition-colors"
                 >
                   انصراف
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/10"
+                  className="w-1/2 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/15"
                 >
-                  <FileText size={13} />
+                  <FileText size={14} />
                   <span>ثبت و ارسال به صف بررسی ادمین</span>
                 </button>
               </div>

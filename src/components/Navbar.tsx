@@ -184,8 +184,8 @@ export default function Navbar({
   const navItems = [
     { id: 'presentation', label: t.home, icon: <Home size={18} /> },
     { id: 'order', label: t.wholesaleBuy, icon: <ShoppingBag size={18} /> },
+    { id: 'billboard', label: "کف بازار", icon: <TrendingDown size={18} className="text-amber-500 animate-pulse" /> },
     { id: 'factories', label: "کارخانجات", icon: <Building2 size={18} /> },
-    { id: 'billboard', label: "کف قیمت", icon: <TrendingDown size={18} className="text-amber-500 animate-pulse" /> },
     { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <User size={18} /> },
   ];
 
@@ -401,6 +401,20 @@ export default function Navbar({
 
               <button
                 onClick={() => {
+                  setActiveTab?.('billboard');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'billboard'
+                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
+                    : "text-slate-700 hover:text-emerald-600"
+                }`}
+              >
+                <TrendingDown size={15} className="text-amber-500 animate-pulse" />
+                <span>کف بازار</span>
+              </button>
+
+              <button
+                onClick={() => {
                   setActiveTab?.('factories');
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -411,20 +425,6 @@ export default function Navbar({
               >
                 <Building2 size={15} />
                 <span>کارخانجات</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab?.('billboard');
-                }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'billboard'
-                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
-                    : "text-slate-700 hover:text-emerald-600"
-                }`}
-              >
-                <TrendingDown size={15} className="text-amber-500 animate-pulse" />
-                <span>کف قیمت</span>
               </button>
 
               {/* Health Apple & Natural Badge Nav Button */}

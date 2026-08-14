@@ -225,6 +225,136 @@ async function callAISafe(prompt: string, systemPrompt?: string, fallbackText: s
   }
 }
 
+// --- DYNAMIC AUTO-GENERATED SITEMAP.XML FOR GOOGLE & SEARCH ENGINES ---
+function generateDynamicSitemapXml(baseUrl: string = "https://dastavval.com"): string {
+  const today = new Date().toISOString().split("T")[0];
+  
+  // 1. Core Platform Landing Tabs
+  const coreUrls = [
+    { loc: `${baseUrl}/`, priority: "1.0", changefreq: "daily" },
+    { loc: `${baseUrl}/?tab=order`, priority: "0.95", changefreq: "daily" },
+    { loc: `${baseUrl}/?tab=billboard`, priority: "0.95", changefreq: "hourly" },
+    { loc: `${baseUrl}/?tab=factories`, priority: "0.90", changefreq: "weekly" },
+    { loc: `${baseUrl}/?tab=dealership`, priority: "0.85", changefreq: "monthly" },
+    { loc: `${baseUrl}/?tab=services`, priority: "0.85", changefreq: "weekly" },
+    { loc: `${baseUrl}/?tab=news`, priority: "0.80", changefreq: "daily" },
+    { loc: `${baseUrl}/?tab=about`, priority: "0.75", changefreq: "monthly" },
+  ];
+
+  // 2. Dynamic Categories
+  const categoryUrls: Array<{ loc: string; priority: string; changefreq: string }> = [];
+  const categories = b2bConfig.categories || [];
+  for (const cat of categories) {
+    const catName = typeof cat === 'string' ? cat : (cat.name || cat.label);
+    if (catName) {
+      categoryUrls.push({
+        loc: `${baseUrl}/?category=${encodeURIComponent(catName)}`,
+        priority: "0.85",
+        changefreq: "daily"
+      });
+    }
+  }
+
+  // 3. Dynamic Products from local storage or config
+  const productUrls: Array<{ loc: string; priority: string; changefreq: string }> = [];
+  try {
+    const localProductsPath = path.join(process.cwd(), "local-products.json");
+    if (fs.existsSync(localProductsPath)) {
+      const prods = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
+      if (Array.isArray(prods)) {
+        for (const p of prods) {
+          if (p.id && !p.disabled) {
+            productUrls.push({
+              loc: `${baseUrl}/?product=${p.id}`,
+              priority: p.isFeatured ? "0.9" : "0.8",
+              changefreq: "daily"
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Could not load local products for sitemap:", e);
+  }
+
+  // Fallback initial products if local-products.json was empty
+  if (productUrls.length === 0) {
+    const defaultProductIds = ["PRD-1001", "PRD-1002", "PRD-1003", "PRD-1004", "PRD-1005", "PRD-1006"];
+    for (const pid of defaultProductIds) {
+      productUrls.push({
+        loc: `${baseUrl}/?product=${pid}`,
+        priority: "0.85",
+        changefreq: "daily"
+      });
+    }
+  }
+
+  // 4. Dynamic Factories
+  const factoryUrls: Array<{ loc: string; priority: string; changefreq: string }> = [];
+  const factories = b2bConfig.factories || [];
+  for (const fac of factories) {
+    if (fac.id) {
+      factoryUrls.push({
+        loc: `${baseUrl}/?tab=factories&factory=${fac.id}`,
+        priority: "0.85",
+        changefreq: "weekly"
+      });
+    }
+  }
+
+  const allUrls = [...coreUrls, ...categoryUrls, ...productUrls, ...factoryUrls];
+
+  const xmlEntries = allUrls.map(item => `  <url>
+    <loc>${item.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${item.changefreq}</changefreq>
+    <priority>${item.priority}</priority>
+  </url>`).join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+${xmlEntries}
+</urlset>`;
+}
+
+// Serve dynamic, real-time sitemap.xml on /sitemap.xml
+app.get("/sitemap.xml", (req, res) => {
+  const host = req.get("host") || "dastavval.com";
+  const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
+  const baseUrl = `${protocol}://${host}`;
+  const sitemapXml = generateDynamicSitemapXml(baseUrl);
+
+  res.setHeader("Content-Type", "application/xml; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400");
+  res.send(sitemapXml);
+});
+
+// Admin API to trigger auto-generation and write to static file
+app.post("/api/seo/generate-sitemap", (req, res) => {
+  try {
+    const sitemapContent = generateDynamicSitemapXml("https://dastavval.com");
+    const publicSitemapPath = path.join(process.cwd(), "public", "sitemap.xml");
+    fs.writeFileSync(publicSitemapPath, sitemapContent, "utf-8");
+    
+    // Also copy to dist if dist exists
+    const distSitemapPath = path.join(process.cwd(), "dist", "sitemap.xml");
+    if (fs.existsSync(path.join(process.cwd(), "dist"))) {
+      fs.writeFileSync(distSitemapPath, sitemapContent, "utf-8");
+    }
+
+    res.json({
+      success: true,
+      message: "فایل sitemap.xml پویا با آخرین کاتالوگ محصولات و دسته‌بندی‌ها با موفقیت تولید و ذخیره شد.",
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- PUBLIC API V1 FOR EXTERNAL APPS ---
 app.get("/api/v1/products", async (req, res) => {
   try {

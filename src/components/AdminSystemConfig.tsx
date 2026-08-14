@@ -63,6 +63,7 @@ type ActiveTab =
   | "status"
   | "social"
   | "github"
+  | "seo"
   | "config"
   | "magic_db"
   | "load_balancer"
@@ -927,6 +928,18 @@ export default function AdminSystemConfig({
         >
           <Activity size={16} />
           وضعیت سرور
+        </button>
+
+        <button
+          onClick={() => setActiveTab("seo")}
+          className={`flex-1 min-w-[120px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "seo"
+              ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20"
+              : "text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <Globe size={16} />
+          سئو و نقشه سایت (Sitemap)
         </button>
 
         <button
@@ -2812,6 +2825,130 @@ export default function AdminSystemConfig({
                 <Upload size={18} />
                 انتخاب فایل JSON بکاپ و بازیابی اطلاعات
               </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- TAB: SEO & DYNAMIC SITEMAP MANAGER --- */}
+      {activeTab === "seo" && (
+        <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
+                <Globe size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">مدیریت سئو (SEO) و تولید خودکار فایل پویا sitemap.xml</h3>
+                <p className="text-[11px] text-slate-400 font-bold">معرفی خودکار روزانه تمامی محصولات جدید، کارخانجات و دسته‌بندی‌ها به خزنده‌های گوگل و موتورهای جستجو</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href="/sitemap.xml"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-2 transition-all"
+              >
+                <ExternalLink size={14} />
+                <span>مشاهده زنده sitemap.xml</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-emerald-800">وضعیت نقشه سایت</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              </div>
+              <p className="text-lg font-black text-emerald-950">پویا و روزانه (Daily Dynamic)</p>
+              <p className="text-[10px] text-emerald-700 font-bold">تولید لحظه‌ای توسط سرور بدون نیاز به آپلود دستی</p>
+            </div>
+
+            <div className="p-5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+              <span className="text-[11px] font-black text-amber-800">پوشش صفحات ایندکس</span>
+              <p className="text-lg font-black text-amber-950">{toPersianNum(products.length + (b2bConfig.categories?.length || 0) + 8)} آدرس یکتا</p>
+              <p className="text-[10px] text-amber-700 font-bold">شامل محصولات، کارخانجات، تالار کف بازار و دسته‌بندی‌ها</p>
+            </div>
+
+            <div className="p-5 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2">
+              <span className="text-[11px] font-black text-indigo-800">بهینه‌سازی نرخ کلیک (CTR)</span>
+              <p className="text-lg font-black text-indigo-950">فعال با متادیتا و JSON-LD</p>
+              <p className="text-[10px] text-indigo-700 font-bold">متادیسکریپشن جذاب، اسکیما محصول و کلمات کلیدی هدفمند</p>
+            </div>
+          </div>
+
+          <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-black text-amber-400 flex items-center gap-2">
+                  <Sparkles size={18} />
+                  تولید و ثبت خودکار فایل فیزیکی sitemap.xml
+                </h4>
+                <p className="text-xs text-slate-300 font-bold mt-1">
+                  این دکمه آخرین لیست محصولات، کارخانجات و دسته‌بندی‌ها را استخراج کرده و فایل فیزیکی /sitemap.xml را بازنویسی می‌کند.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    const res = await fetch("/api/seo/generate-sitemap", { method: "POST" });
+                    const data = await res.json();
+                    if (data.success) {
+                      setSuccessMsg(data.message || "فایل sitemap.xml با موفقیت بروزرسانی شد.");
+                    } else {
+                      setErrorMsg(data.error || "خطا در تولید نقشه سایت.");
+                    }
+                  } catch (e: any) {
+                    setErrorMsg("خطا در ارتباط با سرور سئو: " + e.message);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer transition-all active:scale-95 shrink-0"
+              >
+                {loading ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
+                <span>تولید و ثبت مجدد نقشه سایت</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-xs font-black text-slate-700">ساختار متادیتاهای ثانویه بهینه‌شده برای صفحات اصلی:</h4>
+            <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden text-right text-xs" dir="rtl">
+              <div className="p-4 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-black text-slate-800">صفحه اصلی (تالار معاملات و معرفی):</span>
+                  <p className="text-slate-500 mt-0.5">دست اول | سامانه ملی خرید عمده مواد غذایی و استعلام مستقیم از کارخانه</p>
+                </div>
+                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">Priority: 1.0 (Daily)</span>
+              </div>
+              <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-black text-slate-800">کاتالوگ و ثبت سفارش عمده:</span>
+                  <p className="text-slate-500 mt-0.5">کاتالوگ جامع خرید عمده و سفارش آنلاین کارخانجات | دست اول</p>
+                </div>
+                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">Priority: 0.95 (Daily)</span>
+              </div>
+              <div className="p-4 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-black text-slate-800">تالار کف بازار (آگهی‌های فوری و بار مازاد):</span>
+                  <p className="text-slate-500 mt-0.5">تالار کف بازار و آگهی‌های بار عمده فوری | دست اول</p>
+                </div>
+                <span className="px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full font-bold text-[10px]">Priority: 0.95 (Hourly)</span>
+              </div>
+              <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-black text-slate-800">بانک اطلاعات کارخانجات:</span>
+                  <p className="text-slate-500 mt-0.5">بانک اطلاعات کارخانجات و تولیدکنندگان صنایع غذایی ایران | دست اول</p>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full font-bold text-[10px]">Priority: 0.90 (Weekly)</span>
+              </div>
             </div>
           </div>
         </div>

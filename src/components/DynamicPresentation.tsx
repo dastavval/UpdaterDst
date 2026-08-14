@@ -49,6 +49,7 @@ interface DynamicPresentationProps {
   setActiveTab?: (tab: any) => void;
   setActiveCategory?: (category: string) => void;
   onAddToCart?: (product: Product, quantityCartons: number) => void;
+  onViewDetails?: (product: Product) => void;
   userBadge?: string;
   user?: any;
 }
@@ -63,6 +64,7 @@ export default function DynamicPresentation({
   setActiveTab,
   setActiveCategory,
   onAddToCart,
+  onViewDetails,
   userBadge,
   user,
 }: DynamicPresentationProps) {
@@ -230,7 +232,7 @@ export default function DynamicPresentation({
     return matchesCategory && matchesSearch;
   });
 
-  const featuredDisplayProducts = filteredProducts.slice(0, 4);
+  const featuredDisplayProducts = filteredProducts.slice(0, 8);
 
   const primaryColor = b2bConfig.primaryColor || "emerald";
 
@@ -589,6 +591,7 @@ export default function DynamicPresentation({
                 key={p.id}
                 index={idx}
                 product={p}
+                onViewDetails={onViewDetails}
                 onAddToCart={(prod, qty) => {
                   if (onAddToCart) onAddToCart(prod, qty);
                 }}

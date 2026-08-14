@@ -13,6 +13,7 @@ import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import CatalogPrintView from "./CatalogPrintView";
 import AdminInvoiceSettings from "./AdminInvoiceSettings";
 import AdminSystemConfig from "./AdminSystemConfig";
+import AdminPendingApprovals from "./AdminPendingApprovals";
 import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
@@ -54,7 +55,7 @@ interface AdminPanelProps {
 import { AdminSalesCharts } from "./AdminSalesCharts";
 import { getCacheStatus, CacheStatus } from "../lib/db";
 
-type SubTab = 'dashboard' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy';
+type SubTab = 'dashboard' | 'approvals' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy';
 
 export default function AdminPanel({ 
   products, 
@@ -404,7 +405,9 @@ export default function AdminPanel({
       loadSupportTickets();
     } else if (activeSubTab === 'safe_buy') {
       fetchSafeBuyRequests();
-    } else if (activeSubTab === 'dashboard') {
+    } else if (activeSubTab === 'dashboard' || activeSubTab === 'approvals') {
+      fetchOrders();
+      fetchSafeBuyRequests();
       loadCallbackRequests();
       loadSupportTickets();
     }
@@ -412,7 +415,7 @@ export default function AdminPanel({
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "dastavval_sponsored_ads_v2" && activeSubTab === 'ads') {
+      if (e.key === "dastavval_sponsored_ads_v2" && (activeSubTab === 'ads' || activeSubTab === 'dashboard' || activeSubTab === 'approvals')) {
         try {
           if (e.newValue) setSponsoredAds(JSON.parse(e.newValue));
         } catch (err) {}
@@ -423,6 +426,8 @@ export default function AdminPanel({
   }, [activeSubTab]);
 
   useEffect(() => {
+    fetchOrders();
+    fetchSafeBuyRequests();
     loadCallbackRequests();
     loadSupportTickets();
 
@@ -831,6 +836,19 @@ export default function AdminPanel({
     updateAdsState(newAds, "آگهی با موفقیت به‌روزرسانی شد.");
     setAdToEdit(null);
     setEditAdForm(null);
+  };
+
+  const handleUpdateAdStatus = (adId: string, status: 'approved' | 'rejected' | 'pending', rejectionReason?: string) => {
+    const newAds = sponsoredAds.map(a => a.id === adId ? { ...a, status, rejectionReason: rejectionReason || '' } : a);
+    updateAdsState(newAds, status === 'approved' ? "آگهی با موفقیت تایید و در تالار منتشر شد." : "وضعیت آگهی بروزرسانی شد.");
+  };
+
+  const handleUpdateRepStatus = (id: string, isApproved: boolean) => {
+    const updated = representativesList.map(r => (r.id === id || r.agencyCode === id) ? { ...r, isApproved } : r);
+    setRepresentativesList(updated);
+    localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
+    setSuccessMsg(isApproved ? "درخواست عاملیت و نمایندگی با موفقیت تایید شد." : "درخواست نمایندگی رد شد.");
+    setTimeout(() => setSuccessMsg(null), 3000);
   };
   const [hqAddress, setHqAddress] = useState("آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد");
   const [supportPhone, setSupportPhone] = useState("۰۹۰۴ ۴۵۰ ۲۹۰۰");
@@ -3678,6 +3696,20 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <span>مانیتورینگ و آمار اصلی</span>
                 </button>
                 <button
+                  onClick={() => { setActiveSubTab('approvals'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'approvals'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Zap size={12} className={activeSubTab === 'approvals' ? "text-slate-950" : "text-amber-500"} />
+                  <span>صف تایید درخواست‌ها</span>
+                  <span className="px-1.5 py-0.2 rounded-md text-[9px] font-black bg-amber-100 text-amber-900">
+                    اولویت‌دار
+                  </span>
+                </button>
+                <button
                   onClick={() => { setActiveSubTab('reports' as any); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeSubTab === 'reports'
@@ -3783,6 +3815,20 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             {/* Category 3: Commerce */}
             {adminCategory === 'sales' && (
               <>
+                <button
+                  onClick={() => { setActiveSubTab('approvals'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'approvals'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Zap size={12} className={activeSubTab === 'approvals' ? "text-slate-950" : "text-amber-500"} />
+                  <span>صف تایید درخواست‌ها</span>
+                  <span className="px-1.5 py-0.2 rounded-md text-[9px] font-black bg-amber-100 text-amber-900">
+                    جدید
+                  </span>
+                </button>
                 <button
                   onClick={() => { setActiveSubTab('orders'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -4110,6 +4156,28 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </div>
             </div>
           </div>
+
+          {/* REAL-TIME PRIORITIZED PENDING APPROVALS QUEUE */}
+          <AdminPendingApprovals
+            orders={orders}
+            safeBuyRequests={safeBuyRequests}
+            sponsoredAds={sponsoredAds}
+            barterDeals={barterDeals}
+            representativesList={representativesList}
+            callbackRequests={callbackRequests}
+            supportTickets={supportTickets}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
+            onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
+            onUpdateAdStatus={handleUpdateAdStatus}
+            onUpdateBarterStatus={handleUpdateBarterStatus}
+            onUpdateRepStatus={handleUpdateRepStatus}
+            onUpdateCallback={handleUpdateCallback}
+            onUpdateTicketStatus={handleUpdateTicketStatus}
+            onNavigateTab={(tab) => {
+              setActiveSubTab(tab as any);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
 
           {/* GitHub & Cache Status Widget Banner */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -5914,6 +5982,32 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- TAB: DEDICATED REAL-TIME PRIORITIZED APPROVALS QUEUE --- */}
+      {activeSubTab === 'approvals' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 text-right" dir="rtl">
+          <AdminPendingApprovals
+            orders={orders}
+            safeBuyRequests={safeBuyRequests}
+            sponsoredAds={sponsoredAds}
+            barterDeals={barterDeals}
+            representativesList={representativesList}
+            callbackRequests={callbackRequests}
+            supportTickets={supportTickets}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
+            onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
+            onUpdateAdStatus={handleUpdateAdStatus}
+            onUpdateBarterStatus={handleUpdateBarterStatus}
+            onUpdateRepStatus={handleUpdateRepStatus}
+            onUpdateCallback={handleUpdateCallback}
+            onUpdateTicketStatus={handleUpdateTicketStatus}
+            onNavigateTab={(tab) => {
+              setActiveSubTab(tab as any);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         </div>
       )}
 

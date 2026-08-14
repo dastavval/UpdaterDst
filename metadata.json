@@ -1,6 +1,6 @@
 {
   "name": "DastAvval",
-  "description": "سامانه توزیع مستقیم و بی‌واسطه محصولات صنایع غذایی از کارخانه به مغازه",
+  "description": "سامانه ملی خرید عمده، استعلام مستقیم قیمت کارخانجات صنایع غذایی و تالار کف بازار با ضمانت پرداخت امانی",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

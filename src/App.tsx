@@ -50,6 +50,7 @@ import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, 
 import { translations, Language } from "./lib/translations";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "./lib/id-utils";
 import { PaymentMethod } from "./types";
+import { updatePageSEO, SEO_TAB_CONFIGS, getProductSEOMetadata, getCategorySEOMetadata } from "./utils/seoHelper";
 
 const CATEGORIES = ["همه", "تنقلات و شکلات", "کیک، کلوچه و بیسکویت", "مواد غذایی و کنسروجات", "نوشیدنی‌ها", "شوینده و بهداشتی"];
 
@@ -233,11 +234,6 @@ export default function App() {
   const [newVersionAvailable, setNewVersionAvailable] = useState<boolean>(false);
   const [newVersionInfo, setNewVersionInfo] = useState<any>(null);
   const [isUpdatingState, setIsUpdatingState] = useState<boolean>(false);
-  // Scroll to top on tab change
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab]);
-
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
@@ -372,6 +368,19 @@ export default function App() {
   const [showAllHomepageProducts, setShowAllHomepageProducts] = useState(false);
   const [initialFactoryIdParam, setInitialFactoryIdParam] = useState<string | null>(null);
 
+  // Scroll to top on tab change and update SEO Meta Tags dynamically
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (selectedDetailProduct) {
+      updatePageSEO(getProductSEOMetadata(selectedDetailProduct));
+    } else if (activeCategory && activeCategory !== "همه" && activeTab === 'order') {
+      updatePageSEO(getCategorySEOMetadata(activeCategory));
+    } else if (SEO_TAB_CONFIGS[activeTab]) {
+      updatePageSEO(SEO_TAB_CONFIGS[activeTab]);
+    }
+  }, [activeTab, activeCategory, selectedDetailProduct]);
+
   // Global Brand Search Event Listener
   useEffect(() => {
     const handleBrandSearch = (e: any) => {
@@ -395,6 +404,15 @@ export default function App() {
     };
     window.addEventListener("view-factory", handleFactoryView);
     return () => window.removeEventListener("view-factory", handleFactoryView);
+  }, []);
+
+  // Global Catalog Modal Event Listener
+  useEffect(() => {
+    const handleOpenCatalog = () => {
+      setIsCatalogOpen(true);
+    };
+    window.addEventListener("open-catalog-modal", handleOpenCatalog);
+    return () => window.removeEventListener("open-catalog-modal", handleOpenCatalog);
   }, []);
 
   // Read URL query parameter for direct factory links
@@ -1406,6 +1424,7 @@ export default function App() {
                 setActiveTab={setActiveTab}
                 setActiveCategory={setActiveCategory}
                 onAddToCart={addToCart}
+                onViewDetails={(prod) => setSelectedDetailProduct(prod)}
                 userBadge={userBadge}
                 user={user}
               />
@@ -2148,8 +2167,8 @@ export default function App() {
                     📢
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-850">بیلبورد سراسری تبلیغات تجاری و سفارش‌های خرید</h3>
-                    <p className="text-[10px] text-slate-400 font-bold">بستر هوشمند مبادلات مستقیم و بدون واسطه کالا در کشور</p>
+                    <h3 className="text-sm font-black text-slate-850">تالار کف بازار (فرصت‌های مازاد کارخانجات و خرید زیر قیمت)</h3>
+                    <p className="text-[10px] text-slate-400 font-bold">بستر هوشمند مبادلات مستقیم کالا و خدمات با واسطه‌گری امن پلتفرم دست‌اول</p>
                   </div>
                 </div>
                 <button 
