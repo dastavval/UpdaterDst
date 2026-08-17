@@ -153,7 +153,8 @@ export const INITIAL_PRODUCTS: Omit<Product, "id">[] = [
     unit: "بسته",
     sellerId: "fac-1",
     sellerName: "صنایع غذایی به‌آرا (چی‌توز)",
-    production_lead_time_days: 1
+    production_lead_time_days: 1,
+    cartAddCount: 145
   },
   {
     productCode: "PRD-1002",
@@ -173,7 +174,8 @@ export const INITIAL_PRODUCTS: Omit<Product, "id">[] = [
     unit: "بسته",
     sellerId: "fac-2",
     sellerName: "گروه کارخانجات مزمز",
-    production_lead_time_days: 1
+    production_lead_time_days: 1,
+    cartAddCount: 89
   },
   {
     productCode: "PRD-1003",
@@ -193,7 +195,8 @@ export const INITIAL_PRODUCTS: Omit<Product, "id">[] = [
     unit: "بسته",
     sellerId: "fac-3",
     sellerName: "صنایع غذایی شیرین عسل",
-    production_lead_time_days: 2
+    production_lead_time_days: 2,
+    cartAddCount: 210
   },
   {
     productCode: "PRD-1004",
@@ -213,7 +216,8 @@ export const INITIAL_PRODUCTS: Omit<Product, "id">[] = [
     unit: "قوطی",
     sellerId: "fac-4",
     sellerName: "صنایع غذایی کاله (گروه سولیکو)",
-    production_lead_time_days: 1
+    production_lead_time_days: 1,
+    cartAddCount: 34
   },
   {
     productCode: "PRD-1005",
@@ -233,7 +237,8 @@ export const INITIAL_PRODUCTS: Omit<Product, "id">[] = [
     unit: "قوطی",
     sellerId: "fac-5",
     sellerName: "کنسروجات روژین تاک",
-    production_lead_time_days: 2
+    production_lead_time_days: 2,
+    cartAddCount: 167
   },
   {
     productCode: "PRD-1006",

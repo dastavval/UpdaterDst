@@ -425,31 +425,6 @@ export default function DynamicPresentation({
         onSelectFactory={() => setActiveTab?.('factories')}
       />
 
-      {/* --- SUPPLY CHAIN LIFECYCLE & VALUE BANNER --- */}
-      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-3 border-t border-slate-100/80">
-        <div className="relative z-10 space-y-3.5 max-w-xl flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 bg-linear-to-r from-emerald-800 to-teal-800 text-white px-3.5 py-1 rounded-full text-[10px] font-black shadow-sm border border-emerald-500/20">
-              <Sparkles size={12} className="fill-emerald-300 text-emerald-300 animate-pulse" />
-              <span>پورتال سراسری تامین مستقیم کالا</span>
-            </span>
-          </div>
-
-          <h1 className="text-sm sm:text-base font-black text-slate-900 leading-relaxed">
-            {b2bConfig?.appName ? `${b2bConfig.appName}؛ ${b2bConfig.appSub || 'خرید عمده مستقیم از کارخانجات معتبر کشور'}` : 'سامانه دست اول؛ خرید مستقیم عمده از تولیدکنندگان صنایع غذایی و بهداشتی'}
-          </h1>
-
-          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-            {b2bConfig?.topAnnouncement || 'ثبت سفارشات پالتی و کارتن‌های تخفیف‌دار، دریافت پیش‌فاکتور آنی کارخانه، ضمانت امن و بارنامه دولتی بیمه‌شده.'}
-          </p>
-        </div>
-
-        {/* Creative Interactive B2B Supply Chain Lifecycle Animation Widget */}
-        <div className="relative z-10 w-full lg:w-[480px] shrink-0">
-          <SupplyChainLifecycleAnimation onOrderClick={() => setActiveTab?.('order')} />
-        </div>
-      </section>
-
       {/* --- QUICK CATEGORY NAVIGATION TILES --- */}
       <section className="space-y-3">
         <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
@@ -616,6 +591,86 @@ export default function DynamicPresentation({
             <span>مشاهده لیست کامل محصولات در کاتالوگ عمده</span>
             <ArrowLeft size={15} />
           </button>
+        </div>
+      </section>
+
+      {/* --- MARKET HIGH-DEMAND GOODS (Trending based on Cart Additions) --- */}
+      <section className="space-y-4 pt-2">
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0 border border-red-100 shadow-sm">
+              <TrendingUp size={18} className="text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                <span>کالاهای پرتقاضای بازار</span>
+                <div className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full animate-pulse">HOT</div>
+              </h2>
+              <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                بیشترین دفعات افزودن به سبد خرید در ۴۸ ساعت گذشته
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setActiveTab?.('order')}
+            className="text-[10px] sm:text-[11px] font-black text-slate-600 hover:text-emerald-700 transition-colors flex items-center gap-1 cursor-pointer bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-xs"
+          >
+            <span>همه کالاهای ترند</span>
+            <ArrowLeft size={13} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {products
+            .filter(p => (p.cartAddCount || 0) > 0)
+            .sort((a, b) => (b.cartAddCount || 0) - (a.cartAddCount || 0))
+            .slice(0, 4)
+            .map((p, idx) => (
+              <div key={`trending-${p.id}-${idx}`} className="relative group">
+                <ProductCard
+                  index={idx}
+                  product={p}
+                  onViewDetails={onViewDetails}
+                  onAddToCart={(prod, qty) => {
+                    if (onAddToCart) onAddToCart(prod, qty);
+                  }}
+                />
+                {/* Demand Badge Overlay */}
+                <div className="absolute top-3 left-3 z-10">
+                  <div className="bg-white/95 backdrop-blur-md border border-red-100 px-2 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                    <Zap size={10} className="text-red-600 fill-red-600" />
+                    <span className="text-[9px] font-black text-slate-900">
+                      {toPersianNum(p.cartAddCount || 0)}+ تقاضا
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
+      </section>
+
+      {/* --- SUPPLY CHAIN LIFECYCLE & VALUE BANNER --- */}
+      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-3 border-t border-slate-100/80">
+        <div className="relative z-10 space-y-3.5 max-w-xl flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 bg-linear-to-r from-emerald-800 to-teal-800 text-white px-3.5 py-1 rounded-full text-[10px] font-black shadow-sm border border-emerald-500/20">
+              <Sparkles size={12} className="fill-emerald-300 text-emerald-300 animate-pulse" />
+              <span>پورتال سراسری تامین مستقیم کالا</span>
+            </span>
+          </div>
+
+          <h1 className="text-sm sm:text-base font-black text-slate-900 leading-relaxed">
+            {b2bConfig?.appName ? `${b2bConfig.appName}؛ ${b2bConfig.appSub || 'خرید عمده مستقیم از کارخانجات معتبر کشور'}` : 'سامانه دست اول؛ خرید مستقیم عمده از تولیدکنندگان صنایع غذایی و بهداشتی'}
+          </h1>
+
+          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+            {b2bConfig?.topAnnouncement || 'ثبت سفارشات پالتی و کارتن‌های تخفیف‌دار، دریافت پیش‌فاکتور آنی کارخانه، ضمانت امن و بارنامه دولتی بیمه‌شده.'}
+          </p>
+        </div>
+
+        {/* Creative Interactive B2B Supply Chain Lifecycle Animation Widget */}
+        <div className="relative z-10 w-full lg:w-[480px] shrink-0">
+          <SupplyChainLifecycleAnimation onOrderClick={() => setActiveTab?.('order')} />
         </div>
       </section>
 

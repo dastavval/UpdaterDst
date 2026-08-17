@@ -35,6 +35,7 @@ export interface Product {
   disabled?: boolean; // New: to disable product from being listed
   isKafBazaar?: boolean; // New: to show product in Kaf-e-Bazaar under-market section
   commissionPercent?: number; // New: custom commission rate for DastAvval
+  cartAddCount?: number; // New: number of times added to cart in last 48h
   updated_at?: string; // Last sync timestamp
   hasHealthApple?: boolean; // نشان سیب سلامت (سازمان غذا و دارو)
   isOrganic?: boolean; // ۱۰۰٪ ارگانیک
