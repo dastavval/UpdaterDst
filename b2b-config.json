@@ -1,4 +1,6 @@
 {
+  "githubRepoUrl": "https://github.com/dastavval/UpdaterDst",
+  "githubBranch": "main",
   "primaryColor": "indigo",
   "appName": "دست اول",
   "appSub": "مرجع مبادلات مستقیم و تامین کالای عمده",
@@ -180,6 +182,14 @@
   ],
   "githubToken": "",
   "lastGithubUpdate": 1786535405400,
+  "storageEndpoint": "c102393.parspack.net",
+  "storageAccessKey": "xt3cR9wHHoATuXS3",
+  "storageSecretKey": "4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b",
+  "storageBucket": "c102393",
+  "storageRegion": "us-east-1",
+  "storagePublicUrl": "https://c102393.parspack.net/c102393",
+  "storageForcePathStyle": true,
+  "storageEnabled": true,
   "buyerCredit": 250000000,
   "minOrderAmount": 3000000,
   "minOrderCartons": 3,
@@ -226,7 +236,5 @@
     "date": "۱۴۰۵/۵/۲۱",
     "message": "feat: improve GitHub update reliability and repo defaults"
   },
-  "githubRepoUrl": "https://github.com/dastavval/UpdaterDst",
-  "githubBranch": "main",
   "githubAutoDeploy": true
 }

@@ -879,7 +879,7 @@ export default function UserPanel({
                       className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                       <Printer size={14} />
-                      <span>مشاهده و چاپ فاکتور کارخانه</span>
+                      <span>چاپ فاکتور رسمی</span>
                     </button>
 
                     {ord.receiptUrl && (
@@ -1464,6 +1464,16 @@ export default function UserPanel({
           badge={user?.badge || "نماینده انحصاری توزیع"}
           onClose={() => setShowCertificateModal(false)}
           b2bConfig={b2bConfig}
+        />
+      )}
+
+      {/* Official Wholesale Invoice Modal */}
+      {selectedInvoiceOrder && (
+        <WholesaleInvoiceView
+          order={selectedInvoiceOrder}
+          b2bConfig={b2bConfig}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          isBuyer={true}
         />
       )}
 

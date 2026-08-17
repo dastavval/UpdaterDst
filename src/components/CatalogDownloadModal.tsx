@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
 import { 
@@ -20,7 +20,12 @@ import {
   Filter,
   PackageCheck,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CloudUpload,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
 
 interface CatalogDownloadModalProps {
@@ -48,6 +53,71 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
   const [sortBy, setSortBy] = useState<'category' | 'brand' | 'price-asc' | 'price-desc'>('category');
   
   const [popupError, setPopupError] = useState(false);
+
+  // ParsPack PDF Catalog Upload State
+  const [catalogPdfUrl, setCatalogPdfUrl] = useState<string>("http://c102393.parspack.net/c102393/catalogs/dastavval-catalog.pdf");
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Fetch latest config on mount
+  useEffect(() => {
+    fetch("/api/admin/b2b-config")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.catalogPdfUrl) {
+          setCatalogPdfUrl(data.catalogPdfUrl);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.pdf')) {
+      setUploadMsg({ type: 'error', text: 'لطفاً فقط فایل PDF انتخاب نمایید.' });
+      return;
+    }
+
+    setIsUploadingPdf(true);
+    setUploadMsg(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          const base64Data = evt.target?.result as string;
+          const res = await fetch("/api/storage/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileData: base64Data,
+              fileName: file.name,
+              folder: "catalogs",
+              contentType: "application/pdf"
+            })
+          });
+
+          const data = await res.json();
+          if (data.success && data.url) {
+            setCatalogPdfUrl(data.url);
+            setUploadMsg({ type: 'success', text: `فایل ${file.name} با موفقیت در باکت پارس‌پک آپلود شد!` });
+          } else {
+            setUploadMsg({ type: 'error', text: "خطا در آپلود: " + (data.error || "خطای نا مشخص") });
+          }
+        } catch (err: any) {
+          setUploadMsg({ type: 'error', text: "خطا در برقراری ارتباط با باکت: " + err.message });
+        } finally {
+          setIsUploadingPdf(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setUploadMsg({ type: 'error', text: "خطا در خواندن فایل: " + err.message });
+      setIsUploadingPdf(false);
+    }
+  };
 
   // Extract all unique categories and brands from available products
   const allCategories = useMemo(() => {
@@ -752,6 +822,64 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
             >
               انصراف
             </button>
+          </div>
+
+          {/* PARSPACK S3 PDF CATALOG UPLOAD & DOWNLOAD BOX */}
+          <div className="mt-2 pt-4 border-t border-slate-200/80 bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3" dir="rtl">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">
+                    دانلود و آپلود فایل کاتالوگ PDF اصلی در باکت پارس‌پک
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    فایل کامل کاتالوگ رسمی ذخیره‌شده روی سرور ابری پارس‌پک (`c102393.parspack.net`)
+                  </p>
+                </div>
+              </div>
+
+              {catalogPdfUrl && (
+                <a
+                  href={catalogPdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl transition-all inline-flex items-center gap-1.5 shrink-0"
+                >
+                  <Download size={14} className="text-amber-400" />
+                  <span>دانلود فایل کاتالوگ PDF از باکت</span>
+                </a>
+              )}
+            </div>
+
+            {/* Upload Zone */}
+            <div className="relative border border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 rounded-xl p-3 text-center transition-all cursor-pointer">
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfUpload}
+                disabled={isUploadingPdf}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <div className="flex items-center justify-center gap-2 text-xs font-black text-slate-700">
+                {isUploadingPdf ? <RefreshCw size={16} className="animate-spin text-emerald-600" /> : <CloudUpload size={16} className="text-emerald-600" />}
+                <span>
+                  {isUploadingPdf ? "در حال ارسال فایل PDF به باکت پارس‌پک..." : "برای آپلود کاتالوگ PDF جدید روی باکت کلیک کنید"}
+                </span>
+              </div>
+            </div>
+
+            {uploadMsg && (
+              <div className={`p-2.5 rounded-xl text-xs font-black flex items-center gap-2 ${
+                uploadMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+              }`}>
+                {uploadMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                <span>{uploadMsg.text}</span>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>

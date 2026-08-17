@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -17,6 +17,8 @@ import AdminPendingApprovals from "./AdminPendingApprovals";
 import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
+import { uploadToParsPackStorage } from "../utils/storage";
+import { getDisplayImageUrl } from "../lib/image-utils";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -54,8 +56,9 @@ interface AdminPanelProps {
 
 import { AdminSalesCharts } from "./AdminSalesCharts";
 import { getCacheStatus, CacheStatus } from "../lib/db";
+import ProductSyncStatusView from "./ProductSyncStatusView";
 
-type SubTab = 'dashboard' | 'approvals' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy';
+type SubTab = 'dashboard' | 'approvals' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy' | 'parspack_storage' | 'product_sync_status';
 
 export default function AdminPanel({ 
   products, 
@@ -737,6 +740,8 @@ export default function AdminPanel({
   const [catalogPdfUrl, setCatalogPdfUrl] = useState("");
   const [customLogoUrl, setCustomLogoUrl] = useState("/assets/logo.svg");
   const [mascotUrl, setMascotUrl] = useState("/assets/mascot_character.jpg");
+  const [catalogJsonSyncUrl, setCatalogJsonSyncUrl] = useState("http://c102393.parspack.net/c102393/catalog.json");
+  const [isSyncingCatalogJsonUrl, setIsSyncingCatalogJsonUrl] = useState(false);
   const [enamadImage, setEnamadImage] = useState("");
   const [enamadCode, setEnamadCode] = useState("");
   const [enamadUrl, setEnamadUrl] = useState("https://trustseal.enamad.ir");
@@ -1639,6 +1644,119 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle direct JSON URL sync for Products
+  const handleCatalogJsonSyncFromUrl = async () => {
+    if (!catalogJsonSyncUrl.trim()) {
+      setErrorMsg("لطفاً آدرس لینک JSON کاتالوگ را وارد کنید.");
+      return;
+    }
+    setIsSyncingCatalogJsonUrl(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      let rawData: any = null;
+      try {
+        const res = await fetch("/api/proxy-fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: catalogJsonSyncUrl.trim() })
+        });
+        if (res.ok) {
+          rawData = await res.json();
+        }
+      } catch (e) {}
+
+      if (!rawData) {
+        const directRes = await fetch(catalogJsonSyncUrl.trim());
+        if (directRes.ok) {
+          rawData = await directRes.json();
+        }
+      }
+
+      if (!rawData) {
+        throw new Error("امکان خواندن فایل JSON از لینک فوق وجود ندارد. از صحت آدرس مطمئن شوید.");
+      }
+
+      const incomingProducts = Array.isArray(rawData) ? rawData : (rawData.products || rawData.items || []);
+      if (!incomingProducts || incomingProducts.length === 0) {
+        throw new Error("هیچ آرایه‌ای از محصولات در فایل JSON یافت نشد.");
+      }
+
+      let updatedCount = 0;
+      let addedCount = 0;
+
+      for (const incItem of incomingProducts) {
+        const sku = incItem.sku || String(incItem.id) || `PRD-${Math.random().toString(36).substring(2, 7)}`;
+        const existing = products.find(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
+
+        const factoryBuyPrice = Number(incItem.factoryPrice || incItem.wholesalePrice || incItem.price || 0);
+        const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
+        const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || 0);
+
+        const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image;
+        const processedImage = getDisplayImageUrl(rawImageUrl);
+
+        const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || 1);
+        const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || 10);
+        const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || 1) || 1;
+        const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
+        const brandName = incItem.location || incItem.factoryName || incItem.brand || "انبار دست اول";
+
+        if (existing) {
+          await onUpdateProduct(existing.id, {
+            ...existing,
+            name: incItem.name || existing.name,
+            price: factoryBuyPrice || existing.price,
+            bulk_price: dastAvvalSellPrice || existing.bulk_price,
+            consumer_price: consumerRetailPrice || existing.consumer_price,
+            carton_pack_count: itemsPerCarton || existing.carton_pack_count,
+            stock_quantity_cartons: stockCartons,
+            min_order_cartons: minOrderCartons,
+            min_stock_alert: safetyThreshold,
+            unit: incItem.unit || existing.unit || "عدد",
+            image_url: processedImage || existing.image_url,
+            category: incItem.category || existing.category,
+            brand: brandName || existing.brand,
+            sellerName: brandName || existing.sellerName,
+            description: incItem.description || existing.description,
+            updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+          });
+          updatedCount++;
+        } else {
+          await onAddProduct({
+            sku: sku,
+            name: incItem.name || "محصول جدید کاتالوگ",
+            brand: brandName,
+            category: incItem.category || "صنایع عمومی",
+            price: factoryBuyPrice || 750000,
+            bulk_price: dastAvvalSellPrice || 780000,
+            consumer_price: consumerRetailPrice || 1000000,
+            carton_pack_count: itemsPerCarton,
+            min_order_cartons: minOrderCartons,
+            stock_quantity_cartons: stockCartons,
+            min_stock_alert: safetyThreshold,
+            unit: incItem.unit || "عدد",
+            sellerId: "factory-android",
+            sellerName: brandName,
+            production_lead_time_days: 1,
+            image_url: processedImage,
+            description: incItem.description || "واردشده از لینک JSON باکت پارس‌پک",
+            updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+          });
+          addedCount++;
+        }
+      }
+
+      if (onRefreshProducts) await onRefreshProducts();
+      setSuccessMsg(`همگام‌سازی کامل شد! ${updatedCount} کالا بروزرسانی شد و ${addedCount} کالای جدید اضافه گردید.`);
+    } catch (err: any) {
+      setErrorMsg("خطا در همگام‌سازی لینک JSON: " + err.message);
+    } finally {
+      setIsSyncingCatalogJsonUrl(false);
     }
   };
 
@@ -3322,6 +3440,18 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               <p className="text-[10px] font-black text-slate-400 mb-4 px-2 uppercase tracking-tighter opacity-60 font-sans">SETTINGS</p>
               <nav className="space-y-1.5">
                 <button
+                  onClick={() => { setActiveSubTab('parspack_storage'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                    activeSubTab === 'parspack_storage'
+                      ? "bg-cyan-600 text-white shadow-xl shadow-cyan-600/25"
+                      : "text-slate-500 hover"
+                  }`}
+                >
+                  <HardDrive size={18} />
+                  مدیریت باکت پارس‌پک (S3)
+                </button>
+
+                <button
                   onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
                     activeSubTab === 'system' && !showAiSettings && !showImporterDashboard
@@ -3767,6 +3897,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <span>انبار محصولات کاتالوگ</span>
                 </button>
                 <button
+                  onClick={() => { setActiveSubTab('product_sync_status'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'product_sync_status'
+                      ? "bg-emerald-600 text-white shadow-xs font-black"
+                      : "text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                  }`}
+                >
+                  <Activity size={12} />
+                  <span>پایش بروزرسانی محصولات و باکت</span>
+                </button>
+                <button
                   onClick={() => { setActiveSubTab('categories'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeSubTab === 'categories'
@@ -3890,6 +4031,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             {/* Category 4: Infrastructure */}
             {adminCategory === 'system' && (
               <>
+                <button
+                  onClick={() => { setActiveSubTab('parspack_storage'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    activeSubTab === 'parspack_storage'
+                      ? "bg-cyan-600 text-white border-cyan-500 shadow-xs"
+                      : "text-slate-600 bg-white border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <HardDrive size={12} />
+                  <span>📦 باکت پارس‌پک (S3)</span>
+                </button>
                 <button
                   onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
@@ -6540,6 +6692,41 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
+                  {/* JSON Catalog URL Sync Field */}
+                  <div className="space-y-2 p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-emerald-900 flex items-center gap-1">
+                        <Globe size={12} className="text-emerald-600" />
+                        <span>همگام‌سازی از لینک مستقیم JSON باکت (catalog.json):</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => { setActiveSubTab('product_sync_status'); }}
+                        className="text-[9px] font-black text-emerald-700 hover:underline cursor-pointer"
+                      >
+                        مشاهده پنل پایش کامل ➔
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input 
+                        type="text"
+                        placeholder="https://c102393.parspack.net/c102393/catalog.json"
+                        value={catalogJsonSyncUrl}
+                        onChange={(e) => setCatalogJsonSyncUrl(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-white border border-emerald-200 rounded-xl text-[10px] font-mono dir-ltr text-left font-semibold"
+                      />
+                      <button 
+                        onClick={handleCatalogJsonSyncFromUrl}
+                        disabled={isSyncingCatalogJsonUrl}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-black transition-all shadow-md shadow-emerald-600/20 flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        {isSyncingCatalogJsonUrl ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />}
+                        <span>{isSyncingCatalogJsonUrl ? "همگام‌سازی..." : "شروع همگام‌سازی JSON"}</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-500">لینک API وردپرس یا WXR URL:</label>
                     <div className="flex gap-2">
@@ -7024,13 +7211,19 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             type="file" 
                             className="hidden" 
                             accept="image/*"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                // Simulation of upload
-                                setImageUrl(URL.createObjectURL(file));
-                                setSuccessMsg("تصویر با موفقیت بارگذاری شد.");
-                                setTimeout(() => setSuccessMsg(null), 3000);
+                                setLoading(true);
+                                const result = await uploadToParsPackStorage(file, "products");
+                                setLoading(false);
+                                if (result.success && result.url) {
+                                  setImageUrl(result.url);
+                                  setSuccessMsg("تصویر با موفقیت در باکت پارس‌پک ذخیره شد.");
+                                  setTimeout(() => setSuccessMsg(null), 3000);
+                                } else {
+                                  setErrorMsg(result.error || "خطا در آپلود عکس به باکت پارس‌پک");
+                                }
                               }
                             }}
                           />
@@ -7176,10 +7369,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     </div>
                     
                     <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button 
                           onClick={() => onUpdateProduct(p.id, { isFeatured: !p.isFeatured })}
-                          className={`p-2 rounded-xl text-[10px] font-black transition-all border ${
+                          className={`px-2 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
                             p.isFeatured 
                               ? "bg-rose-50 text-rose-600 border-rose-100" 
                               : "bg-slate-50 text-slate-400 border-slate-100"
@@ -7187,6 +7380,31 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         >
                           {p.isFeatured ? "🌟 ویژه" : "⭐ عادی"}
                         </button>
+
+                        <button 
+                          onClick={() => onUpdateProduct(p.id, { isKafBazaar: !p.isKafBazaar })}
+                          className={`px-2 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
+                            p.isKafBazaar 
+                              ? "bg-amber-50 text-amber-700 border-amber-200" 
+                              : "bg-slate-50 text-slate-400 border-slate-100"
+                          }`}
+                          title="تغییر وضعیت کف بازار"
+                        >
+                          {p.isKafBazaar ? "📉 کف بازار" : "▫️ بازار"}
+                        </button>
+
+                        <button 
+                          onClick={() => onUpdateProduct(p.id, { disabled: !p.disabled })}
+                          className={`px-2 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
+                            p.disabled 
+                              ? "bg-rose-50 text-rose-700 border-rose-200" 
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          }`}
+                          title="فعال/غیرفعال کردن"
+                        >
+                          {p.disabled ? "🚫 غیرفعال" : "✅ فعال"}
+                        </button>
+
                         <div className="flex items-center bg-slate-50 rounded-xl border border-slate-100 p-0.5">
                           <button 
                             onClick={() => onUpdateProduct(p.id, { bulk_price: Math.max(0, Math.round(p.bulk_price * 0.95)) })}
@@ -7204,7 +7422,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => handleEditClick(p)} className="p-2.5 bg-slate-50 text-slate-500 hover rounded-xl transition-all">
                           <Edit2 size={14} />
                         </button>
@@ -7322,18 +7540,44 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex flex-col items-center gap-1.5">
-                            {/* Special Offer Toggle */}
-                            <button 
-                              onClick={() => onUpdateProduct(p.id, { isFeatured: !p.isFeatured })}
-                              className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all flex items-center gap-1 cursor-pointer border ${
-                                p.isFeatured 
-                                  ? "bg-rose-50 text-rose-600 border-rose-200" 
-                                  : "bg-slate-50 text-slate-400 border-slate-200 hover"
-                              }`}
-                              title="تغییر وضعیت به فروش ویژه"
-                            >
-                              🌟 {p.isFeatured ? "فروش ویژه" : "عادی"}
-                            </button>
+                             {/* Special Offer Toggle */}
+                            <div className="flex flex-col gap-1 w-full">
+                              <button 
+                                onClick={() => onUpdateProduct(p.id, { isFeatured: !p.isFeatured })}
+                                className={`px-2 py-0.5 rounded-lg text-[8px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                  p.isFeatured 
+                                    ? "bg-rose-50 text-rose-600 border-rose-200" 
+                                    : "bg-slate-50 text-slate-400 border-slate-200 hover"
+                                }`}
+                                title="تغییر وضعیت به فروش ویژه"
+                              >
+                                🌟 {p.isFeatured ? "ویژه" : "عادی"}
+                              </button>
+
+                              <button 
+                                onClick={() => onUpdateProduct(p.id, { isKafBazaar: !p.isKafBazaar })}
+                                className={`px-2 py-0.5 rounded-lg text-[8px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                  p.isKafBazaar 
+                                    ? "bg-amber-50 text-amber-700 border-amber-200" 
+                                    : "bg-slate-50 text-slate-400 border-slate-200 hover"
+                                }`}
+                                title="تغییر وضعیت به کف بازار"
+                              >
+                                📉 {p.isKafBazaar ? "کف بازار" : "عادی بازار"}
+                              </button>
+
+                              <button 
+                                onClick={() => onUpdateProduct(p.id, { disabled: !p.disabled })}
+                                className={`px-2 py-0.5 rounded-lg text-[8px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                  p.disabled 
+                                    ? "bg-rose-50 text-rose-700 border-rose-200" 
+                                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                }`}
+                                title="تغییر وضعیت فعال‌سازی"
+                              >
+                                {p.disabled ? "🚫 غیرفعال" : "✅ فعال"}
+                              </button>
+                            </div>
 
                             {/* Price adjustment buttons */}
                             <div className="flex items-center gap-1">
@@ -7457,6 +7701,34 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         </div>
       )}
+      {/* --- TAB: PRODUCT SYNC & BUCKET STATUS --- */}
+      {activeSubTab === 'product_sync_status' && (
+        <ProductSyncStatusView
+          products={products}
+          onUpdateProducts={(updatedProds) => {
+            updatedProds.forEach(p => {
+              const existing = products.find(oldP => oldP.id === p.id || oldP.sku === p.sku);
+              if (existing) {
+                onUpdateProduct(p.id, p);
+              } else {
+                onAddProduct(p);
+              }
+            });
+          }}
+          b2bConfig={{ catalogPdfUrl }}
+          onSaveB2bConfig={async (cfg) => {
+            if (cfg.catalogPdfUrl) setCatalogPdfUrl(cfg.catalogPdfUrl);
+            try {
+              await fetch("/api/admin/b2b-config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...b2bConfig, catalogPdfUrl: cfg.catalogPdfUrl })
+              });
+            } catch (e) {}
+          }}
+        />
+      )}
+
       {/* --- TAB: CATALOG GENERATION --- */}
       {activeSubTab === 'catalog' && (
         <div className="space-y-6">
@@ -9824,6 +10096,21 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- TAB: PARSPACK BUCKET STORAGE --- */}
+      {activeSubTab === 'parspack_storage' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-right" dir="rtl">
+          <AdminSystemConfig
+            b2bConfig={b2bConfig}
+            onUpdateB2bConfig={onUpdateB2bConfig}
+            products={products}
+            orders={orders}
+            articles={articles}
+            onRefreshProducts={onRefreshProducts}
+            defaultTab="parspack_storage"
+          />
         </div>
       )}
 

@@ -41,30 +41,21 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
       {/* Top Badge Overlay */}
       <div className="absolute top-4 inset-x-4 z-20 flex justify-between items-start pointer-events-none">
         <div className="flex flex-col gap-2">
-          {product.isFavorite && (
-            <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-lg text-amber-500 flex items-center gap-1.5 border border-amber-100">
-              <Sparkles size={12} fill="currentColor" />
-              <span className="text-[10px] font-black">منتخب بازرگانان</span>
+          {profitMargin > 20 && (
+            <div className="bg-emerald-600/95 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-white/20 text-[10px] font-black flex items-center gap-1.5">
+              <TrendingUp size={12} className="animate-pulse" />
+              سود خالص: {toPersianNum(profitMargin)}٪
             </div>
           )}
-          {(product.isFeatured || product.badge === "ویژه") && (
-            <div className="bg-indigo-600 text-white px-3 py-1 rounded-full shadow-lg text-[9px] font-black tracking-widest uppercase">
-              PREMIUM
-            </div>
-          )}
-        </div>
-        <div className="bg-emerald-500 text-white px-3 py-1 rounded-full shadow-lg text-[10px] font-black flex items-center gap-1">
-          <ShieldCheck size={12} />
-          <span>اصالت تضمین شده</span>
         </div>
       </div>
 
       {/* Image Section */}
-      <div className="aspect-square relative overflow-hidden bg-slate-50 group-hover:bg-emerald-50/50 transition-colors duration-500">
+      <div className="aspect-square relative overflow-hidden bg-white group-hover:bg-emerald-50/20 transition-colors duration-500 flex items-center justify-center">
         <img 
           src={product.image_url} 
           alt={product.name}
-          className="w-full h-full object-contain p-6 group-hover:scale-108 transition-transform duration-700 ease-out"
+          className="w-full h-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-500 ease-out"
           loading="lazy"
           referrerPolicy="no-referrer"
         />

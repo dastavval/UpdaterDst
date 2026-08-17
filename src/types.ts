@@ -19,6 +19,7 @@ export interface Product {
   min_order_cartons: number; // MOQ in cartons
   category: string;
   stock_quantity_cartons: number; // Stock tracked in cartons
+  min_stock_alert?: number; // آستانه هشدار موجودی ایمن برای ادمین
   image_url: string;
   unit: string; // e.g., "بسته", "قوطی", "پاکت"
   sellerId: string;
@@ -32,6 +33,9 @@ export interface Product {
   isSponsored?: boolean;
   boostScore?: number;
   disabled?: boolean; // New: to disable product from being listed
+  isKafBazaar?: boolean; // New: to show product in Kaf-e-Bazaar under-market section
+  commissionPercent?: number; // New: custom commission rate for DastAvval
+  updated_at?: string; // Last sync timestamp
   hasHealthApple?: boolean; // نشان سیب سلامت (سازمان غذا و دارو)
   isOrganic?: boolean; // ۱۰۰٪ ارگانیک
   isNatural?: boolean; // ۱۰۰٪ طبیعی
@@ -180,23 +184,29 @@ export type ShippingMethod = 'barbari' | 'darbasti' | 'deka_post' | 'peyk' | 'co
 
 export interface Order {
   id?: string;
-  buyerName: string;
-  buyerPhone: string;
-  buyerAddress: string;
+  buyerName?: string;
+  buyerPhone?: string;
+  buyerAddress?: string;
   buyerCompany?: string;
+  buyerInfo?: {
+    name?: string;
+    phone?: string;
+    company?: string;
+    address?: string;
+  };
   items: OrderItem[];
   totalAmount: number;
-  originalAmount: number; // Amount before discounts
-  discountAmount: number;
-  status: SupplyChainStage;
-  paymentStatus: 'pending' | 'paid' | 'unpaid' | 'partial';
-  paymentMethod: PaymentMethod;
+  originalAmount?: number; // Amount before discounts
+  discountAmount?: number;
+  status?: SupplyChainStage | string;
+  paymentStatus?: 'pending' | 'paid' | 'unpaid' | 'partial';
+  paymentMethod?: PaymentMethod;
   shippingMethod?: ShippingMethod;
   shippingCost?: number;
-  sellerId: string;
-  sellerName: string;
-  createdAt: any;
-  trackingNumber: string;
+  sellerId?: string;
+  sellerName?: string;
+  createdAt?: any;
+  trackingNumber?: string;
   hasSeal?: boolean; // For official invoices
   notes?: string;
   receiptUrl?: string; // Uploaded payment receipt or bank slip
@@ -285,6 +295,14 @@ export interface B2BConfig {
   topAnnouncementPopupTitle?: string;
   topAnnouncementPopupContent?: string;
   slides?: SlideItem[];
+  // ParsPack / S3 Object Storage Credentials & Settings
+  storageEndpoint?: string;
+  storageAccessKey?: string;
+  storageSecretKey?: string;
+  storageBucket?: string;
+  storageRegion?: string;
+  storagePublicUrl?: string;
+  storageEnabled?: boolean;
   // Social Media & Messaging Channels
   rubikaChannelUrl?: string;
   telegramChannelUrl?: string;

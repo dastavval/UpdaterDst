@@ -7,6 +7,7 @@ import {
   Star, MessageSquare, ShoppingCart
 } from "lucide-react";
 import type { Product, User } from "../types";
+import { getDisplayImageUrl } from "../lib/image-utils";
 import ProductReviews from "./ProductReviews";
 import StarRating from "./StarRating";
 import { HealthAppleLogo, HealthBadgesStrip, HealthCertModal } from "./HealthAppleBadge";
@@ -30,11 +31,9 @@ export default function ProductDetailModal({
   onAddToCart,
   onOrderSuccess
 }: ProductDetailModalProps) {
-  if (!product) return null;
-
   const [step, setStep] = useState(1);
   const [activeView, setActiveView] = useState<'order' | 'reviews'>('order');
-  const [cartons, setCartons] = useState(product.min_order_cartons);
+  const [cartons, setCartons] = useState(product?.min_order_cartons || 1);
   const [unitType, setUnitType] = useState<'carton' | 'kg' | 'ton' | 'pack'>('carton');
   const [detailImgError, setDetailImgError] = useState(false);
   
@@ -44,6 +43,17 @@ export default function ProductDetailModal({
   const [buyerCompany, setBuyerCompany] = useState(() => user?.company || "");
   const [buyerAddress, setBuyerAddress] = useState(() => user?.address || "");
   const [transportType, setTransportType] = useState("road_truck"); // road_truck, local_cargo, heavy_trailer
+
+  // Reset/sync state whenever active product changes
+  useEffect(() => {
+    if (product) {
+      setCartons(product.min_order_cartons || 1);
+      setStep(1);
+      setActiveView('order');
+      setDetailImgError(false);
+      setErrors({});
+    }
+  }, [product?.id, isOpen]);
 
   // Auto-fill from user prop or saved localStorage info
   useEffect(() => {
@@ -122,20 +132,24 @@ export default function ProductDetailModal({
     }
   };
 
+  const minCartons = product?.min_order_cartons || 1;
+  const packCount = product?.carton_pack_count || 1;
+  const bulkPrice = product?.bulk_price || 0;
+
   const currentDiscountPercent = getDiscountPercent(userBadge);
   const discountedBulkPrice = currentDiscountPercent > 0 
-    ? Math.round(product.bulk_price * (1 - currentDiscountPercent / 100))
-    : product.bulk_price;
+    ? Math.round(bulkPrice * (1 - currentDiscountPercent / 100))
+    : bulkPrice;
 
-  const pricePerCarton = discountedBulkPrice * product.carton_pack_count;
+  const pricePerCarton = discountedBulkPrice * packCount;
   const totalOrderPrice = pricePerCarton * cartons;
-  const originalTotalPrice = product.bulk_price * product.carton_pack_count * cartons;
+  const originalTotalPrice = bulkPrice * packCount * cartons;
   const discountSavings = originalTotalPrice - totalOrderPrice;
 
   // Approximate weight calculation
   // Let's assume each pack has an average weight of 250 grams
   const packWeightKg = 0.25; 
-  const totalPacks = cartons * product.carton_pack_count;
+  const totalPacks = cartons * packCount;
   const totalWeightKg = Math.round(totalPacks * packWeightKg);
   const totalWeightTons = (totalWeightKg / 1000).toFixed(2);
 
@@ -144,28 +158,28 @@ export default function ProductDetailModal({
   };
 
   const handleDecrement = () => {
-    setCartons(prev => Math.max(product.min_order_cartons, prev - 1));
+    setCartons(prev => Math.max(minCartons, prev - 1));
   };
 
   // Convert unit input to equivalent cartons
   const handleUnitQuantityChange = (val: number, unit: typeof unitType) => {
-    if (isNaN(val) || val <= 0) return;
-    let computedCartons = product.min_order_cartons;
+    if (isNaN(val) || val <= 0 || !product) return;
+    let computedCartons = minCartons;
     
     if (unit === 'carton') {
       computedCartons = val;
     } else if (unit === 'pack') {
-      computedCartons = Math.ceil(val / product.carton_pack_count);
+      computedCartons = Math.ceil(val / packCount);
     } else if (unit === 'kg') {
       const computedPacks = val / packWeightKg;
-      computedCartons = Math.ceil(computedPacks / product.carton_pack_count);
+      computedCartons = Math.ceil(computedPacks / packCount);
     } else if (unit === 'ton') {
       const computedKg = val * 1000;
       const computedPacks = computedKg / packWeightKg;
-      computedCartons = Math.ceil(computedPacks / product.carton_pack_count);
+      computedCartons = Math.ceil(computedPacks / packCount);
     }
 
-    setCartons(Math.max(product.min_order_cartons, computedCartons));
+    setCartons(Math.max(minCartons, computedCartons));
   };
 
   // Client side validation
@@ -232,6 +246,7 @@ export default function ProductDetailModal({
   };
 
   const handleOrderSubmit = () => {
+    if (!product) return;
     // Generate simulated tracking number
     const randTrack = `TRK-${Math.floor(10000 + Math.random() * 90000)}`;
     onAddToCart(product, cartons);
@@ -241,7 +256,7 @@ export default function ProductDetailModal({
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && product && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 text-right" dir="rtl">
           {/* Backdrop */}
           <motion.div
@@ -268,8 +283,8 @@ export default function ProductDetailModal({
             </button>
 
             {/* LEFT HALF: Product Details Display Panel */}
-            <div className="w-full md:w-[42%] bg-slate-50 p-6 flex flex-col justify-between border-l border-gray-100 overflow-y-auto max-h-[40vh] md:max-h-[92vh]">
-              <div className="space-y-5">
+            <div className="w-full md:w-[42%] bg-slate-50/50 p-6 flex flex-col justify-between border-l border-gray-100 overflow-y-auto max-h-[40vh] md:max-h-[92vh]">
+              <div className="space-y-6">
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100/50">
@@ -296,49 +311,49 @@ export default function ProductDetailModal({
                   </div>
                 </div>
 
-                {/* Product Main Display Image */}
-                <div className="aspect-[12/10] w-full bg-slate-50 rounded-3xl overflow-hidden flex items-center justify-center border border-gray-100 shadow-sm relative">
+                {/* Product Main Display Image - Clean Floating Single Frame */}
+                <div className="aspect-square w-full bg-white rounded-3xl overflow-hidden flex items-center justify-center border border-slate-100 shadow-material-sm relative group">
                   {detailImgError || !product.image_url ? (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 p-4">
-                      <Package size={42} className="text-slate-300 stroke-[1.5]" />
-                      <span className="text-xs font-black text-slate-400">بدون تصویر</span>
-                      <span className="text-[10px] text-slate-400/80 font-bold">محصول رسمی خط تولید</span>
+                      <Package size={42} className="text-slate-200 stroke-[1]" />
+                      <span className="text-xs font-black text-slate-400">بدون تصویر رسمی</span>
                     </div>
                   ) : (
-                    <img 
-                      src={product.image_url} 
-                      alt={product.name}
-                      className="w-full h-full object-contain p-2 clean-product-img"
-                      referrerPolicy="no-referrer"
-                      onError={() => setDetailImgError(true)}
-                    />
+                    <>
+                      <div className="absolute inset-x-8 bottom-6 h-6 bg-slate-900/5 blur-2xl rounded-full transition-all group-hover:bg-emerald-500/10" />
+                      <img 
+                        src={getDisplayImageUrl(product.image_url)} 
+                        alt={product.name}
+                        className="w-full h-full object-contain p-1.5 group-hover:scale-[1.03] transition-all duration-500 relative z-10"
+                        referrerPolicy="no-referrer"
+                        onError={() => setDetailImgError(true)}
+                      />
+                    </>
                   )}
                   {product.isFeatured && (
-                    <span className="absolute bottom-2 right-2 bg-amber-500 text-white px-2 py-0.5 rounded-lg text-[8px] font-black flex items-center gap-1 shadow-md">
+                    <span className="absolute top-3 left-3 bg-amber-500 text-white px-2 py-0.5 rounded-lg text-[8px] font-black flex items-center gap-1 shadow-md z-20">
                       <Sparkles size={10} />
                       منتخب
                     </span>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="text-base sm font-black text-indigo-800 leading-tight">
+                <div className="space-y-3">
+                  <h3 className="text-base font-black text-slate-900 leading-tight">
                     {product.name}
                   </h3>
-                  <div className="flex items-center justify-between bg-amber-50/60 px-3 py-1.5 rounded-xl border border-amber-200/80">
-                    <span className="text-xs font-black text-amber-900">امتیاز کیفی و رضایت خریداران:</span>
+                  <div className="flex items-center justify-between bg-white px-3.5 py-2 rounded-2xl border border-slate-100 shadow-2xs">
+                    <span className="text-[10px] font-black text-slate-500">امتیاز کیفی و رضایت:</span>
                     <StarRating 
                       rating={product.rating || 5} 
-                      size={15} 
+                      size={14} 
                       interactive={true} 
                       showCount={true} 
                       count={(product as any).ratingCount || 24} 
-                      onRate={() => {
-                        setActiveView('reviews');
-                      }}
+                      onRate={() => setActiveView('reviews')}
                     />
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium bg-white p-3 rounded-2xl border border-slate-50">
                     {product.description}
                   </p>
                 </div>

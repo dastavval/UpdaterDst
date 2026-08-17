@@ -46,7 +46,7 @@ import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-he
 import { getBestDiscount } from "./lib/discounts";
 import { recordCRMOrder } from "./lib/crm-helper";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush } from "lucide-react";
+import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search } from "lucide-react";
 import { translations, Language } from "./lib/translations";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "./lib/id-utils";
 import { PaymentMethod } from "./types";
@@ -237,7 +237,8 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list' | 'high_margin'>('grid');
+  const [sortBy, setSortBy] = useState<'default' | 'best-selling' | 'newest' | 'price-asc' | 'price-desc'>('default');
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState<'online' | 'offline' | 'checking'>('checking');
@@ -1132,6 +1133,9 @@ export default function App() {
   };
 
   const filteredProducts = products.filter(product => {
+    // Hide disabled products on public pages
+    if (product.disabled) return false;
+
     const matchesCategory = activeCategory === "همه" || product.category === activeCategory;
     const matchesBrand = selectedBrand === "همه" || product.brand === selectedBrand;
     
@@ -1151,14 +1155,35 @@ export default function App() {
       
     return matchesCategory && matchesBrand && matchesSearch;
   }).sort((a, b) => {
-    // 1. Sponsored products first
+    // Custom Sorting Options
+    if (sortBy === 'price-asc') {
+      return (a.bulk_price || 0) - (b.bulk_price || 0);
+    }
+    if (sortBy === 'price-desc') {
+      return (b.bulk_price || 0) - (a.bulk_price || 0);
+    }
+    if (sortBy === 'newest') {
+      const aNew = a.isNew ? 1 : 0;
+      const bNew = b.isNew ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      return String(b.id).localeCompare(String(a.id));
+    }
+    if (sortBy === 'best-selling') {
+      const aRate = a.rating || 4;
+      const bRate = b.rating || 4;
+      if (aRate !== bRate) return bRate - aRate;
+      const aFav = a.isFavorite ? 1 : 0;
+      const bFav = b.isFavorite ? 1 : 0;
+      return bFav - aFav;
+    }
+
+    // Default Sorting (Sponsored & BoostScore)
     const aSponsored = a.isSponsored ? 1 : 0;
     const bSponsored = b.isSponsored ? 1 : 0;
     if (aSponsored !== bSponsored) {
       return bSponsored - aSponsored;
     }
     
-    // 2. Sort by boostScore descending
     const aBoost = a.boostScore || 0;
     const bBoost = b.boostScore || 0;
     if (aBoost !== bBoost) {
@@ -1241,12 +1266,12 @@ export default function App() {
   }, [(b2bConfig as any)?.pwaPromptDelaySeconds]);
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 font-sans selection ${
+    <div className={`min-h-screen transition-colors duration-300 font-sans selection bg-[#fcfdfd] ${
       theme === 'classic' 
-        ? 'bg-white text-slate-900 theme-classic' 
+        ? 'text-slate-900 theme-classic' 
         : theme === 'dark' 
         ? 'bg-slate-950 text-slate-100' 
-        : 'bg-white text-slate-900'
+        : 'text-slate-900'
     }`} dir={language === 'en' ? 'ltr' : 'rtl'}>
       
       {/* Dynamic Theme Color Variables Injection */}
@@ -1413,23 +1438,23 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="space-y-6 sm:space-y-8"
             >
-              <DynamicPresentation 
-                products={products} 
-                articles={articles}
-                onEnterPanel={() => setActiveTab('order')} 
-                language={language}
-                theme={theme}
-                dailyAI={dailyAI}
-                b2bConfig={b2bConfig}
-                setActiveTab={setActiveTab}
-                setActiveCategory={setActiveCategory}
-                onAddToCart={addToCart}
-                onViewDetails={(prod) => setSelectedDetailProduct(prod)}
-                userBadge={userBadge}
-                user={user}
-              />
-              <AboutUsSection articles={articles} theme={theme} />
-              <AdBoard isMini={true} onNavigateToBillboard={() => setActiveTab('billboard')} />
+                <DynamicPresentation 
+                  products={products} 
+                  articles={articles}
+                  onEnterPanel={() => setActiveTab('order')} 
+                  language={language}
+                  theme={theme}
+                  dailyAI={dailyAI}
+                  b2bConfig={b2bConfig}
+                  setActiveTab={setActiveTab}
+                  setActiveCategory={setActiveCategory}
+                  onAddToCart={addToCart}
+                  onViewDetails={(prod) => setSelectedDetailProduct(prod)}
+                  userBadge={userBadge}
+                  user={user}
+                />
+                <AdBoard isMini={true} onNavigateToBillboard={() => setActiveTab('billboard')} user={user} products={products} />
+                <AboutUsSection articles={articles} theme={theme} />
               <TrustSection theme={theme} />
             </motion.div>
           )}
@@ -1479,7 +1504,8 @@ export default function App() {
                       ...Array.from(new Set([
                         ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name),
                         ...products.map(p => p.category).filter(Boolean)
-                      ])).map((catName, idx) => ({ id: `mob-cat-${idx}-${catName}`, name: catName, value: catName }))
+                      ])).filter(catName => catName !== "انبار های من" && catName !== "انبارهای من")
+                      .map((catName, idx) => ({ id: `mob-cat-${idx}-${catName}`, name: catName, value: catName }))
                     ].map((cat: any) => {
                       const isActive = activeCategory === cat.value;
                       return (
@@ -1579,7 +1605,8 @@ export default function App() {
                           ...Array.from(new Set([
                             ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name),
                             ...products.map(p => p.category).filter(Boolean)
-                          ])).map((catName, idx) => {
+                          ])).filter(catName => catName !== "انبار های من" && catName !== "انبارهای من")
+                          .map((catName, idx) => {
                             const found = (b2bConfig.categories || []).find((c: any) => (typeof c === 'string' ? c : c.name) === catName);
                             const id = found && typeof found !== 'string' ? found.id : `cat-gen-${idx}`;
                             return { id, name: catName, value: catName };
@@ -1704,47 +1731,70 @@ export default function App() {
                 </div>
 
                 {/* Catalog & Products list */}
-                <div className="lg:col-span-3 space-y-6">
-                  {/* Display View modes controls */}
-                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-3 sm:p-4 rounded-[1.5rem] text-right">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-black text-gray-500 hidden sm:inline">حالت نمایش:</span>
-                      <button
-                        onClick={() => setViewMode('table')}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] sm font-black transition-all cursor-pointer ${
-                          viewMode === 'table'
-                          ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-white text-gray-650 hover"
-                        }`}
-                      >
-                        <List size={13} />
-                        <span className="hidden sm:inline">کاتالوگ رسمی</span>
-                        <span className="sm:hidden">کاتالوگ</span>
-                      </button>
-                      <button
-                        onClick={() => setViewMode('grid')}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] sm font-black transition-all cursor-pointer ${
-                          viewMode === 'grid'
-                          ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-white text-gray-650 hover"
-                        }`}
-                      >
-                        <Grid size={13} />
-                        <span className="hidden sm:inline">نمای شبکه‌ای کارتی</span>
-                        <span className="sm:hidden">کارتی</span>
-                      </button>
-                      <button
-                        onClick={() => setViewMode('list')}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] sm font-black transition-all cursor-pointer ${
-                          viewMode === 'list'
-                          ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/10"
-                          : "bg-white text-gray-650 hover"
-                        }`}
-                      >
-                        <List size={13} />
-                        <span className="hidden sm:inline">لیست سفارش سریع</span>
-                        <span className="sm:hidden">سریع</span>
-                      </button>
+                <div className="lg:col-span-3 space-y-8">
+                  {/* Display View modes controls - Refined Design */}
+                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-material-sm text-right">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
+                      {/* Search Input - Sophisticated Focus */}
+                      <div className="relative flex-1 min-w-[220px]">
+                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={16} />
+                        <input
+                          type="text"
+                          placeholder="جستجو در نام محصول، برند یا دسته‌بندی..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pr-11 pl-5 py-3 bg-slate-50/50 border border-slate-100 rounded-2xl text-[12px] font-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-inner-sm"
+                        />
+                        {searchQuery && (
+                          <button 
+                            onClick={() => setSearchQuery("")}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 p-1.5 transition-colors cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 border-r border-slate-100 pr-4">
+                        <span className="text-[11px] font-black text-slate-400 hidden sm:inline tracking-tight">حالت نمایش:</span>
+                        <div className="bg-slate-50 p-1 rounded-2xl border border-slate-100 flex items-center gap-1">
+                          {[
+                            { id: 'table', icon: List, label: 'کاتالوگ رسمی', short: 'کاتالوگ' },
+                            { id: 'grid', icon: Grid, label: 'نمای کارتی', short: 'کارتی' },
+                            { id: 'list', icon: ShoppingBag, label: 'سفارش سریع', short: 'سریع' },
+                            { id: 'high_margin', icon: TrendingDown, label: 'حاشیه سود بالا', short: 'پرسود' }
+                          ].map((mode) => (
+                            <button
+                              key={mode.id}
+                              onClick={() => setViewMode(mode.id as any)}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
+                                viewMode === mode.id
+                                ? "bg-white text-emerald-600 shadow-material-sm border border-slate-200/50 scale-[1.02]"
+                                : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                              }`}
+                            >
+                              <mode.icon size={14} />
+                              <span className="hidden sm:inline">{mode.label}</span>
+                              <span className="sm:hidden">{mode.short}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 border-r border-slate-100 pr-4">
+                        <span className="text-[11px] font-black text-slate-400 tracking-tight">ترتیب:</span>
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as any)}
+                          className="bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 text-[10px] font-black text-slate-700 focus:outline-hidden focus:border-emerald-500 cursor-pointer"
+                        >
+                          <option value="default">⭐ پیش‌فرض (ویژه و پیشنهادی)</option>
+                          <option value="best-selling">🔥 پرفروش‌ترین و محبوب‌ترین</option>
+                          <option value="newest">✨ جدیدترین محصولات</option>
+                          <option value="price-asc">📉 ارزان‌ترین قیمت عمده</option>
+                          <option value="price-desc">📈 گران‌ترین قیمت عمده</option>
+                        </select>
+                      </div>
                     </div>
 
                     <button
@@ -1795,6 +1845,29 @@ export default function App() {
                       <Package className="mx-auto text-gray-300 mb-4 animate-bounce" size={48} />
                       <h3 className="text-lg font-black text-gray-850">کالایی یافت نشد</h3>
                       <p className="text-xs text-gray-400 font-bold mt-2">دسته‌بندی یا برند دیگری را انتخاب نمایید.</p>
+                    </div>
+                  ) : viewMode === "high_margin" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                      {filteredProducts
+                        .sort((a, b) => {
+                          const profitA = (a.consumer_price || a.price) - a.bulk_price;
+                          const profitB = (b.consumer_price || b.price) - b.bulk_price;
+                          return profitB - profitA;
+                        })
+                        .slice(0, 16)
+                        .map((product, idx) => (
+                          <ProductCard 
+                            key={product.id} 
+                            product={product} 
+                            index={idx}
+                            onAddToCart={addToCart} 
+                            onViewDetails={(prod) => {
+                              setSelectedDetailProduct(prod);
+                              setIsDetailModalOpen(true);
+                            }}
+                            userBadge={userBadge}
+                          />
+                        ))}
                     </div>
                   ) : viewMode === 'table' ? (
                     <WholesaleCatalogView 
@@ -2159,27 +2232,19 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
-              className="space-y-6"
             >
-              <div className="flex justify-between items-center bg-white/70 backdrop-blur-md px-6 py-4 rounded-3xl border border-slate-100 shadow-sm" dir="rtl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
-                    📢
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-850">تالار کف بازار (فرصت‌های مازاد کارخانجات و خرید زیر قیمت)</h3>
-                    <p className="text-[10px] text-slate-400 font-bold">بستر هوشمند مبادلات مستقیم کالا و خدمات با واسطه‌گری امن پلتفرم دست‌اول</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setActiveTab('presentation')}
-                  className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>صفحه نخست</span>
-                  <ArrowUpRight size={14} className="rotate-90" />
-                </button>
-              </div>
-              <AdBoard isMini={false} onTriggerPayment={triggerZarinpalPayment} />
+              <AdBoard 
+                isMini={false} 
+                onTriggerPayment={triggerZarinpalPayment} 
+                onNavigateToBillboard={() => {}}
+                onNavigateHome={() => setActiveTab('presentation')}
+                user={user}
+                products={products}
+                onSelectProduct={(prod) => {
+                  setSelectedDetailProduct(prod);
+                  setIsDetailModalOpen(true);
+                }}
+              />
             </motion.div>
           )}
 
@@ -2214,6 +2279,8 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
             <MagazineSection articles={articles} />
           </div>
+          {/* Moved ContactSection (Representatives) to be under MagazineSection as requested */}
+          <ContactSection theme={theme} userBadge={userBadge} userCity={user?.city} />
         </>
       )}
 
@@ -2230,8 +2297,8 @@ export default function App() {
             <div className="bg-white border border-indigo-800 rounded-2xl p-4 shadow-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2 rtl:space-x-reverse">
-                  {comparisonList.map(p => (
-                    <div key={p.id} className="w-8 h-8 rounded-full border-2 border-indigo-900 bg-white p-1 flex items-center justify-center overflow-hidden">
+                  {comparisonList.map((p, idx) => (
+                    <div key={`comp-${p.id}-${idx}`} className="w-8 h-8 rounded-full border-2 border-indigo-900 bg-white p-1 flex items-center justify-center overflow-hidden">
                       {p.image_url ? (
                         <img 
                           src={p.image_url} 
@@ -2715,9 +2782,6 @@ export default function App() {
         }}
       />
 
-      {/* Direct communication and contact with support globally above the footer */}
-      <ContactSection theme={theme} userBadge={userBadge} userCity={user?.city} />
-
       {/* Clean, Pure White, Short & Creative Footer */}
       <footer className="bg-white text-slate-700 border-t border-slate-200/80 pt-10 pb-8 mt-12 relative overflow-hidden shadow-sm" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -2893,6 +2957,7 @@ export default function App() {
         trackingNumber={lastOrderTracking}
         amount={lastOrderAmount}
         onPrintInvoice={() => {
+          setShowOrderSuccess(false);
           if (!lastCreatedOrder) {
             setLastCreatedOrder({
               id: lastOrderTracking || "INV-" + Date.now().toString().slice(-6),

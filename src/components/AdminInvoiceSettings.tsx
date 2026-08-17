@@ -14,6 +14,8 @@ import {
   MapPin,
   ShieldAlert
 } from 'lucide-react';
+import WholesaleInvoiceView from './WholesaleInvoiceView';
+import { Order } from '../types';
 
 interface AdminInvoiceSettingsProps {
   b2bConfig: any;
@@ -34,6 +36,8 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   
   const [cashDiscountPercent, setCashDiscountPercent] = useState<number>(currentInv.cashDiscountPercent !== undefined ? currentInv.cashDiscountPercent : 5);
   const [chequeMarkupPerMonthPercent, setChequeMarkupPerMonthPercent] = useState<number>(currentInv.chequeMarkupPerMonthPercent !== undefined ? currentInv.chequeMarkupPerMonthPercent : 6);
+  const [includeVatByDefault, setIncludeVatByDefault] = useState<boolean>(currentInv.includeVatByDefault !== undefined ? Boolean(currentInv.includeVatByDefault) : true);
+  const [defaultDocType, setDefaultDocType] = useState<'proforma' | 'official'>(currentInv.defaultDocType === 'official' ? 'official' : 'proforma');
 
   const [officialSealUrl, setOfficialSealUrl] = useState(currentInv.officialSealUrl || b2bConfig?.officialSealUrl || "");
   const [catalogPdfUrl, setCatalogPdfUrl] = useState(b2bConfig?.catalogPdfUrl || "");
@@ -89,6 +93,8 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         sellerAddress,
         cashDiscountPercent: Number(cashDiscountPercent),
         chequeMarkupPerMonthPercent: Number(chequeMarkupPerMonthPercent),
+        includeVatByDefault: Boolean(includeVatByDefault),
+        defaultDocType,
         officialSealUrl,
         footerNotes,
         bankAccounts
@@ -318,6 +324,45 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                 مثال: اگر ۶٪ باشد، برای چک ۲ ماهه ۱۲٪ و برای چک ۳ ماهه ۱۸٪ به مبلغ اقلام فاکتور اضافه خواهد شد.
               </p>
             </div>
+
+            {/* VAT 10% Administration Choice */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-slate-900">
+                  محاسبه ۱۰٪ مالیات بر ارزش افزوده در فاکتورها
+                </label>
+                <input
+                  type="checkbox"
+                  checked={includeVatByDefault}
+                  onChange={e => setIncludeVatByDefault(e.target.checked)}
+                  className="w-5 h-5 text-emerald-600 rounded cursor-pointer"
+                />
+              </div>
+              <p className="text-[10px] text-slate-600 font-bold leading-relaxed">
+                {includeVatByDefault 
+                  ? "✓ فعال است: ۱۰٪ مالیات ارزش افزوده به صورت رسمی در پیش‌فاکتورها و صورت‌حساب‌های صادرشده محاسبه می‌گردد."
+                  : "✗ غیرفعال است: پیش‌فاکتورها بدون احتساب ۱۰٪ ارزش افزوده صادر می‌شوند."
+                }
+              </p>
+            </div>
+
+            {/* Default Document Type */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+              <label className="block text-xs font-black text-slate-900">
+                عنوان پیش‌فرض سند
+              </label>
+              <select
+                value={defaultDocType}
+                onChange={e => setDefaultDocType(e.target.value as 'proforma' | 'official')}
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none"
+              >
+                <option value="proforma">پیش‌فاکتور رسمی فروش کالا و خدمات</option>
+                <option value="official">صورت‌حساب رسمی فروش کالا و خدمات</option>
+              </select>
+              <p className="text-[10px] text-slate-600 font-bold leading-relaxed">
+                عنوان استاندارد سربرگ اسناد صادر شده در خروجی چاپی و PDF.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -507,38 +552,60 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
 
       {/* Live Sample Invoice Preview Modal */}
       {showLivePreview && (
-        <div className="fixed inset-0 z-[120] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-black text-slate-800">پیش‌نمایش زنده فاکتور نمونه با تنظیمات شما</h3>
-              <button onClick={() => setShowLivePreview(false)} className="text-slate-400 hover:text-slate-600">
-                <Trash2 size={18} />
-              </button>
-            </div>
-
-            <div className="border border-slate-300 p-6 rounded-2xl space-y-4 text-xs">
-              <div className="flex justify-between border-b pb-3">
-                <h4 className="font-black text-base text-slate-900">{sellerTitle}</h4>
-                <div className="text-[10px] text-slate-500">شماره نمونه: DX-99201</div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 text-[11px] text-slate-600">
-                <div>شناسه ملی: {sellerNationalId} | ثبت: {sellerRegNumber}</div>
-                <div>تلفن: {sellerPhone}</div>
-              </div>
-              <div className="bg-slate-50 p-2 rounded text-[10px]">
-                تخفیف نقدی: {cashDiscountPercent}٪ | کارمزد چکی: {chequeMarkupPerMonthPercent}٪ به ازای هر ماه
-              </div>
-              <div className="flex justify-between items-center pt-4 border-t">
-                <div className="text-[10px] text-slate-400">{footerNotes}</div>
-                {officialSealUrl && (
-                  <div className="w-20 h-16">
-                    <img src={officialSealUrl} alt="Seal" className="w-full h-full object-contain" />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <WholesaleInvoiceView
+          order={{
+            id: "SAMPLE-99201",
+            buyerName: "مسئول خرید و تدارکات",
+            buyerCompany: "فروشگاه و بنکداری نمونه البرز",
+            buyerPhone: "۰۹۱۲۳۴۵۶۷۸۹",
+            buyerAddress: "تهران، انبار مرکزی توزیع و پخش کالا",
+            items: [
+              {
+                id: "sample-p1",
+                productId: "sample-p1",
+                name: "شکر سفید ۵۰ کیلویی درجه یک مستقیم کارخانه",
+                quantityCartons: 20,
+                unit: "کیسه ۵۰kg",
+                pricePerCarton: 1950000,
+                totalPrice: 39000000
+              },
+              {
+                id: "sample-p2",
+                productId: "sample-p2",
+                name: "روغن سرخ‌کردنی حلب ۱۶ کیلوگرمی صنعتی",
+                quantityCartons: 15,
+                unit: "حلب ۱۶kg",
+                pricePerCarton: 1120000,
+                totalPrice: 16800000
+              }
+            ],
+            totalAmount: 55800000,
+            createdAt: new Date().toLocaleDateString('fa-IR'),
+            trackingNumber: "DX-99201",
+            status: "approved"
+          } as unknown as Order}
+          b2bConfig={{
+            ...b2bConfig,
+            invoiceSettings: {
+              sellerTitle,
+              sellerNationalId,
+              sellerRegNumber,
+              sellerEconomicCode,
+              sellerPhone,
+              sellerMobile,
+              sellerAddress,
+              cashDiscountPercent,
+              chequeMarkupPerMonthPercent,
+              includeVatByDefault,
+              defaultDocType,
+              officialSealUrl,
+              footerNotes,
+              bankAccounts
+            }
+          }}
+          onClose={() => setShowLivePreview(false)}
+          isAdmin={true}
+        />
       )}
     </div>
   );

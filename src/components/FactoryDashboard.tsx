@@ -729,6 +729,23 @@ export default function FactoryDashboard({
             </div>
           </div>
 
+          {/* 📊 تعرفه خدمات و پورسانت دست اول */}
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-right">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <h4 className="font-black text-xs sm:text-sm text-slate-800">کمیسیون و پورسانت خدمات پلتفرم «دست اول»</h4>
+              </div>
+              <p className="text-[10px] text-slate-500 font-bold max-w-xl leading-relaxed">
+                پورسانت مصوب خدمات بنکداری، بازاریابی و تضمین پرداخت‌های امانی برای محصولات تولیدی شما برابر با <strong className="text-emerald-700">{b2bConfig?.commissionRate || 5}٪</strong> می‌باشد که در محاسبات تسویه حساب منظور خواهد گردید.
+              </p>
+            </div>
+            <div className="bg-white border border-emerald-200/60 rounded-xl px-4 py-2 text-center shadow-2xs shrink-0 self-stretch sm:self-auto flex sm:flex-col justify-between sm:justify-center items-center">
+              <span className="text-[9px] text-slate-400 font-bold">میزان پورسانت دست اول:</span>
+              <span className="text-sm font-black text-emerald-600">% {b2bConfig?.commissionRate || 5}</span>
+            </div>
+          </div>
+
           {/* Quick Action Panel */}
           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">

@@ -41,48 +41,48 @@ export const UserGatewayHub: React.FC<UserGatewayHubProps> = ({
     <section className="w-full space-y-4 my-2 text-right" dir="rtl">
       
       {/* Top Value Banner Header */}
-      <div className="bg-gradient-to-r from-emerald-900 via-slate-900 to-indigo-950 rounded-3xl p-5 sm:p-6 text-white border border-emerald-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-5">
-        <div className="space-y-2 max-w-2xl relative z-10">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="space-y-3 max-w-2xl relative z-10">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="bg-amber-400 text-slate-950 px-3 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 shadow-md">
-              <Sparkles size={13} className="fill-slate-950" />
+            <span className="bg-emerald-600 text-white px-3.5 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-sm">
+              <Sparkles size={13} className="fill-white" />
               <span>راهنمای ۳ مسیر اصلی دست اول</span>
             </span>
-            <span className="text-[11px] text-emerald-300 font-bold hidden sm:inline-block">
-              🎯 دقیقاً مشخص کنید برای چه هدفی به سایت آمده‌اید تا بهترین سود نصیب شما شود
+            <span className="text-[10px] text-emerald-600 font-bold hidden sm:inline-block">
+              🎯 هدفتان را مشخص کنید تا هوشمندانه خرید کنید
             </span>
           </div>
 
-          <h2 className="text-base sm:text-xl font-black text-white leading-snug">
-            به دنبال چه هستید؟ انتخاب کنید تا مستقیماً به هدف خود برسید:
+          <h2 className="text-lg sm:text-2xl font-black text-slate-900 leading-tight">
+            کدام مسیر برای شما مناسب است؟
           </h2>
 
-          <p className="text-xs text-slate-300 font-medium leading-relaxed">
-            هیچ ابهامی وجود ندارد! چه به دنبال <strong className="text-amber-300">خرید کالا با ارزان‌ترین قیمت</strong> باشید، چه خواهان <strong className="text-emerald-300">اخذ نمایندگی و کسب درآمد ماهانه</strong> یا <strong className="text-sky-300">فروش نقدی محصولات کارخانه خود</strong>، مسیر شما مشخص است.
+          <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+            چه به دنبال <strong className="text-emerald-600">خرید زیر قیمت بازار</strong> باشید، چه خواهان <strong className="text-amber-600">کسب درآمد ماهانه از نمایندگی</strong> یا <strong className="text-indigo-600">فروش مستقیم محصولات کارخانه خود</strong>، ما مسیر را برایتان هموار کرده‌ایم.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-2.5 relative z-10 w-full md:w-auto shrink-0">
+        <div className="flex flex-col sm:flex-row items-center gap-3 relative z-10 w-full md:w-auto shrink-0">
           <button
             onClick={onOpenJourneyGuide}
-            className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-amber-400 px-5 py-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            className="w-full sm:w-auto bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-emerald-500 px-6 py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
           >
-            <HelpCircle size={16} className="text-amber-400" />
-            <span>چگونه کار می‌کند؟ (راهنمای تصویری گام‌به‌گام)</span>
+            <HelpCircle size={18} className="text-emerald-500" />
+            <span>چگونه کار می‌کند؟</span>
           </button>
 
           <button
             onClick={onOpenBillboard}
-            className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-5 py-3 rounded-2xl transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-xs px-6 py-3.5 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
           >
-            <TrendingDown size={16} />
+            <TrendingDown size={18} className="text-amber-400" />
             <span>تالار اجناس زیر کف بازار</span>
           </button>
         </div>
 
-        {/* Ambient Glows */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Ambient Decorative Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* 3 Pillar Cards (Buyer, Agent, Factory) */}

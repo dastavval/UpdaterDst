@@ -109,7 +109,7 @@ export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amo
                   className="flex-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
                 >
                   <Printer size={16} className="text-emerald-600" />
-                  مشاهده و دانلود فاکتور کارخانه
+                  چاپ فاکتور رسمی
                 </button>
               </div>
             </div>

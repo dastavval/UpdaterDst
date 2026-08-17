@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
 import DastavvalLogo from "./DastavvalLogo";
+import SpecialPriceBagIcon from "./SpecialPriceBagIcon";
 
 interface NavbarProps {
   cartCount: number;
@@ -182,11 +183,11 @@ export default function Navbar({
   }, [logoUrl]);
 
   const navItems = [
-    { id: 'presentation', label: t.home, icon: <Home size={18} /> },
-    { id: 'order', label: t.wholesaleBuy, icon: <ShoppingBag size={18} /> },
-    { id: 'billboard', label: "کف بازار", icon: <TrendingDown size={18} className="text-amber-500 animate-pulse" /> },
-    { id: 'factories', label: "کارخانجات", icon: <Building2 size={18} /> },
-    { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <User size={18} /> },
+    { id: 'presentation', label: t.home, icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><Home size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
+    { id: 'order', label: t.wholesaleBuy, icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><ShoppingBag size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
+    { id: 'billboard', label: "کف بازار", icon: <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 group-hover:bg-white group-hover:border-amber-200 transition-all shadow-material-sm group-hover:scale-105"><SpecialPriceBagIcon size={18} animated={true} /></div> },
+    { id: 'factories', label: "کارخانجات", icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><Building2 size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
+    { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><User size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
   ];
 
   const handleNavClick = (id: string) => {
@@ -363,17 +364,17 @@ export default function Navbar({
               </button>
             </div>
 
-            {/* Desktop Center Navigation Links with CIRCULAR SPECIAL AI BUTTON */}
-            <div className="hidden lg:flex items-center justify-center gap-2 flex-1 max-w-2xl mx-4">
+            {/* Desktop Center Navigation Links - Sophisticated Dock */}
+            <div className="hidden lg:flex items-center justify-center gap-1.5 flex-1 max-w-2xl mx-4 bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100/50">
               <button
                 onClick={() => {
                   onModeChange('presentation');
                   setActiveTab?.('presentation');
                 }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
                   activeTab === 'presentation'
-                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
-                    : "text-slate-700 hover"
+                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
                 <Home size={15} />
@@ -385,42 +386,47 @@ export default function Navbar({
                   onModeChange('portal');
                   setActiveTab?.('order');
                 }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
                   activeTab === 'order'
-                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
-                    : "text-slate-700 hover"
+                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
                 <ShoppingBag size={15} />
                 <span>{t.wholesaleBuy}</span>
               </button>
 
-
-
-
-
               <button
                 onClick={() => {
                   setActiveTab?.('billboard');
                 }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 group overflow-hidden ${
                   activeTab === 'billboard'
-                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
-                    : "text-slate-700 hover:text-emerald-600"
+                    ? "bg-slate-900 text-amber-400 shadow-material-md border border-slate-800 scale-[1.05] ring-4 ring-slate-900/10"
+                    : "text-slate-500 hover:text-amber-600 hover:bg-amber-50"
                 }`}
               >
-                <TrendingDown size={15} className="text-amber-500 animate-pulse" />
-                <span>کف بازار</span>
+                <SpecialPriceBagIcon 
+                  size={18} 
+                  animated={activeTab === 'billboard'} 
+                  className={activeTab === 'billboard' ? "text-amber-400" : "text-amber-500"} 
+                />
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <span>کف بازار</span>
+                  <span className="hidden xl:inline-block bg-white/20 text-[8px] font-black px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                    حراج مازاد
+                  </span>
+                </span>
               </button>
 
               <button
                 onClick={() => {
                   setActiveTab?.('factories');
                 }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
                   activeTab === 'factories'
-                    ? "bg-amber-500 text-slate-950 shadow-sm font-black"
-                    : "text-slate-700 hover:text-emerald-600"
+                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
                 <Building2 size={15} />
@@ -584,6 +590,29 @@ export default function Navbar({
         <div className="flex justify-around items-center h-14 relative">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
+            if (item.id === 'billboard') {
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer group"
+                >
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+                    isActive 
+                      ? "bg-slate-900 text-amber-400 font-black shadow-lg shadow-slate-900/20 scale-105" 
+                      : "text-slate-500"
+                  }`}>
+                    <span className="relative">
+                      <SpecialPriceBagIcon size={20} animated={isActive} plain={true} className={isActive ? "text-amber-400" : "text-amber-500"} />
+                    </span>
+                    <span className="text-[9px] font-black tracking-tight flex items-center gap-0.5">
+                      <span>کف بازار</span>
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping inline-block" />}
+                    </span>
+                  </div>
+                </button>
+              );
+            }
             if (item.id === 'news') {
               return (
                 <div key={item.id} className="relative z-20 flex flex-col items-center -mt-3">

@@ -1,0 +1,10 @@
+export function getDisplayImageUrl(rawUrl?: string): string {
+  if (!rawUrl) return "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=300";
+  const url = String(rawUrl).trim();
+  if (url.startsWith("/api/proxy-image")) return url;
+  if (url.includes("parspack.net") || url.includes("parsstorage.com")) {
+    const httpUrl = url.replace(/^https:\/\//i, "http://");
+    return `/api/proxy-image?url=${encodeURIComponent(httpUrl)}`;
+  }
+  return url;
+}

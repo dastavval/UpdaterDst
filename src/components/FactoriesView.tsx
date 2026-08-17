@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { uploadToParsPackStorage } from "../utils/storage";
 import { motion, AnimatePresence } from "motion/react";
 import StarRating from "./StarRating";
 import LazyViewport from "./LazyViewport";
@@ -274,14 +275,14 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
       className="group relative bg-white rounded-[2.5rem] border border-slate-200/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] hover:border-emerald-350 transition-all duration-500 overflow-hidden flex flex-col h-[480px] text-right cursor-pointer"
     >
       {/* Visual Header Section */}
-      <div className="relative h-44 shrink-0 overflow-hidden bg-slate-900">
+      <div className="relative h-44 shrink-0 bg-slate-900">
         <img 
           src={cover} 
           alt={factory.name} 
           loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-90"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-90 rounded-t-[2.5rem]"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/10 to-transparent rounded-t-[2.5rem]" />
         
         {/* Top Badges */}
         <div className="absolute top-4 right-4 flex flex-wrap gap-2 z-10">
@@ -337,9 +338,28 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
           </div>
 
           {/* Core Description */}
-          <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
-            {desc}
-          </p>
+          <div className="space-y-3">
+            <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+              {desc}
+            </p>
+
+            {/* Brands Produced Box (Fixed missing branding info) */}
+            {factory.mainProducts && factory.mainProducts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {factory.mainProducts.slice(0, 3).map((brandName: string, i: number) => (
+                  <div key={i} className="bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <div className="w-1 h-1 rounded-full bg-slate-300" />
+                    <span className="text-[9px] font-black text-slate-600">{brandName}</span>
+                  </div>
+                ))}
+                {factory.mainProducts.length > 3 && (
+                  <div className="text-[9px] font-bold text-slate-400 self-center">
+                    +{toPersianNum(factory.mainProducts.length - 3)} برند دیگر
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Industrial Status Panel */}
           <div className="bg-slate-50/50 border border-slate-100 rounded-3xl p-4 space-y-3">
@@ -512,18 +532,23 @@ export default function FactoriesView({
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [matSuccessMsg, setMatSuccessMsg] = useState("");
 
-  const handleImageFile = (file: File) => {
+  const handleImageFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       alert("لطفاً فقط فایل تصویر معتبر انتخاب کنید.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result && typeof e.target.result === "string") {
-        setUploadedImageBase64(e.target.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    const result = await uploadToParsPackStorage(file, "factories");
+    if (result.success && result.url) {
+      setUploadedImageBase64(result.url);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result && typeof e.target.result === "string") {
+          setUploadedImageBase64(e.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle Submit Raw Material For Sale
@@ -879,7 +904,15 @@ export default function FactoriesView({
 
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
           <div className="flex items-center gap-4">
-            <DastavvalLogo size={52} showText={false} className="flex bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60 shrink-0 shadow-xs" />
+            {b2bConfig?.logoUrl ? (
+              <img 
+                src={b2bConfig.logoUrl} 
+                alt={b2bConfig.appName || "دست اول"} 
+                className="w-16 h-16 object-contain bg-white p-2 rounded-2xl border border-slate-200/60 shrink-0 shadow-xs"
+              />
+            ) : (
+              <DastavvalLogo size={52} showText={false} className="flex bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60 shrink-0 shadow-xs" />
+            )}
             <div className="space-y-1.5 max-w-2xl">
               <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200/90 px-3 py-1 rounded-full text-[10px] font-black text-amber-900 shadow-2xs">
                 <Award size={13} className="text-amber-600" />

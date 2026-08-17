@@ -733,6 +733,23 @@ export default function MultiVendorPanel({
         </div>
       </div>
 
+      {/* 📊 تعرفه خدمات و پورسانت دست اول */}
+      <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-right">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <h4 className="font-black text-xs sm:text-sm text-slate-800">تعرفه کارمزد و پورسانت پلتفرم «دست اول»</h4>
+          </div>
+          <p className="text-[10px] text-slate-500 font-bold max-w-xl leading-relaxed">
+            کارمزد خدمات بنکداری، بازاریابی سراسری مویرگی و تضمین امنیت مالی پرداخت حساب امانی برای این کارخانه معادل <strong className="text-emerald-700">{b2bConfig?.commissionRate || 5}٪</strong> از مبلغ نهایی فاکتور فروش عمده می‌باشد.
+          </p>
+        </div>
+        <div className="bg-white border border-emerald-200/60 rounded-xl px-4 py-2 text-center shadow-2xs shrink-0 self-stretch sm:self-auto flex sm:flex-col justify-between sm:justify-center items-center">
+          <span className="text-[9px] text-slate-400 font-bold">پورسانت مصوب دست اول:</span>
+          <span className="text-base font-black text-emerald-600">% {b2bConfig?.commissionRate || 5}</span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Catalog & Production Form */}
         <div className="lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-100 shadow-xl h-fit">

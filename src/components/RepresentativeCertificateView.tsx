@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Printer, X, Download, Loader2, Award, ShieldCheck, Check } from "lucide-react";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-import { runWithOklchPolyfill, cleanClonedDocForPdf } from "../utils/pdfPolyfill";
+import { toJpeg, toPng } from "html-to-image";
 
 interface RepresentativeCertificateViewProps {
   repName: string;
@@ -48,58 +47,54 @@ export default function RepresentativeCertificateView({
       // Yield execution to allow UI loading spinner to render smoothly
       await new Promise((resolve) => setTimeout(resolve, 60));
 
-      const downloadPromise = runWithOklchPolyfill(async () => {
-        const canvas = await html2canvas(certElem, {
-          scale: 1.5,
-          useCORS: true,
-          logging: false,
-          allowTaint: false,
-          onclone: (clonedDoc: Document) => {
-            cleanClonedDocForPdf(clonedDoc);
-          }
+      let imgData = "";
+      try {
+        imgData = await toJpeg(certElem, {
+          quality: 0.96,
+          pixelRatio: 2,
+          backgroundColor: "#ffffff",
+          cacheBust: true,
+          skipFonts: true,
         });
-
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const pdf = new jsPDF({
-          orientation: "landscape",
-          unit: "mm",
-          format: "a4"
+      } catch (e1) {
+        imgData = await toPng(certElem, {
+          pixelRatio: 2,
+          backgroundColor: "#ffffff",
+          cacheBust: true,
+          skipFonts: true,
         });
+      }
 
-        const pdfWidth = 297;
-        const pdfHeight = 210;
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      if (!imgData) throw new Error("Image conversion failed");
 
-        let heightLeft = imgHeight;
-        let position = 0;
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((res) => { img.onload = () => res(true); });
 
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, Math.min(imgHeight, pdfHeight));
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
-        }
-
-        const pdfOutput = pdf.output('blob');
-        const blobUrl = URL.createObjectURL(pdfOutput);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `حکم_نمایندگی_رسمی_${agencyCode}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
       });
 
-      // 3.5-second safety timeout race
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3500));
-      await Promise.race([downloadPromise, timeoutPromise]);
+      const pdfWidth = 297;
+      const pdfHeight = 210;
+      const imgWidth = pdfWidth;
+      const imgHeight = (img.naturalHeight * pdfWidth) / img.naturalWidth;
+
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, Math.min(imgHeight, pdfHeight));
+
+      const pdfOutput = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfOutput);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `حکم_نمایندگی_رسمی_${agencyCode}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
     } catch (error) {
-      console.warn("PDF generation timeout or error, falling back to print window:", error);
+      console.warn("PDF generation error, falling back to print window:", error);
       handlePrint();
     } finally {
       setIsDownloading(false);

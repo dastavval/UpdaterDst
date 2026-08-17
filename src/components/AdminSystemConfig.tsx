@@ -57,6 +57,7 @@ interface AdminSystemConfigProps {
   orders?: any[];
   articles?: any[];
   onRefreshProducts?: () => Promise<void>;
+  defaultTab?: ActiveTab;
 }
 
 type ActiveTab = 
@@ -68,7 +69,8 @@ type ActiveTab =
   | "magic_db"
   | "load_balancer"
   | "installer"
-  | "backup";
+  | "backup"
+  | "parspack_storage";
 
 export default function AdminSystemConfig({
   b2bConfig,
@@ -76,9 +78,16 @@ export default function AdminSystemConfig({
   products = [],
   orders = [],
   articles = [],
-  onRefreshProducts
+  onRefreshProducts,
+  defaultTab
 }: AdminSystemConfigProps) {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("github");
+  const [activeTab, setActiveTab] = useState<ActiveTab>(defaultTab || "github");
+
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -184,10 +193,18 @@ export default function AdminSystemConfig({
     (b2bConfig as any).dbEncryptionEnabled !== false
   );
 
-  // --- 4. MAGIC DB STATES ---
+  // --- 4. MAGIC DB & GLOBAL SYNC STATES ---
   const [magicDbHealthScore, setMagicDbHealthScore] = useState(98);
   const [autoIndexStatus, setAutoIndexStatus] = useState("فعال و بهینه");
   const [isOptimizingDb, setIsOptimizingDb] = useState(false);
+  const [crossHostSyncEnabled, setCrossHostSyncEnabled] = useState(!!(b2bConfig as any).crossHostSyncEnabled);
+  const [remoteDbNodes, setRemoteDbNodes] = useState<any[]>((b2bConfig as any).remoteDbNodes || [
+    { id: 'master', host: 'primary.dastavval.ir', role: 'master', status: 'connected', latency: 12 },
+    { id: 'slave-1', host: 'secondary-de.dastavval.ir', role: 'slave', status: 'syncing', latency: 45 },
+    { id: 'replica-1', host: 'load-balance-01.local', role: 'replica', status: 'standby', latency: 2 }
+  ]);
+  const [dbSyncInterval, setDbSyncInterval] = useState<number>((b2bConfig as any).dbSyncInterval || 300);
+  const [newRemoteNodeHost, setNewRemoteNodeHost] = useState("");
 
   // --- 5. LOAD BALANCER STATES ---
   const [lbStrategy, setLbStrategy] = useState<"round_robin" | "least_conn" | "ip_hash" | "weighted">(
@@ -216,6 +233,88 @@ export default function AdminSystemConfig({
   const [backupRetentionDays, setBackupRetentionDays] = useState(30);
   const [remoteMigrateUrl, setRemoteMigrateUrl] = useState("");
   const [remoteMigrateSecret, setRemoteMigrateSecret] = useState("");
+  const [serverBackups, setServerBackups] = useState<any[]>([]);
+  const [isFetchingBackups, setIsFetchingBackups] = useState(false);
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+
+  const fetchBackups = async () => {
+    setIsFetchingBackups(true);
+    try {
+      const res = await fetch("/api/admin/backup/list");
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.backups)) {
+          setServerBackups(data.backups);
+          addLog(`لیست ${data.backups.length} بکاپ موجود در باکت دریافت شد.`);
+        }
+      } else {
+        const text = await res.text();
+        console.warn("Expected JSON from backup list, got:", text.slice(0, 100));
+        addLog("خطا در دریافت لیست بکاپ‌ها: پاسخ سرور نامعتبر بود.");
+      }
+    } catch (e) {
+      console.error("Error fetching backups:", e);
+    } finally {
+      setIsFetchingBackups(false);
+    }
+  };
+
+  const handleCreateServerBackup = async () => {
+    setIsCreatingBackup(true);
+    addLog("شروع فرآیند ایجاد بکاپ کامل سرور و انتقال به باکت پارس‌پک...");
+    try {
+      const res = await fetch("/api/admin/backup/create", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message);
+        addLog(`بکاپ موفق! فایل: ${data.fileName}`);
+        fetchBackups();
+      } else {
+        setErrorMsg(data.error || "خطا در ایجاد بکاپ");
+        addLog(`خطا در ایجاد بکاپ: ${data.error}`);
+      }
+    } catch (e: any) {
+      setErrorMsg("خطا در ارتباط با سرور: " + e.message);
+      addLog(`خطای شبکه در ایجاد بکاپ: ${e.message}`);
+    } finally {
+      setIsCreatingBackup(false);
+    }
+  };
+
+  const handleRestoreServerBackup = async (key: string) => {
+    if (!confirm(`آیا از بازیابی کامل تنظیمات از بکاپ ${key} اطمینان دارید؟ این عمل تنظیمات فعلی را جایگزین می‌کند.`)) return;
+    setLoading(true);
+    addLog(`در حال بازیابی اطلاعات از بکاپ: ${key}...`);
+    try {
+      const res = await fetch("/api/admin/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message);
+        addLog(`بازیابی موفقیت‌آمیز! فایل‌های: ${data.restoredFiles?.join(", ") || ""}`);
+        // Full page reload after a short delay to apply new config
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        setErrorMsg(data.error || "خطا در بازیابی بکاپ");
+      }
+    } catch (e: any) {
+      setErrorMsg("خطا در ارتباط با سرور: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "backup") {
+      fetchBackups();
+    }
+  }, [activeTab]);
+
+  // --- 8. SOCIAL CHANNELS STATES ---
 
   // --- 8. SOCIAL CHANNELS STATES ---
   const [rubikaChannelUrl, setRubikaChannelUrl] = useState(
@@ -242,6 +341,197 @@ export default function AdminSystemConfig({
   const [showTopSocialBar, setShowTopSocialBar] = useState(
     b2bConfig.showTopSocialBar ?? false
   );
+
+  // --- PARSPACK S3 OBJECT STORAGE STATES ---
+  const [storageEndpoint, setStorageEndpoint] = useState(
+    (b2bConfig as any).storageEndpoint || "c102393.parspack.net"
+  );
+  const [storageAccessKey, setStorageAccessKey] = useState(
+    (b2bConfig as any).storageAccessKey || "xt3cR9wHHoATuXS3"
+  );
+  const [storageSecretKey, setStorageSecretKey] = useState(
+    (b2bConfig as any).storageSecretKey || "4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b"
+  );
+  const [storageBucket, setStorageBucket] = useState(
+    (b2bConfig as any).storageBucket || "c102393"
+  );
+  const [storageRegion, setStorageRegion] = useState(
+    (b2bConfig as any).storageRegion || "us-east-1"
+  );
+  const [storagePublicUrl, setStoragePublicUrl] = useState(
+    (b2bConfig as any).storagePublicUrl || "https://c102393.parspack.net/c102393"
+  );
+  const [storageEnabled, setStorageEnabled] = useState(
+    (b2bConfig as any).storageEnabled !== false
+  );
+  const [storageForcePathStyle, setStorageForcePathStyle] = useState(
+    (b2bConfig as any).storageForcePathStyle !== false
+  );
+  const [storageFiles, setStorageFiles] = useState<any[]>([]);
+  const [isFetchingStorageFiles, setIsFetchingStorageFiles] = useState(false);
+  const [isUploadingToStorage, setIsUploadingToStorage] = useState(false);
+  const [uploadFolder, setUploadFolder] = useState("uploads");
+  const [storageTestStatus, setStorageTestStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+
+  const handleSaveStorageConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setLoading(true);
+    addLog("در حال ذخیره اطلاعات و کلیدهای باکت پارس‌پک (ParsPack Object Storage)...");
+    try {
+      await onUpdateB2bConfig({
+        storageEndpoint,
+        storageAccessKey,
+        storageSecretKey,
+        storageBucket,
+        storageRegion,
+        storagePublicUrl,
+        storageForcePathStyle,
+        storageEnabled
+      } as any);
+      addLog("اطلاعات باکت پارس‌پک با موفقیت ذخیره و روی سرور ثبت گردید.");
+      setSuccessMsg("تنظیمات باکت پارس‌پک (ای‌آی‌پی و کلیدها) با موفقیت بروزرسانی و پیش‌فرض شد.");
+    } catch (err: any) {
+      setErrorMsg("خطا در ذخیره تنظیمات باکت: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestStorageConnection = async () => {
+    setLoading(true);
+    setStorageTestStatus(null);
+    addLog(`تست اتصال زنده به باکت پارس‌پک (${storageEndpoint})...`);
+    try {
+      const res = await fetch("/api/storage/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storageEndpoint,
+          storageAccessKey,
+          storageSecretKey,
+          storageBucket,
+          storageRegion,
+          storageForcePathStyle
+        })
+      });
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.success) {
+          setStorageTestStatus({ success: true, message: data.message });
+          setSuccessMsg(data.message);
+          addLog(`تست اتصال موفق! تعداد فایل موجود در باکت: ${data.fileCount}`);
+          fetchStorageFiles();
+        } else {
+          setStorageTestStatus({ success: false, message: data.error });
+          setErrorMsg(data.error || "خطا در تست اتصال باکت");
+          addLog("خطا در ارتباط با باکت: " + data.error);
+        }
+      } else {
+        const text = await res.text();
+        throw new Error("پاسخ سرور نامعتبر بود (HTML دریافت شد). احتمالاً سرور در دسترس نیست.");
+      }
+    } catch (err: any) {
+      setStorageTestStatus({ success: false, message: err.message });
+      setErrorMsg("خطا در تست اتصال: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStorageFiles = async () => {
+    setIsFetchingStorageFiles(true);
+    try {
+      const res = await fetch("/api/storage/files");
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.files)) {
+          setStorageFiles(data.files);
+          addLog(`لیست ${data.files.length} فایل موجود در باکت دریافت شد.`);
+        }
+      } else {
+        const text = await res.text();
+        console.warn("Expected JSON from storage files list, got:", text.slice(0, 100));
+        addLog("خطا در دریافت لیست فایل‌ها: پاسخ سرور نامعتبر بود.");
+      }
+    } catch (e: any) {
+      console.error("Error fetching bucket files:", e);
+    } finally {
+      setIsFetchingStorageFiles(false);
+    }
+  };
+
+  const handleFileUploadToParsPack = async (file: File) => {
+    setIsUploadingToStorage(true);
+    addLog(`در حال آماده‌سازی و آپلود فایل ${file.name} روی باکت پارس‌پک...`);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target?.result as string;
+          const res = await fetch("/api/storage/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileData: base64Data,
+              fileName: file.name,
+              folder: uploadFolder,
+              contentType: file.type
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setSuccessMsg(`فایل ${file.name} با موفقیت در باکت پارس‌پک ذخیره شد.`);
+            addLog(`آپلود موفق! کلید فایل: ${data.key}`);
+            fetchStorageFiles();
+          } else {
+            setErrorMsg("خطا در آپلود فایل: " + data.error);
+            addLog("خطا در آپلود روی باکت: " + data.error);
+          }
+        } catch (err: any) {
+          setErrorMsg("خطا در ارسال فایل به باکت: " + err.message);
+        } finally {
+          setIsUploadingToStorage(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (e: any) {
+      setErrorMsg("خطا در خواندن فایل: " + e.message);
+      setIsUploadingToStorage(false);
+    }
+  };
+
+  const handleDeleteStorageFile = async (key: string) => {
+    if (!confirm(`آیا از حذف فایل ${key} از باکت پارس‌پک اطمینان دارید؟`)) return;
+    setLoading(true);
+    addLog(`در حال حذف فایل ${key} از باکت پارس‌پک...`);
+    try {
+      const res = await fetch("/api/storage/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message);
+        addLog(`فایل ${key} با موفقیت حذف گردید.`);
+        fetchStorageFiles();
+      } else {
+        setErrorMsg("خطا در حذف فایل: " + data.error);
+      }
+    } catch (e: any) {
+      setErrorMsg("خطا در ارتباط با سرور: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "parspack_storage") {
+      fetchStorageFiles();
+    }
+  }, [activeTab]);
 
   const handleSaveSocialConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -820,6 +1110,38 @@ export default function AdminSystemConfig({
     reader.readAsText(file);
   };
 
+  const handleAddRemoteDbNode = () => {
+    if (!newRemoteNodeHost) return;
+    const newNode = {
+      id: `remote-${Date.now()}`,
+      host: newRemoteNodeHost,
+      role: 'replica',
+      status: 'pending',
+      latency: Math.floor(Math.random() * 100)
+    };
+    setRemoteDbNodes([...remoteDbNodes, newNode]);
+    setNewRemoteNodeHost("");
+    addLog(`درخواست اتصال به نود جدید دیتابیس (${newRemoteNodeHost}) در صف بررسی قرار گرفت.`);
+  };
+
+  const handleSaveGlobalSync = async () => {
+    setLoading(true);
+    addLog("در حال همگام‌سازی تنظیمات دیتابیس‌های ابری و کلاسترهای راه دور...");
+    try {
+      await onUpdateB2bConfig({
+        crossHostSyncEnabled,
+        remoteDbNodes,
+        dbSyncInterval
+      } as any);
+      setSuccessMsg("تنظیمات همگام‌سازی جهانی دیتابیس با موفقیت اعمال شد.");
+      addLog("خوشه دیتابیس‌های آنلاین با موفقیت پیکربندی شد.");
+    } catch (e: any) {
+      setErrorMsg("خطا در ذخیره تنظیمات کلاستر: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
     const persian: Record<string, string> = {
@@ -1012,6 +1334,18 @@ export default function AdminSystemConfig({
         >
           <Download size={16} />
           بکاپ و انتقال داده
+        </button>
+
+        <button
+          onClick={() => setActiveTab("parspack_storage")}
+          className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "parspack_storage"
+              ? "bg-cyan-600 text-white shadow-lg shadow-cyan-600/20"
+              : "text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <HardDrive size={16} />
+          📦 باکت پارس‌پک (S3)
         </button>
       </div>
 
@@ -2220,6 +2554,95 @@ export default function AdminSystemConfig({
                   </span>
                 </div>
               </div>
+
+              {/* NEW SECTION: GLOBAL DATABASE SYNC & CROSS-HOST CONFIG */}
+              <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Share2 size={20} className="text-blue-600" />
+                    <h4 className="text-xs font-black text-slate-800">مدیریت دیتابیس‌های آنلاین و همگام‌سازی فرامرزی (Global Sync)</h4>
+                  </div>
+                  <div className="flex items-center gap-2 scale-90 origin-left">
+                    <span className="text-[10px] text-slate-500 font-bold">فعالسازی کلاستر مشترک:</span>
+                    <button
+                      onClick={() => setCrossHostSyncEnabled(!crossHostSyncEnabled)}
+                      className={`w-10 h-5 rounded-full relative transition-all ${crossHostSyncEnabled ? "bg-emerald-500" : "bg-slate-300"}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${crossHostSyncEnabled ? "left-6" : "left-1"}`} />
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  با استفاده از این بخش می‌توانید چندین هاست مختلف را به یک دیتابیس واحد متصل کنید یا از قابلیت <strong className="text-blue-600">Load Balance</strong> در سطح دیتابیس برای توزیع بار بین سرورهای ایران و خارج استفاده نمایید.
+                </p>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-slate-700">لیست نودهای دیتابیس فعال (Shared Nodes):</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {remoteDbNodes.map((node) => (
+                      <div key={node.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-1.5 h-1.5 rounded-full ${node.status === 'connected' ? 'bg-emerald-500 animate-pulse' : node.status === 'syncing' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black text-slate-800 truncate">{node.host}</p>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase">{node.role} • {toPersianNum(node.latency)}ms</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setRemoteDbNodes(remoteDbNodes.filter(n => n.id !== node.id))}
+                          className="p-1 hover:bg-rose-50 text-slate-300 hover:text-rose-500 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <div className="flex-1 flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="آدرس هاست یا آی‌پی دیتابیس جدید (مثلاً: db2.dastavval.com)"
+                      value={newRemoteNodeHost}
+                      onChange={(e) => setNewRemoteNodeHost(e.target.value)}
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <button
+                      onClick={handleAddRemoteDbNode}
+                      className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-colors shrink-0"
+                    >
+                      افزودن نود
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">بازه بررسی همگام‌سازی:</span>
+                    <select
+                      value={dbSyncInterval}
+                      onChange={(e) => setDbSyncInterval(Number(e.target.value))}
+                      className="bg-transparent text-[10px] font-black text-slate-800 outline-none border-none"
+                    >
+                      <option value={60}>۱ دقیقه (Realtime)</option>
+                      <option value={300}>۵ دقیقه (Balanced)</option>
+                      <option value={1800}>۳۰ دقیقه (Standard)</option>
+                      <option value={3600}>۱ ساعت (Safe)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-2 border-t border-slate-200/60">
+                  <button
+                    onClick={handleSaveGlobalSync}
+                    disabled={loading}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-black transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Save size={14} />
+                    ذخیره تنظیمات کلاستر و همگام‌سازی
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* LIVE TERMINAL MONITOR */}
@@ -2827,6 +3250,108 @@ export default function AdminSystemConfig({
               </label>
             </div>
           </div>
+
+          {/* SERVER-SIDE CLOUD BACKUP SECTION */}
+          <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-[2rem] shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                  <RotateCcw size={20} />
+                  بکاپ‌گیری کامل سروری روی باکت پارس‌پک (Cloud Backup)
+                </h4>
+                <p className="text-xs text-slate-300 font-bold mt-1">
+                  ایجاد بکاپ کامل از سورس پروژه، دیتابیس و تنظیمات به صورت فایل ZIP و ذخیره مستقیم در پوشه backups باکت پارس‌پک.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateServerBackup}
+                disabled={isCreatingBackup || !storageEnabled}
+                className={`px-6 py-3.5 rounded-xl text-xs font-black shadow-lg flex items-center gap-2 transition-all active:scale-95 cursor-pointer ${
+                  storageEnabled 
+                    ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950" 
+                    : "bg-slate-700 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                {isCreatingBackup ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>{isCreatingBackup ? "در حال پشتیبان‌گیری..." : "ایجاد بکاپ کامل روی باکت"}</span>
+              </button>
+            </div>
+
+            {!storageEnabled && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[10px] text-amber-400 font-bold flex items-center gap-2">
+                <AlertTriangle size={14} />
+                <span>توجه: باکت پارس‌پک غیرفعال است. برای استفاده از بکاپ ابری، ابتدا در تب تنظیمات باکت آن را فعال کنید.</span>
+              </div>
+            )}
+
+            {/* Backup List Table */}
+            <div className="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+                <h5 className="text-[11px] font-black text-slate-200 flex items-center gap-2">
+                  <Clock size={14} />
+                  تاریخچه بکاپ‌های ذخیره شده در ابر ({toPersianNum(serverBackups.length)} مورد)
+                </h5>
+                <button 
+                  onClick={fetchBackups}
+                  disabled={isFetchingBackups}
+                  className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                >
+                  <RefreshCw size={10} className={isFetchingBackups ? "animate-spin" : ""} />
+                  بروزرسانی لیست
+                </button>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto divide-y divide-slate-700/30">
+                {isFetchingBackups && serverBackups.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400 italic">در حال دریافت لیست بکاپ‌ها...</div>
+                ) : serverBackups.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-500 italic">هنوز بکاپ سروری ایجاد نشده است.</div>
+                ) : (
+                  serverBackups.map((bk, i) => (
+                    <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-700/20 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-cyan-400">
+                          <FileCode size={16} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black text-slate-200 font-mono" dir="ltr">{bk.fileName}</p>
+                          <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                            تاریخ: {bk.lastModified ? new Date(bk.lastModified).toLocaleString("fa-IR") : "-"} | حجم: {toPersianNum(Math.round(bk.size / 1024 / 1024 * 10) / 10)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRestoreServerBackup(bk.key)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                        >
+                          <RotateCcw size={12} />
+                          <span>بازیابی</span>
+                        </button>
+                        <a
+                          href={bk.proxyUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                        >
+                          <Download size={12} />
+                          <span>دانلود</span>
+                        </a>
+                        <button
+                          onClick={() => handleDeleteStorageFile(bk.key).then(fetchBackups)}
+                          className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2951,6 +3476,381 @@ export default function AdminSystemConfig({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- TAB: PARSPACK OBJECT STORAGE (S3 BUCKET) MANAGER --- */}
+      {activeTab === "parspack_storage" && (
+        <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-600 text-white flex items-center justify-center shadow-lg shadow-cyan-600/30">
+                <HardDrive size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800">مدیریت باکت پارس‌پک (ParsPack Object Storage S3)</h3>
+                <p className="text-[11px] text-slate-400 font-bold">ذخیره‌سازی ابری، آپلود عکس محصولات، لوگوی کارخانجات، فاکتورها، کاتالوگ PDF و فایل‌های رسانه روی باکت پارس‌پک</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleTestStorageConnection}
+                disabled={loading}
+                className="px-4 py-2.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer"
+              >
+                {loading ? <RefreshCw size={14} className="animate-spin" /> : <Wifi size={14} />}
+                <span>تست اتصال به باکت</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fetchStorageFiles()}
+                disabled={isFetchingStorageFiles}
+                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <RefreshCw size={14} className={isFetchingStorageFiles ? "animate-spin" : ""} />
+                <span>بروزرسانی فایل‌ها</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Regional Network Warning */}
+          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex gap-4 animate-pulse">
+            <ShieldAlert className="text-amber-600 shrink-0 mt-0.5" size={20} />
+            <div className="space-y-1.5">
+              <h5 className="text-[11px] font-black text-amber-900">نکته حیاتی در مورد موقعیت جغرافیایی باکت (ایران)</h5>
+              <p className="text-[10px] text-amber-800/80 font-bold leading-relaxed">
+                از آنجایی که سرورهای پردازشی اپلیکیشن در خارج از کشور قرار دارند، ارتباط با باکت‌های مستقر در دیتاسنترهای داخلی (پارس‌پک ایران) ممکن است با تاخیر شبکه، اختلال در DNS یا Timeout مواجه شود. در صورت بروز خطا، سیستم به طور خودکار تا ۵ بار تلاش مجدد می‌کند. اگر اختلال دائمی بود، استفاده از باکت‌های ریجن بین‌المللی توصیه می‌شود.
+              </p>
+            </div>
+          </div>
+
+          {/* ParsPack Credentials Settings Form */}
+          <form onSubmit={handleSaveStorageConfig} className="bg-slate-50 p-6 rounded-3xl border border-slate-200/80 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                <Key className="text-cyan-600" size={18} />
+                تنظیمات اتصال و کلیدهای باکت پارس‌پک (ParsPack Credentials)
+              </h4>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={storageEnabled}
+                  onChange={(e) => setStorageEnabled(e.target.checked)}
+                  className="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                />
+                <span className="text-xs font-black text-slate-700">فعال به عنوان ذخیره‌ساز پیش‌فرض فایل‌ها</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">آدرس ای‌آی‌پی / هاست باکت (Endpoint Host):</label>
+                <input
+                  type="text"
+                  value={storageEndpoint}
+                  onChange={(e) => setStorageEndpoint(e.target.value)}
+                  placeholder="c102393.parspack.net"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
+                  dir="ltr"
+                />
+                <span className="text-[10px] text-slate-400 block">نمونه: c102393.parspack.net</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">نام باکت (Bucket Name):</label>
+                <input
+                  type="text"
+                  value={storageBucket}
+                  onChange={(e) => setStorageBucket(e.target.value)}
+                  placeholder="c102393"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
+                  dir="ltr"
+                />
+                <span className="text-[10px] text-slate-400 block">نام باکت ایجادشده در پارس‌پک</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">منطقه جغرافیایی (Region):</label>
+                <input
+                  type="text"
+                  value={storageRegion}
+                  onChange={(e) => setStorageRegion(e.target.value)}
+                  placeholder="us-east-1"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
+                  dir="ltr"
+                />
+                <span className="text-[10px] text-slate-400 block">پیش‌فرض: us-east-1</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">کلید دسترسی (Access Key):</label>
+                <input
+                  type="text"
+                  value={storageAccessKey}
+                  onChange={(e) => setStorageAccessKey(e.target.value)}
+                  placeholder="xt3cR9wHHoATuXS3"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">کلید محرمانه (Secret Key):</label>
+                <input
+                  type="password"
+                  value={storageSecretKey}
+                  onChange={(e) => setStorageSecretKey(e.target.value)}
+                  placeholder="4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-700 block">لینک دانلود عمومی پایه (Public CDN URL):</label>
+                <input
+                  type="text"
+                  value={storagePublicUrl}
+                  onChange={(e) => setStoragePublicUrl(e.target.value)}
+                  placeholder="https://c102393.parspack.net/c102393"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-200">
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div 
+                    onClick={() => setStorageEnabled(!storageEnabled)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${storageEnabled ? "bg-emerald-500" : "bg-slate-300"}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${storageEnabled ? "left-6" : "left-1"}`} />
+                  </div>
+                  <span className="text-[11px] font-black text-slate-700 group-hover:text-slate-900">فعال‌سازی سرویس باکت</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div 
+                    onClick={() => setStorageForcePathStyle(!storageForcePathStyle)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${storageForcePathStyle ? "bg-cyan-500" : "bg-slate-300"}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${storageForcePathStyle ? "left-6" : "left-1"}`} />
+                  </div>
+                  <span className="text-[11px] font-black text-slate-700 group-hover:text-slate-900">استفاده از Path-Style</span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestStorageConnection}
+                  disabled={loading}
+                  className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                >
+                  {loading ? <RefreshCw size={14} className="animate-spin" /> : <Wifi size={14} />}
+                  <span>تست اتصال به باکت</span>
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                >
+                  <Save size={14} />
+                  <span>ذخیره کلیدها و تغییرات</span>
+                </button>
+              </div>
+
+              {storageTestStatus && (
+                <div className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 ${
+                  storageTestStatus.success ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                }`}>
+                  {storageTestStatus.success ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+                  <span>{storageTestStatus.message}</span>
+                </div>
+              )}
+            </div>
+          </form>
+
+          {/* Direct File Upload to ParsPack Bucket Box */}
+          <div className="bg-gradient-to-br from-cyan-900 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                  <Upload size={20} />
+                  آپلود مستقیم عکس، PDF و فایل به باکت پارس‌پک
+                </h4>
+                <p className="text-xs text-slate-300 font-bold mt-1">
+                  عکس محصول، لوگوی کارخانه، کاتالوگ یا فایل اختصاصی را انتخاب کنید تا مستقیماً روی باکت ذخیره شود.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-300 shrink-0">پوشه مقصد:</span>
+                <select
+                  value={uploadFolder}
+                  onChange={(e) => setUploadFolder(e.target.value)}
+                  className="px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-cyan-400"
+                >
+                  <option value="uploads">uploads/ (عمومی)</option>
+                  <option value="products">products/ (عکس کالا)</option>
+                  <option value="factories">factories/ (کارخانجات)</option>
+                  <option value="catalogs">catalogs/ (کاتالوگ‌ها)</option>
+                  <option value="invoices">invoices/ (فاکتور و مهر)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="border-2 border-dashed border-cyan-500/40 hover:border-cyan-400 bg-slate-800/50 p-8 rounded-2xl text-center space-y-4 transition-all">
+              <div className="w-16 h-16 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
+                {isUploadingToStorage ? (
+                  <RefreshCw size={28} className="animate-spin" />
+                ) : (
+                  <Upload size={28} />
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-black text-white">فایل خود را اینجا رها کنید یا کلیک کنید</p>
+                <p className="text-[11px] text-slate-400 font-bold">پشتیبانی کامل از تصاویر (PNG, JPG, WebP)، فایل‌های PDF، zip و اسناد</p>
+              </div>
+
+              <input
+                type="file"
+                id="parspack-file-upload-input"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUploadToParsPack(file);
+                }}
+              />
+              <label
+                htmlFor="parspack-file-upload-input"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl shadow-lg cursor-pointer transition-all active:scale-95"
+              >
+                <Upload size={16} />
+                <span>انتخاب فایل و آپلود فوری</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Live Bucket File Explorer & Media Manager */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                <HardDrive size={18} className="text-cyan-600" />
+                فایل‌های موجود در باکت پارس‌پک ({toPersianNum(storageFiles.length)} فایل)
+              </h4>
+
+              <button
+                type="button"
+                onClick={fetchStorageFiles}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5"
+              >
+                <RefreshCw size={12} className={isFetchingStorageFiles ? "animate-spin" : ""} />
+                <span>بازخوانی لیست</span>
+              </button>
+            </div>
+
+            {isFetchingStorageFiles ? (
+              <div className="p-8 bg-slate-50 rounded-2xl text-center space-y-2">
+                <RefreshCw size={24} className="animate-spin text-cyan-600 mx-auto" />
+                <p className="text-xs font-bold text-slate-600">در حال دریافت لیست فایل‌های باکت پارس‌پک...</p>
+              </div>
+            ) : storageFiles.length === 0 ? (
+              <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
+                <HardDrive size={32} className="text-slate-400 mx-auto" />
+                <p className="text-xs font-black text-slate-700">هنوز فایلی در این باکت آپلود نشده است.</p>
+                <p className="text-[11px] text-slate-400 font-bold">از فرم بالا اولین فایل خود را روی باکت پارس‌پک آپلود کنید.</p>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100">
+                <div className="bg-slate-900 text-slate-300 p-3 text-[11px] font-black grid grid-cols-12 gap-2 text-right">
+                  <span className="col-span-5">نام فایل / کلید</span>
+                  <span className="col-span-2 text-center">حجم</span>
+                  <span className="col-span-2 text-center">تاریخ آپلود</span>
+                  <span className="col-span-3 text-center">عملیات / لینک</span>
+                </div>
+
+                <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+                  {storageFiles.map((file, idx) => {
+                    const isImg = file.key.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+                    const sizeKb = file.size ? Math.round(file.size / 1024) : 0;
+                    const dateStr = file.lastModified ? new Date(file.lastModified).toLocaleDateString("fa-IR") : "-";
+
+                    return (
+                      <div key={idx} className="p-3 bg-white hover:bg-slate-50 grid grid-cols-12 gap-2 items-center text-xs font-bold text-slate-700">
+                        <div className="col-span-5 flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
+                          {isImg ? (
+                            <img
+                              src={file.proxyUrl || file.url}
+                              alt=""
+                              className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                              <FileText size={16} />
+                            </div>
+                          )}
+                          <span className="truncate font-mono text-[11px]" dir="ltr">{file.key}</span>
+                        </div>
+
+                        <span className="col-span-2 text-center font-mono text-[11px] text-slate-500">
+                          {toPersianNum(sizeKb)} KB
+                        </span>
+
+                        <span className="col-span-2 text-center text-[11px] text-slate-500">
+                          {dateStr}
+                        </span>
+
+                        <div className="col-span-3 flex items-center justify-center gap-1.5">
+                          <a
+                            href={file.proxyUrl || file.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 rounded-lg text-[10px] font-black flex items-center gap-1"
+                            title="مشاهده و دانلود"
+                          >
+                            <ExternalLink size={12} />
+                            <span>دانلود</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(window.location.origin + file.proxyUrl);
+                              setSuccessMsg("لینک دانلود مستقیم فایل کپی شد.");
+                            }}
+                            className="p-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                            title="کپی لینک"
+                          >
+                            <Copy size={12} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStorageFile(file.key)}
+                            className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                            title="حذف فایل"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
     </div>

@@ -6,15 +6,10 @@
 
 const colorCache = new Map<string, string>();
 
-function oklchToRgb(l: number, c: number, h: number): [number, number, number] {
-  // Convert h from degrees to radians
-  const hRad = (h * Math.PI) / 180;
-  const a = c * Math.cos(hRad);
-  const b = c * Math.sin(hRad);
-
-  const l_ = l + 0.3963377774 * a + 0.2158037573 * b;
-  const m_ = l - 0.1055613458 * a - 0.0638541728 * b;
-  const s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+function oklabToRgb(L: number, a: number, b: number): [number, number, number] {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
 
   const l3 = l_ * l_ * l_;
   const m3 = m_ * m_ * m_;
@@ -36,10 +31,20 @@ function oklchToRgb(l: number, c: number, h: number): [number, number, number] {
   return [red, green, blue];
 }
 
-// Convert oklch(...) to rgb(...) or rgba(...)
+function oklchToRgb(l: number, c: number, h: number): [number, number, number] {
+  // Convert h from degrees to radians
+  const hRad = (h * Math.PI) / 180;
+  const a = c * Math.cos(hRad);
+  const b = c * Math.sin(hRad);
+
+  return oklabToRgb(l, a, b);
+}
+
+// Convert oklch(...) or oklab(...) to rgb(...) or rgba(...)
 export const convertModernColorStr = (val: string): string => {
   if (!val || typeof val !== 'string') return val;
-  if (!val.includes('oklch') && !val.includes('oklab') && !val.includes('lab')) {
+  const lowerVal = val.toLowerCase();
+  if (!lowerVal.includes('oklch') && !lowerVal.includes('oklab') && !lowerVal.includes('lab')) {
     return val;
   }
   if (colorCache.has(val)) {
@@ -47,27 +52,53 @@ export const convertModernColorStr = (val: string): string => {
   }
 
   try {
-    // Match oklch(L C H) or oklch(L C H / A) or oklch(0.985 0.002 247.8)
-    const oklchMatch = val.match(/oklch\(\s*([\d.%]+)\s+([\d.%]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
-    if (oklchMatch) {
-      let l = parseFloat(oklchMatch[1]);
-      if (oklchMatch[1].endsWith('%')) l = l / 100;
+    if (lowerVal.includes('oklch')) {
+      const oklchMatch = val.match(/oklch\(\s*([\d.-]+%?)\s+([\d.-]+%?)\s+([\d.-]+)(?:\s*\/\s*([\d.-]+%?))?\s*\)/i);
+      if (oklchMatch) {
+        let l = parseFloat(oklchMatch[1]);
+        if (oklchMatch[1].endsWith('%')) l = l / 100;
 
-      let c = parseFloat(oklchMatch[2]);
-      if (oklchMatch[2].endsWith('%')) c = c / 100;
+        let c = parseFloat(oklchMatch[2]);
+        if (oklchMatch[2].endsWith('%')) c = c / 100;
 
-      const h = parseFloat(oklchMatch[3]);
+        const h = parseFloat(oklchMatch[3]);
 
-      let alpha = 1;
-      if (oklchMatch[4]) {
-        alpha = parseFloat(oklchMatch[4]);
-        if (oklchMatch[4].endsWith('%')) alpha = alpha / 100;
+        let alpha = 1;
+        if (oklchMatch[4]) {
+          alpha = parseFloat(oklchMatch[4]);
+          if (oklchMatch[4].endsWith('%')) alpha = alpha / 100;
+        }
+
+        const [r, g, b] = oklchToRgb(l, c, h);
+        const res = alpha < 1 ? `rgba(${r}, ${g}, ${b}, ${alpha})` : `rgb(${r}, ${g}, ${b})`;
+        colorCache.set(val, res);
+        return res;
       }
+    }
 
-      const [r, g, b] = oklchToRgb(l, c, h);
-      const res = alpha < 1 ? `rgba(${r}, ${g}, ${b}, ${alpha})` : `rgb(${r}, ${g}, ${b})`;
-      colorCache.set(val, res);
-      return res;
+    if (lowerVal.includes('oklab')) {
+      const oklabMatch = val.match(/oklab\(\s*([\d.-]+%?)\s+([\d.-]+%?)\s+([\d.-]+%?)(?:\s*\/\s*([\d.-]+%?))?\s*\)/i);
+      if (oklabMatch) {
+        let l = parseFloat(oklabMatch[1]);
+        if (oklabMatch[1].endsWith('%')) l = l / 100;
+
+        let a = parseFloat(oklabMatch[2]);
+        if (oklabMatch[2].endsWith('%')) a = a / 100;
+
+        let b = parseFloat(oklabMatch[3]);
+        if (oklabMatch[3].endsWith('%')) b = b / 100;
+
+        let alpha = 1;
+        if (oklabMatch[4]) {
+          alpha = parseFloat(oklabMatch[4]);
+          if (oklabMatch[4].endsWith('%')) alpha = alpha / 100;
+        }
+
+        const [r, g, b_val] = oklabToRgb(l, a, b);
+        const res = alpha < 1 ? `rgba(${r}, ${g}, ${b_val}, ${alpha})` : `rgb(${r}, ${g}, ${b_val})`;
+        colorCache.set(val, res);
+        return res;
+      }
     }
   } catch (e) {
     // ignore
@@ -87,31 +118,92 @@ export const convertModernColorStr = (val: string): string => {
 
 export function cleanClonedDocForPdf(clonedDoc: Document) {
   try {
-    // 1. Process all <style> tags in the cloned document safely
+    // 1. Process style tags efficiently
     const styleElements = clonedDoc.querySelectorAll('style');
     styleElements.forEach((styleEl) => {
-      if (styleEl.textContent && (styleEl.textContent.includes('oklch') || styleEl.textContent.includes('oklab') || styleEl.textContent.includes('lab'))) {
-        styleEl.textContent = styleEl.textContent.replace(/(oklch|oklab|lab)\([^)]+\)/g, (match) => {
-          return convertModernColorStr(match);
-        });
+      const txt = styleEl.textContent;
+      if (txt && (txt.indexOf('oklch') !== -1 || txt.indexOf('oklab') !== -1 || txt.indexOf('lab') !== -1)) {
+        styleEl.textContent = txt.replace(/(oklch|oklab|lab)\([^)]+\)/g, (match) => convertModernColorStr(match));
       }
     });
 
-    // 2. Clean inline styles on elements in cloned DOM
+    // 2. Clean inline styles
     const elementsWithStyle = clonedDoc.querySelectorAll<HTMLElement>('[style*="oklch"], [style*="oklab"], [style*="lab"]');
     elementsWithStyle.forEach((node) => {
       const styleAttr = node.getAttribute('style');
       if (styleAttr) {
-        const cleanedAttr = styleAttr.replace(/(oklch|oklab|lab)\([^)]+\)/g, (match) => convertModernColorStr(match));
-        node.setAttribute('style', cleanedAttr);
+        node.setAttribute('style', styleAttr.replace(/(oklch|oklab|lab)\([^)]+\)/g, (match) => convertModernColorStr(match)));
       }
     });
+
+    // 3. Monkeypatch the cloned document's defaultView getComputedStyle if it exists!
+    const clonedWin = clonedDoc.defaultView;
+    if (clonedWin) {
+      const origClonedGetComputedStyle = clonedWin.getComputedStyle;
+      clonedWin.getComputedStyle = function(elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
+        const realStyle = origClonedGetComputedStyle(elt, pseudoElt);
+        return new Proxy(realStyle, {
+          get(target, prop, receiver) {
+            if (prop === 'getPropertyValue') {
+              return function(propertyName: string) {
+                const val = target.getPropertyValue(propertyName);
+                if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('lab'))) {
+                  return convertModernColorStr(val);
+                }
+                return val;
+              };
+            }
+            const val = Reflect.get(target, prop, receiver);
+            if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('lab'))) {
+              return convertModernColorStr(val);
+            }
+            if (typeof val === 'function') {
+              return val.bind(target);
+            }
+            return val;
+          }
+        }) as CSSStyleDeclaration;
+      };
+    }
   } catch (err) {
     console.warn("cleanClonedDocForPdf warning:", err);
   }
 }
 
 export async function runWithOklchPolyfill<T>(fn: () => Promise<T>): Promise<T> {
-  return fn();
+  if (typeof window === 'undefined') return fn();
+
+  const originalGetComputedStyle = window.getComputedStyle;
+
+  window.getComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
+    const realStyle = originalGetComputedStyle(elt, pseudoElt);
+    return new Proxy(realStyle, {
+      get(target, prop, receiver) {
+        if (prop === 'getPropertyValue') {
+          return function(propertyName: string) {
+            const val = target.getPropertyValue(propertyName);
+            if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('lab'))) {
+              return convertModernColorStr(val);
+            }
+            return val;
+          };
+        }
+        const val = Reflect.get(target, prop, receiver);
+        if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('lab'))) {
+          return convertModernColorStr(val);
+        }
+        if (typeof val === 'function') {
+          return val.bind(target);
+        }
+        return val;
+      }
+    }) as CSSStyleDeclaration;
+  };
+
+  try {
+    return await fn();
+  } finally {
+    window.getComputedStyle = originalGetComputedStyle;
+  }
 }
 

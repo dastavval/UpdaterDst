@@ -672,8 +672,8 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
 
               {/* Stagnancy Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {stagnancyProducts.slice(0, 4).map(({ product, metrics }) => (
-                  <div key={product.id} className="border border-slate-200 rounded-xl p-4 hover:shadow-xs transition-shadow flex flex-col justify-between bg-slate-50/50">
+                {stagnancyProducts.slice(0, 4).map(({ product, metrics }, stagIdx) => (
+                  <div key={`stag-prod-${product.id || 'p'}-${stagIdx}`} className="border border-slate-200 rounded-xl p-4 hover:shadow-xs transition-shadow flex flex-col justify-between bg-slate-50/50">
                     <div>
                       <div className="flex justify-between items-start gap-2">
                         <div>
@@ -760,8 +760,8 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                       onChange={(e) => setCalcProductId(e.target.value)}
                       className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black outline-none"
                     >
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} ({p.brand})</option>
+                      {products.map((p, pIdx) => (
+                        <option key={`prod-opt-${p.id || 'p'}-${pIdx}`} value={p.id}>{p.name} ({p.brand})</option>
                       ))}
                     </select>
                   </div>
@@ -884,8 +884,8 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
 
               {/* RFQ List */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {tenders.map((t) => (
-                  <div key={t.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 flex flex-col justify-between">
+                {tenders.map((t, tIdx) => (
+                  <div key={`tender-item-${t.id || 'rfq'}-${tIdx}`} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-start border-b border-slate-100 pb-2.5">
                         <div>
@@ -928,7 +928,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                         <div className="mt-3.5 space-y-2">
                           <span className="text-[9px] text-slate-400 font-black block">پیشنهادات دریافت شده نمایندگان کارخانجات:</span>
                           {t.bids.map((bid, bIdx) => (
-                            <div key={bIdx} className="bg-white border border-slate-200 rounded-lg p-2 flex justify-between items-center text-[10px]">
+                            <div key={`tender-bid-${t.id || 'rfq'}-${bIdx}`} className="bg-white border border-slate-200 rounded-lg p-2 flex justify-between items-center text-[10px]">
                               <div>
                                 <span className="font-black text-slate-800 block">{bid.factory}</span>
                                 <span className="text-slate-400 font-bold text-[8px]">زمان تحویل: {bid.delay}</span>

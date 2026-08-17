@@ -4,6 +4,7 @@ import { SupplyChainLifecycleAnimation } from "./SupplyChainLifecycleAnimation";
 import { FactoryHeroPowerhouse } from "./FactoryHeroPowerhouse";
 import { UserGatewayHub } from "./UserGatewayHub";
 import { CustomerJourneyModal } from "./CustomerJourneyModal";
+import SpecialPriceBagIcon from "./SpecialPriceBagIcon";
 import {
   Sparkles,
   ArrowLeft,
@@ -88,7 +89,7 @@ export default function DynamicPresentation({
   const defaultSlides = [
     {
       id: "1",
-      title: "تامین عمده انواع شکلات کاکائویی و ویفر کارخانه‌ای",
+      title: "خرید مستقیم از کارخانه: تامین انواع شکلات و ویفر",
       subtitle: "ارتباط بی‌واسطه بنکداران و سوپرمارکت‌های سراسر کشور با خطوط تولید شکلات، دراژه و ویفر (با امکان صدور فاکتور)",
       imageUrl: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=1200",
       badge: "صنایع شکلات و ویفر 🍫",
@@ -98,7 +99,7 @@ export default function DynamicPresentation({
     },
     {
       id: "2",
-      title: "دنیای ترشیجات و لواشک‌های سنتی و صنعتی بهداشتی",
+      title: "خرید مستقیم از کارخانه: انواع ترشیجات و لواشک",
       subtitle: "پخش عمده مستقیم انواع لواشک، ترشک و آلوچه با سیب سلامت و بالاترین حاشیه سود برای خریداران عمده",
       imageUrl: "https://images.unsplash.com/photo-1599420186946-7b6fb4e297f0?auto=format&fit=crop&q=80&w=1200",
       badge: "بارگیری روزانه از قطب تولید 🍇",
@@ -108,7 +109,7 @@ export default function DynamicPresentation({
     },
     {
       id: "3",
-      title: "کیک، کلوچه و بیسکویت‌های تازه عصرانه پخت روز",
+      title: "خرید مستقیم از کارخانه: کیک، کلوچه و بیسکویت تازه",
       subtitle: "تامین پالت و کارتن انواع کیک و کلوچه نازل‌ترین قیمت عمده پایه کارخانه و امکان ثبت سفارش مستقیم",
       imageUrl: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=1200",
       badge: "پخت تازه و تخفیف کارتن 🍪",
@@ -118,7 +119,7 @@ export default function DynamicPresentation({
     },
     {
       id: "4",
-      title: "نوشیدنی، آبمیوه طبیعی و نکتار صادراتی",
+      title: "خرید مستقیم از کارخانه: نوشیدنی و آبمیوه صادراتی",
       subtitle: "پخش پالتی انواع آبمیوه تک‌نفره و خانواده با استانداردهای بهداشتی و حمل مسقف بیمه‌شده تا انبار شما",
       imageUrl: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=1200",
       badge: "حمل مسقف و بیمه جاده‌ای 🥤",
@@ -178,7 +179,7 @@ export default function DynamicPresentation({
   // Add configured categories
   baseConfigCats.forEach((c: any) => {
     const catName = typeof c === 'string' ? c : (c.name || c.id || "دسته‌بندی");
-    if (catName) {
+    if (catName && catName.trim() !== "همه" && catName.trim() !== "all") {
       mergedCatMap.set(catName.trim(), {
         id: catName.trim(),
         label: catName.trim(),
@@ -190,12 +191,12 @@ export default function DynamicPresentation({
 
   // Add categories/tags found in products that aren't in config yet
   productCategoriesSet.forEach(catName => {
-    if (!mergedCatMap.has(catName)) {
-      mergedCatMap.set(catName, {
-        id: catName,
-        label: catName,
+    if (catName && catName.trim() !== "همه" && catName.trim() !== "all" && !mergedCatMap.has(catName.trim())) {
+      mergedCatMap.set(catName.trim(), {
+        id: catName.trim(),
+        label: catName.trim(),
         icon: "🏷️",
-        image: getCategoryImage(catName)
+        image: getCategoryImage(catName.trim())
       });
     }
   });
@@ -225,6 +226,7 @@ export default function DynamicPresentation({
   };
 
   const filteredProducts = products.filter((p) => {
+    if (p.disabled) return false;
     const matchesCategory = isCategoryMatch(p, selectedCategory);
     const matchesSearch = searchQuery === "" || 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -424,21 +426,21 @@ export default function DynamicPresentation({
       />
 
       {/* --- SUPPLY CHAIN LIFECYCLE & VALUE BANNER --- */}
-      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-2">
-        <div className="relative z-10 space-y-3 max-w-xl flex-1">
+      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-3 border-t border-slate-100/80">
+        <div className="relative z-10 space-y-3.5 max-w-xl flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 text-white px-3.5 py-1 rounded-full text-[11px] font-black shadow-md border border-emerald-500/30">
-              <Sparkles size={13} className="fill-emerald-300 text-emerald-300" />
-              <span>پلتفرم سراسری بنکداری و تامین مستقیم</span>
+            <span className="inline-flex items-center gap-1.5 bg-linear-to-r from-emerald-800 to-teal-800 text-white px-3.5 py-1 rounded-full text-[10px] font-black shadow-sm border border-emerald-500/20">
+              <Sparkles size={12} className="fill-emerald-300 text-emerald-300 animate-pulse" />
+              <span>پورتال سراسری تامین مستقیم کالا</span>
             </span>
           </div>
 
-          <h1 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-            {b2bConfig?.appName ? `${b2bConfig.appName}؛ ${b2bConfig.appSub || 'خرید مستقیم عمده از خطوط تولید و کارخانجات معتبر کشور'}` : 'دست اول؛ خرید مستقیم عمده از خطوط تولید و کارخانجات معتبر کشور'}
+          <h1 className="text-sm sm:text-base font-black text-slate-900 leading-relaxed">
+            {b2bConfig?.appName ? `${b2bConfig.appName}؛ ${b2bConfig.appSub || 'خرید عمده مستقیم از کارخانجات معتبر کشور'}` : 'سامانه دست اول؛ خرید مستقیم عمده از تولیدکنندگان صنایع غذایی و بهداشتی'}
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-600 font-bold leading-relaxed">
-            {b2bConfig?.topAnnouncement || 'ثبت آنلاین سفارشات پالتی و کارتنی، استعلام کف قیمت خط تولید، هماهنگی فاکتور کارخانه و حمل مسقف بیمه‌شده به انبار شما.'}
+          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+            {b2bConfig?.topAnnouncement || 'ثبت سفارشات پالتی و کارتن‌های تخفیف‌دار، دریافت پیش‌فاکتور آنی کارخانه، ضمانت امن و بارنامه دولتی بیمه‌شده.'}
           </p>
         </div>
 
@@ -467,7 +469,7 @@ export default function DynamicPresentation({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {categoriesList.map((cat) => {
+          {categoriesList.map((cat, catIdx) => {
             const itemCount = cat.id === "همه" 
               ? products.length 
               : products.filter(p => isCategoryMatch(p, cat.id)).length;
@@ -475,7 +477,7 @@ export default function DynamicPresentation({
 
             return (
               <button
-                key={cat.id}
+                key={`cat-tile-${cat.id}-${catIdx}`}
                 onClick={() => {
                   const targetCat = cat.id === "همه" ? "همه" : cat.id;
                   setSelectedCategory(targetCat);
@@ -548,10 +550,10 @@ export default function DynamicPresentation({
             </div>
             <div>
               <h2 className="text-sm font-black text-slate-900">
-                کالاهای منتخب کارخانه
+                خرید عمده مستقیم از کارخانه
               </h2>
               <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-                جدیدترین محصولات عرضه شده با قیمت کارخانه
+                تامین بی‌واسطه محصولات از خطوط تولید با قیمت مصوب
               </p>
             </div>
           </div>
@@ -588,7 +590,7 @@ export default function DynamicPresentation({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
             {featuredDisplayProducts.map((p, idx) => (
               <ProductCard
-                key={p.id}
+                key={`feat-prod-${p.id || 'item'}-${idx}`}
                 index={idx}
                 product={p}
                 onViewDetails={onViewDetails}
@@ -608,7 +610,7 @@ export default function DynamicPresentation({
         {/* View Full Catalog Prominent CTA */}
         <div className="pt-1 text-center">
           <button
-            onClick={() => setActiveTab?.('catalog')}
+            onClick={() => setActiveTab?.('order')}
             className={`w-full sm:w-auto px-6 py-2.5 ${activeColors.catalogBtnBg} hover:opacity-90 text-white font-black text-xs rounded-xl shadow-sm transition-all cursor-pointer inline-flex items-center justify-center gap-2`}
           >
             <span>مشاهده لیست کامل محصولات در کاتالوگ عمده</span>
@@ -628,7 +630,7 @@ export default function DynamicPresentation({
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:bg-emerald-500 group-hover:text-white transition-all shrink-0">
-              <ShoppingBag size={18} />
+              <SpecialPriceBagIcon size={18} badgeSize={9} animated={true} />
             </div>
             <span className="font-black text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 transition-colors whitespace-nowrap truncate">
               سفارش عمده

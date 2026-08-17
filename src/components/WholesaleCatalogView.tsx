@@ -224,9 +224,9 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
         <>
           {/* 1. Mobile-Optimized Product List (Premium Grid) */}
           <div className="md:hidden grid grid-cols-1 gap-6 p-4">
-            {displayProducts.map((product) => (
+            {displayProducts.map((product, idx) => (
               <PremiumProductCard 
-                key={`mob-cat-${product.id}`}
+                key={`mob-cat-${product.id}-${idx}`}
                 product={product}
                 qty={getQuantity(product.id, product.min_order_cartons)}
                 onIncrement={handleIncrement}
@@ -241,9 +241,9 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
 
           {/* 2. Desktop-Optimized Product Grid (Royal Bento Style) */}
           <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-8 p-8 bg-slate-50/30">
-            {displayProducts.map((product) => (
+            {displayProducts.map((product, idx) => (
               <PremiumProductCard 
-                key={`desk-cat-${product.id}`}
+                key={`desk-cat-${product.id}-${idx}`}
                 product={product}
                 qty={getQuantity(product.id, product.min_order_cartons)}
                 onIncrement={handleIncrement}

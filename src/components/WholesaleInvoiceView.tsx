@@ -1,65 +1,21 @@
-import React, { useState, Component, ErrorInfo, ReactNode } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Order } from "../types";
-import { Printer, X, ShieldCheck, Download, Loader2, Edit3, Check, FileText, QrCode, Award, Sparkles, Copy, RotateCcw, CheckCircle2, AlertTriangle, Scale, Maximize2, RefreshCw } from "lucide-react";
+import { 
+  Printer, X, Check, Building2,
+  Copy, Edit3, Plus, Trash2,
+  Download, FileText, CheckCircle2,
+  Image as ImageIcon, Loader2, ShieldCheck
+} from "lucide-react";
+import { toJpeg, toPng } from "html-to-image";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-import { runWithOklchPolyfill, cleanClonedDocForPdf } from "../utils/pdfPolyfill";
+import { OfficialUnifiedSealSignature } from "./OfficialDigitalStamp";
 
 interface WholesaleInvoiceViewProps {
   order: Order;
-  b2bConfig: any;
+  b2bConfig?: any;
   onClose: () => void;
   isAdmin?: boolean;
   isBuyer?: boolean;
-}
-
-// Error Boundary to prevent invoice rendering issues from freezing or crashing the UI
-class InvoiceErrorBoundary extends Component<{ children: ReactNode; onClose: () => void }, { hasError: boolean; error: string }> {
-  constructor(props: { children: ReactNode; onClose: () => void }) {
-    super(props);
-    this.state = { hasError: false, error: "" };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error: error.message || "خطای نامشخص در نمایش فاکتور" };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("WholesaleInvoiceView Error Caught:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="fixed inset-0 z-[110] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 dir-rtl text-right">
-          <div className="bg-white p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4 border border-rose-200">
-            <div className="flex items-center gap-3 text-rose-600">
-              <AlertTriangle size={28} />
-              <h3 className="font-black text-base text-slate-900">بازیابی خودکار فاکتور رسمی</h3>
-            </div>
-            <p className="text-xs font-bold text-slate-600 leading-relaxed">
-              اطلاعات فاکتور رسمی با موفقیت بازنشانی شد. می‌توانید مجدداً فاکتور را مشاهده فرمایید.
-            </p>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => this.setState({ hasError: false })}
-                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-colors"
-              >
-                تلاش مجدد
-              </button>
-              <button
-                onClick={this.props.onClose}
-                className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-200 transition-colors"
-              >
-                بستن
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 const toPersianNum = (num: number | string | undefined | null) => {
@@ -71,917 +27,827 @@ const toPersianNum = (num: number | string | undefined | null) => {
   return stringVal.replace(/[0-9]/g, (w) => persian[w] || w);
 };
 
-const numberToPersianWords = (num: number): string => {
-  if (num === undefined || num === null || isNaN(num) || num <= 0) return 'صفر';
+// Persian Number to Words Converter
+function numToPersianWords(num: number): string {
+  if (!num || isNaN(num) || num === 0) return "صفر";
+  const ones = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"];
+  const teens = ["ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+  const tens = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+  const hundreds = ["", "یکصد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+  const scales = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
 
-  const units = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه'];
-  const teens = ['ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
-  const tens = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
-  const hundreds = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
-  const thousands = ['', 'هزار', 'میلیون', 'میلیارد', 'تریلیون'];
-
-  const splitNumber = (n: number): number[] => {
-    const parts = [];
-    while (n > 0) {
-      parts.push(n % 1000);
-      n = Math.floor(n / 1000);
-    }
-    return parts;
-  };
-
-  const convertPart = (n: number): string => {
-    let res = '';
+  const chunkThree = (n: number): string => {
+    const res: string[] = [];
     const h = Math.floor(n / 100);
-    const t = Math.floor((n % 100) / 10);
-    const u = n % 10;
-
-    if (h > 0) res += hundreds[h] + ' و ';
-    if (t === 1) {
-      res += teens[u];
+    const rem = n % 100;
+    if (h > 0) res.push(hundreds[h]);
+    if (rem >= 10 && rem < 20) {
+      res.push(teens[rem - 10]);
     } else {
-      if (t > 1) res += tens[t] + ' و ';
-      if (u > 0) res += units[u];
+      const t = Math.floor(rem / 10);
+      const o = Math.floor(rem % 10);
+      if (t > 0) res.push(tens[t]);
+      if (o > 0) res.push(ones[o]);
     }
-    return res.replace(/ و $/, '');
+    return res.join(" و ");
   };
 
-  try {
-    const parts = splitNumber(Math.floor(num));
-    let result = '';
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i] > 0) {
-        result = convertPart(parts[i]) + ' ' + thousands[i] + ' و ' + result;
-      }
-    }
-    return result.replace(/ و $/, '').trim() || 'صفر';
-  } catch (e) {
-    return 'صفر';
+  const chunks: number[] = [];
+  let temp = Math.floor(Math.abs(num));
+  while (temp > 0) {
+    chunks.push(temp % 1000);
+    temp = Math.floor(temp / 1000);
   }
-};
 
-function WholesaleInvoiceContent({ order, b2bConfig, onClose }: WholesaleInvoiceViewProps) {
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [currencyUnit, setCurrencyUnit] = useState<'toman' | 'rial'>('toman');
+  const words: string[] = [];
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    if (chunks[i] > 0) {
+      const chunkText = chunkThree(chunks[i]);
+      const scaleText = scales[i];
+      words.push(scaleText ? `${chunkText} ${scaleText}` : chunkText);
+    }
+  }
+
+  return words.join(" و ");
+}
+
+export default function WholesaleInvoiceView({ order, b2bConfig, onClose, isAdmin }: WholesaleInvoiceViewProps) {
   const invSettings = b2bConfig?.invoiceSettings || {};
+  
+  const [docType] = useState<'proforma' | 'invoice'>('proforma');
+  const [isEditing, setIsEditing] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
 
-  const safeOrder = order || {} as any;
-  const orderId = safeOrder.id || safeOrder.trackingNumber || `ORD-${Date.now().toString().slice(-6)}`;
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
-  // Localized Seller Fields
-  const [sellerTitle, setSellerTitle] = useState(invSettings.sellerTitle || b2bConfig?.appName || "شرکت تجارت و توسعه صنایع غذایی دست اول (سهامی خاص)");
-  const [sellerNationalId, setSellerNationalId] = useState(invSettings.sellerNationalId || "۱۰۱۰۳۴۸۲۹۱۰");
-  const [sellerEconomicCode, setSellerEconomicCode] = useState(invSettings.sellerEconomicCode || "۴۱۱۲۹۳۸۴۷۱");
-  const [sellerRegNumber, setSellerRegNumber] = useState(invSettings.sellerRegNumber || "۸۸۴۹۲");
-  const [sellerPostalCode, setSellerPostalCode] = useState(invSettings.sellerPostalCode || "۵۴۱۸۶۳۹۴۷۲");
-  const [sellerPhone, setSellerPhone] = useState(invSettings.sellerPhone || "۰۲۱-۸۸۲۲۴۴۳۳");
-  const [sellerAddress, setSellerAddress] = useState(invSettings.sellerAddress || "تهران، خیابان ولیعصر، برج بازرگانی صنایع غذایی کشور، طبقه ۱۲");
+  // Buyer Info
+  const buyerInfoAny = (order?.buyerInfo || {}) as any;
+  const [buyerCompany, setBuyerCompany] = useState(buyerInfoAny.company || order?.buyerCompany || "فروشگاه / خریدار محترم");
+  const [buyerName, setBuyerName] = useState(buyerInfoAny.name || order?.buyerName || "مسئول خرید");
+  const [buyerPhone, setBuyerPhone] = useState(buyerInfoAny.phone || order?.buyerPhone || "۰۹۱۲۳۴۵۶۷۸۹");
+  const [buyerAddress, setBuyerAddress] = useState(buyerInfoAny.address || order?.buyerAddress || "انبار مرکزی توزیع و پخش کالا");
+  const [buyerProvinceCity] = useState(buyerInfoAny.city ? `${buyerInfoAny.province || 'تهران'} - ${buyerInfoAny.city}` : "تهران - بازار بزرگ");
 
-  // Localized Buyer Details
-  const initialBuyerName = safeOrder.buyerName || safeOrder.buyerInfo?.name || "مسئول خرید همکار";
-  const initialBuyerCompany = safeOrder.buyerCompany || safeOrder.buyerInfo?.company || "بازرگانی همکار ثبت شده";
-  const initialBuyerPhone = safeOrder.buyerPhone || safeOrder.buyerInfo?.phone || "۰۹۱۲۳۴۵۶۷۸۹";
-  const initialBuyerAddress = safeOrder.buyerAddress || safeOrder.buyerInfo?.address || "نشانی کامل تحویل‌گیرنده و تخلیه بار همکار";
-
-  const [buyerCompany, setBuyerCompany] = useState(initialBuyerCompany);
-  const [buyerName, setBuyerName] = useState(initialBuyerName);
-  const [buyerPhone, setBuyerPhone] = useState(initialBuyerPhone);
-  const [buyerNationalId, setBuyerNationalId] = useState((safeOrder as any).buyerNationalId || "۱۰۴۹۸۲۹۳۷۴۱");
-  const [buyerEconomicCode, setBuyerEconomicCode] = useState((safeOrder as any).buyerEconomicCode || "۴۱۱۵۶۷۸۳۹۲");
-  const [buyerRegNumber, setBuyerRegNumber] = useState((safeOrder as any).buyerRegNumber || "۹۹۲۸۱");
-  const [buyerPostalCode, setBuyerPostalCode] = useState((safeOrder as any).buyerPostalCode || "۱۲۳۴۵۶۷۸۹۰");
-  const [buyerAddress, setBuyerAddress] = useState(initialBuyerAddress);
-
-  // Serial & Seal
-  const [invoiceSerial, setInvoiceSerial] = useState(safeOrder.trackingNumber || `DS-${orderId.substring(0, 8).toUpperCase()}`);
-  const officialSealUrl = invSettings.officialSealUrl || b2bConfig?.officialSealUrl;
-
-  // Order Items
-  const rawItems = Array.isArray(safeOrder.items) && safeOrder.items.length > 0 ? safeOrder.items : [
-    {
-      productId: "SAMPLE-01",
-      name: safeOrder.productName || "محصول سفارشی خط تولید کارخانه",
-      pricePerCarton: safeOrder.totalAmount || 15000000,
-      quantityCartons: 1,
-      productCode: "DS-101"
-    }
-  ];
-
-  const orderItems = rawItems.map((it: any, i: number) => {
-    const qty = Number(it.quantityCartons || it.quantity || 1);
-    const unitPrice = Number(
-      it.pricePerCarton || 
-      it.bulk_price || 
-      it.price || 
-      (safeOrder.totalAmount ? Math.round(safeOrder.totalAmount / (rawItems.length * qty)) : 5000000)
-    );
-    return {
-      productId: it.productId || `prod-${i}`,
-      name: it.name || it.title || "کالای سفارشی B2B",
-      pricePerCarton: unitPrice,
-      quantityCartons: qty,
-      productCode: it.productCode || it.code || `DS-${101 + i}`
-    };
+  // Shipping & Invoice serial
+  const [invoiceSerial] = useState<string>(() => {
+    if (order?.trackingNumber) return order.trackingNumber;
+    return order?.id ? `DX-${order.id.slice(-6).toUpperCase()}` : `DX-${Math.floor(100000 + Math.random() * 900000)}`;
   });
 
-  // Math Calculations
-  const rawSubtotal = orderItems.reduce((sum: number, item: any) => sum + (item.pricePerCarton * item.quantityCartons), 0);
-  const discount = Number(safeOrder.discountAmount || 0);
-
-  const calculatedItems = orderItems.map((item: any) => {
-    const price = item.pricePerCarton;
-    const qty = item.quantityCartons;
-    const gross = price * qty;
-    const itemShare = rawSubtotal > 0 ? (gross / rawSubtotal) : 0;
-    const itemDiscount = Math.round(discount * itemShare);
-    const net = Math.max(0, gross - itemDiscount);
-
-    return {
-      ...item,
-      price,
-      qty,
-      gross,
-      discount: itemDiscount,
-      total: net
-    };
+  // Items State (No Product Code column, simplified for extreme clarity)
+  const [items, setItems] = useState<any[]>(() => {
+    if (Array.isArray(order?.items) && order.items.length > 0) {
+      return order.items.map((it: any, index: number) => ({
+        id: it.id || it.productId || `item-${index + 1}`,
+        name: it.name || "کالای عمده سفارش داده شده",
+        quantityCartons: Number(it.quantityCartons || it.quantity || 1),
+        unit: it.unit || "کارتن",
+        pricePerCarton: Number(it.pricePerCarton || (it.price ? it.price * (it.carton_pack_count || 1) : 480000)),
+        discountPercent: Number(it.discountPercent || 0)
+      }));
+    }
+    return [
+      {
+        id: "p-sample-1",
+        name: "شکر تصفیه شده ۵۰ کیلویی درجه یک مستقیم کارخانه",
+        quantityCartons: 20,
+        unit: "کیسه ۵۰kg",
+        pricePerCarton: 1950000,
+        discountPercent: 0
+      },
+      {
+        id: "p-sample-2",
+        name: "روغن سرخ‌کردنی حلب ۱۶ کیلوگرمی صنعتی",
+        quantityCartons: 15,
+        unit: "حلب ۱۶kg",
+        pricePerCarton: 1120000,
+        discountPercent: 0
+      }
+    ];
   });
 
-  const sumGross = calculatedItems.reduce((sum: number, item: any) => sum + item.gross, 0);
-  const sumDiscount = calculatedItems.reduce((sum: number, item: any) => sum + item.discount, 0);
-  const grandTotal = calculatedItems.reduce((sum: number, item: any) => sum + item.total, 0);
+  const dateStr = order?.createdAt 
+    ? (typeof order.createdAt === 'string' ? order.createdAt : new Date().toLocaleDateString('fa-IR'))
+    : new Date().toLocaleDateString('fa-IR');
 
-  const multiplier = currencyUnit === 'rial' ? 10 : 1;
-  const currencyLabel = currencyUnit === 'rial' ? 'ریال' : 'تومان';
+  const sellerTitle = invSettings.sellerTitle || b2bConfig?.appName || "صنایع غذایی و بازرگانی دست اول";
+  const sellerPhone = invSettings.sellerPhone || "۰۲۱-۸۸۲۲۴۴۳۳";
+  const sellerMobile = invSettings.sellerMobile || "۰۹۰۴۴۵۰۲۹۰۰";
+  const sellerAddress = invSettings.sellerAddress || b2bConfig?.hqAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد، مجتمع پخش و بنکداری مرکزی دست اول";
 
-  // Fast PDF download using direct jsPDF and html2canvas with blob download
-  const handleDownloadPdf = async () => {
-    const invoiceElem = document.getElementById("printable-invoice");
-    if (!invoiceElem) {
-      alert("محتوای فاکتور یافت نشد.");
-      return;
-    }
+  // Calculations (Clean, simple, no tax)
+  const itemsCalculation = useMemo(() => {
+    return items.map(item => {
+      const grossTotal = Number(item.pricePerCarton || 0) * Number(item.quantityCartons || 0);
+      const discountVal = (grossTotal * Number(item.discountPercent || 0)) / 100;
+      const netTotal = grossTotal - discountVal;
+      return {
+        ...item,
+        grossTotal,
+        discountVal,
+        netTotal
+      };
+    });
+  }, [items]);
+
+  const totalGross = useMemo(() => {
+    return itemsCalculation.reduce((sum, it) => sum + it.grossTotal, 0);
+  }, [itemsCalculation]);
+
+  const grandTotal = useMemo(() => {
+    return itemsCalculation.reduce((sum, it) => sum + it.netTotal, 0);
+  }, [itemsCalculation]);
+
+  const totalQuantity = useMemo(() => {
+    return itemsCalculation.reduce((sum, it) => sum + Number(it.quantityCartons || 0), 0);
+  }, [itemsCalculation]);
+
+  const grandTotalInWords = numToPersianWords(grandTotal);
+
+  // Helper to reliably render invoice element to Image DataURL via html-to-image (native browser engine, 100% OKLCH compatible)
+  const captureInvoiceDataUrl = async (): Promise<string | null> => {
+    if (!invoiceRef.current) return null;
+    const element = invoiceRef.current;
 
     try {
-      setIsDownloadingPdf(true);
-
-      // Yield execution to allow UI loading spinner and animations to render smoothly
-      await new Promise((resolve) => setTimeout(resolve, 80));
-
-      const canvas = await html2canvas(invoiceElem, {
-        scale: 1.8,
-        useCORS: true,
-        logging: false,
-        allowTaint: false,
+      // First try toJpeg with pixelRatio: 2 for ultra crisp text and small file size
+      const dataUrl = await toJpeg(element, {
+        quality: 0.98,
+        pixelRatio: 2,
         backgroundColor: "#ffffff",
-        onclone: (clonedDoc: Document) => {
-          cleanClonedDocForPdf(clonedDoc);
-          const elem = clonedDoc.getElementById("printable-invoice");
-          if (elem) {
-            elem.style.transform = "none";
-            elem.style.margin = "0 auto";
-            elem.style.boxShadow = "none";
-            elem.style.borderRadius = "0";
-            elem.style.border = "none";
-            elem.style.width = "210mm";
-            elem.style.minHeight = "297mm";
-            elem.style.maxHeight = "none";
-            elem.style.padding = "8mm 6mm";
-            elem.style.fontFamily = "'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif";
-          }
-        }
+        cacheBust: true,
+        skipFonts: true,
+      });
+      return dataUrl;
+    } catch (err1) {
+      console.warn("toJpeg failed, trying toPng fallback:", err1);
+      try {
+        const dataUrl = await toPng(element, {
+          pixelRatio: 2,
+          backgroundColor: "#ffffff",
+          cacheBust: true,
+          skipFonts: true,
+        });
+        return dataUrl;
+      } catch (err2) {
+        console.error("html-to-image capture error:", err2);
+        return null;
+      }
+    }
+  };
+
+  // 1. Direct High-Resolution PDF Download (Native browser rendering, zero OKLCH issues)
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    setDownloadSuccessMessage(null);
+
+    try {
+      const imgData = await captureInvoiceDataUrl();
+      if (!imgData) throw new Error("Canvas rendering failed");
+
+      // Load image to get true pixel aspect ratio
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve(true);
+        img.onerror = reject;
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4"
       });
 
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 6;
+      const availableWidth = pdfWidth - (margin * 2);
+      const availableHeight = pdfHeight - (margin * 2);
 
-      let heightLeft = imgHeight;
-      let position = 0;
+      const imgWidth = availableWidth;
+      const imgHeight = (img.naturalHeight * imgWidth) / img.naturalWidth;
 
-      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, Math.min(imgHeight, pdfHeight));
-      heightLeft -= pdfHeight;
+      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, Math.min(imgHeight, availableHeight));
+      pdf.save(`Pishfaktor-${invoiceSerial}.pdf`);
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-      }
-
-      const pdfOutput = pdf.output('blob');
-      const blobUrl = URL.createObjectURL(pdfOutput);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `فاکتور_رسمی_${invoiceSerial}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-    } catch (error) {
-      console.warn("PDF download error:", error);
-      alert("خطا در تولید PDF. لطفاً مجدداً تلاش کنید.");
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  };
-
-  // Safe Native Print in Hidden Iframe
-  const handlePrint = () => {
-    const invoiceElem = document.getElementById("printable-invoice");
-    if (!invoiceElem) {
-      window.print();
-      return;
-    }
-
-    const printContent = invoiceElem.innerHTML;
-    const printIframe = document.createElement("iframe");
-    printIframe.style.position = "fixed";
-    printIframe.style.right = "0";
-    printIframe.style.bottom = "0";
-    printIframe.style.width = "0";
-    printIframe.style.height = "0";
-    printIframe.style.border = "0";
-    document.body.appendChild(printIframe);
-
-    const doc = printIframe.contentWindow?.document;
-    if (!doc) {
-      window.print();
-      return;
-    }
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="fa">
-      <head>
-        <meta charset="utf-8">
-        <title>فاکتور_رسمی_${invoiceSerial}</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
-        <style>
-          * { box-sizing: border-box !important; }
-          @page {
-            size: A4 portrait;
-            margin: 5mm !important;
-          }
-          html, body { 
-            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important; 
-            padding: 0 !important; 
-            margin: 0 !important; 
-            width: 100% !important;
-            height: auto !important;
-            background: #ffffff !important; 
-            color: #0f172a !important; 
-            direction: rtl !important; 
-            text-align: right !important; 
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            font-feature-settings: "tabular-nums", "ss01" !important;
-          }
-          .no-print { display: none !important; }
-          #printable-invoice {
-            width: 100% !important;
-            max-width: 198mm !important;
-            box-sizing: border-box !important;
-            padding: 0 !important;
-            margin: 0 auto !important;
-            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important;
-          }
-          table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 6px !important; }
-          th, td { 
-            border: 0.5px solid #94a3b8 !important; 
-            padding: 6px 8px !important; 
-            font-size: 8.5px !important; 
-            line-height: 1.4 !important; 
-            font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important;
-            font-variant-numeric: tabular-nums !important;
-          }
-          th { background-color: #f1f5f9 !important; font-weight: 900 !important; text-align: center !important; color: #020617 !important; }
-          @media print {
-            @page { size: A4 portrait; margin: 5mm !important; }
-            html, body { background: #ffffff !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
-            #printable-invoice { width: 100% !important; max-width: 198mm !important; margin: 0 auto !important; padding: 0 !important; }
-            tr { page-break-inside: avoid !important; }
-          }
-        </style>
-      </head>
-      <body>
-        ${printContent}
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.focus();
-              window.print();
-            }, 150);
-          };
-        </script>
-      </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
+      setDownloadSuccessMessage("فایل PDF پیش‌فاکتور رسمی با موفقیت دانلود شد.");
+      setTimeout(() => setDownloadSuccessMessage(null), 4000);
+    } catch (err) {
+      console.error("Error generating PDF:", err);
       try {
-        if (document.body.contains(printIframe)) {
-          document.body.removeChild(printIframe);
-        }
+        window.print();
       } catch (e) {
-        // ignore
+        console.error("Print fallback error", e);
       }
-    }, 3500);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
-  const handleCopySerial = () => {
-    navigator.clipboard.writeText(invoiceSerial);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // 2. High-Resolution Full-Page JPG Download (Native browser rendering, zero OKLCH issues)
+  const handleDownloadImage = async () => {
+    setIsGeneratingImage(true);
+    setDownloadSuccessMessage(null);
 
-  const formatPersianDate = (dateVal: any) => {
-    if (!dateVal) return toPersianNum("۱۴۰۵/۰۵/۱۸");
     try {
-      const d = dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
-      if (isNaN(d.getTime())) return toPersianNum("۱۴۰۵/۰۵/۱۸");
-      return new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-    } catch (e) {
-      return toPersianNum("۱۴۰۵/۰۵/۱۸");
+      const dataUrl = await captureInvoiceDataUrl();
+      if (!dataUrl) throw new Error("Image capture failed");
+
+      const link = document.createElement("a");
+      link.download = `Pishfaktor-${invoiceSerial}.jpg`;
+      link.href = dataUrl;
+      link.click();
+
+      setDownloadSuccessMessage("تصویر واضح و کامل پیش‌فاکتور ذخیره شد.");
+      setTimeout(() => setDownloadSuccessMessage(null), 4000);
+    } catch (err) {
+      console.error("Error generating Image:", err);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
-  const getPaymentMethodLabel = () => {
-    if (safeOrder.paymentMethod === 'cash') {
-      return 'نقدی (تسویه آنی درب کارخانه)';
+  // 3. Direct Print handler
+  const handlePrint = () => {
+    try {
+      window.print();
+    } catch (e) {
+      handleDownloadPdf();
     }
-    if (safeOrder.paymentMethod === 'cheque' || safeOrder.paymentMethod === 'full_check' || safeOrder.paymentMethod === 'half_check') {
-      const months = safeOrder.chequeDetails?.months || safeOrder.chequeMonths || 2;
-      return `چکی صیادی بنکداران (${months} ماهه)`;
-    }
-    return 'نقدی / اعتباری امن دست اول';
+  };
+
+  // 4. Quick Text Copy
+  const handleCopyText = () => {
+    const title = docType === 'proforma' ? 'پیش‌فاکتور فروش کالا' : 'فاکتور فروش کالا';
+    const text = `🧾 ${title} - ${sellerTitle}
+شماره فاکتور: ${toPersianNum(invoiceSerial)}
+تاریخ: ${toPersianNum(dateStr)}
+فروشنده: ${sellerTitle} (تلفن: ${toPersianNum(sellerPhone)} / ${toPersianNum(sellerMobile)})
+خریدار: ${buyerCompany} - ${buyerName} (تلفن: ${toPersianNum(buyerPhone)})
+مقصد تحویل: ${buyerProvinceCity} - ${buyerAddress}
+----------------------------------------
+تعداد کل اقلام: ${toPersianNum(totalQuantity)} واحد
+هزینه باربری: ۰ تومان (پس‌کرایه به عهده خریدار در مقصد)
+----------------------------------------
+مبلغ کل فاکتور: ${toPersianNum(grandTotal.toLocaleString())} تومان
+(${grandTotalInWords} تومان)`;
+    
+    navigator.clipboard.writeText(text);
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 3000);
+  };
+
+  const handleQuantityChange = (idx: number, newQty: number) => {
+    if (newQty < 1) return;
+    setItems(prev => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], quantityCartons: newQty };
+      return copy;
+    });
+  };
+
+  const handlePriceChange = (idx: number, newPrice: number) => {
+    if (newPrice < 0) return;
+    setItems(prev => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], pricePerCarton: newPrice };
+      return copy;
+    });
+  };
+
+  const handleDeleteItem = (idx: number) => {
+    if (items.length <= 1) return;
+    setItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddItem = () => {
+    setItems(prev => [
+      ...prev,
+      {
+        id: `p-item-${Date.now()}`,
+        name: "کالای جدید",
+        quantityCartons: 10,
+        unit: "کارتن",
+        pricePerCarton: 500000,
+        discountPercent: 0
+      }
+    ]);
   };
 
   return (
-    <div className="fixed inset-0 z-[110] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static print:inset-auto print:block print:overflow-visible" dir="rtl">
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          #printable-invoice, #printable-invoice * {
-            visibility: visible !important;
-          }
-          #printable-invoice {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            max-width: 198mm !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-            transform: none !important;
-            background: #ffffff !important;
-          }
-          .no-print, .no-print * {
-            display: none !important;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 5mm !important;
-          }
-        }
-      `}</style>
-
-      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[96vh] font-sans text-right border border-slate-200 overflow-hidden print:shadow-none print:border-none print:rounded-none print:max-w-none print:max-h-none print:block">
-        
-        {/* Top Material Action Bar */}
-        <div className="p-3 sm:p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-2.5 bg-slate-900 text-white rounded-t-3xl no-print print:hidden">
-          <div className="flex flex-wrap items-center gap-2">
-            <button 
-              onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf}
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-            >
-              {isDownloadingPdf ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <Download size={15} />
-              )}
-              <span>{isDownloadingPdf ? 'در حال صدور...' : 'دانلود فایل PDF'}</span>
-            </button>
-
-            <button 
-              onClick={handlePrint}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-            >
-              <Printer size={15} />
-              <span>چاپ فاکتور (A4)</span>
-            </button>
-
-            <button 
-              onClick={() => setCurrencyUnit(currencyUnit === 'toman' ? 'rial' : 'toman')}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer"
-            >
-              <Scale size={14} />
-              <span>واحد: {currencyUnit === 'toman' ? 'تومان' : 'ریال'}</span>
-            </button>
-
-            <button 
-              onClick={() => setIsEditMode(!isEditMode)}
-              className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer border ${isEditMode ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'}`}
-            >
-              {isEditMode ? <Check size={14} /> : <Edit3 size={14} />}
-              <span>{isEditMode ? 'تایید تغییرات' : 'ویرایش مشخصات'}</span>
-            </button>
-
-            <button
-              onClick={handleCopySerial}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer"
-              title="کپی شناسه یکتای فاکتور"
-            >
-              {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
-              <span>{copied ? 'کپی شد' : 'کپی کد'}</span>
-            </button>
+    <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-xs flex flex-col items-center justify-start overflow-y-auto p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible" dir="rtl">
+      
+      {/* Top Control Bar (Hidden on Print) */}
+      <div className="w-full max-w-3xl bg-white rounded-2xl border border-slate-200 p-2.5 mb-2 shadow-xl print:hidden sticky top-2 z-[210] flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+              <FileText size={16} />
+            </div>
+            <div>
+              <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <span>پیش‌فاکتور رسمی فروش کالا</span>
+                <span className="text-[9.5px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                  تک‌صفحه‌ای A4
+                </span>
+              </h2>
+              <p className="text-[10px] text-slate-500 font-medium">
+                شماره: <span className="font-mono text-slate-900 font-bold">{toPersianNum(invoiceSerial)}</span> | تاریخ: {toPersianNum(dateStr)}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-1 text-[11px] font-black text-emerald-400">
-              <Sparkles size={16} />
-              <span>«اللَّهُمَّ ارْزُقْنَا رِزْقًا حَلَالاً طَیِّبًا»</span>
-            </div>
-            <button 
-              onClick={onClose}
-              className="p-1.5 hover:bg-slate-800 rounded-full transition-all text-slate-400 hover:text-white cursor-pointer"
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            
+            {/* Download PDF Button */}
+            <button
+              id="btn-download-pdf-invoice"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+              title="دانلود فایل PDF پیش‌فاکتور"
             >
-              <X size={20} />
+              {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              <span>دانلود PDF</span>
+            </button>
+
+            {/* Print Button */}
+            <button
+              id="btn-print-official-invoice"
+              onClick={handlePrint}
+              className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
+              title="چاپ مستقیم فاکتور"
+            >
+              <Printer size={14} />
+              <span className="hidden sm:inline">چاپ</span>
+            </button>
+
+            {/* Download JPG Image Button */}
+            <button
+              onClick={handleDownloadImage}
+              disabled={isGeneratingImage}
+              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
+              title="دانلود عکس کامل برای واتساپ/ایتا/تلگرام"
+            >
+              {isGeneratingImage ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+              <span>دانلود عکس</span>
+            </button>
+
+            {/* Copy Text Button */}
+            <button
+              onClick={handleCopyText}
+              className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
+              title="کپی متن خلاصه فاکتور"
+            >
+              {copiedText ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+              <span className="hidden sm:inline">کپی</span>
+            </button>
+
+            {/* Admin Edit Controls */}
+            {isAdmin && (
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all border cursor-pointer ${
+                  isEditing 
+                    ? 'bg-amber-500 text-white border-amber-600' 
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                }`}
+              >
+                <Edit3 size={13} />
+                <span>{isEditing ? 'ذخیره' : 'ویرایش'}</span>
+              </button>
+            )}
+
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+              title="بستن"
+            >
+              <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Scrollable Container with Horizontal Overflow protection for mobile */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-6 bg-slate-100 print:bg-white print:p-0 print:overflow-visible print:block">
-          
-          {/* Quick Fields Editor Form */}
-          {isEditMode && (
-            <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-3 text-right animate-in fade-in duration-300 no-print print:hidden" dir="rtl">
-              <div className="flex items-center justify-between pb-2 border-b border-amber-200">
-                <div className="flex items-center gap-2">
-                  <Edit3 size={16} className="text-amber-700" />
-                  <h4 className="text-xs font-black text-amber-900">
-                    ویرایش مشخصات حقوقی فروشنده و خریدار جهت صدور فاکتور
-                  </h4>
-                </div>
-                <button
-                  onClick={() => {
-                    setSellerTitle("شرکت تجارت و توسعه صنایع غذایی دست اول (سهامی خاص)");
-                    setSellerNationalId("۱۰۱۰۳۴۸۲۹۱۰");
-                    setSellerEconomicCode("۴۱۱۲۹۳۸۴۷۱");
-                    setSellerPhone("۰۲۱-۸۸۲۲۴۴۳۳");
-                    setSellerAddress("تهران، خیابان ولیعصر، برج بازرگانی صنایع غذایی کشور، طبقه ۱۲");
-                  }}
-                  className="text-[10px] bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1 rounded-lg font-black flex items-center gap-1 cursor-pointer"
-                >
-                  <RotateCcw size={12} />
-                  بازنشانی پیش‌فرض
-                </button>
+        {downloadSuccessMessage && (
+          <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] font-bold p-1.5 rounded-lg flex items-center gap-1.5">
+            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+            <span>{downloadSuccessMessage}</span>
+          </div>
+        )}
+
+        {isAdmin && isEditing && (
+          <div className="flex items-center justify-end border-t border-slate-200 pt-1.5">
+            <button
+              onClick={handleAddItem}
+              className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <Plus size={12} />
+              <span>افزودن ردیف کالا</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* COMPACT, HIGH-CONTRAST INVOICE CONTAINER (Refined Iranian typography & font sizing) */}
+      <div 
+        ref={invoiceRef}
+        id="printable-invoice"
+        className="w-full max-w-3xl bg-white text-slate-900 border border-slate-900 p-3 sm:p-4 rounded-none mb-6 flex flex-col print:border-none print:m-0 print:p-0 print:w-full print:max-w-none text-right relative shadow-xl print:shadow-none box-border font-sans"
+        style={{ fontFamily: "'Vazirmatn', Tahoma, Arial, sans-serif" }}
+      >
+        
+        {/* Printable CSS Rules */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+            html, body {
+              background: #ffffff !important;
+              color: #000000 !important;
+              font-family: 'Vazirmatn', Tahoma, Arial, sans-serif !important;
+              font-size: 8.5pt !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            #printable-invoice {
+              width: 100% !important;
+              max-width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            .a4-table {
+              border-collapse: collapse !important;
+              width: 100% !important;
+              table-layout: fixed !important;
+            }
+            .a4-table th, .a4-table td {
+              border: 1px solid #000000 !important;
+              padding: 2px 4px !important;
+              color: #000000 !important;
+              font-size: 8pt !important;
+            }
+            .a4-table th {
+              background-color: #f8fafc !important;
+              font-weight: 900 !important;
+            }
+            .a4-box {
+              border: 1px solid #1e293b !important;
+            }
+            .a4-header-bg {
+              background-color: #f8fafc !important;
+              color: #000000 !important;
+            }
+            .print\\:hidden {
+              display: none !important;
+            }
+          }
+        `}} />
+
+        {/* 1. TOP HEADER (سربرگ رسمی با فونت متناسب) */}
+        <div className="border border-slate-200 p-3 mb-2 bg-slate-50/50 a4-box rounded-xl">
+          <div className="grid grid-cols-3 items-center">
+            {/* Right: Seller Title */}
+            <div className="text-right space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] shrink-0">۱</div>
+                <span className="text-xs sm:text-[12px] font-black text-slate-900">{sellerTitle}</span>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">شماره سریال فاکتور:</label>
-                  <input type="text" value={invoiceSerial} onChange={(e) => setInvoiceSerial(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold font-mono text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">نام شخص حقوقی فروشنده:</label>
-                  <input type="text" value={sellerTitle} onChange={(e) => setSellerTitle(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">شناسه ملی فروشنده:</label>
-                  <input type="text" value={sellerNationalId} onChange={(e) => setSellerNationalId(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">کد اقتصادی فروشنده:</label>
-                  <input type="text" value={sellerEconomicCode} onChange={(e) => setSellerEconomicCode(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
-                </div>
+              <span className="text-[8px] text-slate-500 font-medium block">توزیع مستقیم از کارخانجات صنایع غذایی و مواد اولیه</span>
+            </div>
 
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">نام شرکت/بنکداری خریدار:</label>
-                  <input type="text" value={buyerCompany} onChange={(e) => setBuyerCompany(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">نام مسئول تحویل‌گیرنده:</label>
-                  <input type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">شناسه/کد ملی خریدار:</label>
-                  <input type="text" value={buyerNationalId} onChange={(e) => setBuyerNationalId(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">کد اقتصادی خریدار (۱۲ رقمی):</label>
-                  <input type="text" value={buyerEconomicCode} onChange={(e) => setBuyerEconomicCode(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-black text-slate-700">تلفن تماس خریدار:</label>
-                  <input type="text" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-800" />
-                </div>
+            {/* Center: Main Title */}
+            <div className="text-center">
+              <h1 className="text-xs sm:text-[13px] font-black text-slate-900 tracking-tight">
+                {docType === 'proforma' ? 'پیش‌فاکتور فروش کالا' : 'فاکتور رسمی فروش کالا'}
+              </h1>
+              <span className="text-[8px] text-slate-500 font-medium block mt-0.5">
+                (سند تجاری معتبر / تحویل مستقیم از انبار)
+              </span>
+            </div>
 
-                <div className="space-y-1 md:col-span-2">
-                  <label className="font-black text-slate-700">نشانی کامل کارخانه / دفتر فروشنده:</label>
-                  <input type="text" value={sellerAddress} onChange={(e) => setSellerAddress(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-800" />
-                </div>
-                <div className="space-y-1 md:col-span-2">
-                  <label className="font-black text-slate-700">نشانی دقیق تخلیه بار خریدار:</label>
-                  <input type="text" value={buyerAddress} onChange={(e) => setBuyerAddress(e.target.value)} className="w-full p-2 bg-white border border-slate-300 rounded-xl text-slate-800" />
-                </div>
+            {/* Left: Invoice Number & Date */}
+            <div className="text-left space-y-0.5 text-[9px] sm:text-[9.5px]">
+              <div>
+                <span className="text-slate-400 font-medium font-sans">شماره: </span>
+                <span className="font-mono font-bold text-slate-900">{toPersianNum(invoiceSerial)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium font-sans">تاریخ صدور: </span>
+                <span className="font-mono font-bold text-slate-900">{toPersianNum(dateStr)}</span>
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Mobile Smart Invoice Summary Card (Responsive only on Mobile/Tablet) */}
-          <div className="block lg:hidden mb-6 bg-white border border-slate-100 rounded-[2rem] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] space-y-4 text-right no-print print:hidden" dir="rtl">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center border border-indigo-200">
-                  <FileText size={18} />
+        {/* 2. SIDE-BY-SIDE SELLER & BUYER DETAILS (2 Columns horizontal layout) */}
+        <div className="border border-slate-200 mb-2 a4-box bg-white overflow-hidden rounded-xl">
+          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-slate-200">
+            
+            {/* Right Half: Seller Info */}
+            <div className="p-2 text-[9px] sm:text-[9.5px] space-y-0.5 bg-white leading-snug">
+              <div className="bg-slate-50 px-2 py-1 border-b border-slate-200 font-black text-[9px] text-slate-800 a4-header-bg flex items-center justify-between">
+                <span>مشخصات فروشنده (تامین‌کننده)</span>
+                <span className="text-[7.5px] text-slate-500 font-normal">پخش عمده</span>
+              </div>
+              <div className="pt-1 space-y-1 text-slate-800">
+                <div>
+                  <span className="text-slate-400 font-medium">نام واحد: </span>
+                  <span className="font-bold text-slate-900">{sellerTitle}</span>
                 </div>
                 <div>
-                  <h3 className="text-xs sm:text-sm font-black text-slate-800">خلاصه سریع پیش‌فاکتور رسمی</h3>
-                  <p className="text-[10px] text-slate-400 font-bold">سریال فاکتور: {toPersianNum(invoiceSerial)}</p>
+                  <span className="text-slate-400 font-medium">تلفن تماس: </span>
+                  <span className="font-mono font-bold">{toPersianNum(sellerPhone)} - {toPersianNum(sellerMobile)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium">نشانی: </span>
+                  <span className="text-slate-600 text-[8.5px] sm:text-[9px]">{sellerAddress}</span>
                 </div>
               </div>
-              <div className="text-left">
-                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-black inline-block">
-                  {getPaymentMethodLabel().split(" ")[0]}
-                </span>
-              </div>
             </div>
 
-            {/* Seller & Buyer Header Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-bold text-slate-700">
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1.5">
-                <span className="text-[10px] text-indigo-600 font-black block">مشخصات فروشنده:</span>
-                <span className="text-slate-900 font-black block">{sellerTitle}</span>
-                <span className="text-[10px] text-slate-500 font-medium block">تلفن: {toPersianNum(sellerPhone)}</span>
+            {/* Left Half: Buyer Info */}
+            <div className="p-2 text-[9px] sm:text-[9.5px] space-y-0.5 bg-white leading-snug">
+              <div className="bg-slate-50 px-2 py-1 border-b border-slate-200 font-black text-[9px] text-slate-800 a4-header-bg flex items-center justify-between">
+                <span>مشخصات خریدار (تحویل‌گیرنده)</span>
+                {isEditing && <span className="text-[7px] bg-amber-200 text-amber-950 px-1 rounded font-bold print:hidden">ویرایش</span>}
               </div>
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 space-y-1.5">
-                <span className="text-[10px] text-emerald-600 font-black block">مشخصات خریدار (تحویل‌گیرنده):</span>
-                <span className="text-slate-900 font-black block">{buyerCompany} ({buyerName})</span>
-                <span className="text-[10px] text-slate-500 font-medium block">تلفن: {toPersianNum(buyerPhone)} | تخلیه: {buyerAddress}</span>
-              </div>
-            </div>
 
-            {/* Mobile Items List */}
-            <div className="space-y-2.5">
-              <span className="text-[10px] font-black text-slate-400 block">اقلام پیش‌فاکتور کالا:</span>
-              {calculatedItems.map((item: any, idx: number) => (
-                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex justify-between items-center gap-3">
-                  <div className="min-w-0">
-                    <span className="text-xs font-black text-slate-900 block truncate">{item.name}</span>
-                    <span className="text-[10px] text-slate-500 font-bold block mt-1">
-                      {toPersianNum(item.qty)} کارتن × {toPersianNum((item.price * multiplier).toLocaleString())} {currencyLabel}
-                    </span>
+              {isEditing ? (
+                <div className="space-y-1 pt-1 print:hidden">
+                  <input
+                    type="text"
+                    value={buyerCompany}
+                    onChange={(e) => setBuyerCompany(e.target.value)}
+                    placeholder="نام خریدار یا فروشگاه"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium"
+                  />
+                  <div className="grid grid-cols-2 gap-1">
+                    <input
+                      type="text"
+                      value={buyerName}
+                      onChange={(e) => setBuyerName(e.target.value)}
+                      placeholder="مسئول خرید"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium"
+                    />
+                    <input
+                      type="text"
+                      value={buyerPhone}
+                      onChange={(e) => setBuyerPhone(e.target.value)}
+                      placeholder="شماره تماس"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium font-mono"
+                    />
                   </div>
-                  <div className="text-left shrink-0">
-                    <span className="text-xs font-black text-emerald-600 block">
-                      {toPersianNum((item.total * multiplier).toLocaleString())} {currencyLabel}
-                    </span>
-                    {item.discount > 0 && (
-                      <span className="text-[9px] text-rose-500 font-bold block">
-                        تخفیف: -{toPersianNum((item.discount * multiplier).toLocaleString())}
+                  <input
+                    type="text"
+                    value={buyerAddress}
+                    onChange={(e) => setBuyerAddress(e.target.value)}
+                    placeholder="نشانی محل تخلیه بار"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium"
+                  />
+                </div>
+              ) : null}
+
+              <div className={`pt-1 space-y-1 text-slate-800 ${isEditing ? 'hidden sm:block' : ''}`}>
+                <div>
+                  <span className="text-slate-400 font-medium">خریدار / واحد: </span>
+                  <span className="font-bold text-slate-900">{buyerCompany} {buyerName ? `(${buyerName})` : ''}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium">تلفن تماس: </span>
+                  <span className="font-mono font-bold">{toPersianNum(buyerPhone)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium">مقصد تخلیه: </span>
+                  <span className="text-slate-600 text-[8.5px] sm:text-[9px]">{buyerProvinceCity} - {buyerAddress}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* 3. ITEMS TABLE (5 Clear Columns, NO product code, 100% table-fixed responsive) */}
+        <div className="border border-slate-200 mb-2 a4-box bg-white overflow-hidden rounded-xl">
+          <div className="bg-slate-50 px-2 py-1 border-b border-slate-200 font-bold text-[9px] text-slate-800 flex items-center justify-between a4-header-bg">
+            <span>مشخصات اقلام سفارش داده شده</span>
+            <span className="text-[8px] text-slate-500 font-normal">مبالغ به تومان</span>
+          </div>
+
+          <table className="w-full border-collapse text-right text-[9px] sm:text-[9.5px] a4-table table-fixed">
+            <thead>
+              <tr className="bg-slate-50 text-slate-800 font-extrabold border-b border-slate-200 a4-header-bg">
+                <th className="p-1.5 text-center w-[6%] border-l border-slate-200">ردیف</th>
+                <th className="p-1.5 text-right w-[46%] border-l border-slate-200">شرح کالا</th>
+                <th className="p-1.5 text-center w-[16%] border-l border-slate-200">تعداد و واحد</th>
+                <th className="p-1.5 text-center w-[16%] border-l border-slate-200">قیمت واحد (تومان)</th>
+                <th className="p-1.5 text-left w-[16%]">مبلغ کل (تومان)</th>
+                {isEditing && <th className="p-1 text-center w-5 print:hidden">حذف</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {itemsCalculation.map((item, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/50">
+                  <td className="p-1.5 text-center font-mono border-l border-slate-200 text-slate-500">
+                    {toPersianNum(idx + 1)}
+                  </td>
+                  <td className="p-1.5 text-right border-l border-slate-200 break-words">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => {
+                          const copy = [...items];
+                          copy[idx].name = e.target.value;
+                          setItems(copy);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-300 rounded px-1 text-[9px] font-medium"
+                      />
+                    ) : (
+                      <span className="text-slate-900 font-bold text-[9.5px] sm:text-[10px]">{item.name}</span>
+                    )}
+                  </td>
+                  <td className="p-1.5 text-center border-l border-slate-200 whitespace-nowrap">
+                    {isEditing ? (
+                      <div className="flex items-center justify-center gap-1 print:hidden">
+                        <button 
+                          onClick={() => handleQuantityChange(idx, (item.quantityCartons || 1) - 1)}
+                          className="w-3.5 h-3.5 bg-slate-200 rounded text-slate-800 font-bold flex items-center justify-center text-[9px]"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono text-[9px]">{toPersianNum(item.quantityCartons)}</span>
+                        <button 
+                          onClick={() => handleQuantityChange(idx, (item.quantityCartons || 1) + 1)}
+                          className="w-3.5 h-3.5 bg-slate-200 rounded text-slate-800 font-bold flex items-center justify-center text-[9px]"
+                        >
+                          +
+                        </button>
+                        <span className="text-[8px] text-slate-600">{item.unit || "کارتن"}</span>
+                      </div>
+                    ) : (
+                      <span className="font-mono font-bold text-slate-900">
+                        {toPersianNum(item.quantityCartons)} <span className="text-[8px] font-sans text-slate-500">{item.unit || "کارتن"}</span>
                       </span>
                     )}
-                  </div>
-                </div>
+                  </td>
+                  <td className="p-1.5 text-center font-mono border-l border-slate-200 text-slate-700 font-medium">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={item.pricePerCarton}
+                        onChange={(e) => handlePriceChange(idx, Number(e.target.value))}
+                        className="w-18 bg-slate-50 border border-slate-300 rounded px-1 text-[9px] font-mono text-center"
+                      />
+                    ) : (
+                      toPersianNum(item.pricePerCarton.toLocaleString())
+                    )}
+                  </td>
+                  <td className="p-1.5 text-left font-mono font-bold text-slate-900">
+                    {toPersianNum(item.netTotal.toLocaleString())}
+                  </td>
+                  {isEditing && (
+                    <td className="p-1 text-center print:hidden">
+                      <button
+                        onClick={() => handleDeleteItem(idx)}
+                        className="text-rose-600 hover:text-rose-800 p-0.5 cursor-pointer"
+                        title="حذف"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
               ))}
+
+              {/* Subtotal Row */}
+              <tr className="bg-slate-50/50 font-bold border-t border-slate-200 a4-header-bg">
+                <td colSpan={2} className="p-1.5 text-center border-l border-slate-200 text-[9px]">
+                  جمع کل سفارش ({toPersianNum(items.length)} قلم کالا)
+                </td>
+                <td className="p-1.5 text-center font-mono border-l border-slate-200 text-slate-900">
+                  {toPersianNum(totalQuantity)} <span className="text-[7.5px] font-sans text-slate-500">واحد</span>
+                </td>
+                <td className="p-1.5 text-center border-l border-slate-200 text-slate-400">-</td>
+                <td className="p-1.5 text-left font-mono font-black text-slate-950 text-[10px] sm:text-[10.5px]">
+                  {toPersianNum(grandTotal.toLocaleString())}
+                </td>
+                {isEditing && <td className="print:hidden"></td>}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* 4. FINANCIAL SUMMARY & DELIVERY TERMS */}
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          
+          {/* Delivery & Terms Box */}
+          <div className="border border-slate-200 p-2 bg-white a4-box space-y-1 text-[8.5px] sm:text-[9px] leading-snug rounded-xl">
+            <div className="bg-slate-50 px-2 py-1 border-b border-slate-200 font-bold text-slate-800 a4-header-bg flex items-center justify-between">
+              <span>شرایط تحویل و ارسال بار:</span>
+              <span className="text-[7.5px] text-slate-500">بارگیری مستقیم</span>
             </div>
 
-            {/* Math Breakdown Card */}
-            <div className="bg-slate-900 text-white p-4.5 rounded-[1.5rem] border border-slate-800 space-y-2 text-xs font-bold">
-              <div className="flex justify-between border-b border-slate-800 pb-2 text-slate-400 text-[11px]">
-                <span>جمع ناخالص اقلام:</span>
-                <span>{toPersianNum((sumGross * multiplier).toLocaleString())} {currencyLabel}</span>
+            <div className="p-1.5 border border-slate-100 bg-slate-50 rounded-lg space-y-1">
+              <div className="flex justify-between items-center font-bold text-slate-800">
+                <span>هزینه حمل و باربری:</span>
+                <span className="font-mono font-bold text-slate-900">۰ تومان (پس‌کرایه در مقصد)</span>
               </div>
-              {sumDiscount > 0 && (
-                <div className="flex justify-between text-emerald-400 text-[11px]">
-                  <span>مجموع تخفیف‌های تسویه نقدی:</span>
-                  <span>-{toPersianNum((sumDiscount * multiplier).toLocaleString())} {currencyLabel}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center text-sm font-black pt-1">
-                <span className="text-slate-100">مبلغ خالص قابل پرداخت:</span>
-                <span className="text-base font-black text-emerald-400">
-                  {toPersianNum((grandTotal * multiplier).toLocaleString())} {currencyLabel}
+              <p className="text-[7.5px] text-slate-400 font-normal leading-tight">
+                * بارگیری مستقیم از انبار کارخانه انجام شده و کرایه باربری در هنگام تخلیه توسط خریدار به باربری پرداخت می‌شود.
+              </p>
+            </div>
+
+            <div className="text-[8px] text-slate-600 space-y-0.5 pt-0.5">
+              <div>• نحوه تسویه: <span className="font-bold text-slate-800">تسویه نقدی پای بارنامه یا واریز به حساب کارخانه</span></div>
+              <div>• ضمانت کیفیت: <span className="font-bold text-slate-800">تضمین ۱۰۰٪ اصالت و تاریخ تولید به روز</span></div>
+            </div>
+          </div>
+
+          {/* Totals Summary */}
+          <div className="border border-slate-200 p-2 bg-white a4-box space-y-1 text-[8.5px] sm:text-[9px] leading-snug rounded-xl">
+            <div className="bg-slate-50 px-2 py-1 border-b border-slate-200 font-bold text-slate-800 a4-header-bg flex justify-between">
+              <span>خلاصه حساب فاکتور</span>
+              <span className="font-mono text-[7.5px] text-slate-500">تومان</span>
+            </div>
+
+            <div className="space-y-1 text-slate-800 pt-0.5">
+              <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">جمع کل اقلام:</span>
+                <span className="font-mono font-bold text-slate-700">{toPersianNum(totalGross.toLocaleString())} تومان</span>
+              </div>
+
+              <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">کرایه حمل و نقل:</span>
+                <span className="font-mono font-medium text-slate-500">۰ تومان (پس‌کرایه)</span>
+              </div>
+
+              <div className="flex justify-between items-center pt-1 text-[9.5px] sm:text-[10px] font-black bg-slate-50 p-1.5 border border-slate-200 a4-header-bg mt-1 rounded-lg">
+                <span>مبلغ نهایی فاکتور:</span>
+                <span className="font-mono text-slate-900 font-black text-xs">
+                  {toPersianNum(grandTotal.toLocaleString())} تومان
                 </span>
               </div>
-            </div>
 
-            {/* Sharing Utility Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  const itemsText = calculatedItems.map((item: any) => `- ${item.name} (${item.qty} کارتن)`).join("\n");
-                  const textToShare = `🧾 پیش‌فاکتور رسمی صادر شد\nسریال: ${invoiceSerial}\nفروشنده: ${sellerTitle}\nخریدار: ${buyerCompany}\n\nاقلام سفارش:\n${itemsText}\n\nمبلغ خالص قابل پرداخت: ${grandTotal.toLocaleString()} تومان\nتلفن هماهنگی: ${buyerPhone}\nپشتیبانی دست‌اول`;
-                  navigator.clipboard.writeText(textToShare);
-                  alert("متن خلاصه پیش‌فاکتور کپی شد! می‌توانید آن را در واتساپ، ایتا یا پیامک برای همکاران بفرستید.");
-                }}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-slate-200"
-              >
-                <span>📤 اشتراک‌گذاری پیش‌فاکتور (کپی خلاصه)</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Printable Sheet Wrapper (Responsive Horizontal Scroll and Auto-scaling on Mobile) */}
-          <div className="w-full overflow-x-auto pb-4 flex justify-center print:overflow-visible print:pb-0 print:p-0 print:block">
-            <div 
-              id="printable-invoice" 
-              className="p-5 sm:p-7 bg-white text-slate-900 border border-slate-300 print:border-none w-[210mm] min-w-[210mm] max-w-[210mm] print:w-full print:min-w-0 print:max-w-[198mm] print:shadow-none print:rounded-none print:scale-100 print:my-0 mx-auto relative overflow-hidden shadow-xs rounded-lg transform scale-[0.62] sm:scale-100 origin-top my-[-50px] sm:my-0 font-['Vazirmatn','IRANSans',sans-serif]" 
-              dir="rtl" 
-              style={{ fontFamily: "'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: '#0f172a', boxSizing: 'border-box', backgroundColor: '#ffffff', minHeight: '270mm', maxHeight: '287mm' }}
-            >
-              <div className="relative z-10 flex flex-col justify-between h-full space-y-3.5">
-                <div>
-                  {/* Official Header */}
-                  <div className="flex justify-between items-stretch border border-slate-300 mb-3 rounded-lg overflow-hidden bg-white">
-                    <div className="flex-1 p-2.5 border-l border-slate-300 flex items-center gap-2.5 bg-white">
-                      {b2bConfig?.logoUrl ? (
-                        <img src={b2bConfig.logoUrl} alt="Logo" className="w-10 h-10 object-contain" />
-                      ) : (
-                        <div className="w-9 h-9 bg-slate-900 text-white rounded flex items-center justify-center font-black text-xs shrink-0">
-                          دست
-                        </div>
-                      )}
-                      <div className="leading-snug">
-                        <h2 className="text-[12px] font-black text-slate-950">{sellerTitle}</h2>
-                        <p className="text-[8.5px] text-slate-700 font-bold mt-0.5">سامانه رسمی مبادلات مستمر صنایع غذایی</p>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 p-2.5 flex flex-col items-center justify-center text-center border-l border-slate-300 bg-white">
-                      <h1 className="text-[11px] font-black text-slate-800">بسم الله الرحمن الرحیم</h1>
-                      <div className="mt-1 px-3 py-0.5 bg-slate-100 text-slate-950 rounded text-[9.5px] font-black border border-slate-300">
-                        صورتحساب رسمی فروش کالا و خدمات
-                      </div>
-                    </div>
-
-                    <div className="w-48 p-2.5 flex flex-col justify-center space-y-1 text-[8.5px] font-bold bg-white">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600 font-medium">شماره فاکتور:</span>
-                        <span className="font-sans font-black text-slate-950 text-[9px] tabular-nums">{toPersianNum(invoiceSerial)}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-t border-slate-200 pt-1">
-                        <span className="text-slate-600 font-medium">تاریخ صدور:</span>
-                        <span className="font-sans font-extrabold text-slate-950 tabular-nums">{formatPersianDate(safeOrder.createdAt)}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-t border-slate-200 pt-1">
-                        <span className="text-slate-600 font-medium">کد پیگیری:</span>
-                        <span className="font-sans font-bold text-slate-950 text-[8.5px] tabular-nums">{toPersianNum(orderId.substring(0, 10))}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SELLER & BUYER SECTIONS - OFFICIAL TAX OFFICE (DARAYI) FORMAT */}
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    {/* SECTION 1: SELLER TABLE */}
-                    <div className="border-[0.5px] border-slate-400 rounded-lg overflow-hidden bg-white">
-                      <div className="bg-slate-100 border-b-[0.5px] border-slate-400 px-3 py-1.5 text-[9.5px] font-black text-slate-950 flex justify-between items-center">
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 bg-slate-900 rounded-full inline-block"></span>
-                          ۱. مشخصات فروشنده (تامین‌کننده / کارخانه)
-                        </span>
-                        <span className="text-[7.5px] font-bold text-slate-800 bg-slate-200/80 px-1.5 py-0.5 rounded border border-slate-300">ثبت‌شده در سامانه مؤدیان</span>
-                      </div>
-                      
-                      {/* Structured Table for Seller Specs */}
-                      <table className="w-full text-[8.5px] border-collapse font-sans font-['Vazirmatn','IRANSans',sans-serif]">
-                        <tbody>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium w-32 bg-slate-50/50 border-l-[0.5px] border-slate-300">نام شخص حقیقی/حقوقی:</td>
-                            <td colSpan={3} className="py-1 px-2 font-black text-slate-950 text-[9px]">{sellerTitle}</td>
-                          </tr>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شناسه / کد ملی:</td>
-                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(sellerNationalId)}</td>
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره اقتصادی:</td>
-                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] tabular-nums">{toPersianNum(sellerEconomicCode)}</td>
-                          </tr>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره ثبت / شناسنامه:</td>
-                            <td className="py-1 px-2 font-bold text-slate-950 border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(sellerRegNumber)}</td>
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">کد پستی ۱۰ رقمی:</td>
-                            <td className="py-1 px-2 font-bold text-slate-950 tabular-nums">{toPersianNum(sellerPostalCode)}</td>
-                          </tr>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">تلفن / نمابر کارخانه:</td>
-                            <td colSpan={3} className="py-1 px-2 font-bold text-slate-950 tabular-nums">{toPersianNum(sellerPhone)}</td>
-                          </tr>
-                          <tr>
-                            <td className="py-1.5 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300 align-top">نشانی اقامتگاه قانونی:</td>
-                            <td colSpan={3} className="py-1.5 px-2 font-black text-slate-950 text-[8.5px] leading-relaxed">{sellerAddress}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* SECTION 2: BUYER TABLE */}
-                    <div className="border-[0.5px] border-slate-400 rounded-lg overflow-hidden bg-white">
-                      <div className="bg-slate-100 border-b-[0.5px] border-slate-400 px-3 py-1.5 text-[9.5px] font-black text-slate-950 flex justify-between items-center">
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 bg-slate-900 rounded-full inline-block"></span>
-                          ۲. مشخصات خریدار (مشتری / بنکدار)
-                        </span>
-                        <span className="text-[7.5px] font-bold text-slate-800 bg-slate-200/80 px-1.5 py-0.5 rounded border border-slate-300">مؤدی مالیاتی معتبر</span>
-                      </div>
-                      
-                      {/* Structured Table for Buyer Specs */}
-                      <table className="w-full text-[8.5px] border-collapse font-sans font-['Vazirmatn','IRANSans',sans-serif]">
-                        <tbody>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium w-32 bg-slate-50/50 border-l-[0.5px] border-slate-300">نام شخص حقیقی/حقوقی:</td>
-                            <td colSpan={3} className="py-1 px-2 font-black text-slate-950 text-[9px]">{buyerCompany} ({buyerName})</td>
-                          </tr>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شناسه / کد ملی خریدار:</td>
-                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(buyerNationalId)}</td>
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره اقتصادی خریدار:</td>
-                            <td className="py-1 px-2 font-black text-slate-950 text-[9px] tabular-nums">{toPersianNum(buyerEconomicCode)}</td>
-                          </tr>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">شماره تماس / همراه:</td>
-                            <td className="py-1 px-2 font-bold text-slate-950 border-l-[0.5px] border-slate-300 tabular-nums">{toPersianNum(buyerPhone)}</td>
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">کد پستی ۱۰ رقمی:</td>
-                            <td className="py-1 px-2 font-bold text-slate-950 tabular-nums">{toPersianNum(buyerPostalCode)}</td>
-                          </tr>
-                          <tr className="border-b-[0.5px] border-slate-300">
-                            <td className="py-1 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300">مسئول تحویل‌گیرنده:</td>
-                            <td colSpan={3} className="py-1 px-2 font-bold text-slate-950">{buyerName}</td>
-                          </tr>
-                          <tr>
-                            <td className="py-1.5 px-2 text-slate-600 font-medium bg-slate-50/50 border-l-[0.5px] border-slate-300 align-top">نشانی تخلیه بار / انبار:</td>
-                            <td colSpan={3} className="py-1.5 px-2 font-black text-slate-950 text-[8.5px] leading-relaxed">{buyerAddress}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* SECTION 3: OFFICIAL ITEMS TABLE - LASER PRINT OPTIMIZED */}
-                  <div className="mb-3 rounded-lg overflow-hidden border-[0.5px] border-slate-400 bg-white">
-                    <table className="w-full text-[9px] border-collapse font-sans font-['Vazirmatn','IRANSans',sans-serif]">
-                      <thead>
-                        <tr className="bg-slate-100 font-black text-center border-b-[0.5px] border-slate-400 text-slate-950">
-                          <th className="py-2.5 px-1.5 w-8 border-l-[0.5px] border-slate-400">ردیف</th>
-                          <th className="py-2.5 px-2 text-right border-l-[0.5px] border-slate-400">شرح کالا یا خدمات</th>
-                          <th className="py-2.5 px-1.5 w-12 border-l-[0.5px] border-slate-400">تعداد</th>
-                          <th className="py-2.5 px-1.5 w-12 border-l-[0.5px] border-slate-400">واحد</th>
-                          <th className="py-2.5 px-2 w-24 border-l-[0.5px] border-slate-400">قیمت واحد ({currencyLabel})</th>
-                          <th className="py-2.5 px-2 w-28 border-l-[0.5px] border-slate-400">مبلغ کل ({currencyLabel})</th>
-                          <th className="py-2.5 px-2 w-20 border-l-[0.5px] border-slate-400">تخفیف ({currencyLabel})</th>
-                          <th className="py-2.5 px-2 w-28">مبلغ نهایی ({currencyLabel})</th>
-                        </tr>
-                      </thead>
-                      <tbody className="font-bold text-center">
-                        {calculatedItems.map((item: any, idx: number) => (
-                          <tr key={idx} className={`border-b-[0.5px] border-slate-400 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}>
-                            <td className="py-2.5 px-1.5 border-l-[0.5px] border-slate-400 text-slate-800 font-sans font-bold tabular-nums">{toPersianNum(idx + 1)}</td>
-                            <td className="py-2.5 px-2 text-right border-l-[0.5px] border-slate-400 font-sans font-black text-slate-950 leading-snug">{item.name}</td>
-                            <td className="py-2.5 px-1.5 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-slate-950 text-[9.5px] tabular-nums">{toPersianNum(item.qty)}</td>
-                            <td className="py-2.5 px-1.5 border-l-[0.5px] border-slate-400 text-slate-800 font-sans font-medium">کارتن</td>
-                            <td className="py-2.5 px-2 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-slate-950 text-[9.5px] tabular-nums">{toPersianNum((item.price * multiplier).toLocaleString())}</td>
-                            <td className="py-2.5 px-2 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-slate-950 text-[9.5px] tabular-nums">{toPersianNum((item.gross * multiplier).toLocaleString())}</td>
-                            <td className="py-2.5 px-2 border-l-[0.5px] border-slate-400 font-sans font-extrabold text-rose-700 text-[9.5px] tabular-nums">{item.discount > 0 ? toPersianNum((item.discount * multiplier).toLocaleString()) : '۰'}</td>
-                            <td className="py-2.5 px-2 font-sans font-black text-slate-950 text-[10px] bg-slate-100/60 tabular-nums">{toPersianNum((item.total * multiplier).toLocaleString())}</td>
-                          </tr>
-                        ))}
-                        <tr className="font-black bg-slate-100 text-slate-950 border-t-[1px] border-slate-500">
-                          <td colSpan={5} className="py-2.5 px-3 text-right font-black text-[9.5px] border-l-[0.5px] border-slate-400">جمع کل صورتحساب ({currencyLabel}):</td>
-                          <td className="py-2.5 px-2 font-sans font-black text-[10px] border-l-[0.5px] border-slate-400 tabular-nums">{toPersianNum((sumGross * multiplier).toLocaleString())}</td>
-                          <td className="py-2.5 px-2 font-sans font-black text-rose-700 text-[10px] border-l-[0.5px] border-slate-400 tabular-nums">{sumDiscount > 0 ? toPersianNum((sumDiscount * multiplier).toLocaleString()) : '۰'}</td>
-                          <td className="py-2.5 px-2 font-sans text-slate-950 bg-slate-200 text-[10.5px] font-black tabular-nums">{toPersianNum((grandTotal * multiplier).toLocaleString())}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* GRAND TOTAL IN WORDS & PAYMENT METHOD */}
-                  <div className="grid grid-cols-3 gap-2 mb-3 border border-slate-300 p-2.5 bg-white rounded-lg">
-                    <div className="col-span-2 space-y-0.5">
-                      <span className="text-[8.5px] font-black text-slate-700 block">مبلغ کل قابل پرداخت به حروف ({currencyLabel}):</span>
-                      <div className="text-[9.5px] font-black text-slate-950 bg-slate-50 p-2 border border-slate-200 rounded leading-relaxed">
-                        {numberToPersianWords(grandTotal * multiplier)} {currencyLabel} تمام
-                      </div>
-                    </div>
-                    <div className="space-y-0.5 text-left border-r border-slate-300 pr-3 flex flex-col justify-center">
-                      <span className="text-[8.5px] font-black text-slate-700 block">شرایط تسویه و پرداخت:</span>
-                      <span className="inline-block px-2.5 py-1 bg-slate-900 text-white rounded text-[8.5px] font-black">
-                        {getPaymentMethodLabel()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* AUTHENTICITY BLOCK */}
-                  <div className="grid grid-cols-4 gap-2 mb-2 border border-slate-300 p-2 bg-white rounded-lg items-center">
-                    <div className="col-span-3 flex items-center gap-3">
-                      <div className="p-1 border border-slate-300 rounded bg-slate-50 flex flex-col items-center shrink-0">
-                        <div className="flex gap-0.5 h-5 items-center px-1">
-                          {[2,1,3,1,2,1,1,3,2,1,2,1,3,1,2].map((w, idx) => (
-                            <div key={idx} className="bg-slate-900 h-full" style={{ width: `${w}px` }} />
-                          ))}
-                        </div>
-                        <span className="text-[7.5px] font-sans font-bold text-slate-700 mt-0.5 tabular-nums">{toPersianNum(invoiceSerial)}</span>
-                      </div>
-
-                      <div className="space-y-0.5">
-                        <h5 className="text-[9px] font-black text-slate-950">استعلام اصالت هوشمند صورتحساب</h5>
-                        <p className="text-[8px] font-bold text-slate-600 leading-tight">
-                          این فاکتور رسمی دارای شناسه یکتا و امضای دیجیتال ثبت شده در انبار مرکزی تولیدکننده است.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end items-center">
-                      <div className="w-10 h-10 border border-slate-300 rounded p-1 bg-white flex flex-col items-center justify-center text-slate-900">
-                        <QrCode size={26} strokeWidth={1.5} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIZQ & BLESSING BANNER */}
-                  <div className="my-1.5 p-1.5 bg-slate-100 border border-slate-300 rounded text-center text-[8.5px] font-black text-slate-900">
-                    «الکاسِبُ حَبِیبُ اللهِ» — با آرزوی خیر و برکت، رونق روزافزون و رزق حلال فراوان برای کسب‌وکار شما همکار محترم.
-                  </div>
-                </div>
-
-                {/* FOOTER & SIGNATURES - STANDARD TAX OFFICE (DARAYI) FORMAT */}
-                <div>
-                  <div className="grid grid-cols-2 gap-2 border border-slate-400 rounded-lg overflow-hidden bg-white shadow-2xs">
-                    {/* Buyer Stamp & Signature Box */}
-                    <div className="p-2.5 border-l border-slate-300 flex flex-col justify-between h-24 text-center bg-white relative">
-                      <div>
-                        <span className="text-[9.5px] font-black text-slate-950 block underline underline-offset-3">
-                          مهر و امضای خریدار (تحویل‌گیرنده / نماینده قانونی)
-                        </span>
-                        <span className="text-[7.5px] text-slate-600 font-bold block mt-1 leading-snug">
-                          تایید دریافت کالا سالم، صحت مشخصات و قبولی صورتحساب بر اساس ماده ۱۹ قانون مالیات بر ارزش افزوده
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-end text-[8px] text-slate-700 font-bold border-t border-dashed border-slate-300 pt-1">
-                        <span>نام و امضای خریدار: {buyerName}</span>
-                        <span>تاریخ: ... / ... / ۱۴۰۵</span>
-                      </div>
-                    </div>
-
-                    {/* Seller Stamp & Signature Box */}
-                    <div className="p-2.5 flex flex-col justify-between h-24 text-center relative bg-white">
-                      <div className="relative z-0">
-                        <span className="text-[9.5px] font-black text-slate-950 block underline underline-offset-3">
-                          مهر و امضای رسمی فروشنده (تامین‌کننده / کارخانه)
-                        </span>
-                        <span className="text-[7.5px] text-slate-600 font-bold block mt-1 leading-snug">
-                          تایید اصالت صدور صورتحساب و ثبت در سامانه مؤدیان سازمان امور مالیاتی کشور
-                        </span>
-                      </div>
-                      
-                      {officialSealUrl && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-90 z-10">
-                          <img src={officialSealUrl} alt="مهر رسمی کارخانه" className="w-18 h-18 object-contain rotate-6 drop-shadow-2xs" />
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-end text-[8px] text-slate-900 font-black border-t border-dashed border-slate-300 pt-1 z-0">
-                        <span>امضای مدیر مالی / صادرکننده</span>
-                        <span>{sellerTitle}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-1.5 flex justify-between items-center text-[7.5px] text-slate-600 font-bold border-t border-slate-300 pt-1">
-                    <span>* این صورتحساب بر اساس ماده ۱۹ قانون مالیات بر ارزش افزوده و دستورالعمل‌های اداره امور مالیاتی کشور تنظیم گردیده است.</span>
-                    <span>شناسه یکتای صورتحساب مالیاتی: <strong className="font-sans font-bold text-slate-900 tabular-nums">{toPersianNum(invoiceSerial)}</strong></span>
-                  </div>
-                </div>
-
+              <div className="text-[8px] text-slate-500 font-medium pt-0.5 text-center">
+                مبلغ به حروف: <span className="font-bold text-slate-800">{grandTotalInWords} تومان</span>
               </div>
             </div>
           </div>
+
         </div>
+
+        {/* 5. OFFICIAL DIGITAL STAMP & SIGNATURE (Authentic Signature Overlapping the Official Square QR Stamp) */}
+        <div className="border border-slate-200 p-3 bg-white a4-box rounded-xl mt-1">
+          <div className="grid grid-cols-2 gap-3 items-center text-center">
+            
+            {/* Buyer Confirmation Area */}
+            <div className="flex flex-col items-center justify-between min-h-[85px] border-l border-slate-200 pl-2">
+              <span className="text-[9px] font-bold text-slate-800">مهر و امضاء خریدار / متقاضی</span>
+              <div className="flex-1 flex items-center justify-center">
+                <span className="text-[8px] text-slate-400 font-medium border border-dashed border-slate-200 px-3 py-1.5 rounded-lg">
+                  محل امضاء و تایید خریدار
+                </span>
+              </div>
+              <span className="text-[7px] text-slate-400">تایید دریافت پیش‌فاکتور و ثبت سفارش</span>
+            </div>
+
+            {/* Seller Official Unified Stamp & Signature (Single, official, authentic overlap) */}
+            <div className="flex flex-col items-center justify-center min-h-[85px] pr-2 relative">
+              <span className="text-[9px] font-bold text-slate-800 mb-0.5">
+                مهر و امضای الکترونیکی بازرگانی دست اول
+              </span>
+              
+              {/* Unified Overlapping Stamp + Signature */}
+              <div className="relative w-44 h-24 flex items-center justify-center">
+                <OfficialUnifiedSealSignature className="w-full h-full" />
+              </div>
+
+              <div className="flex items-center gap-1 text-[7px] text-slate-400 font-bold">
+                <ShieldCheck size={10} className="text-blue-800" />
+                <span>تاییدیه دیجیتال رسمی مدیریت | کد ثبتی: ۳۳۶۰</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Footer Note */}
+        <div className="mt-2 text-center text-[7.5px] text-slate-400 font-medium border-t border-slate-100 pt-1">
+          صفحه ۱ از ۱ | پیش‌فاکتور رسمی و تجاری بازرگانی دست اول | استعلام اصالت سند: Dastavval.com
+        </div>
+
       </div>
     </div>
-  );
-}
-
-export default function WholesaleInvoiceView(props: WholesaleInvoiceViewProps) {
-  return (
-    <InvoiceErrorBoundary onClose={props.onClose}>
-      <WholesaleInvoiceContent {...props} />
-    </InvoiceErrorBoundary>
   );
 }
