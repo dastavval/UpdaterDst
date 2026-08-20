@@ -20,16 +20,17 @@ export default function DastavvalLogo({
   const [imgFailed, setImgFailed] = React.useState(false);
 
   const isDefaultLogo = logoUrl === "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png" || !logoUrl || logoUrl === "/assets/logo.svg" || logoUrl.includes("dastavval_logo.png");
+  const officialLogoUrl = "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
 
   return (
     <div className={`inline-flex items-center gap-2.5 ${className}`}>
-      {!isDefaultLogo && logoUrl && !imgFailed ? (
+      {((!isDefaultLogo && logoUrl) || officialLogoUrl) && !imgFailed ? (
         <div className="flex items-center justify-center shrink-0">
           <img
-            src={logoUrl}
-            alt="Logo"
+            src={logoUrl || officialLogoUrl}
+            alt="دست اول"
             style={{ height: size, width: 'auto' }}
-            className="object-contain max-w-[130px]"
+            className="object-contain max-w-[160px] drop-shadow-sm"
             referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
           />

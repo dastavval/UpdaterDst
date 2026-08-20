@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   Check, X, Search, Copy, Calculator, RefreshCw, BarChart2, Briefcase, 
   Clock, TrendingUp, Sparkles, Users, UserCheck, MessageCircle, HelpCircle,
-  TrendingDown, CheckCircle2, ChevronDown, MessageSquare, CheckCircle, Heart, Building2, Truck, Plus, ArrowLeftRight, Percent, ShieldCheck, Info
+  TrendingDown, CheckCircle2, ChevronDown, MessageSquare, CheckCircle, Heart, Building2, Truck, Plus, ArrowLeftRight, Percent, ShieldCheck, Info, ShoppingBag
 } from "lucide-react";
 import { Product } from "../types";
 
@@ -42,6 +42,7 @@ interface Tender {
 export default function EngagementHub({ products, onAddToCart, userBadge = "bronze", theme = "light" }: EngagementHubProps) {
   // State for Sub-Tabs - Completely redesigned with formal enterprise-grade options
   const [activeTab, setActiveTab] = useState<"stagnancy" | "logistics" | "rfq">("stagnancy");
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Zarinpal anti-fraud secure payment gateway states
   const [pendingPayment, setPendingPayment] = useState<{
@@ -109,7 +110,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
       case "639347": return { name: "بانک پاسارگاد", color: "bg-amber-500 text-slate-900", logo: "پاسارگاد" };
       case "622106":
       case "627884": return { name: "بانک پارسیان", color: "bg-emerald-700 text-white", logo: "پارسیان" };
-      default: return { name: "شبکه شتاب کشوری", color: "bg-slate-800 text-white", logo: "شتاب" };
+      default: return { name: "شبکه شتاب کشوری", color: "bg-slate-100 text-slate-800 border border-slate-200", logo: "شتاب" };
     }
   };
 
@@ -267,27 +268,23 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
     // Stagnancy Index calculation (1 to 10 scale)
     const stagnancyIndex = Math.min(10, Math.max(1, Math.round(ratio / 4 + (12 - monthsRemaining) / 2)));
     
-    // Automatic discount calculation (Factory-safe Margin check):
-    // Standard margin is usually difference between consumer_price and bulk_price
-    // We only offer a safe, small extra discount (1% to 6.5% max) of bulk_price
-    // to clear high stocks without violating purchase_price. Capped strictly at 7% to prevent loss.
+    // Automatic clearance discount (Higher profit margin for colleagues on stagnant stock)
     let discountPercent = 0;
     if (stagnancyIndex >= 8) {
-      discountPercent = 5.5 + (charCodeSum % 15) / 10; // 5.5% to 6.9%
+      discountPercent = 14.5 + (charCodeSum % 15) / 10; // 14.5% to 15.9% high profit margin
     } else if (stagnancyIndex >= 5) {
-      discountPercent = 3.0 + (charCodeSum % 20) / 10; // 3.0% to 4.9%
-    } else if (stagnancyIndex >= 3) {
-      discountPercent = 1.5 + (charCodeSum % 10) / 10; // 1.5% to 2.4%
+      discountPercent = 10.0 + (charCodeSum % 20) / 10; // 10.0% to 11.9%
     } else {
-      discountPercent = 0.5 + (charCodeSum % 5) / 10; // 0.5% to 0.9%
+      discountPercent = 7.5 + (charCodeSum % 10) / 10; // 7.5% to 8.4%
     }
     
-    discountPercent = Math.min(7.0, parseFloat(discountPercent.toFixed(1)));
+    discountPercent = Math.min(18.0, parseFloat(discountPercent.toFixed(1)));
     
     // Actual pricing
     const originalBulkPrice = p.bulk_price || p.price;
     const unitDiscountAmount = Math.round(originalBulkPrice * (discountPercent / 100));
     const discountedBulkPrice = originalBulkPrice - unitDiscountAmount;
+    const minOrderCartons = 5; // Minimum purchase for stagnant goods is strictly 5 cartons
     
     return {
       stagnancyIndex,
@@ -297,7 +294,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
       discountedBulkPrice,
       originalBulkPrice,
       stock,
-      moq
+      moq: minOrderCartons
     };
   };
 
@@ -312,16 +309,21 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
     
     // We add to cart using the discounted bulk price
     const metrics = calculateStagnancyMetrics(p);
+    const packCount = Number(p.carton_pack_count || 24);
     
-    // Create a modified copy of the product with the discounted bulk price
+    // Create a robust modified copy of the product with the discounted bulk price
     const discountedProduct: Product = {
       ...p,
+      id: p.id || `stagnant-${Date.now()}`,
       bulk_price: metrics.discountedBulkPrice,
-      price: metrics.discountedBulkPrice // ensure both matches
+      price: metrics.discountedBulkPrice,
+      carton_pack_count: packCount
     };
     
     onAddToCart(discountedProduct, qty);
-    alert(`کارتن کدهای تخفیف رسوب‌زدایی اعمال شد! ${toPersianNum(qty)} کارتن از محصول «${p.name}» با قیمت تخفیف خورده همکار به سبد خرید اضافه گردید.`);
+    window.dispatchEvent(new CustomEvent('open-cart'));
+    setToastMsg(`✅ حواله خرید ${toPersianNum(qty)} کارتن از محصول «${p.name}» با تخفیف رسوب‌زدایی (${toPersianNum(metrics.discountPercent)}٪) با موفقیت به سبد خرید اضافه شد.`);
+    setTimeout(() => setToastMsg(null), 5000);
   };
 
   // ----------------------------------------------------
@@ -381,32 +383,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
     if (savedBarter) {
       setBarterList(JSON.parse(savedBarter));
     } else {
-      const initialBarters: BarterProposal[] = [
-        {
-          id: "bart-1",
-          companyName: "صنایع غذایی طعم‌سازان سپاهان",
-          contactName: "مهندس علوی",
-          offeredItem: "کارتن‌های عمده رب گوجه‌فرنگی ۸۰۰ گرمی بهروز",
-          offeredQty: 150,
-          wantedItem: "روغن سرخ‌کردنی آفتابگردان ۱.۵ لیتری",
-          wantedQty: 100,
-          contactPhone: "۰۹۱۲۵۴۵۷۸۹۶",
-          status: "active",
-          createdAt: "۱۴۰۵/۰۵/۲۲"
-        },
-        {
-          id: "bart-2",
-          companyName: "شرکت توزیع ستاره البرز",
-          contactName: "حاج عباس قاسمی",
-          offeredItem: "کنسرو ماهی تن تونین ۱۸۰ گرمی بندرلنگه",
-          offeredQty: 80,
-          wantedItem: "کلوچه خرمایی نظری یا کلوچه لاهیجان",
-          wantedQty: 120,
-          contactPhone: "۰۹۱۳۲۱۰۴۴۵۵",
-          status: "negotiating",
-          createdAt: "۱۴۰۵/۰۵/۲۱"
-        }
-      ];
+      const initialBarters: BarterProposal[] = [];
       setBarterList(initialBarters);
       localStorage.setItem("dastavval_official_barters", JSON.stringify(initialBarters));
     }
@@ -468,22 +445,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
     if (savedTenders) {
       setTenders(JSON.parse(savedTenders));
     } else {
-      const initialTenders: Tender[] = [
-        {
-          id: "rfq-1",
-          productName: "کلوچه لاهیجان صادراتی عمده",
-          qtyCartons: 150,
-          paymentType: "check",
-          deliveryDays: 7,
-          status: "completed",
-          bestBidPrice: 14200,
-          bids: [
-            { factory: "کلوچه نادری لاهیجان", price: 15100, delay: "۶ روزه", timestamp: "۱۲ دقیقه پیش" },
-            { factory: "صنایع غذایی پیمان لاهیجان", price: 14200, delay: "۴ روزه", timestamp: "۵ دقیقه پیش" }
-          ],
-          createdAt: "۱۴۰۵/۰۵/۱۹"
-        }
-      ];
+      const initialTenders: Tender[] = [];
       setTenders(initialTenders);
       localStorage.setItem("dastavval_official_rfqs", JSON.stringify(initialTenders));
     }
@@ -574,7 +536,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
         <div className="absolute top-0 right-0 w-32 h-32 bg-slate-200/40 rounded-full blur-2xl pointer-events-none" />
         
         <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-right relative z-10 w-full md:w-auto">
-          <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xl shadow-sm shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-sm shrink-0">
             <ShieldCheck size={24} className="text-white" />
           </div>
           <div>
@@ -654,6 +616,13 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
           {/* TAB 1: AUTOMATIC STAGNATION DISCOUNTS */}
           {activeTab === "stagnancy" && (
             <div className="space-y-5">
+              {toastMsg && (
+                <div className="p-3 bg-emerald-600 text-white text-xs font-black rounded-xl shadow-md flex items-center justify-between gap-3">
+                  <span>{toastMsg}</span>
+                  <button onClick={() => setToastMsg(null)} className="text-white/80 hover:text-white cursor-pointer">✕</button>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
@@ -671,64 +640,72 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
               </div>
 
               {/* Stagnancy Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {stagnancyProducts.slice(0, 4).map(({ product, metrics }, stagIdx) => (
-                  <div key={`stag-prod-${product.id || 'p'}-${stagIdx}`} className="border border-slate-200 rounded-xl p-4 hover:shadow-xs transition-shadow flex flex-col justify-between bg-slate-50/50">
+                  <div key={`stag-prod-${product.id || 'p'}-${stagIdx}`} className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:scale-150 transition-transform" />
+                    
                     <div>
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <span className="text-[9px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full font-bold">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[10px] bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full font-black border border-emerald-200/60">
                             {product.brand}
                           </span>
-                          <h4 className="text-xs font-black text-slate-900 mt-1.5">{product.name}</h4>
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-2">{product.name}</h4>
                         </div>
-                        <div className="text-left">
-                          <span className="text-[10px] text-slate-400 block font-bold">شاخص انباشت انبار</span>
-                          <span className="text-xs font-mono font-black text-slate-800">
-                            {toPersianNum(metrics.stagnancyIndex)} / ۱۰
+                        <div className="text-left shrink-0 bg-slate-50 px-3 py-1.5 rounded-2xl border border-slate-200/80">
+                          <span className="text-[9px] text-slate-400 block font-bold">شاخص انباشت</span>
+                          <span className="text-xs font-mono font-black text-slate-900">
+                            {toPersianNum(metrics.stagnancyIndex)} <span className="text-[10px] text-slate-400">/ ۱۰</span>
                           </span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 my-4 bg-white p-3 rounded-lg border border-slate-100">
+                      <div className="grid grid-cols-2 gap-3 my-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
                         <div>
-                          <span className="text-[9px] text-slate-400 block font-bold">موجودی کارخانه:</span>
-                          <span className="text-xs font-black text-slate-800 font-mono">
+                          <span className="text-[10px] text-slate-500 block font-bold">موجودی کارخانه:</span>
+                          <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block">
                             {toPersianNum(metrics.stock)} کارتن
                           </span>
                         </div>
                         <div>
-                          <span className="text-[9px] text-slate-400 block font-bold">انقضا باقی‌مانده:</span>
-                          <span className="text-xs font-black text-slate-800 font-mono">
+                          <span className="text-[10px] text-slate-500 block font-bold">مانده تا انقضا:</span>
+                          <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block">
                             {toPersianNum(metrics.monthsRemaining)} ماه
                           </span>
                         </div>
                       </div>
 
-                      <div className="my-3 flex items-center justify-between text-xs">
-                        <span className="text-[11px] text-slate-500 font-bold">قیمت عمده مصوب کارخانه:</span>
-                        <span className="font-mono text-slate-400 line-through">
-                          {formatPrice(metrics.originalBulkPrice)}
-                        </span>
-                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs px-1">
+                          <span className="text-[11px] text-slate-500 font-bold">قیمت عمده مصوب:</span>
+                          <span className="font-mono text-slate-400 line-through text-xs">
+                            {formatPrice(metrics.originalBulkPrice)}
+                          </span>
+                        </div>
 
-                      <div className="my-3 flex items-center justify-between text-xs p-2 bg-emerald-50 rounded-lg border border-emerald-100">
-                        <span className="text-[11px] text-emerald-800 font-black">تخفیف رسوب‌زدایی خودکار ({toPersianNum(metrics.discountPercent)}٪):</span>
-                        <span className="font-mono text-emerald-700 font-black">
-                          {formatPrice(metrics.discountedBulkPrice)}
-                        </span>
+                        <div className="flex items-center justify-between text-xs p-3 bg-emerald-50/80 rounded-2xl border border-emerald-200/60">
+                          <span className="text-[11px] text-emerald-900 font-black flex items-center gap-1.5">
+                            <Sparkles size={14} className="text-emerald-600" />
+                            <span>تخفیف رسوب‌زدایی ({toPersianNum(metrics.discountPercent)}٪):</span>
+                          </span>
+                          <span className="font-mono text-emerald-700 font-black text-sm">
+                            {formatPrice(metrics.discountedBulkPrice)}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                      <div className="text-[9px] text-slate-400 font-bold max-w-[150px]">
-                        * تخفیف بر اساس مدت زمان مانده تا انقضا و موجودی راکد محاسبه شده است.
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="text-[9px] text-slate-500 font-black text-right sm:max-w-[180px]">
+                        ✨ حداقل خرید ۵ کارتن با حاشیه سود ویژه و بالاتر برای همکار.
                       </div>
                       <button
-                        onClick={() => handlePurchaseStagnancyBatch(product, product.min_order_cartons || 10)}
-                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                        onClick={() => handlePurchaseStagnancyBatch(product, metrics.moq)}
+                        className="w-full sm:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
                       >
-                        <span>ثبت حواله خرید ({toPersianNum(product.min_order_cartons || 10)} کارتن)</span>
+                        <ShoppingBag size={15} />
+                        <span>ثبت حواله خرید ({toPersianNum(metrics.moq)} کارتن) - سود بالا</span>
                       </button>
                     </div>
                   </div>
@@ -754,7 +731,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 {/* Inputs */}
                 <div className="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-black text-slate-700 block">انتخاب کالای هدف برای بارگیری دمو:</label>
+                    <label className="text-[11px] font-black text-slate-700 block">انتخاب کالای هدف برای بارگیری:</label>
                     <select
                       value={calcProductId}
                       onChange={(e) => setCalcProductId(e.target.value)}
@@ -875,7 +852,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 </div>
                 <button
                   onClick={() => setIsTenderModalOpen(true)}
-                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>ایجاد استعلام تقاضای جدید</span>
@@ -950,7 +927,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
 
       {/* MODAL 1: ADD BARTER PROPOSAL */}
       {isBarterModalOpen && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-white/40 backdrop-blur-xs">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1059,7 +1036,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-lg cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg cursor-pointer"
                 >
                   ثبت رسمی سند تهاتر
                 </button>
@@ -1071,7 +1048,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
 
       {/* MODAL 2: ADD RFQ / TENDER REQUEST */}
       {isTenderModalOpen && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-white/40 backdrop-blur-xs">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1144,7 +1121,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-lg cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg cursor-pointer"
                 >
                   انتشار آگهی RFQ جهت قیمت‌دهی
                 </button>
@@ -1156,58 +1133,58 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
 
       {/* --- ZARINPAL ANTI-FRAUD SECURE PAYMENT GATEWAY --- */}
       {isZarinpalOpen && pendingPayment && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-white/80 backdrop-blur-md">
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden max-w-lg w-full shadow-2xl text-right p-6 sm:p-8"
+            className="bg-white border border-slate-200 rounded-3xl overflow-hidden max-w-lg w-full shadow-2xl text-right p-6 sm:p-8"
             dir="rtl"
           >
             {!paymentReceipt ? (
               <div className="space-y-5">
                 {/* Header */}
-                <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                  <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center text-lg">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                  <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-lg">
                     📢
                   </div>
                   <div>
-                    <h4 className="font-black text-slate-800 dark:text-slate-100 text-sm">فعال‌سازی و تایید آگهی توسط مدیریت</h4>
+                    <h4 className="font-black text-slate-800 text-sm">فعال‌سازی و تایید آگهی توسط مدیریت</h4>
                     <span className="text-[10px] text-slate-400 block font-bold">بدون نیاز به تراکنش بانکی آنلاین</span>
                   </div>
                 </div>
 
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 p-3.5 rounded-xl border border-emerald-100 dark:border-emerald-900/20 text-xs text-slate-700 dark:text-slate-300 space-y-1">
-                  <span className="text-[9px] text-emerald-800 dark:text-emerald-400 font-black block">خدمت انتخابی:</span>
+                <div className="bg-emerald-50 p-3.5 rounded-xl border border-emerald-100 text-xs text-slate-700 space-y-1">
+                  <span className="text-[9px] text-emerald-800 font-black block">خدمت انتخابی:</span>
                   <span className="font-bold block">{pendingPayment.description}</span>
-                  <span className="text-[9px] text-emerald-800 dark:text-emerald-400 font-black block mt-2">وضعیت فعال‌سازی:</span>
-                  <span className="font-bold block text-emerald-600 dark:text-emerald-400">بررسی و انتشار مستقیم توسط مدیریت (رایگان)</span>
+                  <span className="text-[9px] text-emerald-800 font-black block mt-2">وضعیت فعال‌سازی:</span>
+                  <span className="font-bold block text-emerald-600">بررسی و انتشار مستقیم توسط مدیریت (رایگان)</span>
                 </div>
 
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-bold">
+                <p className="text-[11px] text-slate-500 leading-relaxed font-bold">
                   به منظور حذف واسطه‌ها و حفظ امنیت کامل معاملات تهاتری و مناقصات خرید عمده، سیستم پرداخت آنلاین موقتاً غیرفعال شده است. آگهی شما به صورت مستقیم به دست مدیریت کل پلتفرم دست‌اول ارسال می‌گردد و پس از تایید (کمتر از ۱ ساعت)، منتشر خواهد شد.
                 </p>
 
                 {/* Direct Call & Support */}
-                <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-850 p-4 rounded-xl border border-slate-150/50 dark:border-slate-800">
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-150/50">
                   <div>
                     <span className="text-[9px] text-slate-400 font-bold block">شماره تماس مستقیم مدیر:</span>
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 font-mono">۰۹۱۴۴۷۱۳۴۰۵</span>
+                    <span className="text-xs font-black text-slate-800 font-mono">۰۹۱۴۴۷۱۳۴۰۵</span>
                   </div>
                   <div>
                     <span className="text-[9px] text-slate-400 font-bold block">پشتیبانی آنلاین:</span>
-                    <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400">روبیکا / تلگرام</span>
+                    <span className="text-[11px] font-black text-indigo-600">روبیکا / تلگرام</span>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="pt-4 border-t border-slate-150 dark:border-slate-800 flex gap-2">
+                <div className="pt-4 border-t border-slate-150 flex gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setIsZarinpalOpen(false);
                       setPendingPayment(null);
                     }}
-                    className="w-1/2 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-700 dark:text-slate-300 rounded-xl cursor-pointer"
+                    className="w-1/2 py-3 bg-slate-100 border border-slate-200 text-xs font-black text-slate-700 rounded-xl cursor-pointer"
                   >
                     انصراف
                   </button>
@@ -1246,16 +1223,16 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2 text-right text-xs">
-                    <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                  <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-2 text-right text-xs">
+                    <div className="flex justify-between items-center text-slate-600">
                       <span>نوع آگهی:</span>
                       <span className="font-bold">
                         {paymentReceipt.type === "barter" ? "ثبت حواله تهاتر صنعتی" : "صدور آگهی مناقصه خرید عمده"}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                    <div className="flex justify-between items-center text-slate-600">
                       <span>شناسه ارجاع به مدیر:</span>
-                      <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{toPersianNum(paymentReceipt.referenceId)}</span>
+                      <span className="font-mono font-bold text-slate-900">{toPersianNum(paymentReceipt.referenceId)}</span>
                     </div>
                   </div>
                 </div>

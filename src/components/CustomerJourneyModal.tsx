@@ -63,7 +63,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md" dir="rtl">
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-white/70 backdrop-blur-md" dir="rtl">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -73,7 +73,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-6 left-6 p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors z-10 cursor-pointer"
+            className="absolute top-6 left-6 p-2.5 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 border border-slate-200 transition-colors z-10 cursor-pointer shadow-sm"
           >
             <X size={20} />
           </button>
@@ -95,7 +95,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
           </div>
 
           {/* Persona Switcher Tabs */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-slate-100 p-1.5 rounded-2xl">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
             <button
               onClick={() => setActivePersona('buyer')}
               className={`py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
@@ -112,7 +112,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
               onClick={() => setActivePersona('agency')}
               className={`py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 activePersona === 'agency'
-                  ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                  ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
@@ -151,7 +151,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
 
                 {/* 4 Steps Visual Timeline */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative shadow-xs">
                     <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۱</span>
                     <h4 className="text-xs font-black text-slate-900">جستجو و مقایسه قیمت</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
@@ -159,7 +159,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative shadow-xs">
                     <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۲</span>
                     <h4 className="text-xs font-black text-slate-900">صدور پیش‌فاکتور رسمی</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
@@ -167,7 +167,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative shadow-xs">
                     <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۳</span>
                     <h4 className="text-xs font-black text-slate-900">پرداخت امن امانی</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
@@ -175,7 +175,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2 text-right relative shadow-xs">
                     <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۴</span>
                     <h4 className="text-xs font-black text-slate-900">بارگیری مسقف و تحویل</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
@@ -185,20 +185,20 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                 </div>
 
                 {/* Live Profit Savings Calculator */}
-                <div className="bg-gradient-to-br from-slate-900 to-emerald-950 text-white p-6 rounded-3xl space-y-4 border border-emerald-500/30">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-black text-emerald-400 flex items-center gap-2">
-                      <Scale size={18} />
+                <div className="bg-emerald-50/90 text-slate-900 p-6 rounded-3xl space-y-4 border-2 border-emerald-200 shadow-sm">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-xs sm:text-sm font-black text-emerald-900 flex items-center gap-2">
+                      <Scale size={18} className="text-emerald-700 shrink-0" />
                       <span>محاسبه‌گر زنده سود شما از خرید مستقیم کارخانه</span>
                     </h4>
-                    <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/40">
+                    <span className="text-[11px] bg-emerald-100 text-emerald-800 font-black px-3 py-1 rounded-full border border-emerald-300">
                       ۳۲٪ صرفه‌جویی میانگین
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                     <div className="space-y-1.5">
-                      <label className="text-slate-300 font-bold block">تعداد کارتن سفارشی:</label>
+                      <label className="text-slate-700 font-bold block">تعداد کارتن سفارشی:</label>
                       <input 
                         type="number"
                         min="10"
@@ -206,24 +206,24 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                         step="10"
                         value={calculatorCartons}
                         onChange={(e) => setCalculatorCartons(Math.max(1, Number(e.target.value)))}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white font-mono font-bold"
+                        className="w-full bg-white border border-emerald-300 rounded-xl p-2.5 text-slate-900 font-mono font-bold shadow-xs focus:ring-2 focus:ring-emerald-500 outline-none"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-slate-300 font-bold block">قیمت حدودی بازار آزاد (هر کارتن):</label>
+                      <label className="text-slate-700 font-bold block">قیمت حدودی بازار آزاد (هر کارتن):</label>
                       <input 
                         type="number"
                         step="10000"
                         value={unitMarketPrice}
                         onChange={(e) => setUnitMarketPrice(Math.max(10000, Number(e.target.value)))}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white font-mono font-bold"
+                        className="w-full bg-white border border-emerald-300 rounded-xl p-2.5 text-slate-900 font-mono font-bold shadow-xs focus:ring-2 focus:ring-emerald-500 outline-none"
                       />
                     </div>
 
-                    <div className="bg-emerald-950/80 border border-emerald-500/40 p-3 rounded-2xl flex flex-col justify-center text-center">
-                      <span className="text-[11px] text-emerald-300 font-bold">سود خالص شما از این سفارش:</span>
-                      <span className="text-base sm:text-lg font-black text-emerald-400 font-mono mt-1">
+                    <div className="bg-white border-2 border-emerald-400 p-3 rounded-2xl flex flex-col justify-center text-center shadow-sm">
+                      <span className="text-[11px] text-emerald-800 font-bold">سود خالص شما از این سفارش:</span>
+                      <span className="text-base sm:text-lg font-black text-emerald-700 font-mono mt-1">
                         {formatPrice(totalSavings)}
                       </span>
                     </div>

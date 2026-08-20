@@ -133,21 +133,80 @@ export const orderBy = (...args: any[]) => ({});
 export const where = (...args: any[]) => ({});
 export const onSnapshot = (...args: any[]) => () => {};
 
-export const signInWithEmailAndPassword = async (...args: any[]) => ({
-  user: {
-    uid: '123',
-    email: args[1] || 'user@example.com',
-    displayName: 'کاربر گرامی'
-  }
-});
+export const signInWithEmailAndPassword = async (...args: any[]) => {
+  const emailOrPhone = args[1]?.toLowerCase().trim() || "";
+  const password = args[2] || "";
 
-export const createUserWithEmailAndPassword = async (...args: any[]) => ({
-  user: {
-    uid: '123',
-    email: args[1] || 'user@example.com',
-    displayName: 'کاربر گرامی'
+  // Hardcoded Admin Credentials Check
+  if ((emailOrPhone === '09914762406' || emailOrPhone === 'admin@dastaval.ir') && password === '@Ali3360') {
+    return {
+      user: {
+        uid: 'admin_uid',
+        email: emailOrPhone,
+        displayName: 'مدیریت کل سامانه'
+      }
+    };
   }
-});
+
+  // Retrieve mock registered users
+  let localUsers: Record<string, any> = {};
+  if (typeof window !== "undefined") {
+    try {
+      localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+    } catch (e) {
+      console.error("Error reading localStorage in mock signIn:", e);
+    }
+  }
+
+  // Find user by email or phone key, or inside the user object properties
+  let foundUser = localUsers[emailOrPhone];
+  if (!foundUser) {
+    foundUser = Object.values(localUsers).find(
+      (u: any) => 
+        u.email?.toLowerCase().trim() === emailOrPhone || 
+        u.phone?.trim() === emailOrPhone
+    );
+  }
+
+  if (!foundUser) {
+    const error = new Error("کاربری با این مشخصات یافت نشد.");
+    (error as any).code = "auth/user-not-found";
+    throw error;
+  }
+
+  if (foundUser.password !== password) {
+    const error = new Error("رمز عبور اشتباه است.");
+    (error as any).code = "auth/wrong-password";
+    throw error;
+  }
+
+  if (foundUser.status === 'pending') {
+    const error = new Error("حساب کاربری شما در انتظار تایید مدیریت است. لطفاً شکیبا باشید.");
+    (error as any).code = "auth/user-pending";
+    throw error;
+  }
+
+  return {
+    user: {
+      uid: foundUser.id || foundUser.userCode || `uid_${Date.now()}`,
+      email: foundUser.email || emailOrPhone,
+      displayName: foundUser.name || 'کاربر گرامی'
+    }
+  };
+};
+
+export const createUserWithEmailAndPassword = async (...args: any[]) => {
+  const emailOrPhone = args[1]?.toLowerCase().trim() || "";
+  const uid = `uid_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  
+  return {
+    user: {
+      uid,
+      email: emailOrPhone,
+      displayName: 'کاربر گرامی'
+    }
+  };
+};
 
 export const signOut = async (...args: any[]) => {};
 export const updateProfile = async (...args: any[]) => {};

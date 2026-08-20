@@ -37,7 +37,8 @@ export type ApprovalType =
   | 'barter_deal'
   | 'dealership'
   | 'callback'
-  | 'support_ticket';
+  | 'support_ticket'
+  | 'factory_registration';
 
 export type PriorityLevel = 'critical' | 'high' | 'medium' | 'normal';
 
@@ -71,6 +72,8 @@ interface AdminPendingApprovalsProps {
   onUpdateBarterStatus: (id: string, newStatus: string) => void;
   representativesList: any[];
   onUpdateRepStatus: (id: string, isApproved: boolean) => void;
+  suppliersList: any[];
+  onUpdateSupplierStatus: (id: string, status: 'active' | 'suspended' | 'pending') => Promise<void>;
   callbackRequests: any[];
   onUpdateCallback: (id: string, status: 'pending' | 'called' | 'archived', notes?: string) => Promise<void>;
   supportTickets: any[];
@@ -89,6 +92,8 @@ export default function AdminPendingApprovals({
   onUpdateBarterStatus,
   representativesList = [],
   onUpdateRepStatus,
+  suppliersList = [],
+  onUpdateSupplierStatus,
   callbackRequests = [],
   onUpdateCallback,
   supportTickets = [],
@@ -176,7 +181,7 @@ export default function AdminPendingApprovals({
           typeLabel: 'خرید امن کف بازار',
           title: `درخواست تامین مستقیم: ${sb.productTitle || sb.productName || 'کالای سفارشی'}`,
           requesterName: sb.buyerName || 'خریدار عمده کف بازار',
-          requesterPhone: sb.buyerPhone || '۰۹۱۲۰۰۰۰۰۰۰',
+          requesterPhone: sb.buyerPhone || '',
           requesterCity: sb.buyerCity || 'انبار متقاضی',
           valueToman: numPrice,
           quantity: sb.quantity || 'سفارش عمده',
@@ -232,7 +237,7 @@ export default function AdminPendingApprovals({
           typeLabel: 'تهاتر و تامین مواد اولیه',
           title: `مبادله ${b.materialName} با ${b.requestedProductName}`,
           requesterName: b.supplierName || 'تامین‌کننده مواد اولیه',
-          requesterPhone: b.supplierPhone || '۰۹۱۴۰۰۰۰۰۰۰',
+          requesterPhone: b.supplierPhone || '',
           requesterCompany: b.factoryName,
           requesterCity: 'کارخانه طرف قرارداد',
           valueToman: totalVal,
@@ -320,8 +325,33 @@ export default function AdminPendingApprovals({
       }
     }
 
+    // H. Factory/Supplier registrations pending approval
+    for (const sup of suppliersList) {
+      if (sup.status === 'pending' || !sup.status) {
+        const rawDate = sup.createdAt?.seconds ? sup.createdAt.seconds * 1000 : (sup.createdAt ? new Date(sup.createdAt).getTime() : Date.now() - 43200000);
+        
+        items.push({
+          id: `supplier_${sup.id || sup.email}`,
+          type: 'factory_registration',
+          typeLabel: 'ثبت‌نام کارخانه جدید',
+          title: `تقاضای پنل تامین‌کننده: ${sup.company || sup.name}`,
+          requesterName: sup.name || 'مدیر واحد تولیدی',
+          requesterPhone: sup.phone || 'ثبت نشده',
+          requesterCompany: sup.company || 'کارخانه صنایع غذایی',
+          requesterCity: sup.city || 'نامشخص',
+          quantity: sup.category || 'تولیدکننده',
+          date: new Date(rawDate).toLocaleDateString('fa-IR'),
+          rawTimestamp: rawDate,
+          priority: 'high',
+          priorityReason: 'احراز هویت واحد تولیدی و بررسی پروانه بهره‌برداری',
+          details: sup,
+          originalStatus: sup.status || 'pending'
+        });
+      }
+    }
+
     return items;
-  }, [orders, safeBuyRequests, sponsoredAds, barterDeals, representativesList, callbackRequests, supportTickets]);
+  }, [orders, safeBuyRequests, sponsoredAds, barterDeals, representativesList, callbackRequests, supportTickets, suppliersList]);
 
   // 2. Metrics & KPI Summary
   const metrics = useMemo(() => {
@@ -395,6 +425,9 @@ export default function AdminPendingApprovals({
       } else if (item.type === 'support_ticket') {
         await onUpdateTicketStatus(item.details.id, 'closed');
         showToast(`تیکت پشتیبانی بررسی و بسته شد.`);
+      } else if (item.type === 'factory_registration') {
+        await onUpdateSupplierStatus(item.details.id || item.details.email, 'active');
+        showToast(`پنل کارخانه ${item.details.company || item.details.name} با موفقیت تایید و فعال گردید.`);
       }
     } catch (e: any) {
       console.error(e);
@@ -432,6 +465,9 @@ export default function AdminPendingApprovals({
       } else if (item.type === 'support_ticket') {
         await onUpdateTicketStatus(item.details.id, 'rejected');
         showToast(`تیکت رد شد.`);
+      } else if (item.type === 'factory_registration') {
+        await onUpdateSupplierStatus(item.details.id || item.details.email, 'suspended');
+        showToast(`درخواست ثبت‌نام کارخانه رد و به حالت تعلیق درآمد.`);
       }
     } catch (e: any) {
       console.error(e);
@@ -474,6 +510,8 @@ export default function AdminPendingApprovals({
         return <Phone size={16} className="text-teal-600" />;
       case 'support_ticket':
         return <MessageSquare size={16} className="text-rose-600" />;
+      case 'factory_registration':
+        return <Building2 size={16} className="text-amber-700" />;
       default:
         return <Layers size={16} className="text-slate-600" />;
     }
@@ -525,7 +563,7 @@ export default function AdminPendingApprovals({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 text-xs font-bold"
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-white text-slate-900 px-6 py-3 rounded-2xl shadow-2xl border border-slate-200 flex items-center gap-3 text-xs font-bold"
           >
             <CheckCircle size={18} className="text-emerald-400" />
             <span>{successToast}</span>
@@ -534,9 +572,9 @@ export default function AdminPendingApprovals({
       </AnimatePresence>
 
       {/* HEADER & METRICS BAR */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl border border-slate-800 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-br from-indigo-600 via-indigo-500 to-emerald-600 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl border border-indigo-400/30 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
@@ -683,6 +721,7 @@ export default function AdminPendingApprovals({
             { id: 'dealership', label: 'اخذ عاملیت و نمایندگی', count: aggregatedPendingItems.filter(i => i.type === 'dealership').length },
             { id: 'callback', label: 'استعلام فوری و تماس', count: aggregatedPendingItems.filter(i => i.type === 'callback').length },
             { id: 'support_ticket', label: 'تیکت پشتیبانی و بار', count: aggregatedPendingItems.filter(i => i.type === 'support_ticket').length },
+            { id: 'factory_registration', label: 'ثبت‌نام کارخانجات جدید', count: aggregatedPendingItems.filter(i => i.type === 'factory_registration').length },
           ].map(tab => (
             <button
               key={tab.id}
@@ -690,7 +729,7 @@ export default function AdminPendingApprovals({
               onClick={() => setFilterType(tab.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 filterType === tab.id
-                  ? 'bg-slate-900 text-amber-400 shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -864,7 +903,7 @@ export default function AdminPendingApprovals({
       {/* DETAIL MODAL */}
       <AnimatePresence>
         {viewingDetailItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -872,14 +911,14 @@ export default function AdminPendingApprovals({
               className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
               {/* Modal Header */}
-              <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+              <div className="p-6 bg-slate-50 border-b border-slate-200 text-slate-900 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-black">
                     {getTypeIcon(viewingDetailItem.type)}
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white">{viewingDetailItem.title}</h3>
-                    <p className="text-[11px] text-slate-400 font-bold">
+                    <h3 className="text-sm font-black text-slate-900">{viewingDetailItem.title}</h3>
+                    <p className="text-[11px] text-slate-500 font-bold">
                       {viewingDetailItem.typeLabel} • تاریخ ثبت: {toPersianNum(viewingDetailItem.date)}
                     </p>
                   </div>
@@ -887,7 +926,7 @@ export default function AdminPendingApprovals({
                 <button
                   type="button"
                   onClick={() => setViewingDetailItem(null)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-xl transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -931,7 +970,7 @@ export default function AdminPendingApprovals({
                     <h4 className="text-xs font-black text-slate-900">اقلام فاکتور خرید عمده:</h4>
                     <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100">
                       {viewingDetailItem.details.items.map((it: any, i: number) => (
-                        <div key={i} className="p-3 bg-white flex items-center justify-between">
+                        <div key={`admin-pend-appr-item-${it.id || it.productName || i}-${i}`} className="p-3 bg-white flex items-center justify-between">
                           <div>
                             <span className="font-black text-slate-800">{it.name || it.productName}</span>
                             <span className="text-[10px] text-slate-400 block">برند: {it.brand || 'معتبر'}</span>
@@ -1009,7 +1048,7 @@ export default function AdminPendingApprovals({
       {/* REJECTION REASON MODAL */}
       <AnimatePresence>
         {rejectionModalItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

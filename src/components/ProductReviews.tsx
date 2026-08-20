@@ -100,9 +100,9 @@ export default function ProductReviews({ productId, theme = 'light' }: ProductRe
 
   const StarRating = ({ value, onChange, size = 18, readonly = false }: { value: number, onChange?: (v: number) => void, size?: number, readonly?: boolean }) => (
     <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
+      {[1, 2, 3, 4, 5].map((star, idx) => (
         <button
-          key={star}
+          key={`rev-star-${star}-${idx}`}
           type="button"
           disabled={readonly}
           onClick={() => onChange?.(star)}
@@ -217,7 +217,7 @@ export default function ProductReviews({ productId, theme = 'light' }: ProductRe
         ) : (
           reviews.map((review, idx) => (
             <motion.div
-              key={review.id}
+              key={`prod-review-${review.id || idx}-${idx}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}

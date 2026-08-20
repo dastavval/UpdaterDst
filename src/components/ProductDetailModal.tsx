@@ -4,13 +4,14 @@ import {
   X, Package, ShieldCheck, Truck, Info, FileText, CheckCircle2, 
   Plus, Minus, Building, Phone, User as UserIcon, MapPin, UploadCloud, 
   AlertCircle, ArrowRight, ArrowLeft, Check, Sparkles, Scale, BadgeAlert,
-  Star, MessageSquare, ShoppingCart
+  Star, MessageSquare, ShoppingCart, Lock
 } from "lucide-react";
 import type { Product, User } from "../types";
 import { getDisplayImageUrl } from "../lib/image-utils";
 import ProductReviews from "./ProductReviews";
 import StarRating from "./StarRating";
 import { HealthAppleLogo, HealthBadgesStrip, HealthCertModal } from "./HealthAppleBadge";
+import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -33,7 +34,8 @@ export default function ProductDetailModal({
 }: ProductDetailModalProps) {
   const [step, setStep] = useState(1);
   const [activeView, setActiveView] = useState<'order' | 'reviews'>('order');
-  const [cartons, setCartons] = useState(product?.min_order_cartons || 1);
+  const initialMinCartons = Math.max(5, product?.min_order_cartons || 5);
+  const [cartons, setCartons] = useState(initialMinCartons);
   const [unitType, setUnitType] = useState<'carton' | 'kg' | 'ton' | 'pack'>('carton');
   const [detailImgError, setDetailImgError] = useState(false);
   
@@ -47,7 +49,8 @@ export default function ProductDetailModal({
   // Reset/sync state whenever active product changes
   useEffect(() => {
     if (product) {
-      setCartons(product.min_order_cartons || 1);
+      const pMin = Math.max(5, product.min_order_cartons || 5);
+      setCartons(pMin);
       setStep(1);
       setActiveView('order');
       setDetailImgError(false);
@@ -132,19 +135,35 @@ export default function ProductDetailModal({
     }
   };
 
-  const minCartons = product?.min_order_cartons || 1;
+  const minCartons = Math.max(5, product?.min_order_cartons || 5);
   const packCount = product?.carton_pack_count || 1;
-  const bulkPrice = product?.bulk_price || 0;
+  const rolePricing = product ? getProductRolePricing(product, user, userBadge) : null;
+  const bulkPrice = rolePricing ? rolePricing.unitWholesalePrice : (product?.bulk_price || 0);
 
-  const currentDiscountPercent = getDiscountPercent(userBadge);
-  const discountedBulkPrice = currentDiscountPercent > 0 
-    ? Math.round(bulkPrice * (1 - currentDiscountPercent / 100))
+  const getVolumeDiscountPercent = (c: number) => {
+    if (c >= 50) return 8; // Pallet volume tier
+    if (c >= 20) return 5; // Medium wholesale tier
+    if (c >= 10) return 3; // Light wholesale tier
+    return 0;
+  };
+
+  const volumeDiscountPercent = getVolumeDiscountPercent(cartons);
+  const effectiveBulkPrice = volumeDiscountPercent > 0
+    ? Math.round(bulkPrice * (1 - volumeDiscountPercent / 100))
     : bulkPrice;
 
-  const pricePerCarton = discountedBulkPrice * packCount;
+  const pricePerCarton = effectiveBulkPrice * packCount;
   const totalOrderPrice = pricePerCarton * cartons;
-  const originalTotalPrice = bulkPrice * packCount * cartons;
+  const originalTotalPrice = (rolePricing ? rolePricing.unitWholesalePrice : bulkPrice) * packCount * cartons;
   const discountSavings = originalTotalPrice - totalOrderPrice;
+
+  const consumerPrice = product?.consumer_price || product?.price || (bulkPrice * 1.3);
+  const totalConsumerValue = consumerPrice * packCount * cartons;
+  const totalNetProfit = Math.max(0, totalConsumerValue - totalOrderPrice);
+  // B2B Markup Return on Cost: (Consumer Total - Order Cost) / Order Cost
+  const profitMarginPercent = totalOrderPrice > 0 
+    ? Math.round((totalNetProfit / totalOrderPrice) * 100) 
+    : 0;
 
   // Approximate weight calculation
   // Let's assume each pack has an average weight of 250 grams
@@ -264,7 +283,7 @@ export default function ProductDetailModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-50/70 backdrop-blur-md"
+            className="absolute inset-0 bg-white/70 backdrop-blur-md"
           />
 
           {/* Modal Container */}
@@ -277,13 +296,13 @@ export default function ProductDetailModal({
             {/* Close Button */}
             <button 
               onClick={onClose}
-              className="absolute top-4 left-4 p-2.5 bg-slate-100 text-slate-500 hover rounded-full transition-all z-20 cursor-pointer"
+              className="absolute top-4 left-4 p-2.5 bg-slate-50 text-slate-500 border border-slate-200 hover:bg-white rounded-full transition-all z-20 cursor-pointer shadow-sm"
             >
               <X size={16} />
             </button>
 
             {/* LEFT HALF: Product Details Display Panel */}
-            <div className="w-full md:w-[42%] bg-slate-50/50 p-6 flex flex-col justify-between border-l border-gray-100 overflow-y-auto max-h-[40vh] md:max-h-[92vh]">
+            <div className="w-full md:w-[42%] bg-white p-6 flex flex-col justify-between border-l border-gray-100 overflow-y-auto max-h-[40vh] md:max-h-[92vh]">
               <div className="space-y-6">
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex items-center gap-2">
@@ -320,7 +339,7 @@ export default function ProductDetailModal({
                     </div>
                   ) : (
                     <>
-                      <div className="absolute inset-x-8 bottom-6 h-6 bg-slate-900/5 blur-2xl rounded-full transition-all group-hover:bg-emerald-500/10" />
+                      <div className="absolute inset-x-8 bottom-6 h-6 bg-slate-100/50 blur-2xl rounded-full transition-all group-hover:bg-emerald-500/10" />
                       <img 
                         src={getDisplayImageUrl(product.image_url)} 
                         alt={product.name}
@@ -387,32 +406,32 @@ export default function ProductDetailModal({
                 </div>
 
                 {/* Health & FDA Certification Passport Block */}
-                <div className="bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white p-4 rounded-2xl border border-emerald-500/40 space-y-3 relative overflow-hidden shadow-lg">
+                <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-white p-4 rounded-2xl border border-emerald-200 space-y-3 relative overflow-hidden shadow-sm">
                   <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-2">
                       <HealthAppleLogo size={28} animated />
                       <div>
-                        <span className="text-[10px] font-black text-emerald-300 block">پروانه بهداشتی و سلامت کالا</span>
-                        <h4 className="text-xs font-black text-white">نشان سیب سلامت سازمان غذا و دارو</h4>
+                        <span className="text-[10px] font-black text-emerald-600 block">پروانه بهداشتی و سلامت کالا</span>
+                        <h4 className="text-xs font-black text-slate-900">نشان سیب سلامت سازمان غذا و دارو</h4>
                       </div>
                     </div>
-                    <span className="bg-emerald-500/30 text-emerald-300 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-emerald-400/30">
+                    <span className="bg-emerald-500/10 text-emerald-700 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-emerald-400/30">
                       کد: {product.healthCertCode || "۱۶/۱۲۴۵۸"}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-200 relative z-10">
-                    <div className="bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10 text-center">
-                      <span className="text-slate-300 block font-bold text-[9px]">درجه خلوص</span>
-                      <span className="font-black text-emerald-300">۱۰۰٪ طبیعی</span>
+                  <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-700 relative z-10">
+                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                      <span className="text-slate-400 block font-bold text-[9px]">درجه خلوص</span>
+                      <span className="font-black text-emerald-600">۱۰۰٪ طبیعی</span>
                     </div>
-                    <div className="bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10 text-center">
-                      <span className="text-slate-300 block font-bold text-[9px]">مواد نگهدارنده</span>
-                      <span className="font-black text-teal-300">فاقد افزودنی</span>
+                    <div className="bg-white p-2 rounded-xl border border-teal-100 text-center">
+                      <span className="text-slate-400 block font-bold text-[9px]">مواد نگهدارنده</span>
+                      <span className="font-black text-teal-600">فاقد افزودنی</span>
                     </div>
-                    <div className="bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10 text-center">
-                      <span className="text-slate-300 block font-bold text-[9px]">آزمایشگاه</span>
-                      <span className="font-black text-amber-300">کنترل کیفیت کارخانه</span>
+                    <div className="bg-white p-2 rounded-xl border border-amber-100 text-center">
+                      <span className="text-slate-400 block font-bold text-[9px]">آزمایشگاه</span>
+                      <span className="font-black text-amber-700">کنترل کیفیت کارخانه</span>
                     </div>
                   </div>
                 </div>
@@ -470,7 +489,7 @@ export default function ProductDetailModal({
                 <div className="flex items-center gap-1.5">
                   {[1, 2, 3, 4].map((s) => (
                     <div 
-                      key={s}
+                      key={`modal-step-indicator-${s}`}
                       className={`h-1.5 rounded-full transition-all duration-300 ${
                         s === step 
                           ? "w-6 bg-emerald-600" 
@@ -486,7 +505,7 @@ export default function ProductDetailModal({
               {/* STEP CONTENTS */}
               <div className="py-6 flex-1 flex flex-col">
                 {/* View Switcher */}
-                <div className="flex gap-2 mb-6 bg-slate-100 p-1.5 rounded-2xl w-fit">
+                <div className="flex gap-2 mb-6 bg-slate-50 p-1.5 rounded-2xl w-fit border border-slate-100">
                   <button
                     onClick={() => setActiveView('order')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
@@ -519,12 +538,42 @@ export default function ProductDetailModal({
                   <>
                     {/* STEP 1: QUANTITY AND PACKAGING SELECTOR */}
                     {step === 1 && (
-                  <div className="space-y-5 animate-fadeIn">
+                  <div className="space-y-4 animate-fadeIn">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-black text-slate-700">مبنای ثبت سفارش بر اساس واحد بسته‌بندی:</h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black text-slate-700">انتخاب حجم و پله‌های تخفیف تیراژ:</h4>
+                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 flex items-center gap-1">
+                          <Package size={11} className="text-emerald-600" />
+                          <span>حداقل سفارش: {toPersianNum(minCartons)} کارتن</span>
+                        </span>
+                      </div>
                       <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                        محصولات صنایع غذایی مستقیماً بر اساس کارتن، بسته یا حجم عمده خط تولید کارخانه حواله می‌شوند.
+                        با افزایش حجم خرید، به صورت خودکار درصد تخفیف مازاد روی کل سفارش اعمال می‌شود.
                       </p>
+                    </div>
+
+                    {/* Tiered Volume Discount Progression */}
+                    <div className="grid grid-cols-4 gap-1.5 text-center">
+                      {[
+                        { tier: `${toPersianNum(minCartons)} تا ۹ کارتن`, disc: "پایه کارخانه", active: cartons < 10, min: minCartons },
+                        { tier: "۱۰ تا ۱۹ کارتن", disc: "۳٪ تخفیف", active: cartons >= 10 && cartons < 20, min: 10 },
+                        { tier: "۲۰ تا ۴۹ کارتن", disc: "۵٪ تخفیف", active: cartons >= 20 && cartons < 50, min: 20 },
+                        { tier: "۵۰+ کارتن (پالت)", disc: "۸٪ تخفیف", active: cartons >= 50, min: 50 },
+                      ].map((t, idx) => (
+                        <button
+                          key={`tier-disc-${product.id}-${idx}-${t.min}`}
+                          type="button"
+                          onClick={() => setCartons(t.min)}
+                          className={`p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                            t.active
+                              ? "bg-emerald-700 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40"
+                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span className="text-[9px] font-bold opacity-90">{t.tier}</span>
+                          <span className="text-[10px] font-black mt-0.5">{t.disc}</span>
+                        </button>
+                      ))}
                     </div>
 
                     {/* Unit Selector Chips */}
@@ -570,7 +619,7 @@ export default function ProductDetailModal({
                             className="w-14 text-center font-black text-sm text-gray-800 font-mono focus:outline-none"
                           />
                           <button 
-                            disabled={cartons <= product.min_order_cartons}
+                            disabled={cartons <= minCartons}
                             onClick={handleDecrement}
                             className="p-1 hover text-emerald-600 rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
                           >
@@ -583,6 +632,37 @@ export default function ProductDetailModal({
                       <div className="text-left">
                         <span className="text-[10px] text-slate-400 font-bold block">مجموع فاکتور عمده:</span>
                         <span className="text-base font-black text-emerald-600 font-mono">{toPersianNum(totalOrderPrice.toLocaleString())} <span className="text-[10px] font-black">تومان</span></span>
+                      </div>
+                    </div>
+
+                    {/* Dynamic Profit & Return Summary Banner */}
+                    <div className="bg-gradient-to-l from-emerald-50 via-teal-50 to-amber-50/50 p-3.5 rounded-2xl border border-emerald-200/90 space-y-2 text-right">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] font-bold text-slate-500 block">سود ناخالص تخمینی شما از این سفارش:</span>
+                          <span className="text-xs font-black text-emerald-800 font-mono">
+                            +{toPersianNum(totalNetProfit.toLocaleString())} تومان ({toPersianNum(profitMarginPercent)}٪ حاشیه سود)
+                          </span>
+                        </div>
+                        {discountSavings > 0 && (
+                          <div className="bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[9px] font-black shadow-xs">
+                            {toPersianNum(discountSavings.toLocaleString())} ت صرفه‌جویی تیراژ
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Daily & Compound Nudges */}
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200/50 text-[10px] font-black">
+                        <div className="bg-white/80 p-2 rounded-xl border border-emerald-100 flex items-center justify-between">
+                          <span className="text-slate-500 text-[9px]">سود روزانه:</span>
+                          <span className="text-cyan-800 font-mono">+{toPersianNum(Math.round(totalNetProfit / 30).toLocaleString())} ت/روز</span>
+                        </div>
+                        <div className="bg-white/80 p-2 rounded-xl border border-amber-200 flex items-center justify-between">
+                          <span className="text-slate-500 text-[9px]">سود مرکب ۶ ماهه:</span>
+                          <span className="text-amber-900 font-mono">
+                            +{toPersianNum(Math.round(totalOrderPrice * (Math.pow(1 + ((profitMarginPercent / 100) * 0.7), 6) - 1)).toLocaleString())} ت
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -602,11 +682,15 @@ export default function ProductDetailModal({
                       </div>
                     </div>
 
-                    {/* Alert for Lead Time */}
-                    <div className="bg-amber-50/50 border border-amber-200/50 p-3.5 rounded-2xl flex gap-2">
-                      <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={16} />
-                      <div className="text-[10px] text-amber-800 leading-relaxed font-bold">
-                        حداقل حجم سفارش تعیین‌شده از سوی کارخانه روی این کالا <span className="font-black text-emerald-700">{toPersianNum(product.min_order_cartons)} کارتن</span> است. مدت زمان تامین بار در کارخانه حداکثر <span className="font-black">{toPersianNum(product.production_lead_time_days || 3)} روز</span> است.
+                    {/* Official Tax Invoice & Escrow Assurance */}
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex items-center justify-between text-[10px] font-bold text-slate-600">
+                      <div className="flex items-center gap-1.5">
+                        <FileText size={14} className="text-indigo-600" />
+                        <span>امکان صدور فاکتور رسمی معتبر کارخانه همراه با ارزش افزوده</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-emerald-700 font-black">
+                        <ShieldCheck size={14} className="text-emerald-600" />
+                        <span>تسویه امانی امن</span>
                       </div>
                     </div>
                   </div>
@@ -800,9 +884,9 @@ export default function ProductDetailModal({
                         <span className="font-mono">{toPersianNum(originalTotalPrice.toLocaleString())} تومان</span>
                       </div>
 
-                      {currentDiscountPercent > 0 && (
+                      {discountSavings > 0 && (
                         <div className="flex justify-between text-emerald-600 text-[10px] font-black">
-                          <span>تخفیف هوشمند نشان همکار (٪{toPersianNum(currentDiscountPercent)})</span>
+                          <span>تخفیف تیراژ و حجم خرید ({toPersianNum(volumeDiscountPercent)}٪)</span>
                           <span className="font-mono">-{toPersianNum(discountSavings.toLocaleString())} تومان</span>
                         </div>
                       )}
@@ -848,25 +932,38 @@ export default function ProductDetailModal({
                 )}
 
                 {step === 1 ? (
-                  <div className="flex items-center gap-2 mr-auto">
-                    <button
-                      onClick={() => {
-                        onAddToCart(product, cartons);
-                        onClose();
-                      }}
-                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                    >
-                      <ShoppingCart size={14} />
-                      افزودن به سبد
-                    </button>
+                  !user ? (
                     <button 
-                      onClick={handleNextStep}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                      onClick={() => {
+                        onClose();
+                        window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { mode: 'signup' } }));
+                      }}
+                      className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white px-6 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer mr-auto"
                     >
-                      تسویه و صدور فاکتور
-                      <ArrowLeft size={14} />
+                      <Lock size={14} className="text-amber-300" />
+                      ثبت‌نام همکاران جهت مشاهده قیمت و خرید
                     </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mr-auto">
+                      <button
+                        onClick={() => {
+                          onAddToCart(product, cartons);
+                          onClose();
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                      >
+                        <ShoppingCart size={14} />
+                        افزودن به سبد
+                      </button>
+                      <button 
+                        onClick={handleNextStep}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                      >
+                        تسویه و صدور فاکتور
+                        <ArrowLeft size={14} />
+                      </button>
+                    </div>
+                  )
                 ) : step < 4 ? (
                   <button 
                     onClick={handleNextStep}

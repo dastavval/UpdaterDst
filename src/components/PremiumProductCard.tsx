@@ -1,7 +1,8 @@
 import React from "react";
 import { Product } from "../types";
-import { Plus, Minus, Sparkles, Building2, MapPin, Package, Star, TrendingUp, ShieldCheck } from "lucide-react";
+import { Plus, Minus, Sparkles, Factory, MapPin, Package, Star, TrendingUp, ShieldCheck, Lock, Award, Percent, Tag, ShoppingCart } from "lucide-react";
 import { motion } from "motion/react";
+import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
 interface PremiumProductCardProps {
   product: Product;
@@ -12,6 +13,8 @@ interface PremiumProductCardProps {
   onViewDetails?: (product: Product) => void;
   toPersianNum: (num: any) => string;
   interfaceMode?: 'simple' | 'advanced';
+  user?: any;
+  onRequireAuth?: () => void;
 }
 
 export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
@@ -21,19 +24,21 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
   onDecrement,
   onAddToCart,
   onViewDetails,
-  toPersianNum,
-  interfaceMode = 'advanced'
+  toPersianNum: propToPersianNum,
+  interfaceMode = 'advanced',
+  user,
+  onRequireAuth
 }) => {
-  const consumerPrice = product.consumer_price || product.price || 0;
-  const profitMargin = consumerPrice > 0 
-    ? Math.round(((consumerPrice - product.bulk_price) / consumerPrice) * 100) 
-    : 0;
+  const toPersianNum = (n: any) => toPersianDigits(n);
+  const pricing = getProductRolePricing(product, user);
+  const consumerPrice = pricing.displayConsumerPrice;
+  const profitMargin = pricing.profitMarginPercent;
 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-30px" }}
+      viewport={{ once: true, margin: "100px" }}
       transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
       whileHover={{ y: -8 }}
       className="group relative bg-white border border-slate-200/60 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 flex flex-col h-full"
@@ -41,12 +46,15 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
       {/* Top Badge Overlay */}
       <div className="absolute top-4 inset-x-4 z-20 flex justify-between items-start pointer-events-none">
         <div className="flex flex-col gap-2">
-          {profitMargin > 20 && (
+          {profitMargin > 0 && (
             <div className="bg-emerald-600/95 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-white/20 text-[10px] font-black flex items-center gap-1.5">
               <TrendingUp size={12} className="animate-pulse" />
               سود خالص: {toPersianNum(profitMargin)}٪
             </div>
           )}
+        </div>
+        <div className={`px-2.5 py-1 rounded-xl text-[10px] font-black border shadow-xs ${pricing.badgeColor}`}>
+          {pricing.badgeLabel}
         </div>
       </div>
 
@@ -61,7 +69,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
         />
         
         {/* Quick Action Overlay */}
-        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-6">
+        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-6">
           <button 
             onClick={() => onViewDetails?.(product)}
             className="w-full py-3 bg-white text-slate-900 rounded-2xl text-[11px] font-black shadow-2xl hover:bg-emerald-50 transition-all transform translate-y-4 group-hover:translate-y-0 duration-500 cursor-pointer"
@@ -75,7 +83,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
       <div className="p-6 flex-1 flex flex-col gap-4 text-right">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px]">
-            <Building2 size={12} />
+            <Factory size={12} />
             <span>{product.brand}</span>
             <span className="w-1 h-1 bg-slate-300 rounded-full" />
             <span>{product.category}</span>
@@ -85,25 +93,34 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
           </h4>
         </div>
 
-        {/* Pricing Royal Box */}
+        {/* Pricing Multi-Tier Box */}
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
           <div className="flex justify-between items-end">
             <div className="space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold block">قیمت واحد (ویژه همکار):</span>
+              <span className="text-[10px] text-slate-400 font-bold block">{pricing.priceTagLabel}:</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-black text-slate-900 tracking-tighter">{toPersianNum(product.bulk_price.toLocaleString())}</span>
+                <span className="text-xl font-black text-slate-900 tracking-tighter font-mono">
+                  {toPersianNum(pricing.unitWholesalePrice.toLocaleString())}
+                </span>
                 <span className="text-[10px] font-bold text-slate-500">تومان</span>
               </div>
             </div>
             <div className="bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 text-center">
-              <span className="text-[9px] text-emerald-600 font-black block leading-none mb-1">سود خالص</span>
-              <span className="text-sm font-black text-emerald-700 leading-none">٪{toPersianNum(profitMargin)}</span>
+              <span className="text-[9px] text-emerald-600 font-black block leading-none mb-1">سود هر کارتن</span>
+              <span className="text-xs font-black text-emerald-700 leading-none font-mono">
+                +{toPersianNum(pricing.profitPerCartonVsConsumer.toLocaleString())} ت
+              </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-200/50 text-[10px] text-slate-500 font-bold">
-            <TrendingUp size={12} className="text-indigo-500" />
-            <span>ارزش مصرف‌کننده: {toPersianNum(consumerPrice.toLocaleString())} تومان</span>
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 text-[10px] text-slate-500 font-bold">
+            <span className="flex items-center gap-1">
+              <TrendingUp size={12} className="text-indigo-500" />
+              <span>مصرف‌کننده: {toPersianNum(consumerPrice.toLocaleString())} ت</span>
+            </span>
+            <span className="text-slate-400 text-[9.5px]">
+              {pricing.isRepresentative ? "⭐ ۱۰٪ تخفیف عاملیت" : "🏷️ قیمت هر کارتن: " + toPersianNum(pricing.pricePerCarton.toLocaleString()) + " ت"}
+            </span>
           </div>
         </div>
 
@@ -135,7 +152,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
           <div className="flex items-center border-2 border-slate-100 rounded-2xl bg-white p-1 shadow-sm">
             <button 
               onClick={() => onIncrement(product.id, product.min_order_cartons)}
-              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
             >
               <Plus size={16} />
             </button>
@@ -145,7 +162,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
             <button 
               disabled={qty <= product.min_order_cartons}
               onClick={() => onDecrement(product.id, product.min_order_cartons)}
-              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors disabled:opacity-30"
+              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors disabled:opacity-30 cursor-pointer"
             >
               <Minus size={16} />
             </button>
@@ -153,10 +170,10 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
 
           <button 
             onClick={() => onAddToCart(product, qty)}
-            className="flex-1 py-3.5 bg-slate-900 text-white rounded-2xl text-[12px] font-black flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/10 active:scale-95 cursor-pointer"
+            className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[12px] font-black flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer"
           >
-            <Package size={18} />
-            <span>ثبت در پیش‌فاکتور</span>
+            <ShoppingCart size={18} />
+            <span>ثبت در سبد سفارش</span>
           </button>
         </div>
       </div>

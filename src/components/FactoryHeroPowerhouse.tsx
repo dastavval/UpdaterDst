@@ -32,62 +32,7 @@ interface FactoryHeroPowerhouseProps {
   onAddToCart?: (product: Product, quantityCartons: number) => void;
 }
 
-const initialAdsFallback = [
-  {
-    id: "ad-1",
-    title: "قند شکسته درجه یک ۵ کیلویی مازاد خط تولید (بدون افشای برند)",
-    description: "تعداد ۵۰ تن بار مازاد قند کله شکسته درجه یک در بسته‌بندی‌های نایلونی ۵ کیلویی استاندارد با سیب سلامت بدون ذکر برند جهت ممانعت از تنش قیمتی در بازار مصرف.",
-    factoryName: "صنایع قند و شکر مرودشت",
-    contactPerson: "مهندس رسولی",
-    contactPhone: "۰۹۱۲۳۴۵۶۷۸۹",
-    badgeText: "📉 زیر قیمت بازار",
-    category: "under_market",
-    quantity: "۵۰ تن",
-    wholesalePrice: "۳۸,۰۰۰ تومان",
-    marketPrice: "۵۴,۰۰۰ تومان",
-    buyerProfit: "۳۰٪ سود ناخالص (۱۶,۰۰۰ تومان حاشیه سود)",
-    isSponsored: true,
-    date: "۱۴۰۵/۰۵/۲۲",
-    imageUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&q=80&w=800",
-    status: "approved"
-  },
-  {
-    id: "ad-2",
-    title: "روغن سویا مصارف صنعتی حلب ۱۶ کیلویی استاندارد",
-    description: "روغن مایع خوراکی تصفیه شده سویا حلب فلزی ۱۶ کیلویی با فاکتور رسمی مستقیم کارخانه شیراز بدون نام برند انحصاری جهت حفظ ثبات و اعتبار تجاری کارخانه.",
-    factoryName: "کشت و صنعت روغن شمال",
-    contactPerson: "حاج علی رحیمی",
-    contactPhone: "۰۹۱۲۹۹۹۸۸۷۷",
-    badgeText: "🔥 حراج مفت کارخانه",
-    category: "liquid",
-    quantity: "۱۵ تن",
-    wholesalePrice: "۶۲۰,۰۰۰ تومان",
-    marketPrice: "۸۴۰,۰۰۰ تومان",
-    buyerProfit: "۲۶٪ حاشیه سود واقعی (۲۲۰,۰۰۰ تومان صرفه‌جویی)",
-    isSponsored: true,
-    date: "۱۴۰۵/۰۵/۲۱",
-    imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=800",
-    status: "approved"
-  },
-  {
-    id: "ad-3",
-    title: "رب گوجه فرنگی قوطی ۸۰۰ گرمی صادراتی بریکس ۲۷",
-    description: "بار مازاد ۴۰ هزار قوطی رب گوجه فرنگی غلیظ با کیفیت استثنایی و رنگ فوق‌العاده. به جهت حفظ ثبات قیمت بازار، برند کالا محرمانه مانده و تحویل از طریق واسطه امین انجام می‌پذیرد.",
-    factoryName: "توسعه صنایع غذایی دشت شیراز",
-    contactPerson: "مهندس سلیمانی",
-    contactPhone: "۰۹۱۷۳۳۳۴۴۵۵",
-    badgeText: "📉 کف قیمت بازار",
-    category: "under_market",
-    quantity: "۴۰,۰۰۰ قوطی",
-    wholesalePrice: "۳۲,۰۰۰ تومان",
-    marketPrice: "۴۹,۰۰۰ تومان",
-    buyerProfit: "۳۵٪ سود تضمینی (۱۷,۰۰۰ تومان اختلاف قیمت)",
-    isSponsored: true,
-    date: "۱۴۰۵/۰۵/۲۰",
-    imageUrl: "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=800",
-    status: "approved"
-  }
-];
+const initialAdsFallback: any[] = [];
 
 export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
   products = [],
@@ -149,8 +94,8 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         brand: item.factoryName || 'تامین‌کننده معتبر',
         factoryName: item.factoryName || 'تامین‌کننده معتبر',
         description: item.description || '',
-        imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800',
-        image_url: item.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800',
+        imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=800',
+        image_url: item.imageUrl || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=800',
         wholesalePriceStr,
         marketPriceStr,
         buyerProfitStr,
@@ -290,7 +235,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-bold mt-0.5">
-                تامین بدون واسطه بنکداران با فاکتور رسمی و ضمانت امانی تحویل
+                خرید مستقیم از کارخانه
               </p>
             </div>
           </div>
@@ -344,7 +289,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
             {/* Square Clean Image taking the entire box space with minimal padding */}
             <div 
               onClick={() => setPreviewImage(currentProduct.imageUrl || currentProduct.image_url)}
-              className="w-full h-72 sm:h-80 lg:h-full min-h-[280px] lg:min-h-[340px] flex items-center justify-center p-1.5 cursor-pointer relative group transition-all duration-500 bg-white"
+              className="w-full h-72 sm:h-80 lg:h-full min-h-[280px] lg:min-h-[340px] flex items-center justify-center p-0 cursor-pointer relative group transition-all duration-500 bg-white"
             >
               {/* Top Floating Badges Overlaid Directly on Image */}
               <div className="absolute top-3 right-3 left-3 flex items-center justify-between gap-2 z-20 pointer-events-none">
@@ -354,17 +299,17 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                 </span>
               </div>
 
-              <div className="absolute inset-x-8 bottom-4 h-8 bg-slate-900/10 blur-2xl rounded-full transition-all duration-500 group-hover:bg-emerald-500/20" />
+              <div className="absolute inset-x-8 bottom-4 h-8 bg-indigo-600/10 blur-2xl rounded-full transition-all duration-500 group-hover:bg-emerald-500/20" />
 
               <img 
-                src={currentProduct.imageUrl || currentProduct.image_url || 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=800'} 
+                src={currentProduct.imageUrl || currentProduct.image_url || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800'} 
                 alt={currentProduct.name}
-                className="w-full h-full object-contain drop-shadow-sm group-hover:scale-105 transition-all duration-500 relative z-10"
+                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 relative z-10"
                 referrerPolicy="no-referrer"
               />
 
               {/* Hover Quick Action */}
-              <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-30 rounded-2xl">
+              <div className="absolute inset-0 bg-slate-400/50 backdrop-blur-sm[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-30 rounded-2xl">
                 <span className="bg-white/95 text-slate-950 text-[11px] font-black px-4 py-2 rounded-xl shadow-xl flex items-center gap-1.5">
                   <Eye size={14} className="text-emerald-600" />
                   <span>مشاهده آنالیز کالا</span>
@@ -489,7 +434,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                 >
                   <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-2xs">
                     <img 
-                      src={prod.image_url || prod.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400'} 
+                      src={prod.image_url || prod.imageUrl || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=400'} 
                       alt={prod.name}
                       className="w-full h-full object-contain"
                       referrerPolicy="no-referrer"
@@ -513,7 +458,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
       {/* Image Lightbox Modal */}
       {previewImage && (
         <div 
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setPreviewImage(null)}
           dir="rtl"
         >

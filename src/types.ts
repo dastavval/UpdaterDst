@@ -37,6 +37,9 @@ export interface Product {
   commissionPercent?: number; // New: custom commission rate for DastAvval
   cartAddCount?: number; // New: number of times added to cart in last 48h
   updated_at?: string; // Last sync timestamp
+  approvalStatus?: 'approved' | 'pending' | 'rejected'; // Factory product approval status
+  rejectionReason?: string; // علت رد کالا جهت اطلاع کارخانه
+  isApproved?: boolean; // True if approved and visible to public buyers
   hasHealthApple?: boolean; // نشان سیب سلامت (سازمان غذا و دارو)
   isOrganic?: boolean; // ۱۰۰٪ ارگانیک
   isNatural?: boolean; // ۱۰۰٪ طبیعی
@@ -48,6 +51,8 @@ export interface Product {
     salt?: 'green' | 'yellow' | 'red';
     transFat?: 'green' | 'yellow' | 'red';
   };
+  weight?: string;
+  healthLicense?: string;
 }
 
 export interface Category {
@@ -134,6 +139,15 @@ export interface FactoryProfile {
   customHtml?: string;
   customCss?: string;
   customJs?: string;
+  // Optional rich photo & specs properties
+  factoryExteriorPhoto?: string;
+  productionLinePhoto?: string;
+  warehousePhoto?: string;
+  certificatesPhoto?: string;
+  factoryDescription?: string;
+  dailyCapacity?: string;
+  healthLicense?: string;
+  factoryHealthLicense?: string;
 }
 
 export interface OrderItem {
@@ -151,6 +165,7 @@ export type CartItem = OrderItem;
 export interface User {
   id?: string;
   userCode?: string; // e.g., "USR-1234"
+  factoryCode?: string; // e.g., "FAC-1234"
   agencyCode?: string; // e.g., "AGN-1234" (for agents)
   customerCode?: string; // e.g., "CST-1234" (for customers)
   name?: string;
@@ -160,9 +175,24 @@ export interface User {
   company?: string;
   address?: string;
   city?: string;
+  province?: string;
   badge?: string;
   userBadge?: string;
-  role?: 'admin' | 'factory' | 'agent' | 'customer' | 'user';
+  role?: 'admin' | 'factory' | 'agent' | 'marketer' | 'customer' | 'seller' | 'representative' | 'leader' | 'importer' | 'supplier' | 'user';
+  iban?: string;
+  healthLicense?: string;
+  logoUrl?: string;
+  // Factory Rich Information (Optional)
+  establishedYear?: string | number;
+  dailyCapacity?: string;
+  productionTech?: string;
+  factoryExteriorPhoto?: string;
+  productionLinePhoto?: string;
+  warehousePhoto?: string;
+  certificatesPhoto?: string;
+  factoryDescription?: string;
+  storageConditions?: string;
+  factoryPhotos?: string[];
 }
 
 export type SupplyChainStage = 
@@ -189,11 +219,15 @@ export interface Order {
   buyerPhone?: string;
   buyerAddress?: string;
   buyerCompany?: string;
+  city?: string;
   buyerInfo?: {
     name?: string;
     phone?: string;
     company?: string;
     address?: string;
+    city?: string;
+    province?: string;
+    customerCode?: string;
   };
   items: OrderItem[];
   totalAmount: number;
@@ -213,6 +247,15 @@ export interface Order {
   receiptUrl?: string; // Uploaded payment receipt or bank slip
   receiptNumber?: string;
   checkImageUrl?: string; // Uploaded check image
+  // Regional Representative Fulfillment & Profit Sharing
+  regionalRepresentativeId?: string;
+  regionalRepresentativeName?: string;
+  regionalRepProfitShareAmount?: number;
+  regionalRepNotified?: boolean;
+  deliveryHubStatus?: 'pending_hub' | 'arrived_at_hub' | 'inspected_approved' | 'out_for_delivery' | 'delivered_confirmed' | 'disputed';
+  deliveryConfirmationCode?: string;
+  repDeliveryNotes?: string;
+  repDeliverySignatureUrl?: string;
   chequeDetails?: {
     bankName?: string;
     sayadNumber?: string;
@@ -223,12 +266,21 @@ export interface Order {
   };
   chequeMonths?: number;
   discountBreakdown?: {
-    rawDiscount: number;
-    badgeBonus: number;
-    checkMarkup: number;
+    tier?: number;
+    tierPercent?: number;
+    tierLabel?: string;
+    badge?: number;
+    badgePercent?: number;
+    cash?: number;
+    cashPercent?: number;
+    bulk?: number;
+    rawDiscount?: number;
+    badgeBonus?: number;
+    checkMarkup?: number;
     chequeMarkup?: number;
+    chequeMonths?: number;
     chequeMarkupPercent?: number;
-    totalDiscount: number;
+    totalDiscount?: number;
   };
 }
 
@@ -311,11 +363,43 @@ export interface B2BConfig {
   instagramPageUrl?: string;
   socialChannelsTitle?: string;
   socialChannelsSubtitle?: string;
+  // Pricing, Commission & Regional Profit Distribution Strategy
+  customerMarkupPercent?: number; // Default 10% - درصد افزایش قیمت مشتری نسبت به کاتالوگ/نمایندگی
+  marketerCommissionPercent?: number; // Default 5% - درصد پورسانت بازاریاب
+  repRegionalProfitSharePercent?: number; // Default 50% - درصد سهم سود نماینده از سود فروش سایت در منطقه
+  requireRep300mPurchaseForFloorPrice?: boolean; // Default true - الزام خرید ۳۰۰ میلیون یا تأیید ادمین برای نرخ کف
+  repFloorSalesThreshold?: number;
+  requireAdminApprovalForRep?: boolean;
   pwaPromptDelaySeconds?: number;
   showTopSocialBar?: boolean;
   githubRepoUrl?: string;
   githubToken?: string;
   lastGithubUpdate?: number | null;
+}
+
+export type GuaranteeType = 'sayad_cheque' | 'promissory_note' | 'bank_guarantee' | 'cash_deposit';
+export type GuaranteeStatus = 'pending_submission' | 'submitted_pending_review' | 'verified_approved' | 'rejected' | 'expired';
+
+export interface RepresentativeGuarantee {
+  id: string;
+  representativeId: string;
+  representativeName: string;
+  representativePhone: string;
+  representativeCompany?: string;
+  city: string;
+  province?: string;
+  type: GuaranteeType;
+  amount: number; // e.g. 500_000_000
+  sayadNumber?: string;
+  bankName?: string;
+  chequeNumber?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  documentImageUrl?: string;
+  status: GuaranteeStatus;
+  adminNotes?: string;
+  verifiedAt?: string;
+  createdAt: string;
 }
 
 export interface InventoryLog {

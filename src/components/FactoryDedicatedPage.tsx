@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { getDisplayImageUrl } from "../lib/image-utils";
 import { motion, AnimatePresence } from "motion/react";
 import StarRating from "./StarRating";
 import { QRCodeSVG } from "qrcode.react";
@@ -99,6 +100,37 @@ export default function FactoryDedicatedPage({
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://dastavval.com';
   const factoryDedicatedUrl = `${baseUrl}/?factory=${factory.id}`;
 
+  // Dynamic gallery from actual photos if available
+  const customGallery = [];
+  if (factory.factoryExteriorPhoto || factory.coverUrl) {
+    customGallery.push({
+      url: factory.factoryExteriorPhoto || factory.coverUrl || "",
+      title: "عکس محوطه و نمای کارخانه",
+      category: "exterior"
+    });
+  }
+  if (factory.productionLinePhoto) {
+    customGallery.push({
+      url: factory.productionLinePhoto,
+      title: "خط تولید و ماشین‌آلات",
+      category: "production"
+    });
+  }
+  if (factory.warehousePhoto) {
+    customGallery.push({
+      url: factory.warehousePhoto,
+      title: "انبار مرکزی و نگهداری کالا",
+      category: "warehouse"
+    });
+  }
+  if (factory.certificatesPhoto) {
+    customGallery.push({
+      url: factory.certificatesPhoto,
+      title: "ایزوها و گواهینامه‌ها",
+      category: "lab"
+    });
+  }
+
   // Default photo gallery images if not provided
   const defaultGallery = [
     {
@@ -130,7 +162,7 @@ export default function FactoryDedicatedPage({
 
   const galleryList = (factory.galleryImages && factory.galleryImages.length > 0)
     ? factory.galleryImages
-    : defaultGallery;
+    : (customGallery.length > 0 ? customGallery : defaultGallery);
 
   // Filter gallery images
   const filteredGallery = selectedGalleryCategory === 'all'
@@ -144,14 +176,27 @@ export default function FactoryDedicatedPage({
     factory.mainProducts?.some(mp => p.name.includes(mp) || mp.includes(p.name))
   );
 
+  // Dynamic health license
+  const customCertificates = [];
+  if (factory.healthLicense || factory.factoryHealthLicense) {
+    customCertificates.push({
+      name: `سیب سلامت / پروانه بهداشت: ${factory.healthLicense || factory.factoryHealthLicense}`,
+      issuer: "سازمان غذا و دارو ایران",
+      year: "دارای اعتبار جاری"
+    });
+  }
+
   // Default certificates list
-  const defaultCertificates = factory.certificates || [
-    { name: "سیب سلامت (پروانه بهداشتی ساخت)", issuer: "سازمان غذا و دارو", year: "۱۴۰۲" },
-    { name: "گواهینامه مدیریت کیفیت ISO 9001:2015", issuer: "توف آلمان (TÜV)", year: "۲۰۲۳" },
-    { name: "گواهی ایمنی مواد غذایی HACCP / ISO 22000", issuer: "استاندارد بین‌المللی", year: "۲۰۲۲" },
-    { name: "نشان ملی استاندارد ایران", issuer: "سازمان ملی استاندارد", year: "پیوسته" },
-    { name: "گواهینامه حلال بین‌المللی (Halal)", issuer: "مرکز تحقیقات حلال", year: "۱۴۰۲" }
-  ];
+  const defaultCertificates = (factory.certificates && factory.certificates.length > 0)
+    ? factory.certificates
+    : [
+        ...customCertificates,
+        { name: "سیب سلامت (پروانه بهداشتی ساخت)", issuer: "سازمان غذا و دارو", year: "۱۴۰۲" },
+        { name: "گواهینامه مدیریت کیفیت ISO 9001:2015", issuer: "توف آلمان (TÜV)", year: "۲۰۲۳" },
+        { name: "گواهی ایمنی مواد غذایی HACCP / ISO 22000", issuer: "استاندارد بین‌المللی", year: "۲۰۲۲" },
+        { name: "نشان ملی استاندارد ایران", issuer: "سازمان ملی استاندارد", year: "پیوسته" },
+        { name: "گواهینامه حلال بین‌المللی (Halal)", issuer: "مرکز تحقیقات حلال", year: "۱۴۰۲" }
+      ];
 
   // Copy link handler
   const handleCopyLink = () => {
@@ -214,8 +259,8 @@ export default function FactoryDedicatedPage({
     setReviewComment("");
   };
 
-  const logoImage = factory.logoUrl || factory.logo || "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=200&q=80";
-  const coverImage = factory.coverUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80";
+  const logoImage = getDisplayImageUrl(factory.logoUrl || factory.logo || "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=200&q=80");
+  const coverImage = getDisplayImageUrl(factory.coverUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80");
 
   // Advanced Profile Injection
   React.useEffect(() => {
@@ -237,7 +282,7 @@ export default function FactoryDedicatedPage({
 
   if (factory.profileDesignMode === 'advanced' && factory.customHtml) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950 font-sans" dir="rtl">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-indigo-600 font-sans" dir="rtl">
         {factory.customCss && (
           <style dangerouslySetInnerHTML={{ __html: factory.customCss }} />
         )}
@@ -275,7 +320,7 @@ export default function FactoryDedicatedPage({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 md:p-6 font-sans text-right" dir="rtl">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-400/50 backdrop-blur-sm p-2 sm:p-4 md:p-6 font-sans text-right" dir="rtl">
       <motion.div
         initial={{ opacity: 0, y: 25, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -290,7 +335,7 @@ export default function FactoryDedicatedPage({
             title="کپی لینک مستقیم صفحه کارخانه"
           >
             {copiedLink ? <Check size={16} className="text-emerald-600" /> : <Share2 size={16} className="text-emerald-600" />}
-            <span>{copiedLink ? "لینک کپی شد!" : "اشتراک‌گذاری"}</span>
+            <span>{copiedLink ? "لینک کپی شد!" : <span className="hidden sm:inline">اشتراک‌گذاری</span>}</span>
           </button>
 
           <button
@@ -299,7 +344,7 @@ export default function FactoryDedicatedPage({
             title="نمایش QR کد اختصاصی"
           >
             <QrCode size={16} />
-            <span>QR کد اختصاصی</span>
+            <span className="hidden sm:inline">QR کد اختصاصی</span>
           </button>
 
           <button
@@ -311,7 +356,7 @@ export default function FactoryDedicatedPage({
         </div>
 
         {/* HERO COVER BANNER */}
-        <div className="relative h-64 sm:h-80 w-full bg-slate-900 overflow-hidden">
+        <div className="relative h-44 sm:h-80 w-full bg-slate-900 overflow-hidden">
           <img 
             src={coverImage} 
             alt={factory.name} 
@@ -320,34 +365,39 @@ export default function FactoryDedicatedPage({
               e.currentTarget.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80";
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
           {/* Banner Badges */}
-          <div className="absolute top-6 right-6 z-20 flex flex-wrap items-center gap-2">
-            <span className="bg-emerald-500/90 backdrop-blur-md border border-emerald-400/40 text-slate-950 font-black text-xs px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-              <ShieldCheck size={16} />
-              <span>کارخانه احراز هویت شده دست‌اول</span>
+          <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-1.5 max-w-[50%] sm:max-w-none">
+            <span className="bg-emerald-500/95 backdrop-blur-md border border-emerald-400/40 text-slate-950 font-black text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full shadow-lg flex items-center gap-1">
+              <ShieldCheck size={14} className="sm:w-4 sm:h-4" />
+              <span className="truncate">احراز هویت شده</span>
             </span>
             {factory.isPremium && (
-              <span className="bg-amber-400/90 backdrop-blur-md border border-amber-300 text-slate-950 font-black text-xs px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                <Award size={16} />
-                <span>تامین‌کننده ممتاز</span>
+              <span className="bg-amber-400/95 backdrop-blur-md border border-amber-300 text-slate-950 font-black text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full shadow-lg flex items-center gap-1">
+                <Award size={14} className="sm:w-4 sm:h-4" />
+                <span>ممتاز</span>
               </span>
             )}
           </div>
+        </div>
 
-          {/* Factory Main Header Info overlay */}
-          <div className="absolute bottom-6 right-6 left-6 z-20 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
-            <div className="flex items-end gap-4">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-white p-2 shadow-2xl border-4 border-emerald-400 shrink-0 overflow-hidden relative flex items-center justify-center">
-                {logoImage ? (
+        {/* FACTORY PROFILE DETAILS CONTAINER */}
+        <div className="relative px-4 pb-4 pt-4 sm:p-0 sm:absolute sm:-bottom-12 sm:left-6 sm:right-6 sm:z-20">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 w-full sm:w-auto">
+              
+              {/* Logo Container */}
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl sm:rounded-3xl bg-white p-1.5 sm:p-2 shadow-xl sm:shadow-2xl border-4 border-emerald-400 shrink-0 overflow-hidden relative flex items-center justify-center -mt-16 sm:mt-0 z-10 self-center sm:self-auto">
+                {logoImage && typeof logoImage === 'string' && (logoImage.startsWith('http') || logoImage.startsWith('data:image/') || logoImage.startsWith('/') || logoImage.startsWith('.') || logoImage.includes('.') || logoImage.includes('/') || logoImage.includes('%2F')) ? (
                   <img 
                     src={logoImage} 
                     alt={factory.name} 
-                    className="w-full h-full object-contain p-1 rounded-2xl clean-logo-filter" 
+                    className="w-full h-full object-contain p-0.5 rounded-xl sm:rounded-2xl clean-logo-filter" 
                     onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      const parent = e.currentTarget.parentElement;
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
                       if (parent) {
                         const fb = parent.querySelector('.fac-hero-vector-fallback');
                         if (fb) (fb as HTMLElement).style.display = 'flex';
@@ -356,36 +406,39 @@ export default function FactoryDedicatedPage({
                   />
                 ) : null}
                 <div 
-                  className="fac-hero-vector-fallback hidden absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex-col items-center justify-center p-3 text-center rounded-2xl shadow-inner"
-                  style={{ display: !logoImage ? 'flex' : 'none' }}
+                  className="fac-hero-vector-fallback absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex-col items-center justify-center p-2 text-center rounded-xl sm:rounded-2xl shadow-inner"
+                  style={{ display: !logoImage || (typeof logoImage === 'string' && !(logoImage.startsWith('http') || logoImage.startsWith('data:image/') || logoImage.startsWith('/') || logoImage.startsWith('.') || logoImage.includes('.') || logoImage.includes('/') || logoImage.includes('%2F'))) ? 'flex' : 'none' }}
                 >
-                  <span className="text-3xl mb-1">🏭</span>
-                  <span className="text-xs font-black leading-tight text-amber-300 line-clamp-2">{factory.name}</span>
+                  <span className="text-2xl sm:text-3xl mb-0.5 sm:mb-1">🏭</span>
+                  <span className="text-[10px] sm:text-xs font-black leading-tight text-amber-300 line-clamp-2">{factory.name}</span>
                 </div>
               </div>
 
-              <div className="space-y-1.5 text-white">
-                <div className="flex items-center gap-2">
-                  <span className="bg-emerald-600/80 backdrop-blur-md text-emerald-100 text-[11px] font-black px-2.5 py-0.5 rounded-md">
+              {/* Textual Info */}
+              <div className="space-y-1.5 text-slate-800 sm:text-white w-full sm:w-auto text-center sm:text-right mt-2 sm:mt-0">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <span className="bg-emerald-600 sm:bg-emerald-600/80 backdrop-blur-md text-emerald-100 sm:text-emerald-50 text-[10px] sm:text-[11px] font-black px-2 py-0.5 sm:px-2.5 rounded">
                     {factory.category || "صنایع غذایی"}
                   </span>
-                  <span className="text-xs text-slate-300 font-bold">
+                  <span className="text-[11px] sm:text-xs text-slate-500 sm:text-slate-300 font-bold">
                     تاسیس: {factory.establishedYear || "۱۳۸۰"}
                   </span>
                 </div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white drop-shadow-md leading-tight">
+                
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 sm:text-white drop-shadow-none sm:drop-shadow-md leading-tight">
                   {factory.name}
                 </h1>
-                <div className="flex items-center gap-3 text-xs text-slate-200 font-medium">
-                  <span className="flex items-center gap-1">
-                    <MapPin size={14} className="text-emerald-400" />
+                
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-xs text-slate-600 sm:text-slate-200 font-medium">
+                  <span className="flex items-center gap-1 bg-slate-100 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-full">
+                    <MapPin size={13} className="text-emerald-600 sm:text-emerald-400" />
                     <span>{factory.location}</span>
                   </span>
-                  <span>•</span>
-                  <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-amber-400/40">
+                  <span className="hidden sm:inline">•</span>
+                  <div className="flex items-center gap-1.5 bg-slate-100 sm:bg-black/40 backdrop-blur-md px-2.5 py-1 sm:py-0.5 rounded-full border border-slate-200 sm:border-amber-400/40">
                     <StarRating 
                       rating={computedRating} 
-                      size={14} 
+                      size={13} 
                       interactive={true} 
                       showCount={true} 
                       count={localReviews.length}
@@ -401,14 +454,14 @@ export default function FactoryDedicatedPage({
             </div>
 
             {/* Quick Action CTA */}
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="w-full sm:w-auto mt-4 sm:mt-0 z-10">
               {onDirectOrderFactory && (
                 <button
                   onClick={() => {
                     onDirectOrderFactory(factory.name);
                     onClose();
                   }}
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black px-6 py-3 rounded-2xl text-xs shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black px-6 py-3.5 sm:py-3 rounded-2xl text-xs sm:text-sm shadow-xl hover:shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ShoppingBag size={16} />
                   <span>ثبت سفارش مستقیم</span>
@@ -418,6 +471,9 @@ export default function FactoryDedicatedPage({
           </div>
         </div>
 
+        {/* Clear spacer for desktop */}
+        <div className="hidden sm:block h-16" />
+
         {/* NAVIGATION TABS BAR */}
         <div className="px-6 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-3">
@@ -425,7 +481,7 @@ export default function FactoryDedicatedPage({
               onClick={() => setActiveTab('overview')}
               className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'overview'
-                  ? "bg-slate-900 text-white shadow-md"
+                  ? "bg-indigo-600 text-white shadow-md"
                   : "text-slate-600 hover:bg-white hover:shadow-sm"
               }`}
             >
@@ -521,7 +577,7 @@ export default function FactoryDedicatedPage({
                   <h3 className="text-sm font-black text-slate-900">درباره خط تولید و فعالیت کارخانه</h3>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
-                  {factory.description || factory.desc || "این مجتمع صنعتی از بزرگترین و مجهزترین خطوط تولید محصولات در منطقه بوده و دارای تمامی استانداردهای بهداشتی، خطوط بسته بندی تمام اتوماتیک و شبکه توزیع سراسری می‌باشد."}
+                  {factory.factoryDescription || factory.description || factory.desc || "این مجتمع صنعتی از بزرگترین و مجهزترین خطوط تولید محصولات در منطقه بوده و دارای تمامی استانداردهای بهداشتی، خطوط بسته بندی تمام اتوماتیک و شبکه توزیع سراسری می‌باشد."}
                 </p>
               </div>
 
@@ -532,7 +588,7 @@ export default function FactoryDedicatedPage({
                     <Zap size={20} />
                   </div>
                   <span className="text-[11px] text-slate-400 font-bold block">ظرفیت تولید:</span>
-                  <span className="text-sm font-black text-slate-900 block">{factory.capacity || "۵,۰۰۰ کارتن در روز"}</span>
+                  <span className="text-sm font-black text-slate-900 block">{factory.dailyCapacity || factory.capacity || "۵,۰۰۰ کارتن در روز"}</span>
                 </div>
 
                 <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">
@@ -558,7 +614,7 @@ export default function FactoryDedicatedPage({
                   <h3 className="text-sm font-black text-slate-900">محصولات اصلی خط تولید:</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {factory.mainProducts.map((prod, idx) => (
-                      <div key={idx} className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3">
+                      <div key={`fact-dedicated-prod-${prod}-${idx}`} className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3">
                         <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
                         <span className="text-xs font-black text-emerald-950">{prod}</span>
                       </div>
@@ -583,12 +639,12 @@ export default function FactoryDedicatedPage({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {galleryList.slice(0, 4).map((img, idx) => (
                     <div 
-                      key={idx}
+                      key={`fact-dedicated-gallery-${img.url || idx}-${idx}`}
                       onClick={() => setActiveLightboxImage(img)}
                       className="relative h-32 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group"
                     >
-                      <img src={img.url} alt={img.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-slate-950/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      <img src={getDisplayImageUrl(img.url)} alt={img.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-indigo-600/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                         <Maximize2 size={20} />
                       </div>
                     </div>
@@ -670,14 +726,14 @@ export default function FactoryDedicatedPage({
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {filteredGallery.map((img, idx) => (
                   <motion.div
-                    key={idx}
+                    key={`fact-dedicated-filtered-gal-${img.url || idx}-${idx}`}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     onClick={() => setActiveLightboxImage(img)}
                     className="group relative h-56 rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer shadow-sm hover:shadow-xl transition-all"
                   >
                     <img 
-                      src={img.url} 
+                      src={getDisplayImageUrl(img.url)} 
                       alt={img.title} 
                       onError={(e) => {
                         e.currentTarget.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80";
@@ -723,7 +779,7 @@ export default function FactoryDedicatedPage({
                   {factoryProducts.map((product) => (
                     <div key={product.id} className="bg-white rounded-3xl p-4 border border-slate-200 flex gap-4 hover:border-emerald-300 transition-all shadow-sm">
                       <div className="w-24 h-24 rounded-2xl bg-slate-50 border border-slate-100 p-1 shrink-0 overflow-hidden">
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-xl" />
+                        <img src={getDisplayImageUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover rounded-xl" />
                       </div>
 
                       <div className="space-y-1.5 flex-1 min-w-0">
@@ -736,7 +792,7 @@ export default function FactoryDedicatedPage({
 
                         <div className="pt-2 flex items-center justify-between">
                           <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold">
-                            حداقل سفارش: {product.min_order_cartons} کارتن
+                            حداقل سفارش: {Math.max(5, product.min_order_cartons || 5)} کارتن
                           </span>
 
                           {onSelectProductForOrder && (
@@ -776,7 +832,7 @@ export default function FactoryDedicatedPage({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {defaultCertificates.map((cert, idx) => (
-                  <div key={idx} className="bg-white rounded-3xl p-5 border border-slate-200/80 flex items-start gap-4 shadow-sm hover:border-emerald-300 transition-all">
+                  <div key={`fact-dedicated-cert-${cert.name || idx}-${idx}`} className="bg-white rounded-3xl p-5 border border-slate-200/80 flex items-start gap-4 shadow-sm hover:border-emerald-300 transition-all">
                     <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0 border border-amber-200">
                       <Award size={24} />
                     </div>
@@ -892,7 +948,7 @@ export default function FactoryDedicatedPage({
                       </div>
                       <div className="flex items-center gap-1 text-amber-400">
                         {[...Array(rev.rating)].map((_, i) => (
-                          <Star key={i} size={13} className="fill-amber-400" />
+                          <Star key={`fact-dedicated-review-star-${i}`} size={13} className="fill-amber-400" />
                         ))}
                       </div>
                     </div>
@@ -926,7 +982,7 @@ export default function FactoryDedicatedPage({
                   { name: "سلفون بسته‌بندی OPP/CPP چاپ‌شده", category: "ملزومات بسته‌بندی", volume: "۲ تن ماهانه", desc: "با قابلیت دوخت حرارتی بالا و چاپ فلکسو ۱۰ رنگ" },
                   { name: "کارتن ۵ لایه صادراتی و لایه‌دار", category: "ملزومات بسته‌بندی", volume: "۱۰,۰۰۰ عدد ماهانه", desc: "مقاوم در برابر رطوبت و فشار ترانزیت جاده‌ای" }
                 ].map((item, idx) => (
-                  <div key={idx} className="bg-white rounded-3xl p-5 border border-slate-200/80 space-y-3 shadow-sm hover:border-emerald-300 transition-all">
+                  <div key={`fact-dedicated-raw-mat-${item.name.slice(0, 10)}-${idx}`} className="bg-white rounded-3xl p-5 border border-slate-200/80 space-y-3 shadow-sm hover:border-emerald-300 transition-all">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg">
                         {item.category}
@@ -995,7 +1051,7 @@ export default function FactoryDedicatedPage({
                   <div className="pt-2 space-y-2">
                     <button
                       onClick={handleDownloadQR}
-                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+                      className="w-full bg-indigo-600 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
                     >
                       <Download size={16} className="text-amber-400" />
                       <span>دانلود فایل تصویری QR کد (PNG)</span>
@@ -1021,7 +1077,7 @@ export default function FactoryDedicatedPage({
       {/* LIGHTBOX MODAL FOR FULLSCREEN IMAGE VIEW */}
       <AnimatePresence>
         {activeLightboxImage && (
-          <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="relative max-w-4xl w-full text-center space-y-3">
               <button
                 onClick={() => setActiveLightboxImage(null)}
@@ -1029,8 +1085,8 @@ export default function FactoryDedicatedPage({
               >
                 <X size={28} />
               </button>
-              <div className="bg-slate-900 p-2 rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
-                <img src={activeLightboxImage.url} alt={activeLightboxImage.title} className="max-h-[80vh] w-full object-contain mx-auto rounded-2xl" />
+              <div className="bg-indigo-600 p-2 rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
+                <img src={getDisplayImageUrl(activeLightboxImage.url)} alt={activeLightboxImage.title} className="max-h-[80vh] w-full object-contain mx-auto rounded-2xl" />
               </div>
               <p className="text-sm font-black text-white">{activeLightboxImage.title}</p>
             </div>
@@ -1041,7 +1097,7 @@ export default function FactoryDedicatedPage({
       {/* QR MODAL QUICK OVERLAY */}
       <AnimatePresence>
         {showQRModal && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

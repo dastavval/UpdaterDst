@@ -31,7 +31,7 @@ export function LearningCenter({ theme }: { theme: 'light' | 'dark' | 'classic' 
             <BookOpen size={14} />
             مرکز آموزش و مهارت‌آموزی
           </div>
-          <h2 className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>دانش خود را در تجارت عمده بروز کنید</h2>
+          <h2 className="text-lg font-black text-slate-900">دانش خود را در تجارت عمده بروز کنید</h2>
         </div>
         <button className="text-xs font-black text-emerald-600 hover:underline">مشاهده همه دوره‌ها</button>
       </div>
@@ -39,14 +39,14 @@ export function LearningCenter({ theme }: { theme: 'light' | 'dark' | 'classic' 
       <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory hide-scrollbar scroll-smooth gap-4 md:grid md:grid-cols-3 px-1 pb-2 md:px-0 md:pb-0">
         {courses.map((course, idx) => (
           <motion.div 
-            key={idx}
+            key={`info-course-${course.title}-${idx}`}
             whileHover={{ y: -3 }}
-            className={`min-w-[80vw] md:min-w-0 snap-center shrink-0 p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white border-slate-800' : 'bg-white border-teal-100/70 shadow-sm'} transition-all`}
+            className="min-w-[80vw] md:min-w-0 snap-center shrink-0 p-4 rounded-2xl border bg-white border-slate-200 shadow-sm transition-all"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
                {course.icon}
             </div>
-            <h4 className={`text-xs font-black mb-2 ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>{course.title}</h4>
+            <h4 className="text-xs font-black mb-2 text-slate-800">{course.title}</h4>
             <div className="flex items-center justify-between mt-auto">
               <span className="text-[10px] font-black text-slate-500">{course.level}</span>
               <span className="text-[10px] font-black text-slate-500">{course.time} مطالعه</span>
@@ -61,7 +61,7 @@ export function LearningCenter({ theme }: { theme: 'light' | 'dark' | 'classic' 
 export function AIAdvisorSection({ theme }: { theme: 'light' | 'dark' | 'classic' }) {
   return (
     <div id="ai-advisor" className="py-10 md:py-16" dir="rtl">
-      <div className={`p-6 md:p-10 rounded-3xl md:rounded-[3rem] ${theme === 'dark' ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-emerald-50 border-emerald-100'} border relative overflow-hidden`}>
+      <div className="p-6 md:p-10 rounded-3xl md:rounded-[3rem] bg-emerald-50 border border-emerald-100 border relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-400/10 blur-[100px] rounded-full -translate-x-1/2 -translate-y-1/2" />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center relative z-10">
@@ -70,7 +70,7 @@ export function AIAdvisorSection({ theme }: { theme: 'light' | 'dark' | 'classic
                 <BrainCircuit size={14} />
                 موتور هوشمند برآورد سود و تحلیل زنجیره تأمین دست اول
              </div>
-             <h2 className={`text-2xl md font-black leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+             <h2 className="text-2xl md font-black leading-tight text-slate-900">
                بخش برآورد خودکار سود ناخالص <br />و حاشیه سود مغازه‌داران و بنکداران
              </h2>
              <p className="text-xs md font-bold text-slate-600 leading-relaxed">
@@ -140,16 +140,16 @@ export function BusinessModelSection({ theme }: { theme: 'light' | 'dark' | 'cla
   return (
     <div className="py-16" dir="rtl">
       <div className="text-center mb-12 space-y-3">
-         <h2 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>چطور درآمد کسب کنید؟</h2>
+         <h2 className="text-2xl font-black text-slate-900">چطور درآمد کسب کنید؟</h2>
          <p className="text-xs font-bold text-slate-500">راه‌های ساده برای رشد کسب‌وکار شما با دست اول.</p>
       </div>
       <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory hide-scrollbar scroll-smooth gap-6 md:grid md:grid-cols-3 px-2 pb-4 md:px-0 md:pb-0">
          {models.map((m, idx) => (
-           <div key={idx} className="min-w-[85vw] md:min-w-0 snap-center shrink-0 p-6 rounded-2xl bg-white border border-slate-150 shadow-sm hover transition-shadow text-center space-y-4">
+           <div key={`info-model-${m.title}-${idx}`} className="min-w-[85vw] md:min-w-0 snap-center shrink-0 p-6 rounded-2xl bg-white border border-slate-150 shadow-sm hover transition-shadow text-center space-y-4">
               <div className={`mx-auto w-12 h-12 flex items-center justify-center ${m.color}`}>
                  {m.icon}
               </div>
-              <h4 className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-850'}`}>{m.title}</h4>
+              <h4 className="text-sm font-black text-slate-900">{m.title}</h4>
               <p className="text-[11px] text-slate-500 font-bold leading-relaxed">{m.desc}</p>
            </div>
          ))}
@@ -173,7 +173,7 @@ export function CatalogueSection({ theme }: { theme: 'light' | 'dark' | 'classic
             <Download size={14} />
             دریافت لیست قیمت‌ها
           </div>
-          <h2 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>کاتالوگ محصولات و لیست قیمت رسمی</h2>
+          <h2 className="text-2xl font-black text-slate-900">کاتالوگ محصولات و لیست قیمت رسمی</h2>
         </div>
         <button className="px-6 py-3 bg-white text-white rounded-2xl font-black text-xs hover transition-all flex items-center gap-2">
            <Grid size={16} />
@@ -183,13 +183,13 @@ export function CatalogueSection({ theme }: { theme: 'light' | 'dark' | 'classic
 
       <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory hide-scrollbar scroll-smooth gap-6 md:grid md:grid-cols-3 px-2 pb-4 md:px-0 md:pb-0">
         {catalogues.map((cat, idx) => (
-          <div key={idx} className={`min-w-[80vw] md:min-w-0 snap-center shrink-0 p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white border-slate-800' : 'bg-white border-slate-100 shadow-sm'} flex items-center justify-between group hover transition-all cursor-pointer`}>
+          <div key={`info-cat-${cat.title}-${idx}`} className="min-w-[80vw] md:min-w-0 snap-center shrink-0 p-6 rounded-2xl border bg-white border-slate-200 shadow-sm flex items-center justify-between group hover transition-all cursor-pointer">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                  <FileText size={24} />
               </div>
               <div className="text-right">
-                <h4 className={`text-xs font-black ${theme === 'dark' ? 'text-slate-200' : 'text-slate-850'}`}>{cat.title}</h4>
+                <h4 className="text-xs font-black text-slate-850">{cat.title}</h4>
                 <p className="text-[10px] text-slate-500 font-bold mt-1">{cat.brand} • {cat.size}</p>
               </div>
             </div>
@@ -237,7 +237,7 @@ export function TrustSection({ theme }: { theme: 'light' | 'dark' | 'classic' })
         <div className="flex flex-row overflow-x-auto gap-3 sm:gap-4 w-full pt-4 md:pt-6 pb-3 no-scrollbar scroll-smooth relative z-10">
            {steps.map((s, idx) => (
              <div 
-                key={idx} 
+                key={`info-step-${s.title}-${idx}`} 
                 className={`min-w-[220px] sm:min-w-[240px] flex-1 shrink-0 space-y-3 bg-white/95 backdrop-blur-md p-4 rounded-2xl border ${s.border} shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-right`}
              >
                 <div className="flex items-center justify-between">
@@ -340,11 +340,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
       {/* Top Card is wrapped in max-w-7xl to align with other grid contents */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Card: Contact info & Callback form */}
-        <div className={`p-6 md:p-10 rounded-t-3xl ${
-          theme === 'dark' 
-            ? 'bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border-slate-800/85' 
-            : 'bg-gradient-to-br from-emerald-100/35 via-white to-amber-100/25 border-emerald-500/20 shadow-[0_24px_50px_rgba(16,185,129,0.06)]'
-        } border border-b-0 relative overflow-hidden`}>
+        <div className="p-6 md:p-10 rounded-t-3xl bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200 shadow-[0_24px_50px_rgba(16,185,129,0.06)] border-b-0 relative overflow-hidden">
         
         {/* Subtle glowing background effects */}
         <div className="absolute top-0 left-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
@@ -363,7 +359,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                 پشتیبانی آنلاین و ۲۴ ساعته
               </div>
               <h2 className="text-xl md font-black tracking-tight leading-tight">
-                <span className={`block ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ارتباط مستقیم با شبکه تامین</span>
+                <span className="block text-slate-900">ارتباط مستقیم با شبکه تامین</span>
                 <span className="bg-gradient-to-l from-emerald-500 to-teal-500 bg-clip-text text-transparent mt-1 block">دست اول همواره پاسخگوی شماست</span>
               </h2>
               <p className="text-xs font-bold text-slate-500 leading-relaxed max-w-lg">
@@ -375,11 +371,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
               {/* Unit 1: Sales */}
               <a 
                 href="tel:09999123001"
-                className={`p-4 rounded-2xl bg-white/70 border ${
-                  theme === 'dark' 
-                    ? 'border-slate-800/80 hover:bg-slate-950/40' 
-                    : 'border-emerald-500/10 hover:shadow-[0_8px_30px_rgba(16,185,129,0.06)]'
-                } transition-all duration-300 group block relative overflow-hidden`}
+                className="p-4 rounded-2xl bg-white/70 border border-slate-200 hover:bg-slate-50 transition-all duration-300 group block relative overflow-hidden"
               >
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
                 <div className="flex items-center gap-3.5">
@@ -391,33 +383,29 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                        استعلام سریع و سفارش
                      </span>
-                     <h4 className={`text-xs md font-black ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} mt-1`}>بخش تامین و بازرگانی</h4>
-                     <p className={`text-xs font-black ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'} tracking-wider mt-1 font-mono`}>۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
+                     <h4 className="text-xs md font-black text-slate-800 mt-1">بخش تامین و بازرگانی</h4>
+                     <p className="text-xs font-black text-emerald-600 tracking-wider mt-1 font-mono">۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
                   </div>
                 </div>
               </a>
 
               {/* Unit 2: Support */}
               <a 
-                href="tel:09044502900"
-                className={`p-4 rounded-2xl bg-white/70 border ${
-                  theme === 'dark' 
-                    ? 'border-slate-800/80 hover:bg-slate-950/40' 
-                    : 'border-teal-500/10 hover:shadow-[0_8px_30px_rgba(20,184,166,0.06)]'
-                } transition-all duration-300 group block relative overflow-hidden`}
+                href="tel:09999123001"
+                className="p-4 rounded-2xl bg-white/70 border border-slate-200 hover:bg-slate-50 transition-all duration-300 group block relative overflow-hidden"
               >
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500" />
                 <div className="flex items-center gap-3.5">
                   <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/10 flex items-center justify-center text-teal-600 shrink-0 group-hover:scale-110 transition-all duration-300">
-                     <Clock size={18} />
+                     <Phone size={18} />
                   </div>
                   <div>
                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-600 text-[8.5px] font-black">
                        <span className="w-1 h-1 rounded-full bg-teal-500 animate-pulse" />
                        پیگیری بار ۲۴ ساعته
                      </span>
-                     <h4 className={`text-xs md font-black ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} mt-1`}>پشتیبانی ارسال و ترابری بار</h4>
-                     <p className={`text-xs font-black ${theme === 'dark' ? 'text-teal-400' : 'text-teal-600'} tracking-wider mt-1 font-mono`}>۰۹۰۴ ۴۵۰ ۲۹۰۰</p>
+                     <h4 className="text-xs md font-black text-slate-800 mt-1">پشتیبانی ارسال و ترابری بار</h4>
+                     <p className="text-xs font-black text-teal-600 tracking-wider mt-1 font-mono">۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
                   </div>
                 </div>
               </a>
@@ -426,11 +414,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
 
           {/* Left Column: Direct Call-back form (No tabs, highly polished!) */}
           <div className="lg:col-span-5 h-full flex flex-col justify-center">
-            <div className={`p-5 md:p-6 rounded-2xl border ${
-              theme === 'dark' 
-                ? 'bg-slate-900/90 border-slate-800/80 shadow-[0_16px_36px_rgba(0,0,0,0.25)]' 
-                : 'bg-white border-emerald-500/10 shadow-[0_16px_36px_rgba(16,185,129,0.03)]'
-            } relative overflow-hidden flex flex-col min-h-[220px] justify-center text-right`}>
+            <div className="p-5 md:p-6 rounded-2xl border bg-white border-slate-200 shadow-md relative overflow-hidden flex flex-col min-h-[220px] justify-center text-right">
               
               <AnimatePresence mode="wait">
                 {!submitted ? (
@@ -447,7 +431,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                         <Send size={15} className="animate-pulse" />
                       </div>
                       <div>
-                        <h4 className={`text-xs md font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>درخواست تماس فوری و مشاوره</h4>
+                        <h4 className="text-xs md font-black text-slate-900">درخواست تماس فوری و مشاوره</h4>
                         <p className="text-[10px] text-slate-400 font-bold mt-0.5">شماره موبایل خود را وارد کنید تا کارشناسان دست اول تا ۱۵ دقیقه دیگر با شما تماس بگیرند.</p>
                       </div>
                     </div>
@@ -460,11 +444,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                           value={phone}
                           onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                          className={`w-full py-2.5 px-4 rounded-xl text-right text-xs font-bold font-mono border transition-all outline-none ${
-                            theme === 'dark' 
-                              ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus:border-emerald-500' 
-                              : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-emerald-500'
-                          }`}
+                          className="w-full py-2.5 px-4 rounded-xl text-right text-xs font-bold font-mono border transition-all outline-none bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-emerald-500"
                         />
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 font-bold pointer-events-none">شماره موبایل</span>
                       </div>
@@ -526,11 +506,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
 
       {/* Bottom Panel: Creative, Beautiful Horizontal Sliding Representatives List */}
       {/* This stretches full width, stitches seamlessly with the top card, and touches the footer below. */}
-      <div className={`border border-t-0 border-b-0 rounded-b-none w-full ${
-        theme === 'dark'
-          ? 'bg-slate-950/95 border-slate-900/40 shadow-none'
-          : 'bg-gradient-to-r from-emerald-100/20 via-white to-amber-100/20 border-emerald-500/15'
-      } relative overflow-hidden text-right py-8`}>
+      <div className="border border-t-0 border-b-0 rounded-b-none w-full bg-slate-50 border-slate-200 relative overflow-hidden text-right py-8">
         
         {/* Inner container to center-align the sliding reps list inside the full-width block */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -563,11 +539,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="جستجوی شهر، استان یا نام..."
-                className={`w-full py-1.5 pr-8 pl-6 rounded-lg text-right text-[10px] font-bold border transition-all outline-none ${
-                  theme === 'dark' 
-                    ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-600 focus:border-emerald-500/50' 
-                    : 'bg-white border-slate-200 text-slate-850 placeholder-slate-400 focus:border-emerald-500/50 shadow-inner'
-                }`}
+                className="w-full py-1.5 pr-8 pl-6 rounded-lg text-right text-[10px] font-bold border transition-all outline-none bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500/50 shadow-inner"
               />
               {searchTerm && (
                 <button 
@@ -583,22 +555,14 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
             <div className="flex gap-1 shrink-0">
               <button 
                 onClick={() => scroll('right')} 
-                className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
-                  theme === 'dark'
-                    ? 'border-slate-800 bg-slate-900 text-slate-400 hover:text-emerald-400 hover:bg-slate-850'
-                    : 'border-slate-200 bg-white text-slate-500 hover:text-emerald-600 hover:bg-slate-50 shadow-sm'
-                }`}
+                className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer border-slate-200 bg-white text-slate-500 hover:text-emerald-600 hover:bg-slate-50 shadow-sm"
                 title="بعدی"
               >
                 <ChevronRight size={15} />
               </button>
               <button 
                 onClick={() => scroll('left')} 
-                className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
-                  theme === 'dark'
-                    ? 'border-slate-800 bg-slate-900 text-slate-400 hover:text-emerald-400 hover:bg-slate-850'
-                    : 'border-slate-200 bg-white text-slate-500 hover:text-emerald-600 hover:bg-slate-50 shadow-sm'
-                }`}
+                className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer border-slate-200 bg-white text-slate-500 hover:text-emerald-600 hover:bg-slate-50 shadow-sm"
                 title="قبلی"
               >
                 <ChevronLeft size={15} />
@@ -619,7 +583,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
               const initialChar = cleanName.charAt(0) || "👤";
               return (
                 <div 
-                  key={idx}
+                  key={`info-rep-${rep.city}-${rep.name}-${idx}`}
                   className="w-[260px] md:w-[290px] shrink-0 snap-start p-4 rounded-xl border text-right transition-all duration-300 hover:translate-y-[-2px] bg-white border-slate-100/90 hover:border-emerald-500/20 hover:shadow-md shadow-sm"
                 >
                   {/* Badge and Title */}
@@ -743,7 +707,7 @@ export function TermsAndRulesSection({ theme }: { theme: 'light' | 'dark' | 'cla
           const isOpen = openIndex === idx;
           return (
             <div 
-              key={idx}
+              key={`info-rule-${rule.title}-${idx}`}
               className={`rounded-2xl border transition-all overflow-hidden ${
                 isOpen 
                   ? theme === 'dark' ? 'bg-slate-50 border-emerald-500/35' : 'bg-white border-emerald-500/25 shadow-md shadow-emerald-500/5' 

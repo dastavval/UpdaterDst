@@ -15,10 +15,10 @@ interface ProfileManagementProps {
 
 // 1. Profile, Address & Password Management Module
 export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onUpdateB2bConfig }: ProfileManagementProps) {
-  const [name, setName] = useState(user?.name || "بازرگان محترم دست اول");
-  const [phone, setPhone] = useState(user?.phone || "۰۹۱۲۳۴۵۶۷۸۹");
-  const [company, setCompany] = useState(user?.company || "بازرگانی و پخش همکاران البرز");
-  const [nationalId, setNationalId] = useState("۱۰۳۸۰۴۹۸۲۱");
+  const [name, setName] = useState(user?.name || "");
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [company, setCompany] = useState(user?.company || "");
+  const [nationalId, setNationalId] = useState("");
 
   // Factory profile management states
   const [selectedFacId, setSelectedFacId] = useState<string>("");
@@ -118,10 +118,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
   };
   
   // Warehouse Addresses list state
-  const [addresses, setAddresses] = useState<Array<{ id: string; title: string; address: string; code: string }>>([
-    { id: "1", title: "انبار مرکزی پایتخت", address: "تهران، شهرک صنعتی شمس‌آباد، بلوار نارنجستان، پلاک ۱۲", code: "۱۲۳۴۵۶۷۸۹۰" },
-    { id: "2", title: "سوله فرعی کرج", address: "کرج، جاده قزلحصار، روبروی مبل وطن، انبار همکار", code: "۹۸۷۶۵۴۳۲۱۰" }
-  ]);
+  const [addresses, setAddresses] = useState<Array<{ id: string; title: string; address: string; code: string }>>([]);
   
   const [newTitle, setNewTitle] = useState("");
   const [newAddress, setNewAddress] = useState("");
@@ -567,34 +564,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
 
 // 2. Support Ticket System Module
 export function SupportTicketSystem() {
-  const [tickets, setTickets] = useState<Array<{ id: string; title: string; category: string; status: "waiting" | "investigating" | "solved"; date: string; lastMessage: string; messages: Array<{ sender: "user" | "agent"; text: string; time: string }> }>>([
-    {
-      id: "TCK-849",
-      title: "مغایرت ۳ کارتن کلوچه سنتی با فاکتور رسمی",
-      category: "Delivery & Logistics",
-      status: "investigating",
-      date: "۱۴۰۲/۰۴/۱۵",
-      lastMessage: "همکار گرامی، پرونده جهت کسر هزینه بارنامه ترابری جاده‌ای به صندوق مرجوعی ارجاع شد.",
-      messages: [
-        { sender: "user", text: "سلام، در تخلیه نهایی بار امروز، ۳ کارتن کلوچه خرمایی سنتی مابه‌التفاوت وجود دارد. لطفا بررسی فرمایید.", time: "۱۰:۱۵" },
-        { sender: "agent", text: "سلام و احترام. پلمپ سربی باربری فک شده بود؟ یا کارتن ها آسیب دیده اند؟", time: "۱۰:۳۰" },
-        { sender: "user", text: "خیر پلمپ سالم بود اما در بارگیری کارخانه خطای شمارش اتفاق افتاده است.", time: "۱۰:۳۵" },
-        { sender: "agent", text: "همکار گرامی، پرونده جهت کسر هزینه بارنامه ترابری جاده‌ای به صندوق مرجوعی ارجاع شد.", time: "۱۱:۰۰" }
-      ]
-    },
-    {
-      id: "TCK-812",
-      title: "درخواست تایید چک صیادی دوم برای اعتبار افزایش یافته",
-      category: "Financial",
-      status: "solved",
-      date: "۱۴۰۲/۰۴/۱۰",
-      lastMessage: "چک دوم به مبلغ ۱۵۰ میلیون تومان تایید و اعتبار به حساب کاربری اعمال گردید.",
-      messages: [
-        { sender: "user", text: "سلام. تصویر چک صیادی جدید را آپلود کردم. لطفا سقف اعتباری را آزاد کنید.", time: "۰۹:۰۰" },
-        { sender: "agent", text: "چک دوم به مبلغ ۱۵۰ میلیون تومان تایید و اعتبار به حساب کاربری اعمال گردید.", time: "۱۴:۲۰" }
-      ]
-    }
-  ]);
+  const [tickets, setTickets] = useState<Array<{ id: string; title: string; category: string; status: "waiting" | "investigating" | "solved"; date: string; lastMessage: string; messages: Array<{ sender: "user" | "agent"; text: string; time: string }> }>>([]);
 
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [newTitle, setNewTitle] = useState("");
@@ -826,7 +796,7 @@ export function SupportTicketSystem() {
               {activeTicket.messages.map((msg: any, idx: number) => {
                 const isUser = msg.sender === 'user';
                 return (
-                  <div key={idx} className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
+                  <div key={`portal-chat-msg-${msg.text?.slice(0, 5)}-${msg.time || ''}-${idx}`} className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
                     <div className={`max-w-[85%] rounded-2xl p-3 text-xs space-y-1 text-right ${
                       isUser 
                         ? 'bg-slate-100 text-slate-800 rounded-tr-none' 
@@ -878,40 +848,7 @@ export function SupportTicketSystem() {
 
 // 3. System Notifications Module
 export function SystemNotifications() {
-  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; desc: string; date: string; read: boolean; badge: "financial" | "system" | "delivery" }>>([
-    {
-      id: "ntf-1",
-      title: "تایید بارگذاری و احراز پروانه فعالیت تجاری",
-      desc: "تصویر پروانه فعالیت تجاری بنکداری شما با موفقیت تایید شد و سطح اعتباری حساب شما فعال گردید.",
-      date: "امروز - ۱۰:۳۰",
-      read: false,
-      badge: "system"
-    },
-    {
-      id: "ntf-2",
-      title: "تغییر و آزادسازی سقف اعتبار خرید چکی کارخانه‌ای",
-      desc: "سقف اعتبار خرید چکی همکار شما به ۲۵۰ میلیون تومان ارتقا یافت. هم اکنون می‌توانید سفارش‌های چکی ثبت کنید.",
-      date: "دیروز - ۱۴:۱۵",
-      read: false,
-      badge: "financial"
-    },
-    {
-      id: "ntf-3",
-      title: "خروج کامیون ترانزیت فاکتور TRK-99432",
-      desc: "ناوگان جاده‌ای حامل سفارش شما پلمپ هوشمند شد و انبار کارخانه مرکزی البرز را به مقصد انبار ثبت‌شده شما ترک نمود.",
-      date: "۳ روز پیش",
-      read: true,
-      badge: "delivery"
-    },
-    {
-      id: "ntf-4",
-      title: "آغاز جشنواره فروش ویژه مابه التفاوت قیمت چاپی مزمز",
-      desc: "جشنواره استثنایی مزمز با سود همکار مستقیم تا ۲۸٪ فعال شد. ثبت فاکتور فقط به مدت ۴۸ ساعت امکان‌پذیر است.",
-      date: "۴ روز پیش",
-      read: true,
-      badge: "system"
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; desc: string; date: string; read: boolean; badge: "financial" | "system" | "delivery" }>>([]);
 
   const handleMarkAllRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));

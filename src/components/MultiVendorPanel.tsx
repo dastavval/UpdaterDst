@@ -627,7 +627,7 @@ export default function MultiVendorPanel({
                       }
                       if (catList.length === 0) catList = ["عمومی"];
                       return catList.map((catName: string, i: number) => (
-                        <option key={i} value={catName}>{catName}</option>
+                        <option key={`mv-cat-opt-${catName}-${i}`} value={catName}>{catName}</option>
                       ));
                     })()}
                   </select>
@@ -811,7 +811,7 @@ export default function MultiVendorPanel({
                     }
                     if (catList.length === 0) catList = ["عمومی"];
                     return catList.map((catName: string, i: number) => (
-                      <option key={i} value={catName}>{catName}</option>
+                      <option key={`mv-panel-cat-${catName}-${i}`} value={catName}>{catName}</option>
                     ));
                   })()}
                 </select>
@@ -1051,7 +1051,7 @@ export default function MultiVendorPanel({
 
                     <div className="space-y-1">
                       {order.items.map((item, iIdx) => (
-                        <p key={iIdx} className="text-xs text-gray-600 font-bold">
+                        <p key={`mv-panel-order-item-${item.productId || iIdx}-${iIdx}`} className="text-xs text-gray-600 font-bold">
                           • {item.name} - <span className="text-emerald-600">{item.quantityCartons} کارتن</span>
                         </p>
                       ))}

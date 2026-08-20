@@ -88,7 +88,7 @@ const DEFAULT_B2B_CONFIG = {
       "establishedYear": 1372,
       "badge": "gold",
       "isVerified": true,
-      "logoUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23dc2626'/><circle cx='100' cy='100' r='76' fill='%23f59e0b' stroke='%23ffffff' stroke-width='6'/><text x='100' y='110' font-family='Tahoma, sans-serif' font-weight='900' font-size='32' fill='%23ffffff' text-anchor='middle'>چی‌توز</text><text x='100' y='140' font-family='sans-serif' font-weight='bold' font-size='12' fill='%2378350f' text-anchor='middle'>CHETOZ BRAND</text></svg>",
+      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMDAgMjAwJz48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyByeD0nNDAnIGZpbGw9JyNkYzI2MjYnLz48Y2lyY2xlIGN4PScxMDAnIGN5PScxMDAnIHI9Jzc2JyBmaWxsPScjZjs5ZTBiJyBzdHJva2U9JyNmZmZmZmYnIHN0cm9rZS13aWR0aD0nNicvPjx0ZXh0IHg9JzEwMCcgeT0nMTEwJyBmb250LWZhbWlseT0nVGFob21hLCBzYW5zLXNlcmlmJyBmb250LXdlaWdodD0nOTAwJyBmb250LXNpemU9JzMyJyBmaWxsPScjZmZmZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz7Yp9uM49iq2YjYsuKAmDwvdGV4dD48dGV4dCB4=100' y='140' font-family='sans-serif' font-weight='bold' font-size='12' fill='%2378350f' text-anchor='middle'>CHETOZ BRAND</text></svg>",
       "coverUrl": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80",
       "category": "تنقلات و شکلات",
       "mainProducts": ["چیپس سیب‌زمینی چی‌توز", "پفک چی‌توز طلایی", "کرانچی چی‌توز آتشین"],
@@ -111,7 +111,7 @@ const DEFAULT_B2B_CONFIG = {
       "establishedYear": 1374,
       "badge": "vip",
       "isVerified": true,
-      "logoUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%231d4ed8'/><circle cx='100' cy='100' r='76' fill='%233b82f6' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='36' fill='%23ffffff' text-anchor='middle'>مزمز</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23dbeafe' text-anchor='middle'>MAZMAZ FOODS</text></svg>",
+      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMDAgMjAwJz48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyByeD0nNDAnIGZpbGw9JyMxZDRlZDgnLz48Y2lyY2xlIGN4PScxMDAnIGN5PScxMDAnIHI9Jzc2JyBmaWxsPScjM2I4MmY2JyBzdHJva2U9JyNmZmZmZmYnIHN0cm9rZS13aWR0aD0nNicvPjx0ZXh0IHg9JzEwMCcgeT0nMTEyJyBmb250LWZhbWlseT0nVGFob21hLCBzYW5zLXNlcmlmJyBmb250LXdlaWdodD0nOTAwJyBmb250LXNpemU9JzM2JyBmaWxsPScjZmZmZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz7ZhdiyZhdiyPC90ZXh0Pjx0ZXh0IHg9JzEwMCcgeT0nMTQyJyBmb250LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC13ZWlnaHQ9J2JvbGQnIGZvbnQtc2l6ZT0nMTInIGZpbGw9JyNkYmVhZmUnIHRleHQtYW5jaG9yPSdtaWRkbGUnPk1BWk1BWiBGT09EUzwvdGV4dD48L3N2Zz4=",
       "coverUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
       "category": "تنقلات و شکلات",
       "mainProducts": ["تخمه آفتابگردان مزمز", "چیپس کتلت مزمز", "مغز بادام‌زمینی مزمز"],
@@ -253,6 +253,11 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
       });
       return interaction.output_text || "";
     } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      if (errMsg.includes("resource_exhausted") || errMsg.includes("quota") || errMsg.includes("429")) {
+        console.warn("Gemini API Quota Exceeded / Rate Limited. Falling back gracefully.");
+        return "سرویس هوش مصنوعی در حال حاضر با ترافیک بالا مواجه است (سهمیه مصرفی). لطفاً چند لحظه دیگر مجدداً تلاش کنید یا از امکانات استاندارد سامانه استفاده نمایید.";
+      }
       console.error("Gemini call failed:", e);
       throw e;
     }

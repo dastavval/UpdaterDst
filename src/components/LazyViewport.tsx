@@ -11,7 +11,7 @@ export default function LazyViewport({
   children,
   height = "320px",
   className = "",
-  rootMargin = "250px"
+  rootMargin = "1200px" // Increased significantly to prevent white flickering
 }: LazyViewportProps) {
   const [hasIntersected, setHasIntersected] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -22,12 +22,13 @@ export default function LazyViewport({
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          // Slight delay to ensure layout is ready
           setHasIntersected(true);
         }
       },
       {
         rootMargin,
-        threshold: 0.01
+        threshold: 0.001 // More sensitive
       }
     );
 
@@ -47,8 +48,12 @@ export default function LazyViewport({
   return (
     <div
       ref={ref}
-      className={className}
-      style={!hasIntersected ? { minHeight: typeof height === "number" ? `${height}px` : height } : undefined}
+      className={`${className} transition-opacity duration-700 ${hasIntersected ? 'opacity-100' : 'opacity-0'}`}
+      style={{ 
+        minHeight: !hasIntersected ? (typeof height === "number" ? `${height}px` : height) : undefined,
+        containIntrinsicSize: typeof height === "number" ? `auto ${height}px` : `auto 320px`,
+        contentVisibility: "auto"
+      }}
     >
       {hasIntersected ? children : null}
     </div>

@@ -1,0 +1,161 @@
+      {/* GitHub Hot-Reload & Cache-Buster Live Notification Bar */}
+      <AnimatePresence>
+        {newVersionAvailable && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="sticky top-0 z-[120] w-full bg-slate-900 text-white border-b border-slate-800 shadow-xl"
+            dir="rtl"
+          >
+            <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center animate-pulse">
+                  <Zap size={16} />
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] sm:text-xs font-black text-slate-100">
+                    🚀 نسخه جدید پلتفرم هم‌اکنون با موفقیت بارگذاری شد!
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold mt-0.5">
+                    تغییرات گیت‌هاب در هاست اشتراکی آماده است. می‌توانید بدون تخلیه سبد خرید یا پیش‌فاکتور، کدها را به‌روزرسانی کنید.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewVersionAvailable(false)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  بعداً
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingState}
+                  onClick={handleApplyLiveUpdate}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-[10px] sm:text-xs flex items-center gap-1.5 hover:bg-emerald-400 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                >
+                  {isUpdatingState ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      <span>در حال جایگزینی...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={12} />
+                      <span>⚡ اعمال آنی کدهای جدید</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Navbar with Cart */}
+      <Navbar 
+        cartCount={cart.reduce((s, i) => s + i.quantityCartons, 0)} 
+        onCartClick={() => setIsCartOpen(true)} 
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        appMode={appMode}
+        onModeChange={setAppMode}
+        user={user}
+        onAuthClick={() => setShowAuthModal(true)}
+        onLogout={handleLogout}
+        language={language}
+        onLanguageChange={setLanguage}
+        theme={theme}
+        onThemeChange={setTheme}
+        interfaceMode={interfaceMode}
+        onInterfaceModeChange={setInterfaceMode}
+        userBadge={userBadge}
+        onUserBadgeChange={setUserBadge}
+        themeColor={b2bConfig.primaryColor || "emerald"}
+        onMenuClick={() => setIsSidebarOpen(prev => !prev)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab as any}
+        appName={b2bConfig.appName}
+        appSub={b2bConfig.appSub}
+        logoUrl={(b2bConfig as any).logoUrl}
+        mascotUrl={(b2bConfig as any).mascotUrl}
+        topAnnouncement={b2bConfig.topAnnouncement}
+        showTopAnnouncement={b2bConfig.showTopAnnouncement}
+        onOpenAnnouncementModal={() => setShowAnnouncementModal(true)}
+        hqAddress={b2bConfig.hqAddress}
+        supportPhone={b2bConfig.supportPhone}
+        hideHqAddress={(b2bConfig as any).hideHqAddress}
+        hideSupportPhone={(b2bConfig as any).hideSupportPhone}
+        onOpenCatalog={() => setIsCatalogOpen(true)}
+        onOpenPwaModal={() => setShowPwaModal(true)}
+        onOpenCPanelWizard={() => setIsCPanelWizardOpen(true)}
+        b2bConfig={b2bConfig}
+      />
+
+      {/* Main Container */}
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 ${
+        (activeTab === 'presentation' || activeTab === 'about') ? 'pb-0' : 'pb-24 lg:py-6'
+      }`}>
+        <Suspense fallback={
+          <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-3xl p-12">
+            <div className="w-8 h-8 rounded-full bg-emerald-500 animate-pulse mb-3" />
+            <p className="text-xs text-slate-400 font-bold">در حال بارگذاری بخش مورد نظر...</p>
+          </div>
+        }>
+          <AnimatePresence mode="wait">
+            {activeTab === 'presentation' && (
+              <motion.div
+                key="presentation"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6 sm:space-y-8"
+              >
+                <DynamicPresentation 
+                  products={products} 
+                  articles={articles}
+                  onEnterPanel={() => setActiveTab('order')} 
+                  language={language}
+                  theme={theme}
+                  dailyAI={dailyAI}
+                  b2bConfig={b2bConfig}
+                  setActiveTab={setActiveTab}
+                />
+                <AboutUsSection articles={articles} theme={theme} />
+                <TrustSection theme={theme} />
+              </motion.div>
+            )}
+
+            {activeTab === 'order' && (
+              <motion.div
+                key="order"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                {/* Simple order presentation header */}
+                <div id="order-panel-header" className="bg-white text-indigo-900 rounded-2xl p-2.5 sm:p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 relative overflow-hidden text-right border border-slate-100 shadow-xs" dir="rtl">
+                  <div className="absolute top-0 left-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
+                  <div className="relative z-10 flex items-center gap-3 text-right">
+                    <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xs font-bold border border-emerald-100 shrink-0">
+                      🛒
+                    </div>
+                    <div>
+                      <h4 className="font-black text-indigo-900 text-[10.5px] sm:text-xs">سفارش عمده مستقیم از کارخانجات</h4>
+                      <p className="text-[8px] sm:text-[9px] text-slate-400 font-bold mt-0.5">
+                        خرید مستقیم خط تولید با قیمت کارتن عمده و ترابری یکپارچه جاده‌ای
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('presentation')}
+                    className="relative z-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-black text-[8px] px-2.5 py-1 rounded-lg transition-all border border-indigo-100 cursor-pointer shrink-0 sm:self-auto self-end"
+                  >
+                    معرفی پلتفرم دست اول
+                  </button>
+                </div>

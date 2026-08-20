@@ -307,7 +307,7 @@ export default function FactoryDashboard({
         stock_quantity_cartons: Number(prodStock) || 0,
         unit: prodUnit || "بسته",
         production_lead_time_days: Number(prodLeadTime) || 3,
-        image_url: prodImageUrl || "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=400",
+        image_url: prodImageUrl || "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=400",
         shipping_origin: prodOrigin || sellerProfile?.city || "ارسال مستقیم درب کارخانه",
         description: prodDescription,
         pack_description: `${prodCartonPack} ${prodUnit} در کارتن محکم صادراتی`,
@@ -833,18 +833,18 @@ export default function FactoryDashboard({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-800">
-                  {filteredMyProducts.map(p => (
-                    <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                  {filteredMyProducts.map((p, idx) => (
+                    <tr key={`fact-prod-row-${p.id || idx}-${idx}`} className="hover:bg-slate-50/70 transition-colors">
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           <img
-                            src={p.image_url || "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=100"}
+                            src={p.image_url || "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=100"}
                             alt={p.name}
                             className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                           />
                           <div>
                             <div className="font-black text-slate-900">{p.name}</div>
-                            <div className="text-[10px] text-slate-400">{p.category} | حداقل: {p.min_order_cartons || 1} کارتن</div>
+                            <div className="text-[10px] text-slate-400">{p.category} | حداقل: {Math.max(5, p.min_order_cartons || 5)} کارتن</div>
                           </div>
                         </div>
                       </td>
@@ -1119,8 +1119,8 @@ export default function FactoryDashboard({
             </div>
           ) : (
             <div className="space-y-4">
-              {factoryOrders.map(order => (
-                <div key={order.id} className="border border-slate-200 rounded-2xl p-4 sm:p-5 bg-slate-50/60 space-y-3">
+              {factoryOrders.map((order, oIdx) => (
+                <div key={`fact-order-card-${order.id || oIdx}-${oIdx}`} className="border border-slate-200 rounded-2xl p-4 sm:p-5 bg-slate-50/60 space-y-3">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200/80 pb-3">
                     <div>
                       <div className="flex items-center gap-2">
@@ -1141,7 +1141,7 @@ export default function FactoryDashboard({
                     <p className="text-slate-500 mb-1">اقلام خریداری‌شده کارخانه:</p>
                     <ul className="list-disc list-inside text-[11px] text-slate-600 space-y-0.5">
                       {order.items?.map((it, idx) => (
-                        <li key={idx}>
+                        <li key={`fact-ord-it-${it.productId || idx}-${idx}`}>
                           {it.name} - <span className="font-mono font-bold text-indigo-700">{it.quantityCartons} کارتن</span>
                         </li>
                       ))}

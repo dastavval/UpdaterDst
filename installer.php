@@ -446,8 +446,8 @@ if (isset($_GET['action'])) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <style>
-        body { font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif; background-color: #080d1a; color: #f1f5f9; }
-        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(51, 65, 85, 0.5); }
+        body { font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif; background-color: #ffffff; color: #0f172a; }
+        .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
         .badge { padding: 0.25rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
     </style>
 </head>
@@ -463,10 +463,10 @@ if (isset($_GET['action'])) {
                 🛡️ دستیار هوشمند نصب و عیب‌یابی پیشرفته cPanel v4.1.0-Release (بروزرسانی مرداد ۱۴۰۵)
             </div>
 
-            <h1 class="text-2xl sm:text-3xl font-black text-white mb-2">
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 mb-2">
                 سامانه جامع عیب‌یابی، مجوزها (chmod) و بازسازی سرور
             </h1>
-            <p class="text-xs sm:text-sm text-slate-400 font-medium max-w-xl mx-auto">
+            <p class="text-xs sm:text-sm text-slate-500 font-medium max-w-xl mx-auto">
                 بررسی خودکار اتصال دیتابیس، تست دسترسی فایل‌سیستم، تعمیر index.html و رفع خطای صفحه سفید (Blank Screen) در هاست cPanel و ساب‌دامنه‌ها.
             </p>
         </div>
@@ -476,36 +476,36 @@ if (isset($_GET['action'])) {
             <button onclick="switchTab('diag')" id="tab-diag" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black transition-all bg-emerald-600 text-white shadow-lg cursor-pointer">
                 🔍 عیب‌یابی و مجوزها (chmod)
             </button>
-            <button onclick="switchTab('db')" id="tab-db" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer">
+            <button onclick="switchTab('db')" id="tab-db" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">
                 🗄️ پیکربندی دیتابیس MySQL
             </button>
-            <button onclick="switchTab('htaccess')" id="tab-htaccess" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer">
+            <button onclick="switchTab('htaccess')" id="tab-htaccess" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">
                 🌐 تنظیمات .htaccess & MIME
             </button>
         </div>
 
         <!-- محتوای تب ۱: عیب‌یابی و چمد -->
         <div id="content-diag" class="tab-content glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl">
-            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800 flex-wrap gap-2">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 flex-wrap gap-2">
                 <div>
-                    <h2 class="text-base font-black text-white">پایش وضعیت سیستم و دسترسی‌های فایل (chmod)</h2>
-                    <p class="text-xs text-slate-400 mt-0.5">بررسی نوشتن‌پذیری پوشه‌ها و صحت فایل‌های بیلد</p>
+                    <h2 class="text-base font-black text-slate-900">پایش وضعیت سیستم و دسترسی‌های فایل (chmod)</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">بررسی نوشتن‌پذیری پوشه‌ها و صحت فایل‌های بیلد</p>
                 </div>
-                <button onclick="runDiagnostics()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold rounded-xl cursor-pointer">
+                <button onclick="runDiagnostics()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold rounded-xl cursor-pointer">
                     🔄 اسکن مجدد
                 </button>
             </div>
 
             <div id="diag-container" class="space-y-3">
-                <div class="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-500 flex items-center justify-between">
                     <span>در حال اجرای تست‌های تشخیصی سرور...</span>
-                    <span class="animate-spin text-amber-400">⏳</span>
+                    <span class="animate-spin text-amber-600">⏳</span>
                 </div>
             </div>
 
-            <!-- دکمه تعمیر جادویی -->
-            <div class="mt-8 pt-5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                <div class="text-xs text-slate-400">
+            {/* دکمه تعمیر جادویی */}
+            <div class="mt-8 pt-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-xs text-slate-500">
                     💡 جهت رفع تمامی خطاهای صفحه سفید و اصلاح index.html دکمه بنفش را بفشارید.
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
@@ -521,25 +521,25 @@ if (isset($_GET['action'])) {
 
         <!-- محتوای تب ۲: دیتابیس -->
         <div id="content-db" class="tab-content glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl hidden">
-            <h2 class="text-base font-black text-white mb-1">تنظیمات دیتابیس MySQL و ساخت جداول</h2>
-            <p class="text-xs text-slate-400 mb-6">مشخصات دیتابیس cPanel خود را وارد کنید تا اتصال برقرار شده و جداول آماده‌سازی شوند.</p>
+            <h2 class="text-base font-black text-slate-900 mb-1">تنظیمات دیتابیس MySQL و ساخت جداول</h2>
+            <p class="text-xs text-slate-500 mb-6">مشخصات دیتابیس cPanel خود را وارد کنید تا اتصال برقرار شده و جداول آماده‌سازی شوند.</p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">Database Host:</label>
-                    <input type="text" id="db-host" value="localhost" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white dir-ltr font-mono focus:border-amber-400 outline-none">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Database Host:</label>
+                    <input type="text" id="db-host" value="localhost" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 dir-ltr font-mono focus:border-amber-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">Database Name:</label>
-                    <input type="text" id="db-name" value="h353256_dast" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white dir-ltr font-mono focus:border-amber-400 outline-none">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Database Name:</label>
+                    <input type="text" id="db-name" value="h353256_dast" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 dir-ltr font-mono focus:border-amber-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">Database User:</label>
-                    <input type="text" id="db-user" value="h353256_dst" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white dir-ltr font-mono focus:border-amber-400 outline-none">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Database User:</label>
+                    <input type="text" id="db-user" value="h353256_dst" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 dir-ltr font-mono focus:border-amber-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-1">Database Password:</label>
-                    <input type="password" id="db-pass" value="@Ali3360@Ali3360" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white dir-ltr font-mono focus:border-amber-400 outline-none">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Database Password:</label>
+                    <input type="password" id="db-pass" value="@Ali3360@Ali3360" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 dir-ltr font-mono focus:border-amber-500 outline-none">
                 </div>
             </div>
 
@@ -557,11 +557,11 @@ if (isset($_GET['action'])) {
 
         <!-- محتوای تب ۳: htaccess -->
         <div id="content-htaccess" class="tab-content glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl hidden">
-            <h2 class="text-base font-black text-white mb-1">کد .htaccess استاندارد cPanel</h2>
-            <p class="text-xs text-slate-400 mb-4">جهت پشتیبانی کامل از مسیرهای React SPA و درخواست‌های API در هاست و ساب‌دامنه‌ها.</p>
+            <h2 class="text-base font-black text-slate-900 mb-1">کد .htaccess استاندارد cPanel</h2>
+            <p class="text-xs text-slate-500 mb-4">جهت پشتیبانی کامل از مسیرهای React SPA و درخواست‌های API در هاست و ساب‌دامنه‌ها.</p>
 
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
-                <pre class="font-mono text-xs text-emerald-400 dir-ltr text-left overflow-x-auto"># DASTAVVAL B2B PLATFORM - Apache .htaccess for cPanel
+            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
+                <pre class="font-mono text-xs text-indigo-600 dir-ltr text-left overflow-x-auto"># DASTAVVAL B2B PLATFORM - Apache .htaccess for cPanel
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^api/index\.php$ php/api.php [L,QSA]
@@ -601,7 +601,7 @@ Options -Indexes</pre>
 
         function runDiagnostics() {
             const container = document.getElementById('diag-container');
-            container.innerHTML = `<div class="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+            container.innerHTML = `<div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-500 flex items-center justify-between">
                 <span>در حال پایش و تست دسترسی‌های سرور...</span>
                 <span class="animate-spin">⏳</span>
             </div>`;
@@ -613,55 +613,56 @@ Options -Indexes</pre>
 
                     // ۱. PHP Version
                     const phpOk = data.php.ok;
-                    html += `<div class="p-3.5 bg-slate-900/80 rounded-2xl border ${phpOk ? 'border-emerald-500/30' : 'border-rose-500/30'} flex items-center justify-between">
+                    html += `<div class="p-3.5 bg-slate-50 rounded-2xl border ${phpOk ? 'border-emerald-500/30' : 'border-rose-500/30'} flex items-center justify-between shadow-xs">
                         <div class="flex items-center gap-3">
                             <span class="text-lg">${phpOk ? '✅' : '❌'}</span>
                             <div>
-                                <h4 class="text-xs font-bold text-white">نسخه PHP سرور</h4>
-                                <p class="text-[11px] text-slate-400">نسخه موجود: ${data.php.version} (حداقل 7.4 نیاز است)</p>
+                                <h4 class="text-xs font-bold text-slate-900">نسخه PHP سرور</h4>
+                                <p class="text-[11px] text-slate-500">نسخه موجود: ${data.php.version} (حداقل 7.4 نیاز است)</p>
                             </div>
                         </div>
-                        <span class="badge ${phpOk ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${phpOk ? 'پشتیبانی می‌شود' : 'نیازمند ارتقا'}</span>
+                        <span class="badge ${phpOk ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}">${phpOk ? 'پشتیبانی می‌شود' : 'نیازمند ارتقا'}</span>
                     </div>`;
 
                     // ۲. Permissions (chmod)
                     const rootWritable = data.permissions.root_dir.writable;
-                    html += `<div class="p-3.5 bg-slate-900/80 rounded-2xl border ${rootWritable ? 'border-emerald-500/30' : 'border-rose-500/30'} flex items-center justify-between">
+                    html += `<div class="p-3.5 bg-slate-50 rounded-2xl border ${rootWritable ? 'border-emerald-500/30' : 'border-rose-500/30'} flex items-center justify-between shadow-xs">
                         <div class="flex items-center gap-3">
                             <span class="text-lg">${rootWritable ? '✅' : '⚠️'}</span>
                             <div>
-                                <h4 class="text-xs font-bold text-white">دسترسی‌های فایل‌سیستم (chmod)</h4>
-                                <p class="text-[11px] text-slate-400">پوشه اصلی: ${data.permissions.root_dir.chmod} | نوشتن‌پذیر: ${rootWritable ? 'بله' : 'خیر (محدود)'}</p>
+                                <h4 class="text-xs font-bold text-slate-900">دسترسی‌های فایل‌سیستم (chmod)</h4>
+                                <p class="text-[11px] text-slate-500">پوشه اصلی: ${data.permissions.root_dir.chmod} | نوشتن‌پذیر: ${rootWritable ? 'بله' : 'خیر (محدود)'}</p>
                             </div>
                         </div>
-                        <span class="badge ${rootWritable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${rootWritable ? 'مجوز کامل (0755)' : 'بررسی chmod'}</span>
+                        <span class="badge ${rootWritable ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}">${rootWritable ? 'مجوز کامل (0755)' : 'بررسی chmod'}</span>
                     </div>`;
 
                     // ۳. Database Status
                     const dbOk = data.db.status === 'connected';
-                    html += `<div class="p-3.5 bg-slate-900/80 rounded-2xl border ${dbOk ? 'border-emerald-500/30' : 'border-amber-500/30'} flex items-center justify-between">
+                    html += `<div class="p-3.5 bg-slate-50 rounded-2xl border ${dbOk ? 'border-emerald-500/30' : 'border-amber-500/30'} flex items-center justify-between shadow-xs">
                         <div class="flex items-center gap-3">
                             <span class="text-lg">${dbOk ? '✅' : '⚠️'}</span>
                             <div>
-                                <h4 class="text-xs font-bold text-white">اتصال به دیتابیس MySQL</h4>
-                                <p class="text-[11px] text-slate-400">${dbOk ? 'اتصال کامل برقرار است.' : (data.db.error || 'نیازمند تنظیمات در تب دیتابیس')}</p>
+                                <h4 class="text-xs font-bold text-slate-900">اتصال به دیتابیس MySQL</h4>
+                                <p class="text-[11px] text-slate-500">${dbOk ? 'اتصال کامل برقرار است.' : (data.db.error || 'نیازمند تنظیمات در تب دیتابیس')}</p>
                             </div>
                         </div>
-                        <span class="badge ${dbOk ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${dbOk ? 'متصل' : 'غیرمتصل'}</span>
+                        <span class="badge ${dbOk ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}">${dbOk ? 'متصل' : 'غیرمتصل'}</span>
                     </div>`;
 
                     // ۴. Index & Assets Status (المان root و صفحه سفید)
                     const idxOk = data.index_status.exists && !data.index_status.uncompiled && data.index_status.has_root_div;
-                    html += `<div class="p-3.5 bg-slate-900/80 rounded-2xl border ${idxOk ? 'border-emerald-500/30' : 'border-rose-500/30'} flex items-center justify-between">
+                    html += `<div class="p-3.5 bg-slate-50 rounded-2xl border ${idxOk ? 'border-emerald-500/30' : 'border-rose-500/30'} flex items-center justify-between shadow-xs">
                         <div class="flex items-center gap-3">
                             <span class="text-lg">${idxOk ? '✅' : '🚨'}</span>
                             <div>
-                                <h4 class="text-xs font-bold text-white">وضعیت کامپایل index.html و اسکریپت‌ها</h4>
-                                <p class="text-[11px] text-slate-400">المان #root: ${data.index_status.has_root_div ? 'موجود' : 'ناموجود'} | اسکریپت: ${data.index_status.js_ref || 'تعریف نشده'} | CSS: ${data.index_status.css_ref || 'تعریف نشده'}</p>
+                                <h4 class="text-xs font-bold text-slate-900">وضعیت کامپایل index.html و اسکریپت‌ها</h4>
+                                <p class="text-[11px] text-slate-500">المان #root: ${data.index_status.has_root_div ? 'موجود' : 'ناموجود'} | اسکریپت: ${data.index_status.js_ref || 'تعریف نشده'} | CSS: ${data.index_status.css_ref || 'تعریف نشده'}</p>
                             </div>
                         </div>
-                        <span class="badge ${idxOk ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${idxOk ? 'آماده اجرا' : 'نیازمند بازسازی'}</span>
+                        <span class="badge ${idxOk ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}">${idxOk ? 'آماده اجرا' : 'نیازمند بازسازی'}</span>
                     </div>`;
+
 
                     if (!idxOk) {
                         html += `<div class="p-4 bg-rose-950/80 border border-rose-500/40 rounded-2xl text-xs text-rose-200 leading-relaxed">
@@ -684,9 +685,9 @@ Options -Indexes</pre>
 
         function fixAll() {
             const container = document.getElementById('diag-container');
-            container.innerHTML = `<div class="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 text-xs text-slate-300 flex items-center justify-between">
+            container.innerHTML = `<div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-500 flex items-center justify-between">
                 <span>در حال بازسازی فایل‌ها، اصلاح index.html، تنظیم chmod و .htaccess...</span>
-                <span class="animate-spin text-purple-400">⚡</span>
+                <span class="animate-spin text-purple-600">⚡</span>
             </div>`;
 
             fetch('installer.php?action=fix_all')
@@ -705,7 +706,7 @@ Options -Indexes</pre>
             const pass = document.getElementById('db-pass').value;
             const alertBox = document.getElementById('db-alert');
 
-            alertBox.className = 'p-3 rounded-xl text-xs font-bold mb-6 bg-slate-900 text-amber-300';
+            alertBox.className = 'p-3 rounded-xl text-xs font-bold mb-6 bg-slate-50 text-amber-700 border border-amber-200';
             alertBox.innerHTML = 'در حال تست اتصال به MySQL...';
             alertBox.classList.remove('hidden');
 
@@ -733,7 +734,7 @@ Options -Indexes</pre>
             const pass = document.getElementById('db-pass').value;
             const alertBox = document.getElementById('db-alert');
 
-            alertBox.className = 'p-3 rounded-xl text-xs font-bold mb-6 bg-slate-900 text-amber-300';
+            alertBox.className = 'p-3 rounded-xl text-xs font-bold mb-6 bg-slate-50 text-amber-700 border border-amber-200';
             alertBox.innerHTML = 'در حال پیکربندی و ساخت جداول دیتابیس...';
             alertBox.classList.remove('hidden');
 

@@ -17,7 +17,13 @@ export const generateFactoryCode = (): string => {
 
 export const generateUserCode = (role: string = 'customer'): string => {
   const num = Math.floor(10000 + Math.random() * 90000);
-  const prefix = role === 'agent' ? 'AGN' : role === 'factory' ? 'FAC' : role === 'admin' ? 'ADM' : 'CST';
+  let prefix = 'CST';
+  if (role === 'agent' || role === 'marketer') prefix = 'AGN';
+  else if (role === 'representative') prefix = 'REP';
+  else if (role === 'leader') prefix = 'LDR';
+  else if (role === 'factory') prefix = 'FAC';
+  else if (role === 'importer' || role === 'supplier') prefix = 'IMP';
+  else if (role === 'admin') prefix = 'ADM';
   return `${prefix}-${num}`;
 };
 

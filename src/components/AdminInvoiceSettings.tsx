@@ -27,12 +27,12 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
 
   // Form states
   const [sellerTitle, setSellerTitle] = useState(currentInv.sellerTitle || b2bConfig?.appName || "صنایع غذایی و بازرگانی دست اول");
-  const [sellerNationalId, setSellerNationalId] = useState(currentInv.sellerNationalId || "۱۰۱۰۳۴۸۲۹۱۰");
-  const [sellerRegNumber, setSellerRegNumber] = useState(currentInv.sellerRegNumber || "۸۸۴۹۲");
-  const [sellerEconomicCode, setSellerEconomicCode] = useState(currentInv.sellerEconomicCode || "۴۱۱۲۹۳۸۴۷۱");
-  const [sellerPhone, setSellerPhone] = useState(currentInv.sellerPhone || "۰۲۱-۸۸۲۲۴۴۳۳");
-  const [sellerMobile, setSellerMobile] = useState(currentInv.sellerMobile || "۰۹۰۴۴۵۰۲۹۰۰");
-  const [sellerAddress, setSellerAddress] = useState(currentInv.sellerAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد، بلوار کارآفرینان");
+  const [sellerNationalId, setSellerNationalId] = useState(currentInv.sellerNationalId || "");
+  const [sellerRegNumber, setSellerRegNumber] = useState(currentInv.sellerRegNumber || "");
+  const [sellerEconomicCode, setSellerEconomicCode] = useState(currentInv.sellerEconomicCode || "");
+  const [sellerPhone, setSellerPhone] = useState(currentInv.sellerPhone || "");
+  const [sellerMobile, setSellerMobile] = useState(currentInv.sellerMobile || "");
+  const [sellerAddress, setSellerAddress] = useState(currentInv.sellerAddress || "");
   
   const [cashDiscountPercent, setCashDiscountPercent] = useState<number>(currentInv.cashDiscountPercent !== undefined ? currentInv.cashDiscountPercent : 5);
   const [chequeMarkupPerMonthPercent, setChequeMarkupPerMonthPercent] = useState<number>(currentInv.chequeMarkupPerMonthPercent !== undefined ? currentInv.chequeMarkupPerMonthPercent : 6);
@@ -43,15 +43,21 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   const [catalogPdfUrl, setCatalogPdfUrl] = useState(b2bConfig?.catalogPdfUrl || "");
   const [footerNotes, setFooterNotes] = useState(currentInv.footerNotes || "این پیش‌فاکتور به منزله تاییدیه قطعی سفارش و رزرو کالا در خط تولید می‌باشد. کلیه مرسولات دارای بیمه ترانزیت جاده‌ای هستند.");
 
-  const [bankAccounts, setBankAccounts] = useState<any[]>(currentInv.bankAccounts || [
-    {
-      bankName: "بانک ملی ایران",
-      accountNumber: "۰۱۰۲۹۳۸۴۷۵۰۰۱",
-      cardNumber: "۶۰۳۷-۹۹۷۵-۸۸۳۴-۱۲۹۰",
-      shabaNumber: "IR620170000000102938475001",
-      ownerName: "پلتفرم بازرگانی دست اول"
+  const [bankAccounts, setBankAccounts] = useState<any[]>(currentInv.bankAccounts || []);
+
+  const [quantityDiscountTiers, setQuantityDiscountTiers] = useState<any[]>(() => {
+    if (b2bConfig?.quantityDiscountTiers && Array.isArray(b2bConfig.quantityDiscountTiers)) {
+      return b2bConfig.quantityDiscountTiers;
     }
-  ]);
+    return [];
+  });
+
+  const [volumeDiscountTiers, setVolumeDiscountTiers] = useState<any[]>(() => {
+    if (b2bConfig?.volumeDiscountTiers && Array.isArray(b2bConfig.volumeDiscountTiers)) {
+      return b2bConfig.volumeDiscountTiers;
+    }
+    return [];
+  });
 
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -104,6 +110,14 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         ...b2bConfig,
         officialSealUrl,
         catalogPdfUrl,
+        quantityDiscountTiers: quantityDiscountTiers.map(t => ({
+          threshold: Number(t.threshold),
+          discountPercent: Number(t.discountPercent)
+        })).sort((a, b) => a.threshold - b.threshold),
+        volumeDiscountTiers: volumeDiscountTiers.map(t => ({
+          threshold: Number(t.threshold),
+          discountPercent: Number(t.discountPercent)
+        })).sort((a, b) => a.threshold - b.threshold),
         invoiceSettings: updatedInvoiceSettings
       };
 
@@ -119,14 +133,14 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   return (
     <div className="space-y-8 text-right font-sans" dir="rtl">
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="bg-white border border-slate-200 text-slate-900 p-6 sm:p-8 rounded-[2.5rem] shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/30">
+          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100 shadow-sm">
             <FileText size={14} />
             <span>مدیریت کامل فاکتور و مدارک رسمی</span>
           </div>
           <h2 className="text-xl font-black">تنظیمات عناوین، مشخصات حقوقی و مهر/امضا فاکتور</h2>
-          <p className="text-xs text-slate-400 font-bold">
+          <p className="text-xs text-slate-500 font-bold">
             تنظیم صد درصدی مشخصات صادرکننده، درصد تخفیف نقدی، کارمزد چکی، حساب‌های بانکی و آپلود مهر رسمی
           </p>
         </div>
@@ -134,7 +148,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         <button
           type="button"
           onClick={() => setShowLivePreview(!showLivePreview)}
-          className="bg-slate-800 hover:bg-slate-700 text-emerald-400 px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 border border-slate-700 transition-colors cursor-pointer"
+          className="bg-white hover:bg-slate-50 text-emerald-600 px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 border border-slate-200 shadow-sm transition-all cursor-pointer"
         >
           <Eye size={16} />
           <span>{showLivePreview ? "بستن پیش‌نمایش" : "پیش‌نمایش زنده فاکتور"}</span>
@@ -247,7 +261,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                 placeholder="https://... یا بارگذاری فایل PDF"
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-500"
               />
-              <label className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-3 rounded-2xl text-xs font-black cursor-pointer shrink-0 transition-all flex items-center gap-1.5">
+              <label className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-2xl text-xs font-black cursor-pointer shrink-0 transition-all shadow-md shadow-indigo-600/20 flex items-center gap-1.5">
                 <span>انتخاب PDF</span>
                 <input
                   type="file"
@@ -366,6 +380,166 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
           </div>
         </div>
 
+        {/* Section: Tiered Discounts Configuration */}
+        <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+              <Percent className="text-indigo-600" size={18} />
+              مدیریت و پیکربندی تخفیف‌های پلکانی (تیراژ خرید و مبلغ کل)
+            </h3>
+            <p className="text-[11px] text-slate-500 font-bold mt-2">
+              با تنظیم این پله‌ها، تخفیف به صورت کاملا اتوماتیک روی پیش‌فاکتور مشتریان نقدی محاسبه شده و در صورت انتخاب پرداخت چکی ملغی می‌گردد.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Quantity-based Tiers */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="text-xs font-black text-indigo-950">۱. تخفیف‌های پلکانی بر اساس تعداد کارتن (تیراژ)</h4>
+                  <p className="text-[9px] text-slate-400 font-bold">کسر تخفیف در صورت خرید تعداد مشخصی کارتن به بالا</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuantityDiscountTiers([...quantityDiscountTiers, { threshold: 1, discountPercent: 1 }])}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={12} />
+                  <span>افزودن پله تیراژ</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {quantityDiscountTiers.length === 0 ? (
+                  <p className="text-xs text-slate-400 font-bold text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">پله‌ای تعریف نشده است.</p>
+                ) : (
+                  quantityDiscountTiers.map((tier, index) => (
+                    <div key={`admin-inv-qty-tier-${index}`} className="flex items-center gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/80 animate-fade-in">
+                      <div className="flex-1 flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">حداقل تعداد:</span>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          value={tier.threshold}
+                          onChange={(e) => {
+                            const updated = [...quantityDiscountTiers];
+                            updated[index].threshold = Number(e.target.value);
+                            setQuantityDiscountTiers(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-black text-center"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">کارتن</span>
+                      </div>
+
+                      <div className="flex-1 flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">تخفیف:</span>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          max="100"
+                          value={tier.discountPercent}
+                          onChange={(e) => {
+                            const updated = [...quantityDiscountTiers];
+                            updated[index].discountPercent = Number(e.target.value);
+                            setQuantityDiscountTiers(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-black text-center"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">%</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setQuantityDiscountTiers(quantityDiscountTiers.filter((_, i) => i !== index))}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                        title="حذف پله"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Volume/Amount-based Tiers */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="text-xs font-black text-amber-950">۲. تخفیف‌های پلکانی بر اساس مبلغ ناخالص (تومان)</h4>
+                  <p className="text-[9px] text-slate-400 font-bold">کسر تخفیف در صورت رسیدن کل مبلغ ناخالص فاکتور به حدنصاب ریالی</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVolumeDiscountTiers([...volumeDiscountTiers, { threshold: 10000000, discountPercent: 1 }])}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={12} />
+                  <span>افزودن پله ریالی</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {volumeDiscountTiers.length === 0 ? (
+                  <p className="text-xs text-slate-400 font-bold text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">پله‌ای تعریف نشده است.</p>
+                ) : (
+                  volumeDiscountTiers.map((tier, index) => (
+                    <div key={`admin-inv-vol-tier-${index}`} className="flex items-center gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/80 animate-fade-in">
+                      <div className="flex-[1.5] flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">حداقل خرید:</span>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          step="100000"
+                          value={tier.threshold}
+                          onChange={(e) => {
+                            const updated = [...volumeDiscountTiers];
+                            updated[index].threshold = Number(e.target.value);
+                            setVolumeDiscountTiers(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-black text-center"
+                        />
+                        <span className="text-[9px] text-slate-400 font-medium shrink-0">تومان</span>
+                      </div>
+
+                      <div className="flex-1 flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">تخفیف:</span>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          max="100"
+                          value={tier.discountPercent}
+                          onChange={(e) => {
+                            const updated = [...volumeDiscountTiers];
+                            updated[index].discountPercent = Number(e.target.value);
+                            setVolumeDiscountTiers(updated);
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-black text-center"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold shrink-0">%</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setVolumeDiscountTiers(volumeDiscountTiers.filter((_, i) => i !== index))}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                        title="حذف پله"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Section 3: Bank Accounts */}
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -385,7 +559,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
 
           <div className="space-y-4">
             {bankAccounts.map((acc, idx) => (
-              <div key={idx} className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3 relative">
+              <div key={`admin-inv-bank-acc-${acc.accountNumber || idx}-${idx}`} className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3 relative">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-black text-slate-800">حساب شماره {idx + 1}</span>
                   {bankAccounts.length > 1 && (
@@ -557,7 +731,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
             id: "SAMPLE-99201",
             buyerName: "مسئول خرید و تدارکات",
             buyerCompany: "فروشگاه و بنکداری نمونه البرز",
-            buyerPhone: "۰۹۱۲۳۴۵۶۷۸۹",
+            buyerPhone: "",
             buyerAddress: "تهران، انبار مرکزی توزیع و پخش کالا",
             items: [
               {

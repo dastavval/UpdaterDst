@@ -13,6 +13,7 @@ export interface CRMCustomer {
   city: string;
   status: 'active' | 'pending_verification' | 'suspended' | 'vip_candidate';
   notes: string;
+  role?: 'customer' | 'representative' | 'marketer' | 'factory';
   createdAt?: any;
 }
 

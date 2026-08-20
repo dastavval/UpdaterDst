@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   ShoppingBag, 
   Briefcase, 
@@ -9,16 +9,13 @@ import {
   Sparkles, 
   ShieldCheck, 
   HelpCircle, 
-  DollarSign, 
-  Truck, 
-  Coins, 
-  FileText, 
-  Percent,
-  Compass,
+  Search, 
+  Handshake,
   Zap,
-  Users
+  Award,
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface UserGatewayHubProps {
   onSelectBuyer: () => void;
@@ -35,243 +32,189 @@ export const UserGatewayHub: React.FC<UserGatewayHubProps> = ({
   onOpenJourneyGuide,
   onOpenBillboard
 }) => {
-  const [activeTab, setActiveTab] = useState<'buyer' | 'agency' | 'factory'>('buyer');
-
   return (
-    <section className="w-full space-y-4 my-2 text-right" dir="rtl">
+    <section className="w-full space-y-6 my-4 text-right" dir="rtl">
       
-      {/* Top Value Banner Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="space-y-3 max-w-2xl relative z-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="bg-emerald-600 text-white px-3.5 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-sm">
-              <Sparkles size={13} className="fill-white" />
-              <span>راهنمای ۳ مسیر اصلی دست اول</span>
-            </span>
-            <span className="text-[10px] text-emerald-600 font-bold hidden sm:inline-block">
-              🎯 هدفتان را مشخص کنید تا هوشمندانه خرید کنید
-            </span>
+      {/* Smart Hub Banner - Compact, Sleek & Creative */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-slate-50 to-emerald-50/40 p-5 sm:p-6 border border-emerald-100 shadow-md">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 text-right">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20 shrink-0">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-md">پورتال هوشمند</span>
+                <span className="text-[10px] font-bold text-slate-500">مبادلات مستقیم دست اول</span>
+              </div>
+              <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                درگاه یکپارچه خرید و فروش عمده بدون واسطه
+              </h2>
+            </div>
           </div>
 
-          <h2 className="text-lg sm:text-2xl font-black text-slate-900 leading-tight">
-            کدام مسیر برای شما مناسب است؟
-          </h2>
-
-          <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-            چه به دنبال <strong className="text-emerald-600">خرید زیر قیمت بازار</strong> باشید، چه خواهان <strong className="text-amber-600">کسب درآمد ماهانه از نمایندگی</strong> یا <strong className="text-indigo-600">فروش مستقیم محصولات کارخانه خود</strong>، ما مسیر را برایتان هموار کرده‌ایم.
-          </p>
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+            <button
+              onClick={onOpenJourneyGuide}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 font-black text-xs transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <HelpCircle size={15} />
+              <span>راهنمای ورود</span>
+            </button>
+            <button
+              onClick={onOpenBillboard}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-black text-xs transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <TrendingDown size={15} />
+              <span>تالار کف بازار</span>
+            </button>
+          </div>
         </div>
-
-        <div className="flex flex-col sm:flex-row items-center gap-3 relative z-10 w-full md:w-auto shrink-0">
-          <button
-            onClick={onOpenJourneyGuide}
-            className="w-full sm:w-auto bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-emerald-500 px-6 py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-          >
-            <HelpCircle size={18} className="text-emerald-500" />
-            <span>چگونه کار می‌کند؟</span>
-          </button>
-
-          <button
-            onClick={onOpenBillboard}
-            className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-xs px-6 py-3.5 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-          >
-            <TrendingDown size={18} className="text-amber-400" />
-            <span>تالار اجناس زیر کف بازار</span>
-          </button>
-        </div>
-
-        {/* Ambient Decorative Elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
       </div>
 
-      {/* 3 Pillar Cards (Buyer, Agent, Factory) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* 3 Interactive Portal Pillars */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 pt-2">
         
-        {/* Pillar 1: Buyer / Shopkeeper (Low Price Seeker) */}
+        {/* Pillar 1: Buyer */}
         <div 
           onClick={onSelectBuyer}
-          className="group relative bg-white hover:bg-emerald-50/40 rounded-3xl p-6 border-2 border-emerald-100 hover:border-emerald-500 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          className="group relative bg-white rounded-[2.2rem] p-7 border-2 border-slate-100 hover:border-emerald-500 shadow-lg hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500" />
-          
-          <div className="space-y-4 relative z-10">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/20 group-hover:scale-110 transition-transform">
-                <ShoppingBag size={22} />
+              <div className="w-13 h-13 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                <ShoppingBag size={24} />
               </div>
-              <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full border border-emerald-200">
-                🎯 مسیر اول: خریداران
+              <span className="text-[10px] font-black bg-emerald-50 text-emerald-800 px-3 py-1 rounded-full border border-emerald-200">
+                بنکداران و مغازه‌داران
               </span>
             </div>
 
             <div>
-              <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
-                ۱. خرید عمده زیر قیمت بازار
+              <h3 className="text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
+                ۱. خرید مستقیم از کارخانه
               </h3>
-              <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed">
-                مخصوص بنکداران، سوپرمارکت‌ها، سازمان‌ها و فروشگاه‌ها
+              <p className="text-xs font-bold text-slate-500 mt-1.5 leading-relaxed">
+                استعلام زنده قیمت کف بازار و ثبت سفارش عمده مستقیم از انبارهای اصلی تولیدکننده.
               </p>
             </div>
 
-            {/* 4-Step Transparent Journey */}
-            <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-[11px] font-bold text-slate-700">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۱</span>
-                <span>انتخاب کالا با قیمت تمام‌شده کارخانه</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۲</span>
-                <span>استعلام موجودی و صدور آنی پیش‌فاکتور</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۳</span>
-                <span>واریز به حساب امانی امن (تضمین برگشت وجه)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۴</span>
-                <span>تحویل بار با بارنامه بیمه‌شده درب انبار شما</span>
-              </div>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-xl text-[11px] font-black flex items-center gap-2">
-              <Percent size={15} className="shrink-0 text-emerald-600" />
-              <span>حاشیه سود: تا ۳۵٪ ارزان‌تر از بازار سنتی دلالان</span>
+            <div className="space-y-2.5 pt-2 border-t border-slate-100">
+              {[
+                "صدور آنی پیش‌فاکتور معتبر و سیب سلامت کالا",
+                "ارسال مطمئن با ناوگان اختصاصی حمل‌ونقل کالا",
+                "ضمانت اصالت، تاریخ انقضای معتبر و بازگشت کالا"
+              ].map((txt, idx) => (
+                <div key={`buyer-benefit-${idx}`} className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                  <span className="text-[11px] font-black text-slate-700">{txt}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="pt-5 border-t border-slate-100 flex items-center justify-between mt-4">
-            <span className="text-xs font-black text-emerald-700 flex items-center gap-1 group-hover:gap-2 transition-all">
-              <span>ورود به تالار خرید عمده</span>
-              <ArrowLeft size={16} />
-            </span>
-            <span className="text-[10px] text-slate-400 font-bold">بیش از ۵۰۰ قلم کالا</span>
+          <div className="pt-6">
+            <button className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-sm transition-all group-hover:shadow-md">
+              <Search size={16} />
+              <span>مشاهده و استعلام قیمت محصولات</span>
+            </button>
           </div>
         </div>
 
-        {/* Pillar 2: Agency & Income Seekers (Representation in 31 Provinces) */}
+        {/* Pillar 2: Agency */}
         <div 
           onClick={onSelectAgency}
-          className="group relative bg-white hover:bg-amber-50/40 rounded-3xl p-6 border-2 border-amber-200 hover:border-amber-500 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          className="group relative bg-white rounded-[2.2rem] p-7 border-2 border-amber-200 hover:border-amber-500 shadow-xl hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500" />
-          
-          <div className="space-y-4 relative z-10">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
-                <Briefcase size={22} />
+              <div className="w-13 h-13 rounded-2xl bg-amber-500 text-slate-900 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                <Briefcase size={24} />
               </div>
-              <span className="text-[10px] font-black bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-200">
-                🎯 مسیر دوم: کسب درآمد
+              <span className="text-[10px] font-black bg-amber-50 text-amber-900 px-3 py-1 rounded-full border border-amber-300">
+                متقاضیان عاملیت
               </span>
             </div>
 
             <div>
-              <h3 className="text-base font-black text-slate-900 group-hover:text-amber-700 transition-colors">
-                ۲. اخذ نمایندگی و پورسانت بازاریابی
+              <h3 className="text-lg font-black text-slate-900 group-hover:text-amber-800 transition-colors">
+                ۲. اخذ نمایندگی و پورسانت
               </h3>
-              <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed">
-                مخصوص بازاریابان، شرکت‌های پخش استانی و افراد جویای درآمد
+              <p className="text-xs font-bold text-slate-500 mt-1.5 leading-relaxed">
+                اخذ حق انحصار پخش استانی کالا و ثبت سفارشات اعتباری با چک صیادی.
               </p>
             </div>
 
-            {/* 4-Step Transparent Journey */}
-            <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-[11px] font-bold text-slate-700">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 text-[10px] flex items-center justify-center font-black shrink-0">۱</span>
-                <span>انتخاب استان و خط تولید مورد علاقه شما</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 text-[10px] flex items-center justify-center font-black shrink-0">۲</span>
-                <span>دریافت کاتالوگ، لیست قیمت و گواهی نمایندگی</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 text-[10px] flex items-center justify-center font-black shrink-0">۳</span>
-                <span>بازاریابی و ثبت سفارش بدون نیاز به سرمایه اولیه</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 text-[10px] flex items-center justify-center font-black shrink-0">۴</span>
-                <span>واریز قطعی پورسانت و سود ماهانه (۲۰ تا ۱۰۰ م)</span>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-xl text-[11px] font-black flex items-center gap-2">
-              <Coins size={15} className="shrink-0 text-amber-600" />
-              <span>پتانسیل درآمد: سود تضمینی از هر کارتن بدون انبارداری</span>
+            <div className="space-y-2.5 pt-2 border-t border-slate-100">
+              {[
+                "دسترسی به سود انحصاری عاملیت‌های فروش استانی",
+                "شرایط تسویه اعتباری و پشتیبانی بازاریابی مویرگی",
+                "عقد قرارداد رسمی و کتبی نمایندگی انحصاری"
+              ].map((txt, idx) => (
+                <div key={`agency-benefit-${idx}`} className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-amber-600 shrink-0" />
+                  <span className="text-[11px] font-black text-slate-700">{txt}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="pt-5 border-t border-slate-100 flex items-center justify-between mt-4">
-            <span className="text-xs font-black text-amber-700 flex items-center gap-1 group-hover:gap-2 transition-all">
-              <span>درخواست نمایندگی ۳۱ استان</span>
-              <ArrowLeft size={16} />
-            </span>
-            <span className="text-[10px] text-slate-400 font-bold">ظرفیت محدود استانی</span>
+          <div className="pt-6">
+            <button className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-sm transition-all group-hover:shadow-md">
+              <Handshake size={16} />
+              <span>درخواست نمایندگی انحصاری</span>
+            </button>
           </div>
         </div>
 
-        {/* Pillar 3: Factory Owner / Manufacturer (Fast Cash & Ton Sale) */}
+        {/* Pillar 3: Factory */}
         <div 
           onClick={onSelectFactory}
-          className="group relative bg-white hover:bg-indigo-50/40 rounded-3xl p-6 border-2 border-indigo-100 hover:border-indigo-500 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden"
+          className="group relative bg-white rounded-[2.2rem] p-7 border-2 border-slate-100 hover:border-indigo-500 shadow-lg hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500" />
-          
-          <div className="space-y-4 relative z-10">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/20 group-hover:scale-110 transition-transform">
-                <Factory size={22} />
+              <div className="w-13 h-13 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                <Factory size={24} />
               </div>
-              <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full border border-indigo-200">
-                🎯 مسیر سوم: کارخانجات
+              <span className="text-[10px] font-black bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full border border-indigo-200">
+                تولیدکنندگان
               </span>
             </div>
 
             <div>
-              <h3 className="text-base font-black text-slate-900 group-hover:text-indigo-700 transition-colors">
-                ۳. فروش تناژ بار و تامین نقدینگی
+              <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-700 transition-colors">
+                ۳. ثبت غرفه و فروش کارخانه
               </h3>
-              <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed">
-                مخصوص تولیدکنندگان، کارخانه‌داران و صاحبان صنایع غذایی
+              <p className="text-xs font-bold text-slate-500 mt-1.5 leading-relaxed">
+                عرضه مستقیم خط تولید به خریداران عمده سراسر کشور با تسویه نقدی و سریع.
               </p>
             </div>
 
-            {/* 4-Step Transparent Journey */}
-            <div className="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-[11px] font-bold text-slate-700">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۱</span>
-                <span>ثبت مشخصات خط تولید و ظرفیت خالی روزانه</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۲</span>
-                <span>بررسی کیفی، اصالت سیب سلامت و استاندارد</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۳</span>
-                <span>معرفی محصول به شبکه ۱۲,۸۰۰ خریدار فعال</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-black shrink-0">۴</span>
-                <span>تسویه نقدی قبل از خروج بار (بدون ریسک چک)</span>
-              </div>
-            </div>
-
-            <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 p-2.5 rounded-xl text-[11px] font-black flex items-center gap-2">
-              <ShieldCheck size={15} className="shrink-0 text-indigo-600" />
-              <span>امنیت مالی: تسویه ۱۰۰٪ نقدی بدون بازگشت چک</span>
+            <div className="space-y-2.5 pt-2 border-t border-slate-100">
+              {[
+                "مدیریت ۱۰۰٪ قیمت‌گذاری و کنترل شبکه توزیع",
+                "تسویه نقدی و امن پیش از خروج بار از کارخانه",
+                "معرفی خطوط تولید به بیش از ۵۰ هزار خریدار فعال"
+              ].map((txt, idx) => (
+                <div key={`factory-benefit-${idx}`} className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-indigo-600 shrink-0" />
+                  <span className="text-[11px] font-black text-slate-700">{txt}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="pt-5 border-t border-slate-100 flex items-center justify-between mt-4">
-            <span className="text-xs font-black text-indigo-700 flex items-center gap-1 group-hover:gap-2 transition-all">
-              <span>ثبت خط تولید کارخانه</span>
-              <ArrowLeft size={16} />
-            </span>
-            <span className="text-[10px] text-slate-400 font-bold">عضویت سراسری ۳۱ استان</span>
+          <div className="pt-6">
+            <button className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-sm transition-all group-hover:shadow-md">
+              <Layers size={16} />
+              <span>ثبت غرفه کارخانه و خط تولید</span>
+            </button>
           </div>
         </div>
 
       </div>
+
     </section>
   );
 };

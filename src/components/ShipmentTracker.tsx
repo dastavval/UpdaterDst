@@ -37,7 +37,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
       return;
     }
 
-    // If it's the last ordered item or matches a mock pattern
+    // If it's the last ordered item
     if (trimmed === lastOrderTracking.toUpperCase() && lastOrderTracking) {
       setActiveTracking({
         code: lastOrderTracking,
@@ -47,21 +47,6 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
         operator: "ترابری لجستیک ملی دست اول",
         amount: lastOrderAmount,
         date: "۱۴۰۲/۰۴/۱۶"
-      });
-    } else if (trimmed.startsWith("TRK-") || trimmed.length > 5) {
-      // Return a simulated high-fidelity order tracker based on the code to make it fully functional and interactive
-      const seed = trimmed.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const stageIdx = seed % STAGES.length;
-      const statusKey = STAGES[stageIdx].key;
-      
-      setActiveTracking({
-        code: trimmed,
-        origin: "مجتمع صنایع غذایی نظری - البرز",
-        destination: "باربری بنکداری سراسری همکاران",
-        status: statusKey,
-        operator: "باربری تندباد آریا",
-        amount: 24500000,
-        date: "۱۴۰۲/۰۴/۱۵"
       });
     } else {
       setErrorMsg("شناسه سفارش یافت نشد. لطفاً کد پیگیری فاکتور خرید یا شماره بارنامه خود را وارد نمایید.");
@@ -75,24 +60,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
   const activeStageIdx = activeTracking ? getStageIndex(activeTracking.status) : -1;
 
   // Render mock transit routes if not provided
-  const defaultRoutes = transitRoutes.length > 0 ? transitRoutes : [
-    {
-      id: "r1",
-      origin: "صنایع غذایی مزمز - تهران شمس‌آباد",
-      destination: "بنکداری حاج‌قاسم - شیراز دروازه اصفهان",
-      status: "in_transit",
-      operator: "باربری تندباد آریا",
-      estimatedDays: 2
-    },
-    {
-      id: "r2",
-      origin: "مجتمع صنایع غذایی شیرین‌عسل - تبریز",
-      destination: "انبار توزیع همکاران - مشهد بزرگراه کلانتری",
-      status: "loading",
-      operator: "پیشگامان ترابری البرز",
-      estimatedDays: 3
-    }
-  ];
+  const defaultRoutes = transitRoutes.length > 0 ? transitRoutes : [];
 
   return (
     <div className="space-y-10 text-right" dir="rtl">
@@ -109,7 +77,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
             سامانه مرکزی پیگیری زنجیره تامین کالا
           </h2>
           <p className="text-slate-400 text-xs sm leading-relaxed font-bold">
-            شناسه سفارش خود (مانند <span className="text-emerald-400 font-mono">TRK-88540</span>) را وارد کنید تا وضعیت واقعی تولید در کارخانه، کنترل کیفی و ترانزیت جاده‌ای بارگیران را به صورت لحظه‌ای بررسی کنید.
+            شناسه سفارش خود را وارد کنید تا وضعیت واقعی تولید در کارخانه، کنترل کیفی و ترانزیت جاده‌ای بارگیران را به صورت لحظه‌ای بررسی کنید.
           </p>
 
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 pt-2 max-w-xl">
@@ -190,7 +158,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                 const isPending = idx > activeStageIdx;
 
                 return (
-                  <div key={stage.key} className="relative flex flex-col sm:flex-row items-start gap-4">
+                  <div key={`shipment-stage-${stage.key}-${idx}`} className="relative flex flex-col sm:flex-row items-start gap-4">
                     {/* Circle Indicator */}
                     <div className={`absolute -right-[31px] top-1.5 w-4 h-4 rounded-full border-4 flex items-center justify-center transition-all ${
                       isPassed 
@@ -323,8 +291,8 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
             </p>
 
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-              <span className="text-[9px] text-slate-400 font-black block mb-1">کد پلمپ پیش‌فرض امروز</span>
-              <span className="text-xs font-black font-mono tracking-widest text-emerald-600">DSL-SEAL-88942-IR</span>
+              <span className="text-[9px] text-slate-400 font-black block mb-1">کد پلمپ دیجیتالی اختصاصی</span>
+              <span className="text-xs font-black font-mono tracking-widest text-emerald-600">— — — — — — —</span>
             </div>
           </div>
         </div>

@@ -23,17 +23,21 @@ import {
   Check,
   Loader2,
   AlertCircle,
-  Package
+  Package,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from '../lib/firebase-mock';
 import { db } from '../lib/firebase';
 import { recordCRMOrder } from '../lib/crm-helper';
 import { CartItem, Product, User } from '../types';
+import ChequeCharterModal from './ChequeCharterModal';
 
 interface CheckoutWizardProps {
   isOpen: boolean;
   onClose: () => void;
   cart: CartItem[];
+  onAddToCart?: (product: Product, quantityCartons: number) => void;
   onUpdateQuantity: (productId: string, newCartons: number) => void;
   onRemoveItem: (productId: string) => void;
   totalAmount: number;
@@ -43,12 +47,16 @@ interface CheckoutWizardProps {
   onOrderSuccess: (orderData: any) => void;
   setShowAuthModal: (show: boolean) => void;
   products: Product[];
+  userCity?: string;
+  userProvince?: string;
+  cityAgency?: any;
 }
 
 export default function CheckoutWizard({
   isOpen,
   onClose,
   cart,
+  onAddToCart,
   onUpdateQuantity,
   onRemoveItem,
   totalAmount,
@@ -57,10 +65,15 @@ export default function CheckoutWizard({
   b2bConfig,
   onOrderSuccess,
   setShowAuthModal,
-  products
+  products,
+  userCity = "تهران",
+  userProvince = "تهران",
+  cityAgency
 }: CheckoutWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const [quickNotice, setQuickNotice] = useState<string | null>(null);
+  const [showCharterModal, setShowCharterModal] = useState(false);
 
   // Delivery & Shipping Form State
   const [buyerName, setBuyerName] = useState(user?.name || "");
@@ -136,12 +149,34 @@ export default function CheckoutWizard({
     return prod?.image_url || item.image_url || "";
   };
 
+  // Quick Add handler for suggested items
+  const handleQuickAdd = (product: Product, cartons: number = 5) => {
+    const existing = cart.find(c => c.productId === product.id);
+    if (onAddToCart) {
+      onAddToCart(product, cartons);
+    } else {
+      const newQty = (existing?.quantityCartons || 0) + cartons;
+      onUpdateQuantity(product.id, newQty);
+    }
+
+    setJustAddedId(product.id);
+    setQuickNotice(`«${product.name}» با موفقیت (+${cartons} کارتن) به سبد خرید اضافه شد`);
+    
+    setTimeout(() => {
+      setJustAddedId(null);
+    }, 2000);
+
+    setTimeout(() => {
+      setQuickNotice(null);
+    }, 4000);
+  };
+
   // Config values
   const invSettings = b2bConfig?.invoiceSettings || {};
   const cashDiscountPercent = invSettings.cashDiscountPercent !== undefined ? invSettings.cashDiscountPercent : 5;
   const chequeMarkupPerMonth = invSettings.chequeMarkupPerMonthPercent !== undefined ? invSettings.chequeMarkupPerMonthPercent : 6;
-  const minOrderAmount = b2bConfig?.minOrderAmount || 3000000;
-  const minOrderCartons = b2bConfig?.minOrderCartons || 3;
+  const minOrderAmount = b2bConfig?.minOrderAmount || 10000000;
+  const minOrderCartons = b2bConfig?.minOrderCartons || 5;
 
   const totalCartons = cart.reduce((sum, item) => sum + item.quantityCartons, 0);
   const totalUnits = cart.reduce((sum, item) => sum + item.totalItems, 0);
@@ -149,16 +184,40 @@ export default function CheckoutWizard({
   // Weight estimation: average 10-14kg per carton
   const estimatedWeightKg = totalCartons * 12;
 
-  // Calculations
-  const cashDiscountAmount = paymentMethod === 'cash' ? Math.round(totalAmount * (cashDiscountPercent / 100)) : 0;
-  const couponDiscountAmount = 0;
+  // 1. Volume Tier Discount (تخفیف پلکانی تیراژ کارتن - منحصراً در تسویه نقدی فعال است و در خرید چکی اعمال نمی‌شود)
+  let tierDiscountPercent = 0;
+  let tierLabel = "";
+  if (paymentMethod === 'cash') {
+    if (totalCartons >= 50) {
+      tierDiscountPercent = 10;
+      tierLabel = "تخفیف طلایی ۱۰٪ (تیراژ ۵۰ کارتن و بالاتر)";
+    } else if (totalCartons >= 25) {
+      tierDiscountPercent = 6;
+      tierLabel = "تخفیف ۶٪ (تیراژ ۲۵ تا ۴۹ کارتن)";
+    } else if (totalCartons >= 10) {
+      tierDiscountPercent = 3;
+      tierLabel = "تخفیف ۳٪ (تیراژ ۱۰ تا ۲۴ کارتن)";
+    }
+  }
+  const tierDiscountAmount = Math.round(totalAmount * (tierDiscountPercent / 100));
+
+  // 2. User Badge / Partner Discount
+  const badgeDiscountPercent = userBadge === 'gold' ? 3 : userBadge === 'vip' ? 5 : userBadge === 'silver' ? 1 : 0;
+  const badgeDiscountAmount = Math.round(totalAmount * (badgeDiscountPercent / 100));
+
+  // 3. Cash Discount (اگر تخفیف پلکانی فعال شده باشد، تخفیف نقدی ۵٪ غیرفعال می‌شود تا هم‌پوشانی نداشته باشند)
+  const effectiveCashDiscountPercent = (paymentMethod === 'cash' && tierDiscountPercent === 0) ? cashDiscountPercent : 0;
+  const cashDiscountAmount = Math.round(totalAmount * (effectiveCashDiscountPercent / 100));
+
+  // 4. Cheque Adjustments
   const chequeMarkupPercent = paymentMethod === 'cheque' ? chequeMonths * chequeMarkupPerMonth : 0;
   const chequeMarkupAmount = paymentMethod === 'cheque' ? Math.round(totalAmount * (chequeMarkupPercent / 100)) : 0;
   
-  const totalDiscounts = cashDiscountAmount;
+  // Total discounts applied
+  const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount;
   const finalPayableAmount = Math.max(0, totalAmount - totalDiscounts + chequeMarkupAmount);
 
-  const bankAccount = (invSettings.bankAccounts && invSettings.bankAccounts.length > 0)
+  const rawBankAcc = (invSettings.bankAccounts && invSettings.bankAccounts.length > 0)
     ? invSettings.bankAccounts[0]
     : {
         bankName: "بانک ملی ایران",
@@ -168,18 +227,21 @@ export default function CheckoutWizard({
         ownerName: "پلتفرم بازرگانی دست اول"
       };
 
+  const bankAccount = {
+    ...rawBankAcc,
+    shabaNumber: rawBankAcc.shabaNumber || rawBankAcc.sheba,
+    sheba: rawBankAcc.sheba || rawBankAcc.shabaNumber
+  };
+
   const handleNextFromStep1 = () => {
     setErrorMessage("");
     if (cart.length === 0) {
       setErrorMessage("سبد خرید شما خالی است.");
       return;
     }
-    if (totalAmount < minOrderAmount) {
-      setErrorMessage(`حداقل مبلغ سفارش ${minOrderAmount.toLocaleString()} تومان می‌باشد. (مبلغ فعلی: ${totalAmount.toLocaleString()} تومان)`);
-      return;
-    }
-    if (totalCartons < minOrderCartons) {
-      setErrorMessage(`حداقل تعداد سفارش ${minOrderCartons} کارتن می‌باشد. (تعداد فعلی: ${totalCartons} کارتن)`);
+    const meetsMinOrder = totalAmount >= minOrderAmount || totalCartons >= minOrderCartons;
+    if (!meetsMinOrder) {
+      setErrorMessage(`حداقل سفارش برای ثبت، ۵ کارتن یا حداقل ۱۰,۰۰۰,۰۰۰ تومان می‌باشد. (سبد فعلی: ${totalCartons} کارتن - ${totalAmount.toLocaleString()} تومان)`);
       return;
     }
     setStep(2);
@@ -197,6 +259,11 @@ export default function CheckoutWizard({
   const handleNextFromStep3 = () => {
     setErrorMessage("");
     if (paymentMethod === 'cheque') {
+      const allowedCredit = Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 250000000));
+      if (finalPayableAmount > allowedCredit) {
+        setErrorMessage(`مبلغ چک (${finalPayableAmount.toLocaleString()} تومان) بیشتر از سقف اعتبار مجاز شما (${allowedCredit.toLocaleString()} تومان) می‌باشد.`);
+        return;
+      }
       if (!chequeSayadiNo.trim() && !chequeImage) {
         setErrorMessage("لطفاً شماره صیادی یا تصویر چک را وارد/آپلود نمایید.");
         return;
@@ -223,11 +290,15 @@ export default function CheckoutWizard({
         items: cart,
         totalAmount: finalPayableAmount,
         originalAmount: totalAmount,
-        discountAmount: cashDiscountAmount,
+        discountAmount: totalDiscounts,
         discountBreakdown: {
-          badge: 0,
-          bulk: 0,
+          tier: tierDiscountAmount,
+          tierPercent: tierDiscountPercent,
+          tierLabel: tierLabel || "بدون تخفیف پلکانی",
+          badge: badgeDiscountAmount,
+          badgePercent: badgeDiscountPercent,
           cash: cashDiscountAmount,
+          cashPercent: effectiveCashDiscountPercent,
           chequeMarkup: chequeMarkupAmount,
           chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
           chequeMarkupPercent
@@ -270,83 +341,113 @@ export default function CheckoutWizard({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6" dir="rtl">
+        {/* Soft Background Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
+          className="absolute inset-0 bg-slate-400/40 backdrop-blur-sm"
         />
 
+        {/* Pure White Modal Card */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden text-right flex flex-col max-h-[90vh] font-sans border border-slate-100"
+          exit={{ opacity: 0, scale: 0.96, y: 15 }}
+          className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden text-right flex flex-col max-h-[92vh] font-sans border border-slate-200/90"
         >
-          {/* Header & Step Indicator */}
-          <div className="bg-slate-900 text-white p-5 sm:p-6 space-y-4">
+          {/* Toast / Notification banner for instant feedback */}
+          <AnimatePresence>
+            {quickNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="absolute top-2 inset-x-4 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-xs font-bold"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-200 shrink-0" />
+                  <span>{quickNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuickNotice(null)}
+                  className="p-1 hover:bg-emerald-700/50 rounded-lg text-emerald-100 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Clean Pure White Header */}
+          <div className="bg-white border-b border-slate-200/80 p-4 sm:p-5 space-y-3.5">
             <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200/60 shadow-xs">
                   <ShoppingBag size={20} />
                 </div>
                 <div>
-                  <h2 className="text-base font-black">صدور پیش‌فاکتور و ثبت سفارش عمده</h2>
-                  <p className="text-[10px] text-slate-400 font-bold">فرآیند ۴ مرحله‌ای شفاف و مستقیم با خط تولید</p>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900">پیش‌فاکتور و ثبت سفارش عمده کارخانه</h2>
+                  <p className="text-[11px] text-slate-500 font-bold">فرآیند ۴ مرحله‌ای شفاف و مستقیم با خط تولید</p>
                 </div>
               </div>
+              
               <div className="flex items-center gap-2">
                 <a
                   href="tel:09999123001"
-                  className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-black transition-all shadow-xs group"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full text-xs font-black transition-all shadow-xs group cursor-pointer"
                   title="تماس تلفنی با پشتیبانی مشتریان"
                 >
-                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                    <PhoneCall size={12} className="animate-pulse" />
+                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+                    <PhoneCall size={10} className="animate-pulse" />
                   </div>
-                  <span>پشتیبانی مشتریان</span>
+                  <span>پشتیبانی سفارشات</span>
                 </a>
+
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                  title="بستن"
                 >
                   <X size={18} />
                 </button>
               </div>
             </div>
 
-            {/* Step Wizard Bar */}
-            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-800/80">
+            {/* Step Wizard Tabs Bar (Clean White / Emerald Theme) */}
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 pt-1 border-t border-slate-100">
               {[
                 { id: 1, label: "۱. سبد خرید" },
                 { id: 2, label: "۲. تحویل و آدرس" },
-                { id: 3, label: "۳. تسویه و مدارک" },
-                { id: 4, label: "۴. تایید نهایی" }
+                { id: 3, label: "۳. روش تسویه" },
+                { id: 4, label: "۴. تایید فاکتور" }
               ].map((s) => (
-                <div
+                <button
                   key={s.id}
+                  type="button"
                   onClick={() => {
                     if (s.id < step) setStep(s.id as any);
                   }}
-                  className={`py-2 px-1 text-center rounded-xl text-[10px] sm:text-xs font-black transition-all ${
+                  className={`py-2 px-1 text-center rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer ${
                     step === s.id
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                       : step > s.id
-                      ? "bg-slate-800 text-emerald-400 cursor-pointer"
-                      : "bg-slate-800/50 text-slate-500"
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100"
+                      : "bg-slate-50 text-slate-400 border border-slate-200/60"
                   }`}
                 >
                   {s.label}
-                </div>
+                </button>
               ))}
             </div>
           </div>
 
           {/* Content Body */}
-          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-white">
             {errorMessage && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs">
                 <AlertCircle size={16} className="shrink-0" />
                 <span>{errorMessage}</span>
               </div>
@@ -356,22 +457,34 @@ export default function CheckoutWizard({
             {step === 1 && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-black text-slate-800">بررسی و ویرایش اقلام سفارش</h3>
+                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    <span>بررسی اقلام سفارش عمده</span>
+                    <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-md font-mono font-bold">
+                      {cart.length} قلم کالا
+                    </span>
+                  </h3>
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
                     <span>مجموع: <span className="text-slate-900 font-mono font-black">{totalCartons}</span> کارتن</span>
                     <span className="text-slate-300">|</span>
-                    <span>وزن تخمینی: <span className="text-emerald-700 font-mono font-black">{estimatedWeightKg}</span> ک‌گ</span>
+                    <span>وزن: <span className="text-emerald-700 font-mono font-black">{estimatedWeightKg}</span> ک‌گ</span>
                   </div>
                 </div>
 
                 {cart.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 space-y-3">
+                  <div className="py-12 text-center text-slate-400 space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <ShoppingBag size={48} className="mx-auto text-slate-300" />
-                    <p className="text-xs font-bold">سبد خرید شما خالی است.</p>
+                    <p className="text-xs font-bold text-slate-600">سبد خرید شما در حال حاضر خالی است.</p>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-sm hover:bg-emerald-700 transition-colors"
+                    >
+                      <span>مشاهده و انتخاب کالاها از کاتالوگ</span>
+                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                    {cart.map((item) => {
+                  <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                    {cart.map((item, idx) => {
                       const realImage = getProductImage(item);
                       const matchedProd = products.find(p => p.id === item.productId || p.name === item.name);
                       const packCount = matchedProd?.carton_pack_count || item.unitsPerCarton || 24;
@@ -379,21 +492,21 @@ export default function CheckoutWizard({
 
                       return (
                         <div
-                          key={item.productId}
-                          className="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                          key={`wizard-cart-${item.productId || idx}-${idx}`}
+                          className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 hover:border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs transition-all"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {realImage ? (
                               <img
                                 src={realImage}
                                 alt={item.name}
-                                className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shrink-0 bg-white shadow-xs"
+                                className="w-14 h-14 rounded-2xl object-cover border border-slate-100 shrink-0 bg-white shadow-xs"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
                                 }}
                               />
                             ) : (
-                              <div className="w-14 h-14 rounded-2xl bg-slate-200/70 border border-slate-300/60 flex flex-col items-center justify-center shrink-0 text-slate-500">
+                              <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center shrink-0 text-slate-500">
                                 <Package size={18} className="text-slate-400 stroke-[1.5]" />
                                 <span className="text-[8px] font-black text-slate-400 mt-0.5">بدون تصویر</span>
                               </div>
@@ -401,27 +514,39 @@ export default function CheckoutWizard({
                             <div className="min-w-0">
                               <h4 className="text-xs font-black text-slate-900 truncate">{item.name}</h4>
                               <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold mt-1">
-                                <span className="bg-emerald-100/70 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
-                                  {item.pricePerCarton.toLocaleString()} تومان/کارتن
+                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 rounded-md font-mono">
+                                  {item.pricePerCarton.toLocaleString()} ت/کارتن
                                 </span>
                                 <span>({packCount} عدد در کارتن - عددی {unitPrice.toLocaleString()} ت)</span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
-                            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-xs">
                               <button
+                                type="button"
                                 onClick={() => onUpdateQuantity(item.productId, item.quantityCartons + 1)}
-                                className="p-1 hover:bg-slate-100 text-slate-700 rounded-lg cursor-pointer"
+                                className="p-1 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
                                 title="افزایش یک کارتن"
                               >
                                 <Plus size={14} />
                               </button>
-                              <span className="px-2 text-xs font-black font-mono text-slate-900">
-                                {item.quantityCartons} کارتن
-                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantityCartons}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value);
+                                  if (!isNaN(val) && val > 0) {
+                                    onUpdateQuantity(item.productId, val);
+                                  }
+                                }}
+                                className="w-16 text-center text-xs font-black font-mono text-slate-900 bg-transparent border-none focus:ring-0"
+                              />
+                              <span className="text-[10px] text-slate-500 font-bold">کارتن</span>
                               <button
+                                type="button"
                                 onClick={() => {
                                   if (item.quantityCartons > 1) {
                                     onUpdateQuantity(item.productId, item.quantityCartons - 1);
@@ -429,7 +554,7 @@ export default function CheckoutWizard({
                                     onRemoveItem(item.productId);
                                   }
                                 }}
-                                className="p-1 hover:bg-slate-100 text-slate-700 rounded-lg cursor-pointer"
+                                className="p-1 hover:bg-white text-slate-700 hover:text-rose-700 rounded-lg cursor-pointer transition-colors"
                                 title="کاهش کارتن"
                               >
                                 <Minus size={14} />
@@ -446,6 +571,7 @@ export default function CheckoutWizard({
                             </div>
 
                             <button
+                              type="button"
                               onClick={() => onRemoveItem(item.productId)}
                               className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="حذف از سبد"
@@ -459,123 +585,310 @@ export default function CheckoutWizard({
                   </div>
                 )}
 
-                {/* Weight Bar */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col justify-between text-xs font-bold text-slate-700">
-                    <div className="flex justify-between items-center">
-                      <span>تاییدیه قیمت پایه کارخانه:</span>
-                      <span className="font-black text-indigo-600">صددرصد واقعی</span>
+                {/* TEMPTING VOLUME TIER & DISCOUNT NUDGES (تخفیفات پلکانی وسوسه‌کننده) */}
+                {cart.length > 0 && (() => {
+                  const tiers = [
+                    { cartons: 10, discount: 3, label: "تخفیف ۳٪ خرید ۱۰ کارتن", bonusGift: "ارسال اولویت‌دار" },
+                    { cartons: 25, discount: 6, label: "تخفیف ۶٪ خرید ۲۵ کارتن", bonusGift: "بیمه کامل رایگان" },
+                    { cartons: 50, discount: 10, label: "تخفیف طلایی ۱۰٪ تیراژ بالا (۵۰ کارتن)", bonusGift: "یک کارتن هدیه + ارسال رایگان انبار" },
+                  ];
+                  
+                  const nextTier = tiers.find(t => t.cartons > totalCartons);
+                  const cartonsNeeded = nextTier ? nextTier.cartons - totalCartons : 0;
+                  const currentSavingsPotential = totalAmount > 0 && nextTier ? Math.round(totalAmount * (nextTier.discount / 100)) : 0;
+
+                  return (
+                    <div className="bg-linear-to-r from-amber-50/90 via-orange-50/60 to-amber-50/90 border border-amber-200 rounded-2xl p-4 space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🎁</span>
+                          <div>
+                            <span className="text-xs font-black text-amber-950 block">طرح ویژه تخفیف پلکانی و جوایز بنکداری</span>
+                            {nextTier ? (
+                              <span className="text-[11px] text-amber-800 font-bold">
+                                فقط <strong className="font-mono text-amber-950 text-xs">{cartonsNeeded} کارتن دیگر</strong> تا فعال‌سازی {nextTier.label}! (سود اضافی: +{currentSavingsPotential.toLocaleString()} تومان)
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-emerald-800 font-bold">
+                                🌟 تبریک! سفارش شما مشمول بالاترین پله تخفیف و جوایز ویژه بنکداری ممتاز گردید.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {nextTier && (
+                          <div className="text-left font-mono font-black text-amber-900 text-xs bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-300/60 shrink-0">
+                            {totalCartons}/{nextTier.cartons} کارتن
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Progress bar to next tier */}
+                      {nextTier && (
+                        <div className="w-full bg-amber-200/80 h-2.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-linear-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.round((totalCartons / nextTier.cartons) * 100))}%` }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Suggested Additions Section with Working +5 Add Button and Feedback */}
+                      <div className="pt-1.5 border-t border-amber-200/60">
+                        <div className="text-[11px] font-black text-amber-950 mb-2.5 flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <Sparkles size={13} className="text-amber-600" />
+                            کالاهای پرفروش پیشنهادی جهت تکمیل ظرفیت بار و دریافت تخفیف:
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={onClose}
+                            className="text-emerald-700 hover:text-emerald-800 underline text-[10px] font-black cursor-pointer"
+                          >
+                            + کاتالوگ کامل
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {products
+                            .slice(0, 4)
+                            .map(suggested => {
+                              const inCartItem = cart.find(c => c.productId === suggested.id);
+                              const isJustAdded = justAddedId === suggested.id;
+                              const cartonPrice = suggested.bulk_price * suggested.carton_pack_count;
+
+                              return (
+                                <div 
+                                  key={`sug-${suggested.id}`} 
+                                  className={`bg-white p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 shadow-xs ${
+                                    isJustAdded 
+                                      ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/40" 
+                                      : inCartItem 
+                                      ? "border-emerald-200 bg-emerald-50/20" 
+                                      : "border-slate-200 hover:border-amber-300"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    {suggested.image_url ? (
+                                      <img 
+                                        src={suggested.image_url} 
+                                        alt={suggested.name} 
+                                        className="w-11 h-11 rounded-xl object-cover border border-slate-100 shrink-0 bg-white shadow-xs" 
+                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                      />
+                                    ) : (
+                                      <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 text-xs">📦</div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <span className="text-[11px] font-black text-slate-900 block truncate">{suggested.name}</span>
+                                      <span className="text-[10px] text-emerald-700 font-mono font-bold block">
+                                        {cartonPrice.toLocaleString()} ت/کارتن
+                                      </span>
+                                      {inCartItem && (
+                                        <span className="text-[9px] text-emerald-600 font-black flex items-center gap-0.5">
+                                          <Check size={10} /> در سبد ({inCartItem.quantityCartons} کارتن)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="shrink-0 flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickAdd(suggested, 5)}
+                                      className={`text-[10px] font-black px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1 ${
+                                        isJustAdded 
+                                          ? "bg-emerald-700 text-white scale-105" 
+                                          : inCartItem 
+                                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      }`}
+                                    >
+                                      {isJustAdded ? (
+                                        <>
+                                          <Check size={12} />
+                                          <span>اضافه شد!</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Plus size={12} />
+                                          <span>+ ۵ کارتن</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Specs & Vehicle Estimation Bar */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between text-xs font-bold text-slate-700 shadow-xs">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-slate-600">قیمت مصوب خط تولید:</span>
+                      <span className="font-black text-emerald-700 flex items-center gap-1">
+                        <CheckCircle2 size={13} />
+                        ۱۰۰٪ مستقیم کارخانه
+                      </span>
                     </div>
                     <div className="text-[10px] text-slate-500 font-normal">
-                      تمامی نرخ‌ها بر اساس مصوبه رسمی خط تولید بدون واسطه اعمال گردیده‌اند.
+                      کلیه فاکتورها مستقیماً با قیمت درب کارخانه بدون واسطه صادر می‌گردند.
                     </div>
                   </div>
 
-                  <div className="bg-indigo-50/60 p-3 rounded-2xl border border-indigo-200/50 flex flex-col justify-between text-xs font-bold text-indigo-900">
-                    <div className="flex justify-between items-center">
-                      <span>تخمین خودرو ترابری:</span>
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between text-xs font-bold text-slate-700 shadow-xs">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-slate-600">تخمین خودرو ترابری:</span>
                       <span className="font-black text-indigo-700">
                         {estimatedWeightKg < 1500 ? "وانت / نیسان بار" : estimatedWeightKg < 5000 ? "کامیونت خاور ۶ تنی" : "کامیون تک / جفت ۲۰ تنی"}
                       </span>
                     </div>
-                    <div className="text-[10px] text-indigo-700 font-normal">
-                      وزن ناخالص مرسوله: حدود <strong className="font-mono font-black">{estimatedWeightKg}</strong> کیلوگرم ({totalUnits} واحد کالا)
+                    <div className="text-[10px] text-slate-500 font-normal">
+                      وزن ناخالص مرسوله: حدود <strong className="font-mono font-black text-slate-800">{estimatedWeightKg}</strong> کیلوگرم ({totalUnits} عدد کالا)
                     </div>
                   </div>
                 </div>
 
                 {/* Min Order Notice */}
-                <div className="bg-amber-50/70 border border-amber-200/60 p-3 rounded-2xl text-[11px] text-amber-800 font-bold flex justify-between items-center">
-                  <span>شرایط حداقل سفارش:</span>
-                  <span>حداقل ۳ کارتن / ۳,۰۰۰,۰۰۰ تومان</span>
+                <div className={`p-3.5 rounded-2xl text-[11px] font-bold flex justify-between items-center border transition-all ${
+                  (totalAmount >= minOrderAmount || totalCartons >= minOrderCartons)
+                    ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
+                    : "bg-amber-50/70 text-amber-800 border-amber-200"
+                }`}>
+                  <span className="flex items-center gap-1.5 font-black">
+                    <Package size={14} className={totalAmount >= minOrderAmount || totalCartons >= minOrderCartons ? "text-emerald-600" : "text-amber-600"} />
+                    شرایط حداقل سفارش عمده:
+                  </span>
+                  <span>حداقل ۵ کارتن یا حداقل ۱۰,۰۰۰,۰۰۰ تومان</span>
                 </div>
               </div>
             )}
 
-            {/* STEP 2: DELIVERY & SHIPPING INFO */}
+            {/* STEP 2: DELIVERY & SHIPPING INFO (Clean White Form) */}
             {step === 2 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
                     <MapPin size={16} className="text-emerald-600" />
-                    مشخصات خریدار و آدرس تخلیه بار
+                    مشخصات خریدار و آدرس دقیق تخلیه بار
                   </h3>
                   { (user?.name || user?.phone || user?.address) && (
                     <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                       <CheckCircle2 size={12} className="text-emerald-600" />
-                      اطلاعات از حساب شما فراخوانی شد
+                      فراخوانی خودکار از حساب
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-500 mb-1">نام و نام خانوادگی تحویل‌گیرنده *</label>
+                    <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام و نام خانوادگی تحویل‌گیرنده *</label>
                     <input
                       type="text"
                       value={buyerName}
                       onChange={e => setBuyerName(e.target.value)}
                       placeholder="مثال: علی رضایی"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-500 mb-1">شماره تماس (جهت هماهنگی باربری) *</label>
+                    <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره تماس (جهت هماهنگی راننده باربری) *</label>
                     <input
                       type="text"
                       value={buyerPhone}
                       onChange={e => setBuyerPhone(e.target.value)}
                       placeholder="مثال: 09121111111"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold font-mono text-slate-800 outline-none focus:border-emerald-500"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold font-mono text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                       dir="ltr"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 mb-1">نام بنکداری / فروشگاه / شرکت</label>
+                  <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام بنکداری / فروشگاه / شرکت</label>
                   <input
                     type="text"
                     value={buyerCompany}
                     onChange={e => setBuyerCompany(e.target.value)}
                     placeholder="مثال: بازرگانی البرز"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 mb-1">آدرس دقیق تخلیه بار *</label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[11px] font-black text-slate-700">آدرس کامل و دقیق انبار یا مغازه جهت تخلیه بار *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prefix = `استان ${userProvince}، شهر ${userCity}، `;
+                        if (!buyerAddress.includes(prefix)) {
+                          setBuyerAddress(prefix + buyerAddress);
+                        }
+                      }}
+                      className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/50 px-2.5 py-1 rounded-lg font-black transition-all cursor-pointer"
+                    >
+                      📍 درج خودکار «{userCity}» در آدرس
+                    </button>
+                  </div>
                   <textarea
                     rows={2}
                     value={buyerAddress}
                     onChange={e => setBuyerAddress(e.target.value)}
-                    placeholder="مثال: تهران، خیابان خیام، انبار مرکزی توزیع..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                    placeholder="مثال: تهران، خیابان خیام، پلاک ۱۲۰، انبار مرکزی توزیع..."
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                   />
                 </div>
 
+                {cityAgency && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                        <CheckCircle2 size={16} className="text-emerald-700" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-emerald-900">
+                          عاملیت مجاز توزیع در {userProvince} ({userCity})
+                        </div>
+                        <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                          سفارش شما جهت ارسال و پشتیبانی در سریع‌ترین زمان به این نماینده ارجاع خواهد شد.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white px-3 py-1.5 rounded-lg border border-emerald-200/50 shadow-xs flex flex-col items-center shrink-0 w-full sm:w-auto">
+                      <span className="text-[9px] text-slate-400 font-black">نام نماینده/شرکت:</span>
+                      <span className="text-[11px] text-slate-800 font-black">{cityAgency.company || cityAgency.agencyName || cityAgency.name || 'نماینده دست اول'}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-2 space-y-2">
-                  <label className="block text-[10px] font-black text-slate-500">روش ارسال و ترابری جاده‌ای</label>
+                  <label className="block text-[11px] font-black text-slate-700">روش ارسال و ترابری جاده‌ای</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: 'barbari', name: 'باربری جاده‌ای', icon: '🚛' },
                       { id: 'khavar', name: 'کامیونت / خاور', icon: '🚚' },
                       { id: 'deka', name: 'اکسپرس (دکا)', icon: '📦' },
-                      { id: 'personal', name: 'تحویل حضوری', icon: '🏭' }
+                      { id: 'personal', name: 'تحویل حضوری انبار', icon: '🏭' }
                     ].map((m) => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => setShippingMethod(m.id)}
-                        className={`p-3 rounded-2xl border text-center transition-all ${
+                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                           shippingMethod === m.id
-                            ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm"
-                            : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                            ? "border-emerald-500 bg-emerald-50/70 text-emerald-900 shadow-sm ring-2 ring-emerald-500/20 font-black"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-bold"
                         }`}
                       >
                         <span className="text-xl block mb-1">{m.icon}</span>
-                        <span className="text-[10px] font-black">{m.name}</span>
+                        <span className="text-[10px]">{m.name}</span>
                       </button>
                     ))}
                   </div>
@@ -583,7 +896,7 @@ export default function CheckoutWizard({
               </div>
             )}
 
-            {/* STEP 3: PAYMENT & DOCUMENTS */}
+            {/* STEP 3: PAYMENT & DOCUMENTS (Clean White Form) */}
             {step === 3 && (
               <div className="space-y-5">
                 <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
@@ -592,60 +905,60 @@ export default function CheckoutWizard({
                 </h3>
 
                 {/* Method selector tabs */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
-                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
                       paymentMethod === 'cash'
-                        ? "border-emerald-500 bg-emerald-50/80 shadow-md ring-2 ring-emerald-500/20"
-                        : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                        ? "border-emerald-500 bg-emerald-50/60 shadow-md ring-2 ring-emerald-500/20"
+                        : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-black text-slate-900">پرداخت نقدی (پیش‌فاکتور)</span>
                       <DollarSign size={18} className="text-emerald-600" />
                     </div>
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100/80 px-2 py-0.5 rounded-md inline-block w-max">
-                      🎉 {cashDiscountPercent}٪ تخفیف ویژه نقدی
+                    <span className="text-[10px] text-emerald-700 font-black bg-emerald-100/70 px-2 py-0.5 rounded-md inline-block w-max">
+                      {tierDiscountPercent > 0 ? `🎉 ${tierDiscountPercent}٪ تخفیف پلکانی تیراژ فعال` : `🎉 ${cashDiscountPercent}٪ تخفیف ویژه نقدی`}
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cheque')}
-                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
                       paymentMethod === 'cheque'
-                        ? "border-indigo-500 bg-indigo-50/80 shadow-md ring-2 ring-indigo-500/20"
-                        : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                        ? "border-indigo-500 bg-indigo-50/60 shadow-md ring-2 ring-indigo-500/20"
+                        : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-black text-slate-900">پرداخت چکی (اقساط صیادی)</span>
                       <Receipt size={18} className="text-indigo-600" />
                     </div>
-                    <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100/80 px-2 py-0.5 rounded-md inline-block w-max">
-                      کارتن عمده چکی صیادی
+                    <span className="text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded-md inline-block w-max">
+                      خرید چکی (بدون تخفیف پلکانی)
                     </span>
                   </button>
                 </div>
 
                 {/* Cash Options Details */}
                 {paymentMethod === 'cash' && (
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
                     <div className="text-xs font-black text-slate-800 flex items-center gap-2">
                       <Building size={16} className="text-emerald-600" />
-                      اطلاعات حساب جهت واریز وجه
+                      اطلاعات حساب رسمی جهت واریز وجه
                     </div>
 
-                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs font-bold">
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs font-bold">
                       <div className="flex justify-between text-slate-600">
                         <span>نام بانک و صاحب حساب:</span>
                         <span className="text-slate-900 font-black">{bankAccount.bankName} - {bankAccount.ownerName}</span>
                       </div>
                       <div className="flex justify-between text-slate-600">
                         <span>شماره شبا:</span>
-                        <span className="font-mono text-emerald-700 font-black" dir="ltr">{bankAccount.shabaNumber}</span>
+                        <span className="font-mono text-emerald-700 font-black" dir="ltr">{bankAccount.shabaNumber || bankAccount.sheba}</span>
                       </div>
                       <div className="flex justify-between text-slate-600">
                         <span>شماره کارت:</span>
@@ -654,7 +967,7 @@ export default function CheckoutWizard({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">آپلود فیش واریزی (اختیاری)</label>
+                      <label className="block text-[11px] font-black text-slate-700 mb-1.5">آپلود تصویر فیش واریزی (اختیاری)</label>
                       <div className="flex items-center gap-3">
                         <input
                           type="file"
@@ -672,14 +985,14 @@ export default function CheckoutWizard({
                         />
                         <label
                           htmlFor="cash-receipt-input"
-                          className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-emerald-700 transition-colors shadow-sm"
+                          className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-emerald-700 transition-colors shadow-sm"
                         >
                           <Upload size={14} />
-                          <span>{paymentReceiptImage ? "تغییر تصویر فیش" : "انتخاب فیش واریزی"}</span>
+                          <span>{paymentReceiptImage ? "تغییر تصویر فیش" : "انتخاب و آپلود فیش"}</span>
                         </label>
                         {paymentReceiptImage && (
-                          <span className="text-[10px] text-emerald-600 font-black flex items-center gap-1">
-                            <CheckCircle2 size={14} /> آپلود شد
+                          <span className="text-xs text-emerald-600 font-black flex items-center gap-1">
+                            <CheckCircle2 size={15} /> تصویر فیش بارگذاری شد
                           </span>
                         )}
                       </div>
@@ -689,9 +1002,23 @@ export default function CheckoutWizard({
 
                 {/* Cheque Options Details */}
                 {paymentMethod === 'cheque' && (
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl">
+                      <div>
+                        <span className="text-xs font-black text-indigo-950 block">اساس‌نامه خرید چکی و اعتبار پلکانی:</span>
+                        <span className="text-[11px] text-slate-600 font-bold">سقف اعتبار اولیه ۱۰۰ م تومان (۵۰ م نقد + ۵۰ م چک) با ارتقای مرحله‌ای تا ۱ میلیارد تومان</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCharterModal(true)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1 self-start sm:self-center"
+                      >
+                        <span>📜 مطالعه اساس‌نامه چکی</span>
+                      </button>
+                    </div>
+
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-black text-slate-800">تعیین مدت چک (ماه):</span>
+                      <span className="text-xs font-black text-slate-800">تعیین مدت زمان چک (ماه):</span>
                       <span className="text-[10px] font-black text-indigo-600">
                         افزایش {chequeMarkupPerMonth}٪ به ازای هر ماه
                       </span>
@@ -699,15 +1026,15 @@ export default function CheckoutWizard({
 
                     {/* Month selector pills */}
                     <div className="grid grid-cols-6 gap-1.5">
-                      {[1, 2, 3, 4, 5, 6].map((m) => (
+                      {[1, 2, 3, 4, 5, 6].map((m, idx) => (
                         <button
-                          key={m}
+                          key={`chk-month-opt-${m}-${idx}`}
                           type="button"
                           onClick={() => setChequeMonths(m)}
-                          className={`py-2 rounded-xl text-xs font-black transition-all ${
+                          className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                             chequeMonths === m
                               ? "bg-indigo-600 text-white shadow-md"
-                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                           }`}
                         >
                           {m} ماهه
@@ -718,30 +1045,30 @@ export default function CheckoutWizard({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">شماره صیادی ۱۶ رقمی چک</label>
+                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره صیادی ۱۶ رقمی چک</label>
                         <input
                           type="text"
                           value={chequeSayadiNo}
                           onChange={e => setChequeSayadiNo(e.target.value)}
                           placeholder="مثال: 8839029102938102"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs"
                           dir="ltr"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">نام بانک صادرکننده</label>
+                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام بانک صادرکننده</label>
                         <input
                           type="text"
                           value={chequeBankName}
                           onChange={e => setChequeBankName(e.target.value)}
                           placeholder="مثال: بانک صادرات"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">آپلود تصویر روی چک صیادی</label>
+                      <label className="block text-[11px] font-black text-slate-700 mb-1.5">آپلود تصویر روی چک صیادی</label>
                       <div className="flex items-center gap-3">
                         <input
                           type="file"
@@ -759,14 +1086,14 @@ export default function CheckoutWizard({
                         />
                         <label
                           htmlFor="cheque-image-input"
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-indigo-700 transition-colors shadow-sm"
+                          className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-indigo-700 transition-colors shadow-sm"
                         >
                           <Upload size={14} />
                           <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی"}</span>
                         </label>
                         {chequeImage && (
-                          <span className="text-[10px] text-emerald-600 font-black flex items-center gap-1">
-                            <CheckCircle2 size={14} /> آپلود شد
+                          <span className="text-xs text-emerald-600 font-black flex items-center gap-1">
+                            <CheckCircle2 size={15} /> تصویر چک بارگذاری شد
                           </span>
                         )}
                       </div>
@@ -778,26 +1105,30 @@ export default function CheckoutWizard({
 
             {/* STEP 4: FINAL SUMMARY & SUBMIT */}
             {step === 4 && (
-              <div className="space-y-5">
-                <div className="bg-emerald-50 border border-emerald-200/80 p-4 rounded-2xl flex items-center gap-3">
+              <div className="space-y-4">
+                <div className="bg-emerald-50 border border-emerald-200/90 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
                   <ShieldCheck className="text-emerald-600 shrink-0" size={24} />
                   <div>
-                    <h3 className="text-xs font-black text-emerald-900">پیش‌فاکتور نهایی آماده صدور می‌باشد</h3>
-                    <p className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                      پس از ثبت، فایل پیش‌فاکتور مستقیم کارخانه صادر و امکان چاپ یا دانلود PDF بلافاصله فعال می‌شود.
+                    <h3 className="text-xs font-black text-emerald-950">پیش‌فاکتور رسمی آماده صدور می‌باشد</h3>
+                    <p className="text-[11px] text-emerald-800 font-bold mt-0.5">
+                      پس از تایید، فایل پیش‌فاکتور مستقیم کارخانه صادر و امکان چاپ یا دانلود PDF بلافاصله فعال می‌شود.
                     </p>
                   </div>
                 </div>
 
                 {/* Items Thumbnails Summary */}
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2">
-                  <span className="text-[10px] font-black text-slate-500 block">اقلام نهایی سفارش ({cart.length} کالا):</span>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-xs">
+                  <span className="text-[11px] font-black text-slate-600 block">اقلام نهایی سفارش ({cart.length} کالا):</span>
                   <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {cart.map((item) => {
+                    {cart.map((item, idx) => {
                       const img = getProductImage(item);
                       return (
-                        <div key={item.productId} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shrink-0">
-                          <img src={img} alt={item.name} className="w-9 h-9 rounded-lg object-cover border border-slate-100" />
+                        <div key={`summary-cart-${item.productId || idx}-${idx}`} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
+                          {img ? (
+                            <img src={img} alt={item.name} className="w-9 h-9 rounded-lg object-cover border border-slate-100" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-slate-200 flex items-center justify-center text-xs">📦</div>
+                          )}
                           <div className="text-right">
                             <span className="text-[10px] font-black text-slate-800 block truncate max-w-[120px]">{item.name}</span>
                             <span className="text-[9px] text-emerald-700 font-mono font-bold block">{item.quantityCartons} کارتن</span>
@@ -809,34 +1140,57 @@ export default function CheckoutWizard({
                 </div>
 
                 {/* Breakdown Summary Table */}
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3 text-xs font-bold">
-                  <div className="flex justify-between text-slate-600 border-b border-slate-200 pb-2">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 text-xs font-bold shadow-xs">
+                  <div className="flex justify-between text-slate-600 border-b border-slate-100 pb-2">
                     <span>مجموع قیمت ناخالص کالاها ({totalCartons} کارتن - {estimatedWeightKg} ک‌گ):</span>
-                    <span className="font-mono text-slate-900">{totalAmount.toLocaleString()} تومان</span>
+                    <span className="font-mono text-slate-900 font-black">{totalAmount.toLocaleString()} تومان</span>
                   </div>
 
-                  {paymentMethod === 'cash' && cashDiscountAmount > 0 && (
-                    <div className="flex justify-between text-emerald-600">
-                      <span>تخفیف تسویه نقدی ({cashDiscountPercent}٪):</span>
-                      <span className="font-mono">-{cashDiscountAmount.toLocaleString()} تومان</span>
+                  {tierDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center text-amber-700 bg-amber-50/70 px-2.5 py-1.5 rounded-xl border border-amber-200/80">
+                      <span className="flex items-center gap-1 font-black">
+                        <span>🎁</span>
+                        <span>تخفیف پلکانی تیراژ سفارش ({tierDiscountPercent}٪):</span>
+                      </span>
+                      <span className="font-mono font-black">-{tierDiscountAmount.toLocaleString()} تومان</span>
                     </div>
                   )}
 
+                  {badgeDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center text-purple-700 bg-purple-50/70 px-2.5 py-1.5 rounded-xl border border-purple-200/80">
+                      <span className="font-black">تخفیف سطح همکاری و رتبه ({badgeDiscountPercent}٪):</span>
+                      <span className="font-mono font-black">-{badgeDiscountAmount.toLocaleString()} تومان</span>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'cash' && cashDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center text-emerald-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
+                      <span className="font-black">تخفیف تسویه نقدی ({cashDiscountPercent}٪):</span>
+                      <span className="font-mono font-black">-{cashDiscountAmount.toLocaleString()} تومان</span>
+                    </div>
+                  )}
 
                   {paymentMethod === 'cheque' && chequeMarkupAmount > 0 && (
-                    <div className="flex justify-between text-indigo-600">
-                      <span>کارمزد تسویه چکی ({chequeMonths} ماهه - +{chequeMarkupPercent}٪):</span>
-                      <span className="font-mono">+{chequeMarkupAmount.toLocaleString()} تومان</span>
+                    <div className="flex justify-between items-center text-indigo-700 bg-indigo-50/70 px-2.5 py-1.5 rounded-xl border border-indigo-200/80">
+                      <span className="font-black">کارمزد تسویه چکی ({chequeMonths} ماهه - +{chequeMarkupPercent}٪):</span>
+                      <span className="font-mono font-black">+{chequeMarkupAmount.toLocaleString()} تومان</span>
                     </div>
                   )}
 
-                  <div className="flex justify-between text-slate-600 border-b border-slate-200 pb-2">
+                  {totalDiscounts > 0 && (
+                    <div className="flex justify-between text-emerald-800 font-black pt-1 border-t border-slate-100">
+                      <span>مجموع کل تخفیفات اعمال شده:</span>
+                      <span className="font-mono font-black text-emerald-600">-{totalDiscounts.toLocaleString()} تومان</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-slate-600 border-b border-slate-100 pb-2">
                     <span>تحویل‌گیرنده و آدرس:</span>
                     <span className="text-slate-900 font-black truncate max-w-xs">{buyerName} ({buyerPhone})</span>
                   </div>
 
                   <div className="flex justify-between items-center text-sm font-black pt-1">
-                    <span className="text-slate-800">مبلغ خالص نهایی فاکتور:</span>
+                    <span className="text-slate-900">مبلغ خالص نهایی فاکتور:</span>
                     <span className="text-lg font-black text-emerald-600 font-mono">
                       {finalPayableAmount.toLocaleString()} تومان
                     </span>
@@ -846,26 +1200,33 @@ export default function CheckoutWizard({
             )}
           </div>
 
-          {/* Footer Navigation Actions */}
-          <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-3">
+          {/* Clean Pure White Footer Navigation Actions */}
+          <div className="p-4 sm:p-5 bg-white border-t border-slate-200/90 flex justify-between items-center gap-3">
             {step > 1 ? (
               <button
                 type="button"
                 onClick={() => setStep((step - 1) as any)}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-1.5 hover:bg-slate-100 transition-colors"
+                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-1.5 hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
               >
                 <ChevronRight size={16} />
                 <span>قبلی</span>
               </button>
             ) : (
-              <div />
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <ArrowRight size={15} />
+                <span>بازگشت و ادامه انتخاب کالا</span>
+              </button>
             )}
 
             {step === 1 && (
               <button
                 type="button"
                 onClick={handleNextFromStep1}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-colors"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
               >
                 <span>ادامه: مشخصات تحویل</span>
                 <ChevronLeft size={16} />
@@ -876,7 +1237,7 @@ export default function CheckoutWizard({
               <button
                 type="button"
                 onClick={handleNextFromStep2}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-colors"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
               >
                 <span>ادامه: روش تسویه</span>
                 <ChevronLeft size={16} />
@@ -887,7 +1248,7 @@ export default function CheckoutWizard({
               <button
                 type="button"
                 onClick={handleNextFromStep3}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-colors"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
               >
                 <span>ادامه: پیش‌فاکتور نهایی</span>
                 <ChevronLeft size={16} />
@@ -917,6 +1278,13 @@ export default function CheckoutWizard({
           </div>
         </motion.div>
       </div>
+
+      {/* Cheque Charter Modal inside Wizard */}
+      <ChequeCharterModal
+        isOpen={showCharterModal}
+        onClose={() => setShowCharterModal(false)}
+        userCredit={Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 50000000))}
+      />
     </AnimatePresence>
   );
 }

@@ -175,7 +175,7 @@ export const HealthNaturalShowcase: React.FC<HealthNaturalShowcaseProps> = ({
       {/* COMPACT IRANIAN HEALTH APPLE OFFICIAL GUIDE MODAL */}
       <AnimatePresence>
         {showGuideModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

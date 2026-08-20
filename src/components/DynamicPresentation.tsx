@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { DigitalEcoTree } from "./DigitalEcoTree";
 import { SupplyChainLifecycleAnimation } from "./SupplyChainLifecycleAnimation";
 import { FactoryHeroPowerhouse } from "./FactoryHeroPowerhouse";
 import { UserGatewayHub } from "./UserGatewayHub";
 import { CustomerJourneyModal } from "./CustomerJourneyModal";
+import { B2BProfitSimulator } from "./B2BProfitSimulator";
 import SpecialPriceBagIcon from "./SpecialPriceBagIcon";
 import {
   Sparkles,
@@ -86,48 +87,7 @@ export default function DynamicPresentation({
     return num.toString().replace(/[0-9]/g, (w) => persian[w]);
   };
 
-  const defaultSlides = [
-    {
-      id: "1",
-      title: "خرید مستقیم از کارخانه: تامین انواع شکلات و ویفر",
-      subtitle: "ارتباط بی‌واسطه بنکداران و سوپرمارکت‌های سراسر کشور با خطوط تولید شکلات، دراژه و ویفر (با امکان صدور فاکتور)",
-      imageUrl: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=1200",
-      badge: "صنایع شکلات و ویفر 🍫",
-      accentColor: "bg-purple-600",
-      ctaText: "مشاهده محصولات",
-      ctaAction: "order"
-    },
-    {
-      id: "2",
-      title: "خرید مستقیم از کارخانه: انواع ترشیجات و لواشک",
-      subtitle: "پخش عمده مستقیم انواع لواشک، ترشک و آلوچه با سیب سلامت و بالاترین حاشیه سود برای خریداران عمده",
-      imageUrl: "https://images.unsplash.com/photo-1599420186946-7b6fb4e297f0?auto=format&fit=crop&q=80&w=1200",
-      badge: "بارگیری روزانه از قطب تولید 🍇",
-      accentColor: "bg-amber-500",
-      ctaText: "خرید مستقیم",
-      ctaAction: "order"
-    },
-    {
-      id: "3",
-      title: "خرید مستقیم از کارخانه: کیک، کلوچه و بیسکویت تازه",
-      subtitle: "تامین پالت و کارتن انواع کیک و کلوچه نازل‌ترین قیمت عمده پایه کارخانه و امکان ثبت سفارش مستقیم",
-      imageUrl: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=1200",
-      badge: "پخت تازه و تخفیف کارتن 🍪",
-      accentColor: "bg-indigo-600",
-      ctaText: "مشاهده کاتالوگ",
-      ctaAction: "order"
-    },
-    {
-      id: "4",
-      title: "خرید مستقیم از کارخانه: نوشیدنی و آبمیوه صادراتی",
-      subtitle: "پخش پالتی انواع آبمیوه تک‌نفره و خانواده با استانداردهای بهداشتی و حمل مسقف بیمه‌شده تا انبار شما",
-      imageUrl: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=1200",
-      badge: "حمل مسقف و بیمه جاده‌ای 🥤",
-      accentColor: "bg-slate-100",
-      ctaText: "سفارش عمده",
-      ctaAction: "order"
-    }
-  ];
+  const defaultSlides: any[] = [];
 
   const slides = b2bConfig.slides && b2bConfig.slides.length > 0 
     ? b2bConfig.slides 
@@ -183,7 +143,7 @@ export default function DynamicPresentation({
       mergedCatMap.set(catName.trim(), {
         id: catName.trim(),
         label: catName.trim(),
-        icon: typeof c === 'object' && c.icon ? c.icon : "🏷️",
+        icon: typeof c === 'object' && c.icon ? c.icon : "📦",
         image: (typeof c === 'object' && (c.image || c.imageUrl)) ? (c.image || c.imageUrl) : getCategoryImage(catName.trim())
       });
     }
@@ -195,16 +155,18 @@ export default function DynamicPresentation({
       mergedCatMap.set(catName.trim(), {
         id: catName.trim(),
         label: catName.trim(),
-        icon: "🏷️",
+        icon: "📦",
         image: getCategoryImage(catName.trim())
       });
     }
   });
 
-  const categoriesList = [
-    { id: "همه", label: "همه اقلام", icon: "🔖", image: "" },
-    ...Array.from(mergedCatMap.values())
-  ];
+  const categoriesList = useMemo(() => {
+    return [
+      { id: "همه", label: "همه اقلام", icon: "📦" },
+      ...Array.from(mergedCatMap.values())
+    ];
+  }, [products, b2bConfig?.categories]);
 
   // Filter products flexibly by category name or tags
   const isCategoryMatch = (p: Product, selectedCat: string) => {
@@ -225,16 +187,18 @@ export default function DynamicPresentation({
     return false;
   };
 
-  const filteredProducts = products.filter((p) => {
-    if (p.disabled) return false;
-    const matchesCategory = isCategoryMatch(p, selectedCategory);
-    const matchesSearch = searchQuery === "" || 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.brand.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (p.disabled) return false;
+      const matchesCategory = isCategoryMatch(p, selectedCategory);
+      const matchesSearch = searchQuery === "" || 
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, selectedCategory, searchQuery]);
 
-  const featuredDisplayProducts = filteredProducts.slice(0, 8);
+  const featuredDisplayProducts = useMemo(() => filteredProducts.slice(0, 8), [filteredProducts]);
 
   const primaryColor = b2bConfig.primaryColor || "emerald";
 
@@ -458,58 +422,80 @@ export default function DynamicPresentation({
                   setSelectedCategory(targetCat);
                   if (setActiveCategory) setActiveCategory(targetCat);
                 }}
-                className={`group relative rounded-2xl overflow-hidden border transition-all text-right flex flex-col justify-between cursor-pointer p-3 space-y-2.5 ${
-                  isSelected
-                    ? "bg-gradient-to-b from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-xl shadow-emerald-900/20 scale-[1.02]"
-                    : "bg-white text-slate-800 border-slate-200 hover:bg-white hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1"
+                className={`group relative rounded-2xl overflow-hidden border transition-all cursor-pointer ${
+                  cat.id === "همه"
+                    ? isSelected
+                      ? "bg-white text-slate-900 border-2 border-emerald-600 ring-2 ring-emerald-400/30 shadow-md p-4 flex flex-col items-center justify-center text-center space-y-2"
+                      : "bg-white text-slate-900 border border-slate-200 hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 p-4 flex flex-col items-center justify-center text-center space-y-2 shadow-xs"
+                    : isSelected
+                      ? "bg-gradient-to-b from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-xl shadow-emerald-900/20 scale-[1.02] p-3 text-right flex flex-col justify-between space-y-2.5"
+                      : "bg-white text-slate-800 border-slate-200 hover:bg-white hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1 p-3 text-right flex flex-col justify-between space-y-2.5"
                 }`}
               >
-                <div className="relative w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
-                  {cat.image ? (
-                    <>
-                      <img 
-                        src={cat.image} 
-                        alt={cat.label} 
-                        onError={(e) => {
-                          e.currentTarget.src = getCategoryImage(cat.label);
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                      />
-                      <div className={`absolute inset-0 ${isSelected ? "bg-emerald-950/30" : "bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent"}`} />
-                      <span className="absolute top-2 right-2 bg-white/95 backdrop-blur-md text-slate-900 w-8 h-8 rounded-xl text-sm flex items-center justify-center font-black shadow-md border border-white/50 z-10">
-                        {cat.icon || "🏷️"}
-                      </span>
-                    </>
-                  ) : (
-                    <div className={`w-full h-full flex flex-col items-center justify-center p-3 relative transition-all duration-300 ${
-                      isSelected 
-                        ? "bg-gradient-to-br from-emerald-800 via-teal-700 to-indigo-900 text-amber-300" 
-                        : "bg-gradient-to-br from-emerald-900 via-slate-900 to-teal-950 text-emerald-300 group-hover:from-emerald-800 group-hover:to-slate-900"
-                    }`}>
-                      <span className="text-3xl sm:text-4xl transform group-hover:scale-120 group-hover:rotate-6 transition-all duration-300 drop-shadow-md">
-                        {cat.icon || "🔖"}
-                      </span>
-                      <span className="text-[10px] font-black tracking-wider uppercase mt-1 opacity-90 text-amber-200 bg-black/30 px-2 py-0.5 rounded-md border border-white/10">
-                        تامین کارخانه
+                {cat.id === "همه" ? (
+                  <>
+                    <span className="text-3xl sm:text-4xl transform group-hover:scale-110 transition-transform">
+                      {cat.icon || "📦"}
+                    </span>
+                    <div className="space-y-0.5">
+                      <h3 className="text-xs sm:text-sm font-black text-slate-900">
+                        {cat.label}
+                      </h3>
+                      <p className="text-[10px] font-bold text-slate-600">
+                        {toPersianNum(itemCount)} کالا
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="relative w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
+                      {(cat as any).image ? (
+                        <>
+                          <img 
+                            src={(cat as any).image} 
+                            alt={cat.label} 
+                            onError={(e) => {
+                              e.currentTarget.src = getCategoryImage(cat.label);
+                            }}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                          />
+                          <div className={`absolute inset-0 ${isSelected ? "bg-emerald-950/30" : "bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent"}`} />
+                          <span className="absolute top-2 right-2 bg-white/95 backdrop-blur-md text-slate-900 w-8 h-8 rounded-xl text-sm flex items-center justify-center font-black shadow-md border border-white/50 z-10">
+                            {cat.icon || "🏷️"}
+                          </span>
+                        </>
+                      ) : (
+                        <div className={`w-full h-full flex flex-col items-center justify-center p-3 relative transition-all duration-300 ${
+                          isSelected 
+                            ? "bg-gradient-to-br from-emerald-50 to-teal-100 text-emerald-900 border border-emerald-300" 
+                            : "bg-white text-slate-800 border border-slate-200 group-hover:bg-slate-50"
+                        }`}>
+                          <span className="text-3xl sm:text-4xl transform group-hover:scale-120 group-hover:rotate-6 transition-all duration-300 drop-shadow-xs">
+                            {cat.icon || "🔖"}
+                          </span>
+                          <span className="text-[10px] font-black tracking-wider uppercase mt-1 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 shadow-xs">
+                            تامین کارخانه
+                          </span>
+                        </div>
+                      )}
+
+                      <span className={`absolute bottom-2 left-2 px-2.5 py-1 rounded-lg text-[9px] font-black shadow-xs ${
+                        isSelected ? "bg-amber-400 text-slate-900" : "bg-white/95 text-slate-800 border border-slate-200/80"
+                      }`}>
+                        {toPersianNum(itemCount)} کالا
                       </span>
                     </div>
-                  )}
 
-                  <span className={`absolute bottom-2 left-2 px-2.5 py-1 rounded-lg text-[9px] font-black shadow-md ${
-                    isSelected ? "bg-amber-400 text-slate-950" : "bg-slate-900/90 backdrop-blur-md text-white border border-white/20"
-                  }`}>
-                    {toPersianNum(itemCount)} کالا
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className={`text-xs sm:text-sm font-black line-clamp-1 ${isSelected ? "text-amber-300" : "text-slate-900 group-hover:text-emerald-700"}`}>
-                    {cat.label}
-                  </h3>
-                  <p className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
-                    نمایش محصولات
-                  </p>
-                </div>
+                    <div>
+                      <h3 className={`text-xs sm:text-sm font-black line-clamp-1 ${isSelected ? "text-amber-300" : "text-slate-900 group-hover:text-emerald-700"}`}>
+                        {cat.label}
+                      </h3>
+                      <p className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
+                        نمایش محصولات
+                      </p>
+                    </div>
+                  </>
+                )}
               </button>
             );
           })}
@@ -1221,7 +1207,7 @@ export default function DynamicPresentation({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedHomeFactory(null)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
+              className="absolute inset-0 bg-slate-400/50 backdrop-blur-sm"
             />
             
             {/* Modal Content */}
@@ -1326,7 +1312,7 @@ export default function DynamicPresentation({
                       <p className="text-[10px] text-slate-400 font-bold">عمده تولیدات و محصولات شاخص:</p>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedHomeFactory.mainProducts.map((p: string, i: number) => (
-                          <span key={i} className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
+                          <span key={`fac-prod-${selectedHomeFactory.id || selectedHomeFactory.name}-${i}-${p}`} className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">
                             {p}
                           </span>
                         ))}
@@ -1388,7 +1374,7 @@ export default function DynamicPresentation({
                       // Dispatch view-factory custom event
                       window.dispatchEvent(new CustomEvent("view-factory", { detail: { factoryId: selectedHomeFactory.id } }));
                     }}
-                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black py-3 rounded-2xl transition-all shadow-md cursor-pointer text-center"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-3 rounded-2xl transition-all shadow-md shadow-emerald-600/20 cursor-pointer text-center"
                   >
                     ورود به غرفه اختصاصی کارخانه
                   </button>
@@ -1414,19 +1400,19 @@ export default function DynamicPresentation({
       />
 
       {/* --- AI ADVISOR BANNER --- */}
-      <section className="bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-purple-500/30">
+      <section className="bg-white text-slate-900 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm border border-slate-200">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center shrink-0 font-black shadow-sm">
+          <div className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 font-black shadow-xs">
             <Sparkles size={18} />
           </div>
           <div className="text-right">
-            <h3 className="text-xs font-black text-white">مشاور هوشمند بنکداری و تحلیل بازار 🤖</h3>
-            <p className="text-[11px] text-purple-200 font-semibold mt-0.5">مشاوره مستقیم چیدمان و تحلیل حاشیه سود عمده</p>
+            <h3 className="text-xs font-black text-slate-900">مشاور هوشمند بنکداری و تحلیل بازار 🤖</h3>
+            <p className="text-[11px] text-slate-500 font-bold mt-0.5">مشاوره مستقیم چیدمان و تحلیل حاشیه سود عمده</p>
           </div>
         </div>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
-          className="bg-amber-500 hover text-slate-950 px-4 py-2 rounded-xl font-black text-xs transition-all shadow-sm shrink-0 cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-black text-xs transition-all shadow-xs shrink-0 cursor-pointer"
         >
           گفتگو با مشاور هوشمند 💬
         </button>

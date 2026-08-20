@@ -50,10 +50,10 @@ export default function PlatformAdvantages({ theme }: { theme: 'light' | 'dark' 
           const bgStyle = bgColors[idx % bgColors.length];
           return (
             <motion.div
-              key={idx}
+              key={`plat-adv-${adv.title}-${idx}`}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "100px" }}
               transition={{ delay: idx * 0.1 }}
               className={`p-6 rounded-[2.5rem] border transition-all hover hover:-translate-y-1 ${bgStyle} shadow-sm`}
             >

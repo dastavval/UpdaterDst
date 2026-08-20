@@ -21,7 +21,7 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     question: "حداقل میزان سفارش برای دریافت قیمت کارخانه چقدر است؟",
-    answer: "برای حفظ مزیت رقابتی و ترانزیت بصرفه، حداقل سفارش ثبت شده در سیستم ۳ کارتن یا حداقل مبلغ ۳ میلیون تومان است. سفارشات پالت یا خودروی کامل باربری از تخفیف‌های ویژه ادمین برخوردار خواهند شد.",
+    answer: "برای حفظ مزیت رقابتی و ترانزیت به‌صرفه، حداقل سفارش ثبت شده در سیستم ۵ کارتن یا حداقل مبلغ ۱۰ میلیون تومان است. سفارشات پالت یا خودروی کامل باربری از تخفیف‌های ویژه تیراژ و تسهیلات ترانزیت برخوردار خواهند شد.",
     category: "purchase"
   },
   {
@@ -176,7 +176,7 @@ export default function SupportCenter({ theme = 'light' }: { theme?: 'light' | '
             <div className="grid grid-cols-1 gap-3">
               {contactOptions.map((opt, idx) => (
                 <a
-                  key={idx}
+                  key={`sup-contact-${opt.href || idx}-${idx}`}
                   href={opt.href}
                   target={opt.href.startsWith("http") ? "_blank" : undefined}
                   rel="noreferrer"
@@ -370,7 +370,7 @@ export default function SupportCenter({ theme = 'light' }: { theme?: 'light' | '
             const isOpen = openFaqIndex === index;
             return (
               <div 
-                key={index}
+                key={`sup-faq-item-${faq.id || index}-${index}`}
                 className="border border-slate-100 rounded-2xl overflow-hidden transition-all duration-350 bg-slate-50/50"
               >
                 <button

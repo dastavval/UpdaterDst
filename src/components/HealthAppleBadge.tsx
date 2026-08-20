@@ -160,7 +160,7 @@ export const HealthBadgesStrip: React.FC<{
       )}
 
       {product.healthBadges && product.healthBadges.map((badge, idx) => (
-        <span key={idx} className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-lg text-[9px] font-black">
+        <span key={`health-badge-${badge}-${idx}`} className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-lg text-[9px] font-black">
           <CheckCircle2 size={10} className="text-teal-600" />
           <span>{badge}</span>
         </span>
@@ -196,7 +196,7 @@ export const HealthCertModal: React.FC<{
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md" dir="rtl">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm" dir="rtl">
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}

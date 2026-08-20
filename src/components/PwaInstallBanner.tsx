@@ -86,7 +86,7 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
         initial={{ y: 100, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 100, opacity: 0, scale: 0.95 }}
-        className="fixed bottom-20 left-3 right-3 sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md z-[9999] bg-slate-900/95 text-white p-4 rounded-3xl border border-amber-500/30 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 text-right"
+        className="fixed bottom-20 left-3 right-3 sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md z-[9999] bg-white/95 text-slate-900 p-4 rounded-3xl border border-emerald-500/30 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 text-right"
         dir="rtl"
       >
         <div className="flex items-center gap-3">
@@ -99,12 +99,12 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-white">نصب اپلیکیشن {appName}</span>
-              <span className="px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[9px] font-black border border-amber-500/30">
+              <span className="text-xs font-black text-slate-900">نصب اپلیکیشن {appName}</span>
+              <span className="px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 text-[9px] font-black border border-emerald-500/30">
                 PWA نسخه وب
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 font-bold mt-0.5 line-clamp-1">
+            <p className="text-[11px] text-slate-500 font-bold mt-0.5 line-clamp-1">
               ایجاد میانبر روی گوشی یا دسکتاپ بدون اشغال حافظه
             </p>
           </div>
@@ -121,7 +121,7 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
 
           <button
             onClick={handleDismiss}
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-red-600/80 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-600 transition-all cursor-pointer shrink-0"
             title="بستن دائمی اعلان"
           >
             <X size={16} />

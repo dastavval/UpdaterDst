@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { getDisplayImageUrl } from "../lib/image-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { motion, AnimatePresence } from "motion/react";
 import StarRating from "./StarRating";
@@ -38,6 +39,7 @@ import {
   Share2,
   ChevronDown,
   Zap,
+  ArrowLeft,
   ShieldAlert,
   Briefcase,
   Wrench,
@@ -93,6 +95,14 @@ export interface FactoryItem {
   catalogs?: { name: string; url: string }[];
   galleryImages?: { url: string; title: string; category?: 'production' | 'machinery' | 'warehouse' | 'lab' | 'exterior' }[];
   certificates?: { name: string; issuer?: string; year?: string }[];
+  factoryExteriorPhoto?: string;
+  productionLinePhoto?: string;
+  warehousePhoto?: string;
+  certificatesPhoto?: string;
+  factoryDescription?: string;
+  dailyCapacity?: string;
+  healthLicense?: string;
+  factoryHealthLicense?: string;
 }
 
 interface FactoryReviewItem {
@@ -165,117 +175,39 @@ const SERVICE_CATEGORIES = [
   "حمل‌ونقل، لجستیک و ترانزیت"
 ];
 
-const INITIAL_INDUSTRIAL_SERVICES: IndustrialServiceItem[] = [
-  {
-    id: "srv-1",
-    title: "طراحی تخصصی قالب، قالب‌سازی تزریق پلاستیک و سلفون بسته‌بندی",
-    category: "طراحی صنعتی و بسته‌بندی",
-    providerName: "گروه مهندسی قالب‌سازان آریا",
-    location: "تهران - شهرک صنعتی شمس‌آباد",
-    rating: 4.9,
-    deliveryDays: "۷ تا ۱۴ روز کاری",
-    rate: "بر اساس تیراژ و پیچیدگی نقشه (استعلام)",
-    description: "طراحی سه‌بعدی قالب‌های ظروف لبنی، تنقلات و قالب‌های سیلندری چاپ هلیوگراور و فلکسو برای خطوط تولید با تاییدیه تست خط.",
-    capabilities: ["مدل‌سازی 3D صنعتی", "ساخت قالب‌های تزریق دقیق", "تست نمونه اولیه و عیب‌یابی خط"],
-    imageUrl: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80"
-  },
-  {
-    id: "srv-2",
-    title: "ترخیص مواد اولیه، پیله‌وری و امور تشریفات گمرک بازرگان و بندرعباس",
-    category: "ترخیص کالا و امور گمرکی",
-    providerName: "شرکت بازرگانی بین‌المللی گمرک‌یار",
-    location: "هرمزگان - بندرعباس / آذربایجان غربی - ماکو",
-    rating: 4.8,
-    deliveryDays: "۳ تا ۵ روز کاری",
-    rate: "کارمزد ثابت تضمینی با فاکتور رسمی",
-    description: "ترخیص تخصصی دانه‌های روغنی، پودر کاکائو، اسانس‌های مجاز و ماشین‌آلات خط تولید با کارت بازرگانی معتبر و ضمانت بانکی کامل.",
-    capabilities: ["اخذ کوتاژ و مجوزهای بهداشت و غذاودارو", "استفاده از ارز نیمایی و تهاتر", "پیله‌وری سریع مرزی"],
-    imageUrl: "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=500&q=80"
-  },
-  {
-    id: "srv-3",
-    title: "کمپین‌های جامع تبلیغاتی B2B، برندینگ سازمانی و لانچ محصولات جدید در فروشگاه‌ها",
-    category: "تبلیغات، برندینگ و مارکتینگ",
-    providerName: "آژانس توسعه برند نام‌آوران صنعت",
-    location: "تهران - جردن",
-    rating: 4.9,
-    deliveryDays: "۱۰ روز کاری",
-    rate: "پکیج ماهانه لانچ و استند فروشگاهی",
-    description: "تحلیل بازار هدف، طراحی هویت بصری کارخانه، کمپین‌های ویزیتوری مویرگی و برنامه‌های معرفی محصول به بنکداران سراسر کشور.",
-    capabilities: ["طراحی استند و پروموشن فروشگاهی", "تولید تیزر خط تولید با پهپاد", "جذب شبکه توزیع و نمایندگی استانی"],
-    imageUrl: "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=500&q=80"
-  },
-  {
-    id: "srv-4",
-    title: "حسابداری انبار، محاسبه بهای تمام‌شده صنعتی (Cost Accounting) و اظهارنامه مالیاتی",
-    category: "حسابداری، حسابرسی و مالیات",
-    providerName: "موسسه خدمات مالی و حسابرسی تراز دقیق",
-    location: "اصفهان - شهرک صنعتی جی",
-    rating: 4.7,
-    deliveryDays: "قرارداد سالانه / نظارت هفتگی",
-    rate: "متناسب با حجم تراکنش و تعداد خط تولید",
-    description: "استقرار نرم‌افزارهای جامع ERP، اصلاح ساختار انبارداری و فرمولاسیون ضایعات تولید، تنظیم دفاتر پلمپ و دفاع مالیاتی ارزش‌افزوده.",
-    capabilities: ["تعیین بهای تمام‌شده هر کارتن کالا", "انبارگردانی و تطبیق موجودی", "مدیریت مالیاتی سامانه مودیان"],
-    imageUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=500&q=80"
-  },
-  {
-    id: "srv-5",
-    title: "آنالیز آزمایشگاهی مواد اولیه، تست میکروبی، شیمیایی و اخذ نشان استاندارد",
-    category: "آزمایشگاه و کنترل کیفیت",
-    providerName: "آزمایشگاه همکار استاندارد کیمیا سنجش",
-    location: "البرز - کرج",
-    rating: 4.9,
-    deliveryDays: "۲ تا ۴ روز کاری",
-    rate: "بر اساس تعرفه مصوب آزمایشگاه مرجع",
-    description: "انجام کلیه آزمون‌های کنترل کیفی آرد، روغن، اسیدهای چرب، فلزات سنگین و مواد نگه‌دارنده با برگه رسمی مورد تایید سازمان ملی استاندارد.",
-    capabilities: ["صدور برگه آنالیز معتبر COA", "آزمون‌های شیمیایی و میکروبیولوژی", "مشاوره فرمولاسیون صنعتی"],
-    imageUrl: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=500&q=80"
-  },
-  {
-    id: "srv-6",
-    title: "حمل‌ونقل فوق‌سنگین، کانتینرهای یخچالی و ترانزیت دربستی کارخانجات",
-    category: "حمل‌ونقل، لجستیک و ترانزیت",
-    providerName: "ناوگان لجستیک بار پایدار",
-    location: "تهران - پایانه باربری اکبرآباد",
-    rating: 4.8,
-    deliveryDays: "بارگیری در کمتر از ۶ ساعت",
-    rate: "استعلام بر اساس تناژ و بارنامه دولتی",
-    description: "تامین کامیون‌های مسقف چادری، تریلی لبه‌دار و یخچالی با بیمه‌نامه صددرصدی حمل کالا به تمام گمرکات و بنکداری‌های کشور.",
-    capabilities: ["بارنامه تمبردار دولتی", "بیمه‌نامه ۱۰۰٪ ارزش بار", "پایش آنلاین موقعیت خودروها"],
-    imageUrl: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=500&q=80"
-  }
-];
+const INITIAL_INDUSTRIAL_SERVICES: IndustrialServiceItem[] = [];
 
 // Initial mock reviews
 const INITIAL_REVIEWS: Record<string, FactoryReviewItem[]> = {};
 
 // Factory Card Component - Memoized for performance
-const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: { 
+const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder, b2bConfig }: { 
   factory: any; 
   idx: number; 
   onSelect: (f: any) => void; 
   onOrder: (name: string) => void;
+  b2bConfig?: any;
 }) => {
-  const cover = factory.coverUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800";
+  const cover = getDisplayImageUrl(factory.coverUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800");
   const desc = factory.description || factory.desc || "تولیدکننده رسمی محصولات استاندارد مواد غذایی با سیب سلامت و استانداردهای کیفی.";
   const categoryLabel = factory.category || "صنایع غذایی و مصرفی";
   const established = factory.establishedYear || factory.established || "۱۳۸۰";
   const location = factory.location || "شهرک صنعتی";
   const isFeatured = factory.isFeatured || factory.isPinned || factory.isPremium;
   const ratingScore = factory.rating || 5;
-  const logo = factory.logoUrl || factory.logo || "🏭";
+  const logo = getDisplayImageUrl(factory.logoUrl || factory.logo || "🏭");
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, margin: "150px" }}
       whileHover={{ y: -8 }}
       onClick={() => onSelect(factory)}
       className="group relative bg-white rounded-[2.5rem] border border-slate-200/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] hover:border-emerald-350 transition-all duration-500 overflow-hidden flex flex-col h-[480px] text-right cursor-pointer"
     >
       {/* Visual Header Section */}
-      <div className="relative h-44 shrink-0 bg-slate-900">
+      <div className="relative h-44 shrink-0 bg-slate-100">
         <img 
           src={cover} 
           alt={factory.name} 
@@ -299,16 +231,31 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
         </div>
 
         {/* Floating ID / Year */}
-        <div className="absolute bottom-4 left-4 bg-slate-900/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+        <div className="absolute bottom-4 left-4 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20">
           <span className="text-[10px] text-white/90 font-bold">تاسیس {toPersianNum(established)}</span>
         </div>
 
         {/* Floating Factory Logo Badge */}
-        <div className="absolute -bottom-5 right-6 w-12 h-12 bg-white rounded-xl shadow-lg border border-slate-100 flex items-center justify-center text-xl z-20 overflow-hidden">
-          {logo && typeof logo === 'string' && logo.startsWith('http') ? (
-            <img src={logo} alt={factory.name} className="w-9 h-9 object-contain rounded-lg" />
+        <div className="absolute -bottom-5 right-6 w-14 h-14 bg-white rounded-2xl shadow-xl border-4 border-white flex items-center justify-center text-xl z-20 overflow-hidden ring-1 ring-slate-100">
+          {logo && typeof logo === 'string' && (logo.startsWith('http') || logo.startsWith('data:image/') || logo.startsWith('/') || logo.startsWith('.') || logo.includes('.') || logo.includes('/') || logo.includes('%2F')) ? (
+            <img 
+              src={logo} 
+              alt={factory.name} 
+              className="w-10 h-10 object-contain rounded-lg p-0.5" 
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const parent = target.parentNode as HTMLElement;
+                if (parent && !parent.querySelector('.img-fallback-text')) {
+                  const fallback = document.createElement('span');
+                  fallback.innerText = '🏭';
+                  fallback.className = 'img-fallback-text select-none font-black text-slate-700 text-xl';
+                  parent.appendChild(fallback);
+                }
+              }}
+            />
           ) : (
-            <span className="select-none font-bold text-slate-700">{logo || "🏭"}</span>
+            <span className="select-none font-black text-slate-700 text-xl">{logo || "🏭"}</span>
           )}
         </div>
       </div>
@@ -326,6 +273,45 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
                 <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               </h3>
             </div>
+
+            {/* Prominent Brand Badge */}
+            {(() => {
+              const bList: string[] = [];
+              if (factory.brand) {
+                if (typeof factory.brand === 'string') bList.push(factory.brand);
+                else if (Array.isArray(factory.brand)) bList.push(...factory.brand);
+              }
+              if (factory.brandName && typeof factory.brandName === 'string') bList.push(factory.brandName);
+              if (factory.brands && Array.isArray(factory.brands)) {
+                bList.push(...factory.brands.map((b: any) => typeof b === 'string' ? b : (b.name || '')));
+              }
+              if (factory.mainProducts && Array.isArray(factory.mainProducts)) bList.push(...factory.mainProducts);
+              if (factory.name && typeof factory.name === 'string') {
+                const match = factory.name.match(/\(([^)]+)\)/);
+                if (match && match[1] && match[1].trim()) bList.unshift(match[1].trim());
+              }
+              const factoryBrands = Array.from(new Set(bList.map(b => String(b).trim()).filter(Boolean)));
+              const primaryBrand = factoryBrands[0] || "برند معتبر کارخانه";
+              const brandLogo = factory.brandLogoUrl || b2bConfig?.brands?.find((b: any) => b.name === primaryBrand)?.logoUrl;
+
+              return (
+                <div className="flex items-center gap-2 my-0.5">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200/80 text-[10px] font-black shadow-2xs">
+                    {brandLogo ? (
+                      <img 
+                        src={getDisplayImageUrl(brandLogo)} 
+                        alt={primaryBrand} 
+                        className="w-4 h-4 object-contain rounded-sm"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span>🏷️</span>
+                    )}
+                    <span>برند: {primaryBrand}</span>
+                  </span>
+                </div>
+              );
+            })()}
             
             <div className="flex items-center gap-3 text-[11px] font-bold text-slate-400">
               <div className="flex items-center gap-1 text-emerald-600/80">
@@ -347,7 +333,7 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
             {factory.mainProducts && factory.mainProducts.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {factory.mainProducts.slice(0, 3).map((brandName: string, i: number) => (
-                  <div key={i} className="bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <div key={`fact-view-prod-${brandName}-${i}`} className="bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
                     <div className="w-1 h-1 rounded-full bg-slate-300" />
                     <span className="text-[9px] font-black text-slate-600">{brandName}</span>
                   </div>
@@ -398,7 +384,7 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder }: {
           <div className="flex items-center justify-between border-t border-slate-100 pt-4">
             <div className="flex items-center gap-1.5">
               <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => <Star key={i} size={11} fill={i < Math.floor(ratingScore) ? "currentColor" : "none"} />)}
+                {[...Array(5)].map((_, i) => <Star key={`fact-view-star-${i}`} size={11} fill={i < Math.floor(ratingScore) ? "currentColor" : "none"} />)}
               </div>
               <span className="text-[10px] font-black text-slate-900">{ratingScore.toFixed(1)}</span>
             </div>
@@ -662,10 +648,65 @@ export default function FactoriesView({
   const [newDelivery, setNewDelivery] = useState(5);
   const [newComment, setNewComment] = useState("");
 
-  // Fallback to b2bConfig factories if available
-  const allFactories: FactoryItem[] = factories.length > 0 
-    ? factories 
-    : (b2bConfig?.factories || []);
+  // Fallback to b2bConfig factories if available, with dynamic merging of registered factory profiles
+  const allFactories: FactoryItem[] = useMemo(() => {
+    const list = factories.length > 0 ? factories : (b2bConfig?.factories || []);
+    try {
+      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      const localUsersList = Object.values(localUsers).filter((u: any) => u.userRole === 'factory' || u.role === 'factory' || u.status === 'active');
+      
+      return list.map((f: any) => {
+        // Find matching local user by factoryCode, id, or company name
+        const matchingUser = localUsersList.find((u: any) => 
+          u.factoryCode === f.factoryCode || 
+          u.id === f.id || 
+          (u.company && f.name && u.company.trim().toLowerCase() === f.name.trim().toLowerCase()) ||
+          (u.name && f.name && u.name.trim().toLowerCase() === f.name.trim().toLowerCase())
+        ) as any;
+
+        if (matchingUser) {
+          const extPhoto = matchingUser.factoryExteriorPhoto || matchingUser.coverUrl;
+          const prodPhoto = matchingUser.productionLinePhoto;
+          const whPhoto = matchingUser.warehousePhoto;
+          const certPhoto = matchingUser.certificatesPhoto;
+          
+          const builtGallery = [];
+          if (extPhoto) builtGallery.push({ url: extPhoto, title: "عکس محوطه و نمای کارخانه", category: "exterior" as const });
+          if (prodPhoto) builtGallery.push({ url: prodPhoto, title: "خط تولید و ماشین‌آلات", category: "production" as const });
+          if (whPhoto) builtGallery.push({ url: whPhoto, title: "انبار مرکزی و نگهداری کالا", category: "warehouse" as const });
+          if (certPhoto) builtGallery.push({ url: certPhoto, title: "ایزوها و گواهینامه‌ها", category: "lab" as const });
+
+          return {
+            ...f,
+            name: matchingUser.company || matchingUser.name || f.name,
+            location: matchingUser.city || f.location || f.city,
+            city: matchingUser.city || f.city,
+            phone: matchingUser.phone || f.phone,
+            logoUrl: matchingUser.logoUrl || f.logoUrl,
+            coverUrl: extPhoto || f.coverUrl,
+            description: matchingUser.factoryDescription || matchingUser.description || f.description,
+            establishedYear: matchingUser.establishedYear || f.establishedYear,
+            capacity: matchingUser.dailyCapacity || f.capacity,
+            specs: matchingUser.productionTech ? [matchingUser.productionTech] : (f.specs || []),
+            galleryImages: builtGallery.length > 0 ? builtGallery : (f.galleryImages || []),
+            // Keep direct property links too so FactoryDedicatedPage can read them easily
+            factoryExteriorPhoto: matchingUser.factoryExteriorPhoto,
+            productionLinePhoto: matchingUser.productionLinePhoto,
+            warehousePhoto: matchingUser.warehousePhoto,
+            certificatesPhoto: matchingUser.certificatesPhoto,
+            factoryDescription: matchingUser.factoryDescription,
+            dailyCapacity: matchingUser.dailyCapacity,
+            healthLicense: matchingUser.healthLicense,
+            factoryHealthLicense: matchingUser.factoryHealthLicense
+          };
+        }
+        return f;
+      });
+    } catch (e) {
+      console.warn("Could not merge local factory users:", e);
+      return list;
+    }
+  }, [factories, b2bConfig?.factories]);
 
   // Open modal and track view count
   const handleOpenFactoryModal = (factory: FactoryItem) => {
@@ -968,6 +1009,35 @@ export default function FactoriesView({
         </div>
       </div>
 
+      {/* Dedicated Notification Banner for Logged-in Factory Users */}
+      {user?.role === 'factory' && (
+        <div className="bg-indigo-50/90 border border-indigo-200 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3.5 text-right">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+              🏭
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-indigo-950">حساب کارخانه شما فعال است: {user.company || user.name}</h3>
+                <span className="text-[10px] bg-indigo-600 text-white px-2.5 py-0.5 rounded-full font-black">واحد تولیدی رسمی</span>
+              </div>
+              <p className="text-xs text-indigo-800 font-medium mt-1">
+                شما به عنوان واحد تولیدی در پلتفرم دست‌اول ثبت شده‌اید و نیازی به ثبت‌نام مجدد ندارید. برای ثبت کالای جدید و مدیریت خط تولید وارد پنل شوید.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("change-nav-tab", { detail: { tab: 'user' } }));
+            }}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs transition-all shadow-sm shrink-0 flex items-center gap-2 cursor-pointer"
+          >
+            <span>ورود به پنل مدیریت کارخانه</span>
+            <ArrowLeft size={14} />
+          </button>
+        </div>
+      )}
+
       {/* SUB-TAB 1: FACTORIES DIRECTORY */}
       {activeSubTab === 'factories' && (
         <div className="space-y-6">
@@ -1036,11 +1106,11 @@ export default function FactoriesView({
 
                 const catsToRender = ["همه صنایع", ...dynamicCats];
                 
-                return catsToRender.map((cat) => {
+                return catsToRender.map((cat, idx) => {
                   const isSelected = selectedCategory === cat;
                   return (
                     <button
-                      key={cat}
+                      key={`fact-cat-btn-${cat}-${idx}`}
                       onClick={() => setSelectedCategory(cat)}
                       className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
                         isSelected
@@ -1071,7 +1141,7 @@ export default function FactoriesView({
               </div>
               <button
                 onClick={() => { setSelectedCategory("همه صنایع"); setSearchQuery(""); }}
-                className="px-5 py-2.5 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
+                className="px-5 py-2.5 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
               >
                 نمایش همه کارخانه‌ها
               </button>
@@ -1079,10 +1149,11 @@ export default function FactoriesView({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 pb-10">
               {sortedFactories.map((factory, idx) => (
-                <LazyViewport key={factory.id} height="480px">
+                <LazyViewport key={`fact-view-card-${factory.id || idx}-${idx}`} height="480px">
                   <FactoryCard 
                     factory={factory} 
                     idx={idx} 
+                    b2bConfig={b2bConfig}
                     onSelect={(f) => setSelectedDedicatedFactory(f as FactoryProfile)} 
                     onOrder={(name) => {
                       if (onSelectFactoryForOrder) {
@@ -1161,9 +1232,9 @@ export default function FactoriesView({
 
             {/* Category Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {RAW_MATERIAL_CATEGORIES.map((cat) => (
+              {RAW_MATERIAL_CATEGORIES.map((cat, idx) => (
                 <button
-                  key={cat}
+                  key={`fact-raw-cat-${cat}-${idx}`}
                   onClick={() => setSelectedRawCategory(cat)}
                   className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
                     selectedRawCategory === cat
@@ -1179,24 +1250,24 @@ export default function FactoriesView({
 
           {/* Raw Materials Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRawMaterials.map((mat) => (
+            {filteredRawMaterials.map((mat, mIdx) => (
               <motion.div
-                key={mat.id}
+                key={`fact-raw-mat-${mat.id || mIdx}-${mIdx}`}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-[2.5rem] border border-slate-200/80 p-6 space-y-4 hover:border-emerald-400 hover:shadow-xl transition-all flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   <div className="relative h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100">
-                    <img src={mat.imageUrl} alt={mat.name} className="w-full h-full object-cover" />
-                    <span className="absolute top-3 right-3 bg-slate-900/90 backdrop-blur-md text-amber-300 font-black text-[10px] px-3 py-1 rounded-full border border-amber-400/30">
+                    <img src={getDisplayImageUrl(mat.imageUrl)} alt={mat.name} className="w-full h-full object-cover" />
+                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-amber-600 font-black text-[10px] px-3 py-1 rounded-full border border-amber-200">
                       {mat.category}
                     </span>
 
                     {/* Dastavval Verification / Pending Badges Overlay */}
                     {mat.isPendingApproval ? (
                       <span className="absolute bottom-3 right-3 bg-amber-500/95 backdrop-blur-md text-slate-950 font-black text-[9px] px-2.5 py-1 rounded-lg border border-amber-400 flex items-center gap-1 shadow-sm">
-                        <span className="w-1.5 h-1.5 bg-slate-950 rounded-full animate-ping" />
+                        <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping" />
                         ⏳ در انتظار بررسی و تایید دست‌اول
                       </span>
                     ) : (
@@ -1240,7 +1311,7 @@ export default function FactoriesView({
                   {/* Specs Tags */}
                   <div className="flex flex-wrap gap-1 pt-1">
                     {mat.specs.map((sp, idx) => (
-                      <span key={idx} className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md font-extrabold">
+                      <span key={`fact-raw-sp-${idx}-${sp.slice(0, 10)}`} className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md font-extrabold">
                         ✓ {sp}
                       </span>
                     ))}
@@ -1342,9 +1413,9 @@ export default function FactoriesView({
 
             {/* Category Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {SERVICE_CATEGORIES.map((cat) => (
+              {SERVICE_CATEGORIES.map((cat, idx) => (
                 <button
-                  key={cat}
+                  key={`fact-srv-cat-${cat}-${idx}`}
                   onClick={() => setSelectedServiceCategory(cat)}
                   className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
                     selectedServiceCategory === cat
@@ -1360,24 +1431,24 @@ export default function FactoriesView({
 
           {/* Services Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredServices.map((srv) => (
+            {filteredServices.map((srv, sIdx) => (
               <motion.div
-                key={srv.id}
+                key={`fact-srv-item-${srv.id || sIdx}-${sIdx}`}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-[2.5rem] border border-slate-200/80 p-6 space-y-4 hover:border-teal-400 hover:shadow-xl transition-all flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   <div className="relative h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100">
-                    <img src={srv.imageUrl} alt={srv.title} className="w-full h-full object-cover" />
-                    <span className="absolute top-3 right-3 bg-slate-900/90 backdrop-blur-md text-teal-300 font-black text-[10px] px-3 py-1 rounded-full border border-teal-400/30">
+                    <img src={getDisplayImageUrl(srv.imageUrl)} alt={srv.title} className="w-full h-full object-cover" />
+                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-teal-600 font-black text-[10px] px-3 py-1 rounded-full border border-teal-200">
                       {srv.category}
                     </span>
 
                     {/* Verification Overlay */}
                     {srv.isPendingApproval ? (
                       <span className="absolute bottom-3 right-3 bg-amber-500/95 backdrop-blur-md text-slate-950 font-black text-[9px] px-2.5 py-1 rounded-lg border border-amber-400 flex items-center gap-1 shadow-sm">
-                        <span className="w-1.5 h-1.5 bg-slate-950 rounded-full animate-ping" />
+                        <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping" />
                         ⏳ در انتظار بررسی مدارک فنی
                       </span>
                     ) : (
@@ -1415,7 +1486,7 @@ export default function FactoriesView({
                   {/* Capabilities Tags */}
                   <div className="flex flex-wrap gap-1 pt-1">
                     {srv.capabilities.map((cap, idx) => (
-                      <span key={idx} className="text-[9px] bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md font-extrabold">
+                      <span key={`fact-srv-cap-${idx}-${cap.slice(0, 10)}`} className="text-[9px] bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md font-extrabold">
                         ✓ {cap}
                       </span>
                     ))}
@@ -1458,7 +1529,7 @@ export default function FactoriesView({
       {/* MODAL 1: FACTORY DETAILS MODAL */}
       <AnimatePresence>
         {selectedFactoryModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1471,7 +1542,7 @@ export default function FactoriesView({
                   <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 p-2 shrink-0 flex items-center justify-center">
                     {selectedFactoryModal.logoUrl || selectedFactoryModal.logo ? (
                       <img 
-                        src={selectedFactoryModal.logoUrl || selectedFactoryModal.logo} 
+                        src={getDisplayImageUrl(selectedFactoryModal.logoUrl || selectedFactoryModal.logo)} 
                         alt={selectedFactoryModal.name} 
                         className="w-full h-full object-contain rounded-lg"
                       />
@@ -1507,7 +1578,7 @@ export default function FactoriesView({
                   <h4 className="text-xs font-black text-slate-900">محصولات و خطوط اصلی تولید:</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedFactoryModal.mainProducts.map((p, idx) => (
-                      <span key={idx} className="text-xs bg-emerald-50 text-emerald-800 px-3 py-1 rounded-xl font-bold border border-emerald-100">
+                      <span key={`fact-modal-prod-${idx}-${p.slice(0, 10)}`} className="text-xs bg-emerald-50 text-emerald-800 px-3 py-1 rounded-xl font-bold border border-emerald-100">
                         ✓ {p}
                       </span>
                     ))}
@@ -1532,8 +1603,8 @@ export default function FactoriesView({
 
                 {/* Reviews List */}
                 <div className="space-y-3">
-                  {(reviewsMap[selectedFactoryModal.id] || reviewsMap['default'] || []).map((rev) => (
-                    <div key={rev.id} className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-2 text-xs">
+                  {(reviewsMap[selectedFactoryModal.id] || reviewsMap['default'] || []).map((rev, rIdx) => (
+                    <div key={`fact-modal-rev-${rev.id || rIdx}-${rIdx}`} className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-2 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-black text-slate-900">{rev.userName} ({rev.userCity})</span>
                         {renderStars(rev.rating)}
@@ -1567,7 +1638,7 @@ export default function FactoriesView({
       {/* MODAL 2: ORDER RAW MATERIAL MODAL (استعلام و سفارش مواد اولیه) */}
       <AnimatePresence>
         {showOrderRawModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1619,7 +1690,7 @@ export default function FactoriesView({
                       setShowOrderRawModal(false);
                       setSubmittedOrderCode(null);
                     }}
-                    className="w-full py-3 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
+                    className="w-full py-3 bg-indigo-600 text-white font-black text-xs rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
                   >
                     متوجه شدم / بازگشت
                   </button>
@@ -1703,7 +1774,7 @@ export default function FactoriesView({
       {/* MODAL 3: REGISTER SUPPLIER MODAL */}
       <AnimatePresence>
         {showAddSupplierModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1790,7 +1861,7 @@ export default function FactoriesView({
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer"
+                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
                   >
                     ثبت نهایی تامین‌کننده
                   </button>
@@ -1804,7 +1875,7 @@ export default function FactoriesView({
       {/* MODAL 4: SELL RAW MATERIAL MODAL */}
       <AnimatePresence>
         {showAddRawMaterialModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1864,8 +1935,8 @@ export default function FactoriesView({
                         onChange={(e) => setNewMatCat(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                       >
-                        {RAW_MATERIAL_CATEGORIES.filter(c => c !== "همه مواد اولیه").map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
+                        {RAW_MATERIAL_CATEGORIES.filter(c => c !== "همه مواد اولیه").map((cat, idx) => (
+                          <option key={`fact-raw-opt-${cat}-${idx}`} value={cat}>{cat}</option>
                         ))}
                       </select>
                     </div>
@@ -2078,7 +2149,7 @@ export default function FactoriesView({
       {/* MODAL 5: ORDER INDUSTRIAL SERVICE (RFQ) WITH ESCROW */}
       <AnimatePresence>
         {showOrderServiceModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2212,7 +2283,7 @@ export default function FactoriesView({
       {/* MODAL 6: REGISTER INDUSTRIAL SERVICE (ارائه خدمت با واسطه‌گری امن) */}
       <AnimatePresence>
         {showAddServiceModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2273,8 +2344,8 @@ export default function FactoriesView({
                         onChange={(e) => setNewSrvCat(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                       >
-                        {SERVICE_CATEGORIES.filter(c => c !== "همه خدمات صنعتی").map((c) => (
-                          <option key={c} value={c}>{c}</option>
+                        {SERVICE_CATEGORIES.filter(c => c !== "همه خدمات صنعتی").map((c, idx) => (
+                          <option key={`fact-srv-opt-${c}-${idx}`} value={c}>{c}</option>
                         ))}
                       </select>
                     </div>

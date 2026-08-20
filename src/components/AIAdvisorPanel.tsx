@@ -117,6 +117,12 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
   const totalRevenue = (calcRetailPrice * packCount) * calcCartons;
   const grossProfit = totalRevenue - totalCost;
   const roiPercent = totalCost > 0 ? (grossProfit / totalCost) * 100 : 0;
+  
+  // Daily and Compound Metrics
+  const dailyProfit = Math.round(grossProfit / 30);
+  const monthlyRate = totalCost > 0 ? grossProfit / totalCost : 0;
+  // Compound profit over 6 months of capital turnover reinvestment:
+  const compound6MonthsProfit = Math.round(totalCost * (Math.pow(1 + (monthlyRate * 0.7), 6) - 1));
 
   // Investment Rating
   const getRating = (roi: number) => {
@@ -182,20 +188,20 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
                   <div className="space-y-2">
                     <label className="text-xs font-black text-gray-500 flex justify-between">
                       <span>تعداد کارتن سفارشی:</span>
-                      <span className="text-emerald-600 font-mono text-[10px]">حداقل سفارش: {selectedProduct.min_order_cartons}</span>
+                      <span className="text-emerald-600 font-mono text-[10px]">حداقل سفارش: {Math.max(5, selectedProduct.min_order_cartons || 5)}</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <button 
-                        onClick={() => setCalcCartons(prev => Math.max(selectedProduct.min_order_cartons, prev - 5))}
+                        onClick={() => setCalcCartons(prev => Math.max(Math.max(5, selectedProduct.min_order_cartons || 5), prev - 5))}
                         className="px-3 py-2 bg-gray-100 hover active:scale-95 text-gray-700 rounded-xl font-bold transition-all"
                       >
                         -۵
                       </button>
                       <input 
                         type="number" 
-                        min={selectedProduct.min_order_cartons}
+                        min={Math.max(5, selectedProduct.min_order_cartons || 5)}
                         value={calcCartons}
-                        onChange={e => setCalcCartons(Math.max(selectedProduct.min_order_cartons, Number(e.target.value)))}
+                        onChange={e => setCalcCartons(Math.max(Math.max(5, selectedProduct.min_order_cartons || 5), Number(e.target.value)))}
                         className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-center font-black font-mono text-gray-800 focus focus focus outline-none transition-all"
                       />
                       <button 
@@ -249,7 +255,7 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
                     </div>
 
                     <div className="bg-white p-3 rounded-xl border border-gray-100 flex flex-col justify-between">
-                      <span className="text-[10px] text-emerald-700 font-bold">سود ناخالص شما</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">سود ناخالص فاکتور</span>
                       <div className="mt-1 flex items-baseline gap-0.5">
                         <span className="text-base font-black text-emerald-700 font-mono">{(grossProfit).toLocaleString()}</span>
                         <span className="text-[8px] text-emerald-600">تومان</span>
@@ -260,6 +266,35 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
                       <span className="text-[10px] text-emerald-700 font-bold">بازگشت سرمایه (ROI)</span>
                       <div className="mt-1 flex items-baseline gap-0.5">
                         <span className="text-base font-black text-emerald-600 font-mono">٪{toPersianNum(roiPercent.toFixed(1))}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Daily and Compound Tempting Metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    <div className="bg-cyan-50/80 border border-cyan-100 p-3 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">⚡</span>
+                        <div>
+                          <span className="text-[10px] font-black text-cyan-900 block">سود برآورد شده روزانه:</span>
+                          <span className="text-[9px] text-cyan-700 font-medium">با فرض فروش یک‌ماهه این بار</span>
+                        </div>
+                      </div>
+                      <div className="text-left font-mono font-black text-cyan-800 text-sm">
+                        +{toPersianNum(dailyProfit.toLocaleString())} <span className="text-[8px]">ت/روز</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50/80 border border-amber-200 p-3 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🔄</span>
+                        <div>
+                          <span className="text-[10px] font-black text-amber-950 block">سود مرکب ۶ ماهه (گردش سرمایه):</span>
+                          <span className="text-[9px] text-amber-800 font-medium">با بازسرمایه‌گذاری مستمر سود</span>
+                        </div>
+                      </div>
+                      <div className="text-left font-mono font-black text-amber-900 text-sm">
+                        +{toPersianNum(compound6MonthsProfit.toLocaleString())} <span className="text-[8px]">تومان</span>
                       </div>
                     </div>
                   </div>
@@ -344,7 +379,7 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
         <div className="flex-1 overflow-y-auto p-4 space-y-4 text-right">
           {messages.map((m, idx) => (
             <div 
-              key={idx} 
+              key={`ai-advisor-msg-${m.role}-${idx}`} 
               className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'mr-auto items-start' : 'ml-auto items-end'}`}
             >
               <div 
@@ -377,7 +412,7 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
             "چگونه خرید مستقیم از کارخانه سود را زیاد میکند؟"
           ].map((q, i) => (
             <button
-              key={i}
+              key={`ai-advisor-q-${q.slice(0, 5)}-${i}`}
               onClick={() => handleSendMessage(q)}
               className="px-3 py-1.5 bg-slate-100 hover text-[10px] text-slate-300 border border-slate-700 hover rounded-xl whitespace-nowrap transition-all font-bold"
             >

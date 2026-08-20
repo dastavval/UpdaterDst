@@ -32,9 +32,11 @@ interface CatalogDownloadModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
+  user?: any;
 }
 
-export default function CatalogDownloadModal({ isOpen, onClose, products }: CatalogDownloadModalProps) {
+export default function CatalogDownloadModal({ isOpen, onClose, products, user }: CatalogDownloadModalProps) {
+  const isAdmin = user?.role === 'admin';
   // Mode selection: all, custom
   const [filterMode, setFilterMode] = useState<'all' | 'custom'>('all');
   
@@ -251,7 +253,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
           ${includeCartonDetails ? `
             <td style="padding: 10px 8px; text-align: center; color: #334155; font-weight: bold;">
               <div>${p.carton_pack_count} ${p.unit || 'عدد'}</div>
-              <div style="font-size: 9px; color: #64748b;">حداقل سفارش: ${p.min_order_cartons || 1} کارتن</div>
+              <div style="font-size: 9px; color: #64748b;">حداقل سفارش: ${Math.max(5, p.min_order_cartons || 5)} کارتن</div>
             </td>
           ` : ""}
           ${includePrices ? `
@@ -430,7 +432,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
         `"${(p.category || '').replace(/"/g, '""')}"`,
         p.carton_pack_count || 1,
         `"${(p.unit || 'عدد').replace(/"/g, '""')}"`,
-        p.min_order_cartons || 1,
+        Math.max(5, p.min_order_cartons || 5),
         p.bulk_price || 0,
         p.consumer_price || Math.round(p.bulk_price * 1.3),
         `${margin}%`,
@@ -454,7 +456,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[120] flex items-center justify-center p-3 sm:p-4 text-right" dir="rtl">
+    <div className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-[120] flex items-center justify-center p-3 sm:p-4 text-right" dir="rtl">
       <motion.div 
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -569,12 +571,12 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200">
-                  {allCategories.map(cat => {
+                  {allCategories.map((cat, idx) => {
                     const isSelected = selectedCategories.includes(cat);
                     const count = products.filter(p => p.category === cat).length;
                     return (
                       <button
-                        key={cat}
+                        key={`cat-dl-modal-${cat}-${idx}`}
                         type="button"
                         onClick={() => handleToggleCategory(cat)}
                         className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all border flex items-center gap-1.5 cursor-pointer ${
@@ -616,12 +618,12 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200">
-                  {allBrands.map(brand => {
+                  {allBrands.map((brand, idx) => {
                     const isSelected = selectedBrands.includes(brand);
                     const count = products.filter(p => p.brand === brand).length;
                     return (
                       <button
-                        key={brand}
+                        key={`brand-dl-modal-${brand}-${idx}`}
                         type="button"
                         onClick={() => handleToggleBrand(brand)}
                         className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all border flex items-center gap-1.5 cursor-pointer ${
@@ -752,7 +754,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
                 </div>
               ) : (
                 filteredProducts.map((p, i) => (
-                  <div key={p.id} className="p-2.5 sm:p-3 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
+                  <div key={`cat-dl-prod-${p.id || i}-${i}`} className="p-2.5 sm:p-3 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-2.5">
                       <span className="text-slate-400 font-mono text-[10px] w-5 text-center">#{i+1}</span>
                       {includeImages && (
@@ -768,7 +770,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
                           <span className="text-slate-900 font-black text-xs">{p.name}</span>
                         </div>
                         <div className="text-[9px] text-slate-400 font-medium">
-                          دسته‌بندی: {p.category || 'صنایع غذایی'} | حداقل: {p.min_order_cartons || 1} کارتن
+                          دسته‌بندی: {p.category || 'صنایع غذایی'} | حداقل: {Math.max(5, p.min_order_cartons || 5)} کارتن
                         </div>
                       </div>
                     </div>
@@ -824,7 +826,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
             </button>
           </div>
 
-          {/* PARSPACK S3 PDF CATALOG UPLOAD & DOWNLOAD BOX */}
+          {/* PARSPACK S3 PDF CATALOG DOWNLOAD & ADMIN UPLOAD BOX */}
           <div className="mt-2 pt-4 border-t border-slate-200/80 bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3" dir="rtl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div className="flex items-center gap-2">
@@ -833,10 +835,12 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
                 </div>
                 <div>
                   <h4 className="text-xs font-black text-slate-900">
-                    دانلود و آپلود فایل کاتالوگ PDF اصلی در باکت پارس‌پک
+                    {isAdmin ? "دانلود و مدیریت فایل کاتالوگ PDF رسمی در باکت پارس‌پک" : "دانلود فایل رسمی کاتالوگ جامع (نسخه کامل PDF)"}
                   </h4>
                   <p className="text-[10px] text-slate-400 font-medium">
-                    فایل کامل کاتالوگ رسمی ذخیره‌شده روی سرور ابری پارس‌پک (`c102393.parspack.net`)
+                    {isAdmin 
+                      ? "فایل کاتالوگ ذخیره‌شده روی سرور ابری پارس‌پک (`c102393.parspack.net`)" 
+                      : "دریافت آخرین نسخه تایید شده کاتالوگ و لیست قیمت جامع کارخانجات"}
                   </p>
                 </div>
               </div>
@@ -847,32 +851,39 @@ export default function CatalogDownloadModal({ isOpen, onClose, products }: Cata
                   target="_blank"
                   rel="noreferrer"
                   download
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl transition-all inline-flex items-center gap-1.5 shrink-0"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all inline-flex items-center gap-1.5 shrink-0 shadow-md shadow-indigo-600/20"
                 >
                   <Download size={14} className="text-amber-400" />
-                  <span>دانلود فایل کاتالوگ PDF از باکت</span>
+                  <span>دانلود فایل کاتالوگ PDF</span>
                 </a>
               )}
             </div>
 
-            {/* Upload Zone */}
-            <div className="relative border border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 rounded-xl p-3 text-center transition-all cursor-pointer">
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={handlePdfUpload}
-                disabled={isUploadingPdf}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              />
-              <div className="flex items-center justify-center gap-2 text-xs font-black text-slate-700">
-                {isUploadingPdf ? <RefreshCw size={16} className="animate-spin text-emerald-600" /> : <CloudUpload size={16} className="text-emerald-600" />}
-                <span>
-                  {isUploadingPdf ? "در حال ارسال فایل PDF به باکت پارس‌پک..." : "برای آپلود کاتالوگ PDF جدید روی باکت کلیک کنید"}
-                </span>
+            {/* Upload Zone - ADMIN ONLY */}
+            {isAdmin && (
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="text-[10px] font-black text-indigo-700 flex items-center gap-1">
+                  <span>🔒 بخش مدیریت: جایگزینی و آپلود فایل PDF جدید کاتالوگ</span>
+                </div>
+                <div className="relative border border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 rounded-xl p-3 text-center transition-all cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePdfUpload}
+                    disabled={isUploadingPdf}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex items-center justify-center gap-2 text-xs font-black text-slate-700">
+                    {isUploadingPdf ? <RefreshCw size={16} className="animate-spin text-emerald-600" /> : <CloudUpload size={16} className="text-emerald-600" />}
+                    <span>
+                      {isUploadingPdf ? "در حال ارسال فایل PDF به باکت پارس‌پک..." : "برای آپلود کاتالوگ PDF جدید کلیک کنید (مخصوص ادمین)"}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {uploadMsg && (
+            {isAdmin && uploadMsg && (
               <div className={`p-2.5 rounded-xl text-xs font-black flex items-center gap-2 ${
                 uploadMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
               }`}>

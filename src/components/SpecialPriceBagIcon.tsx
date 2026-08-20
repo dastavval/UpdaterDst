@@ -16,26 +16,33 @@ export const SpecialPriceBagIcon: React.FC<SpecialPriceBagIconProps> = ({
   animated = true,
   plain = false,
 }) => {
-  // If plain mode, render just a beautiful high-contrast Flame icon that matches standard Lucide styles perfectly
   if (plain) {
     return (
       <Flame 
         size={size} 
-        className={`stroke-[2.2] filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)] ${className} ${animated ? 'animate-pulse scale-105' : ''}`}
+        className={`stroke-red-600 fill-amber-400 stroke-[2.2] filter drop-shadow-[0_2px_4px_rgba(239,68,68,0.2)] ${className} ${animated ? 'animate-bounce scale-105' : ''}`}
       />
     );
   }
 
-  // Standard elegant mode (glowing and beautifully colored, but with correct padding and sizing)
   return (
-    <div className="relative inline-flex items-center justify-center shrink-0">
+    <div className="relative inline-flex items-center justify-center shrink-0 p-1 bg-gradient-to-br from-rose-50 to-amber-50 rounded-xl shadow-xs border border-rose-200/80">
       {animated && (
-        <span className="absolute -inset-1 rounded-full bg-current opacity-20 blur-xs animate-pulse pointer-events-none" />
+        <>
+          <span className="absolute inset-0 rounded-xl bg-rose-400 opacity-20 blur-xs animate-pulse" />
+          <span className="absolute -inset-1 rounded-xl bg-amber-400/30 opacity-30 blur-xs animate-ping pointer-events-none" />
+        </>
       )}
-      <Flame 
-        size={size} 
-        className={`fill-current/10 transition-colors stroke-[2.2] filter drop-shadow-[0_2px_5px_rgba(0,0,0,0.15)] ${animated ? 'animate-fire-sway' : ''} ${className}`}
-      />
+      <div className="relative z-10 flex items-center justify-center">
+        <Flame 
+          size={size} 
+          className={`stroke-red-600 fill-amber-500 transition-colors stroke-[2.2] filter drop-shadow-[0_1px_3px_rgba(239,68,68,0.4)] ${animated ? 'animate-fire-sway' : ''} ${className}`}
+        />
+        {/* Inner Core */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-70">
+           <Flame size={size * 0.55} className="fill-amber-300 stroke-red-500 animate-pulse" />
+        </div>
+      </div>
     </div>
   );
 };

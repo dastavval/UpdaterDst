@@ -61,8 +61,8 @@ export default function ProductComparison({ isOpen, onClose, products, theme }: 
                 <thead>
                   <tr>
                     <th className="p-4 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest min-w-[150px]">ویژگی فنی</th>
-                    {products.map(p => (
-                      <th key={p.id} className="p-4 min-w-[220px]">
+                    {products.map((p, idx) => (
+                      <th key={`cmp-head-${p.id || idx}-${idx}`} className="p-4 min-w-[220px]">
                         <div className="flex flex-col items-center gap-3">
                           <div className="w-24 h-24 bg-slate-100/80 rounded-3xl p-2 flex flex-col items-center justify-center overflow-hidden">
                             {p.image_url ? (
@@ -91,22 +91,22 @@ export default function ProductComparison({ isOpen, onClose, products, theme }: 
                 <tbody className={`text-xs ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">قیمت مصرف‌کننده (تومان)</td>
-                    {products.map(p => (
-                      <td key={p.id} className="p-4 text-center font-bold">{(p.consumer_price || 0).toLocaleString('fa-IR')}</td>
+                    {products.map((p, idx) => (
+                      <td key={`cmp-cons-price-${p.id || idx}-${idx}`} className="p-4 text-center font-bold">{(p.consumer_price || 0).toLocaleString('fa-IR')}</td>
                     ))}
                   </tr>
                   <tr className="border-t border-slate-100 bg-slate-50/50">
                     <td className="p-4 font-black">قیمت بنکداری / واحد (تومان)</td>
-                    {products.map(p => (
-                      <td key={p.id} className="p-4 text-center font-black text-emerald-600">{(p.bulk_price).toLocaleString('fa-IR')}</td>
+                    {products.map((p, idx) => (
+                      <td key={`cmp-bulk-price-${p.id || idx}-${idx}`} className="p-4 text-center font-black text-emerald-600">{(p.bulk_price).toLocaleString('fa-IR')}</td>
                     ))}
                   </tr>
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">حاشیه سود داروخانه / مغازه</td>
-                    {products.map(p => {
+                    {products.map((p, idx) => {
                       const margin = p.consumer_price ? Math.round(((p.consumer_price - p.bulk_price) / p.consumer_price) * 100) : 0;
                       return (
-                        <td key={p.id} className="p-4 text-center">
+                        <td key={`cmp-margin-${p.id || idx}-${idx}`} className="p-4 text-center">
                           <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 font-black text-[10px]">
                             {margin}% سود خالص
                           </span>
@@ -116,28 +116,28 @@ export default function ProductComparison({ isOpen, onClose, products, theme }: 
                   </tr>
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">تعداد در کارتن</td>
-                    {products.map(p => (
-                      <td key={p.id} className="p-4 text-center font-bold">{p.carton_pack_count} {p.unit}</td>
+                    {products.map((p, idx) => (
+                      <td key={`cmp-pack-count-${p.id || idx}-${idx}`} className="p-4 text-center font-bold">{p.carton_pack_count} {p.unit}</td>
                     ))}
                   </tr>
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">حداقل سفارش (کارتن)</td>
-                    {products.map(p => (
-                      <td key={p.id} className="p-4 text-center font-bold text-amber-600">{p.min_order_cartons}</td>
+                    {products.map((p, idx) => (
+                      <td key={`cmp-min-order-${p.id || idx}-${idx}`} className="p-4 text-center font-bold text-amber-600">{Math.max(5, p.min_order_cartons || 5)}</td>
                     ))}
                   </tr>
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">زمان تامین (روز کاری)</td>
-                    {products.map(p => (
-                      <td key={p.id} className="p-4 text-center font-bold">
+                    {products.map((p, idx) => (
+                      <td key={`cmp-lead-time-${p.id || idx}-${idx}`} className="p-4 text-center font-bold">
                         {p.production_lead_time_days <= 2 ? 'فوری' : `${p.production_lead_time_days} روز`}
                       </td>
                     ))}
                   </tr>
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">ارسال مستقیم کارخانه</td>
-                    {products.map(p => (
-                      <td key={p.id} className="p-4 text-center">
+                    {products.map((p, idx) => (
+                      <td key={`cmp-direct-send-${p.id || idx}-${idx}`} className="p-4 text-center">
                         <div className="flex justify-center">
                           <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
                             <Check size={14} />

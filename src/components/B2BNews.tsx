@@ -19,84 +19,9 @@ interface NewsItem {
   imageUrl: string;
 }
 
-const NEWS_DATA: NewsItem[] = [
-  {
-    id: "news-101",
-    title: "افتتاح فاز جدید خط تولید تمام‌اتوماتیک بسته‌بندی چیپس و اسنک با فناوری کنترل کیفی لیزری",
-    summary: "با سرمایه‌گذاری بخش خصوصی، فاز جدید خط تولید اسنک با ظرفیت روزانه ۴,۰۰۰ کارتن به بهره‌برداری رسید. این خط قابلیت بسته‌بندی حجمی با تزریق گاز نیتروژن خلوص بالا را داراست.",
-    content: "مراسم افتتاحیه فاز دوم توسعه خطوط تولید چیپس و اسنک با حضور فعالان بازار، بنکداران و نمایندگان بازرگانی برگزار شد. این پروژه با هدف ارتقای کیفیت ماندگاری کالا و کاهش ضایعات حمل و نقل جاده‌ای اجرا شده است. بر اساس توضیحات مدیر ارشد تولید، تمامی محصولات جدید با استاندارد سیب سلامت و کد رهگیری پلمپ جاده‌ای مستقیم به انبار بنکداران طرف قرارداد در سامانه دست اول ارسال خواهند شد.",
-    date: "۱۲ تیر ۱۴۰۵",
-    source: "روابط عمومی دست اول",
-    category: "خط تولید",
-    imageUrl: "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: "news-102",
-    title: "اطلاعیه سازمان تنظیم بازار: تخصیص سهمیه ارز ترجیحی روغن و مواد اولیه صنایع غذایی",
-    summary: "طبق مصوبه جدید کارگروه تنظیم بازار، سهمیه روغن خام و شکر کارخانجات صنایع غذایی فعال در سامانه توزیع مستقیم بدون واسطه تمدید گردید.",
-    content: "به اطلاع تمامی بنکداران و نمایندگان پخش عمده می‌رساند، با موافقت ستاد تنظیم بازار، قیمت پایه ثبت سفارشات کیک، کلوچه و شکلات تا پایان فصل جاری ثبات داشته و هیچ‌گونه افزایش قیمتی بر روی فاکتورهای رسمی دست اول اعمال نخواهد شد. خریداران عمده می‌توانند با ثبت سفارش کارتنی از حداکثر حاشیه سود مصوب بهره‌مند شوند.",
-    date: "۱۰ تیر ۱۴۰۵",
-    source: "خبرگزاری صنایع غذایی",
-    category: "تنظیم بازار",
-    imageUrl: "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: "news-103",
-    title: "کاهش ۱۸ درصدی هزینه‌های ترانزیت جاده‌ای با اتصال مستقیم به شبکه ترانزیت دست اول",
-    summary: "گزارش عملکرد سه ماهه لجستیک نشان می‌دهد استفاده از ناوگان مسقف بیمه‌شده موجب کاهش زمان تحویل بار به سراسر کشور به کمتر از ۴۸ ساعت شده است.",
-    content: "طی سه ماه گذشته بیش از ۱۲ هزار تن انواع کالاهای اساسی و تنقلات از طریق ناوبری هوشمند دست اول ارسال شده است. سیستم پلمپ سربی جاده‌ای و بیمه تمام‌خطر باربری تضمین می‌کند کالاها بدون کمترین خسارت به انبار مقصد تحویل شوند.",
-    date: "۰۵ تیر ۱۴۰۵",
-    source: "واحد لجستیک و ترانزیت",
-    category: "توزیع",
-    imageUrl: "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: "news-104",
-    title: "گزارش شفافیت مالی: واریز سود انباشته خریداران عمده و بنکداران به صندوق امانی",
-    summary: "بررسی آماری عملکرد نشان می‌دهد حذف واسطه‌های غیرضروری بیش از ۲۴ میلیارد تومان سود مستقیم به حساب بنکداران عضو سامانه منتقل نموده است.",
-    content: "سامانه دست اول با تسویه حساب امانی و صدور پیش‌فاکتور رسمی با ارزش افزوده قانونی، امکان تجارت امن و شفاف را برای تمامی بنکداران استانی فراهم کرده است. صورت‌های مالی عملکرد دوره به تایید حسابرسان رسمی رسیده است.",
-    date: "۰۱ تیر ۱۴۰۵",
-    source: "تحلیل‌گر مالی دست اول",
-    category: "گزارش مالی",
-    imageUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800"
-  }
-];
+const NEWS_DATA: NewsItem[] = [];
 
-const FACTORIES_DATA: any[] = [
-  {
-    id: "fac-1",
-    name: "صنایع غذایی و بسته‌بندی سالار",
-    established: "۱۳۷۸",
-    location: "آذربایجان شرقی، شهرک صنعتی شندآباد",
-    capacity: "۵۰,۰۰۰ کارتن در ماه",
-    contact: "۰۴۱۳۸۲۵۹۰۰۰",
-    logo: "🏭",
-    desc: "تولیدکننده تخصصی انواع کیک، کلوچه، ویفر و شکلات کاکائویی با استانداردهای کیفی و بین‌المللی سیب سلامت.",
-    specs: ["سیب سلامت سازمان غذا و دارو", "گواهینامه ISO 22000", "استاندارد کیفی ایران", "مجوز صادرات به CIS"]
-  },
-  {
-    id: "fac-2",
-    name: "کنسروسازی و صنایع غذایی شاهین",
-    established: "۱۳۸۵",
-    location: "اردبیل، شهرک صنعتی شماره ۲",
-    capacity: "۳۵,۰۰۰ کارتن در ماه",
-    contact: "۰۴۵۳۳۵۵۴۰۰۰",
-    logo: "🥫",
-    desc: "تولید انواع رب گوجه‌فرنگی، کنسروجات گوشتی و غیرگوشتی، ترشیجات و مرباجات صنعتی با مواد اولیه تازه.",
-    specs: ["سیب سلامت", "استاندارد معتبر کیفی", "پلمپ جاده‌ای مسقف"]
-  },
-  {
-    id: "fac-3",
-    name: "صنایع آشامیدنی و نوشیدنی گوارا",
-    established: "۱۳۹۱",
-    location: "ارومیه، فاز ۲ شهرک صنعتی",
-    capacity: "۶۰,۰۰۰ کارتن در ماه",
-    contact: "۰۴۴۳۲۷۷۱۰۰۰",
-    logo: "🥤",
-    desc: "تولیدکننده انواع آبمیوه طبیعی تک‌نفره و خانواده، نکتار، ماءالشعیر و آب‌معدنی استاندارد.",
-    specs: ["استاندارد ارگانیک", "سیب سلامت", "مجوز صادرات عراق و ترکیه"]
-  }
-];
+const FACTORIES_DATA: any[] = [];
 
 interface B2BNewsProps {
   articles?: NewsItem[];
@@ -284,9 +209,9 @@ export default function B2BNews({
             >
               همه شرکت‌ها
             </button>
-            {ALL_FACTORIES.map((fac) => (
+            {ALL_FACTORIES.map((fac, idx) => (
               <button
-                key={fac.id}
+                key={`b2b-fac-tab-${fac.id || idx}-${idx}`}
                 onClick={() => setActiveFactory(fac.id)}
                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all shrink-0 cursor-pointer ${
                   activeFactory === fac.id 
@@ -309,9 +234,9 @@ export default function B2BNews({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {filteredFactories.map((fac) => (
+            {filteredFactories.map((fac, idx) => (
               <div 
-                key={fac.id}
+                key={`b2b-fac-card-${fac.id || idx}-${idx}`}
                 className="rounded-[2.5rem] bg-white border border-slate-100 p-6 sm:p-8 hover transition-all duration-300 flex flex-col justify-between space-y-6 text-right shadow-material-sm relative overflow-hidden"
               >
                 <div className="space-y-5">
@@ -358,7 +283,7 @@ export default function B2BNews({
                       <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">گواهینامه‌ها و استانداردهای معتبر صنعتی:</div>
                       <div className="flex flex-wrap gap-2">
                         {fac.specs.map((spec: string, i: number) => (
-                          <span key={i} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-lg font-black">
+                          <span key={`b2b-fac-spec-${spec.slice(0, 5)}-${i}`} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-lg font-black">
                             ✓ {spec}
                           </span>
                         ))}
@@ -425,9 +350,9 @@ export default function B2BNews({
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1">
-            {["همه", "تنظیم بازار", "خط تولید", "توزیع", "گزارش مالی"].map((cat) => (
+            {["همه", "تنظیم بازار", "خط تولید", "توزیع", "گزارش مالی"].map((cat, idx) => (
               <button
-                key={cat}
+                key={`b2b-news-cat-${cat}-${idx}`}
                 onClick={() => setNewsFilter(cat)}
                 className={`px-3 py-1 rounded-xl text-[10px] font-black border transition-all shrink-0 cursor-pointer ${
                   newsFilter === cat 
@@ -450,9 +375,9 @@ export default function B2BNews({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredNews.map((news) => (
+            {filteredNews.map((news, idx) => (
               <div 
-                key={news.id}
+                key={`b2b-news-card-${news.id || idx}-${idx}`}
                 onClick={() => setSelectedNews(news)}
                 className="group cursor-pointer bg-white hover rounded-[2rem] p-4.5 border border-slate-200/60 hover transition-all flex flex-col justify-between h-full"
               >
@@ -563,7 +488,7 @@ export default function B2BNews({
                 const isCompleted = completedLessons.includes(lesson.id);
                 return (
                   <div 
-                    key={idx}
+                    key={`b2b-edu-lesson-${lesson.id || idx}-${idx}`}
                     className={`p-5 rounded-2xl border transition-all ${
                       isCompleted 
                         ? 'bg-emerald-500/5 border-emerald-500/20' 

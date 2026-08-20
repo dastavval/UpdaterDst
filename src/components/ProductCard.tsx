@@ -1,22 +1,26 @@
 import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, TrendingUp, Building2, Eye, ShieldCheck, Zap, Percent, CheckCircle2, ShoppingCart } from "lucide-react";
+import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, TrendingUp, Building2, Eye, ShieldCheck, Zap, Percent, CheckCircle2, ShoppingCart, Lock, Award, Tag } from "lucide-react";
 import { Product } from "../types";
 import { getDisplayImageUrl } from "../lib/image-utils";
 import { HealthBadgesStrip, HealthCertModal, HealthAppleLogo } from "./HealthAppleBadge";
+import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product, quantityCartons: number) => void;
   userBadge?: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin';
+  user?: any;
+  onRequireAuth?: () => void;
   onCompare?: (product: Product) => void;
   isComparing?: boolean;
   onViewDetails?: (product: Product) => void;
   index?: number;
 }
 
-const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isComparing, onViewDetails, index = 0 }: ProductCardProps) => {
-  const [cartons, setCartons] = useState(product.min_order_cartons || 1);
+const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth, onCompare, isComparing, onViewDetails, index = 0 }: ProductCardProps) => {
+  const minCartonsLimit = Math.max(5, product.min_order_cartons || 5);
+  const [cartons, setCartons] = useState(minCartonsLimit);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [hasPriceAlert, setHasPriceAlert] = useState(false);
@@ -25,14 +29,15 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
   const [alertSuccessMsg, setAlertSuccessMsg] = useState<string | null>(null);
   const [showHealthCertModal, setShowHealthCertModal] = useState(false);
   const [isAddedFeedback, setIsAddedFeedback] = useState(false);
+  const [showPriceDetails, setShowPriceDetails] = useState(false);
 
-  const toPersianNum = (num: number | string) => {
-    if (num === undefined || num === null) return "";
-    const persian = {
-      "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴", "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹"
-    };
-    return num.toString().replace(/[0-9]/g, (w) => (persian as any)[w]);
-  };
+  useEffect(() => {
+    if (cartons < minCartonsLimit) {
+      setCartons(minCartonsLimit);
+    }
+  }, [minCartonsLimit]);
+
+  const toPersianNum = (num: number | string) => toPersianDigits(num);
 
   const toEnglishNum = (str: string): string => {
     const persian = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
@@ -45,24 +50,13 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
     return out;
   };
 
-  const getDiscountPercent = (badge?: string) => {
-    switch (badge) {
-      case 'silver': return 2;
-      case 'gold': return 5;
-      case 'vip': return 8;
-      case 'admin': return 10;
-      default: return 0;
-    }
-  };
-
-  const currentDiscountPercent = getDiscountPercent(userBadge);
-  const discountedBulkPrice = currentDiscountPercent > 0 
-    ? Math.round(product.bulk_price * (1 - currentDiscountPercent / 100))
-    : product.bulk_price;
-
-  const displayConsumerPrice = product.consumer_price || product.price;
-  const pricePerCarton = discountedBulkPrice * product.carton_pack_count;
-  const discountPercent = Math.max(0, Math.round(((displayConsumerPrice - discountedBulkPrice) / displayConsumerPrice) * 100));
+  // Compute Dynamic Multi-Tier Role Pricing
+  const pricing = getProductRolePricing(product, user, userBadge);
+  const discountedBulkPrice = pricing.unitWholesalePrice;
+  const displayConsumerPrice = pricing.displayConsumerPrice;
+  const pricePerCarton = pricing.pricePerCarton;
+  const profitPerCarton = pricing.profitPerCartonVsConsumer;
+  const profitPercent = pricing.profitMarginPercent;
 
   // Check if price alert is set
   useEffect(() => {
@@ -129,7 +123,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
   };
 
   const handleDecrement = () => {
-    setCartons(prev => Math.max(product.min_order_cartons || 1, prev - 1));
+    setCartons(prev => Math.max(minCartonsLimit, prev - 1));
   };
 
   const handleAddWithFeedback = () => {
@@ -142,13 +136,13 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
     <motion.div 
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-20px" }}
+      viewport={{ once: true, margin: "100px" }}
       transition={{ 
         duration: 0.4, 
         delay: (index % 4) * 0.05, 
         ease: [0.21, 0.47, 0.32, 0.98] 
       }}
-      className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all duration-300 group flex flex-col relative h-full overflow-hidden"
+      className="bg-white rounded-[2rem] border border-slate-200/70 shadow-sm hover:shadow-2xl hover:shadow-emerald-500/10 hover:border-emerald-500/40 transition-all duration-500 group flex flex-col relative h-full overflow-hidden"
     >
       {/* Top Accent Line for Featured */}
       {product.isFeatured && (
@@ -206,7 +200,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
         )}
         
         {/* Quick View Trigger Overlay */}
-        <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover/img:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-[2px]">
+        <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/img:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-[2px]">
           <div className="bg-white text-slate-950 px-6 py-2.5 rounded-2xl text-[11px] font-black shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover/img:translate-y-0 transition-all duration-500 border border-slate-100 scale-90 group-hover/img:scale-100">
             <Eye size={14} className="text-emerald-600" />
             تحلیل حاشیه سود
@@ -246,49 +240,105 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
           </h3>
 
           <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-            <Building2 size={11} className="text-emerald-600 shrink-0" />
+            <Factory size={11} className="text-emerald-600 shrink-0" />
             <span className="truncate">تامین: {product.factory_name || product.brand}</span>
           </div>
         </div>
 
-        {/* Pricing Architecture */}
-        <div className="mt-auto space-y-3">
-          <div className="bg-slate-50/90 p-3 rounded-xl border border-slate-200/70 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-500">قیمت بنکداری:</span>
+        {/* Multi-Tier Role Pricing Architecture */}
+        <div className="mt-auto space-y-2">
+          <div className="bg-slate-50/95 p-3 rounded-2xl border border-slate-200/80 space-y-2">
+            {/* Role Header Badge */}
+            <div className="flex justify-between items-center text-[10px]">
+              <span className={`px-2 py-0.5 rounded-md font-bold text-[9.5px] border ${pricing.badgeColor}`}>
+                {pricing.badgeLabel}
+              </span>
+              <span className="text-slate-400 font-bold text-[9px]">{pricing.roleTitleFa}</span>
+            </div>
+
+            {/* Wholesale Unit Price Display */}
+            <div className="flex justify-between items-center pt-0.5">
+              <span className="text-[10px] font-black text-slate-600">{pricing.priceTagLabel}:</span>
               <div className="flex flex-col items-end">
-                {discountPercent > 0 && product.bulk_price > discountedBulkPrice && (
+                {pricing.isRepresentative && pricing.displayConsumerPrice > discountedBulkPrice && (
                   <span className="text-[9px] text-slate-400 line-through font-mono opacity-60">
-                    {toPersianNum(product.bulk_price.toLocaleString())}
+                    {toPersianNum(pricing.floorFactoryUnitPrice * 1.10)}
                   </span>
                 )}
-                <span className="font-mono text-emerald-800 font-black text-sm sm:text-base">
+                <span className="font-mono text-emerald-800 font-black text-xs sm:text-sm">
                   {toPersianNum(discountedBulkPrice.toLocaleString())}
                   <span className="text-[9px] font-bold text-slate-400 mr-1">تومان</span>
                 </span>
               </div>
             </div>
 
-            <div className="h-px bg-slate-200/50" />
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] font-bold text-slate-400">قیمت مصرف‌کننده:</span>
-                <span className="text-[10px] font-black text-slate-700">
-                  {toPersianNum(displayConsumerPrice.toLocaleString())} ت
+            {/* Micro Tier Upsell & Margin Hint */}
+            <div className="text-[9px] leading-tight text-slate-500 font-medium bg-white/90 p-1.5 rounded-lg border border-slate-200/50">
+              {pricing.isRepresentative ? (
+                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                  <Award size={11} className="text-emerald-600 shrink-0" />
+                  <span>نرخ کف کارخانه برای عاملیت فعال است (۱۰٪ ارزان‌تر)</span>
                 </span>
-              </div>
-              <div className="flex flex-col gap-0.5 items-end">
-                <span className="text-[8px] font-bold text-amber-600">سود ناخالص واحد:</span>
-                <span className="text-[10px] font-black text-emerald-700">
-                  {toPersianNum((displayConsumerPrice - discountedBulkPrice).toLocaleString())} ت
+              ) : pricing.isMarketer ? (
+                <span className="text-purple-700 font-bold flex items-center gap-1">
+                  <Percent size={11} className="text-purple-600 shrink-0" />
+                  <span>پورسانت واریزی: +{toPersianNum(pricing.marketerCommissionPerCarton.toLocaleString())} تومان در هر کارتن</span>
                 </span>
-              </div>
+              ) : (
+                <span className="text-slate-600 flex items-center gap-1">
+                  <Tag size={10} className="text-indigo-500 shrink-0" />
+                  <span>تضمین اصالت بار مستقیم از خط تولید کارخانه</span>
+                </span>
+              )}
             </div>
+
+            {/* Collapsible Pricing & Margin Detail Button */}
+            <button
+              type="button"
+              onClick={() => setShowPriceDetails(!showPriceDetails)}
+              className="w-full flex items-center justify-between text-[9px] font-black text-slate-500 hover:text-emerald-700 transition-colors bg-white/80 p-1.5 rounded-lg border border-slate-200/50 cursor-pointer"
+            >
+              <span className="flex items-center gap-1">📊 آنالیز سود و نرخ مصرف‌کننده</span>
+              <span className="text-[8px] font-bold text-slate-400">
+                {showPriceDetails ? "بستن ↑" : "جزئیات ↓"}
+              </span>
+            </button>
+
+            {/* Collapsible pricing detail block */}
+            <AnimatePresence initial={false}>
+              {showPriceDetails && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden space-y-2 pt-2 border-t border-slate-200/60 text-[10px] flex flex-col"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8.5px] font-bold text-slate-400">نرخ مصوب مصرف‌کننده:</span>
+                    <span className="font-black text-slate-700 font-mono">
+                      {toPersianNum(displayConsumerPrice.toLocaleString())} ت
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8.5px] font-bold text-emerald-600">سود هر کارتن ({toPersianNum(profitPercent)}٪):</span>
+                    <span className="font-black text-emerald-700 font-mono">
+                      +{toPersianNum(profitPerCarton.toLocaleString())} ت
+                    </span>
+                  </div>
+                  {pricing.isRepresentative && (
+                    <div className="flex justify-between items-center bg-emerald-50/70 p-1 rounded-md text-[8.5px] font-bold text-emerald-800">
+                      <span>مزیت انحصاری عاملیت:</span>
+                      <span>+{toPersianNum(pricing.repSavingsPerCarton.toLocaleString())} تومان در هر کارتن</span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Packing & Total */}
-          <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
                 <Package size={13} />
@@ -301,52 +351,69 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
               </div>
             </div>
             <div className="text-left">
-              <span className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">قیمت کارتن</span>
+              <span className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">
+                قیمت هر کارتن
+              </span>
               <span className="text-[11px] font-black text-indigo-900 font-mono">
-                {toPersianNum(pricePerCarton.toLocaleString())}
+                {toPersianNum(pricePerCarton.toLocaleString())} ت
               </span>
             </div>
           </div>
 
           {/* Quantity Controls & Call-to-Action */}
-          <div className="flex items-center gap-2 pt-1">
-            <div className="flex items-center bg-slate-50 p-0.5 rounded-xl border border-slate-200/80 shrink-0">
+          <div className="space-y-1.5 pt-0.5">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-50 p-0.5 rounded-xl border border-slate-200/80 shrink-0">
+                <button 
+                  onClick={handleDecrement} 
+                  className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all cursor-pointer disabled:opacity-30" 
+                  disabled={cartons <= minCartonsLimit}
+                  title="کاهش تعداد کارتن"
+                >
+                  <Minus size={13} />
+                </button>
+                <span className="w-7 text-center text-xs font-black font-mono text-slate-900">{toPersianNum(cartons)}</span>
+                <button 
+                  onClick={handleIncrement} 
+                  className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all cursor-pointer"
+                  title="افزایش تعداد کارتن"
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+
               <button 
-                onClick={handleDecrement} 
-                className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all cursor-pointer disabled:opacity-30" 
-                disabled={cartons <= (product.min_order_cartons || 1)}
+                onClick={handleAddWithFeedback}
+                className={`flex-1 h-9 rounded-xl font-black text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-2xs hover:shadow-xs hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                  isAddedFeedback
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-700/15"
+                }`}
               >
-                <Minus size={13} />
-              </button>
-              <span className="w-7 text-center text-xs font-black font-mono text-slate-900">{toPersianNum(cartons)}</span>
-              <button 
-                onClick={handleIncrement} 
-                className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all cursor-pointer"
-              >
-                <Plus size={13} />
+                {isAddedFeedback ? (
+                  <>
+                    <CheckCircle2 size={15} />
+                    <span>اضافه شد ({toPersianNum(cartons)} کارتن)</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart size={15} />
+                    <span>ثبت در سبد ({toPersianNum(cartons)} کارتن)</span>
+                  </>
+                )}
               </button>
             </div>
 
-            <button 
-              onClick={handleAddWithFeedback}
-              className={`flex-1 h-9 rounded-xl font-black text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-2xs hover:shadow-xs hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
-                isAddedFeedback
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-emerald-700 text-white shadow-emerald-700/15"
-              }`}
-            >
-              {isAddedFeedback ? (
-                <>
-                  <CheckCircle2 size={15} />
-                  <span>اضافه شد</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingCart size={15} />
-                  <span>سفارش</span>
-                </>
-              )}
-            </button>
+            {/* Minimum Order & Factory Direct Badge */}
+            <div className="flex items-center justify-between pt-0.5 px-0.5 text-[9px] text-slate-400 font-bold">
+              <span className="flex items-center gap-1 text-emerald-700 font-black">
+                <ShieldCheck size={11} className="text-emerald-600" />
+                تضمین بار تازه خط تولید
+              </span>
+              <span className="text-slate-500 font-black bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60">
+                حداقل سفارش: {toPersianNum(minCartonsLimit)} کارتن
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -358,13 +425,13 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-2 left-2 right-2 z-30 bg-slate-900 text-amber-300 px-3 py-2 rounded-xl text-[10px] font-black flex items-center justify-between shadow-xl border border-amber-400/30"
+            className="absolute bottom-2 left-2 right-2 z-30 bg-indigo-50 border border-indigo-100 text-indigo-900 px-3 py-2 rounded-xl text-[10px] font-black flex items-center justify-between shadow-lg"
           >
             <span className="flex items-center gap-1.5">
-              <Check size={12} className="text-emerald-400" />
+              <Check size={12} className="text-emerald-600" />
               {alertSuccessMsg}
             </span>
-            <button onClick={() => setAlertSuccessMsg(null)} className="text-slate-400 hover:text-white">
+            <button onClick={() => setAlertSuccessMsg(null)} className="text-indigo-400 hover:text-indigo-600">
               <X size={12} />
             </button>
           </motion.div>
@@ -374,7 +441,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, onCompare, isCompar
       {/* Price Alert Target Modal */}
       <AnimatePresence>
         {showAlertModal && (
-          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 text-right" dir="rtl">
+          <div className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4 text-right" dir="rtl">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

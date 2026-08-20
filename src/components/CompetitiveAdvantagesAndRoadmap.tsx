@@ -224,7 +224,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
             {comparisonData.map((row, idx) => {
               const RowIcon = row.icon;
               return (
-                <div key={idx} className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200 space-y-2">
+                <div key={`comp-mob-${row.metric}-${idx}`} className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200 space-y-2">
                   <div className="flex items-center gap-2 text-slate-900 font-black text-xs border-b border-slate-200/60 pb-1.5">
                     <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                       <RowIcon size={13} />
@@ -276,7 +276,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
                 {comparisonData.map((row, idx) => {
                   const RowIcon = row.icon;
                   return (
-                    <tr key={idx} className="transition-colors hover:bg-slate-50">
+                    <tr key={`comp-desk-${row.metric}-${idx}`} className="transition-colors hover:bg-slate-50">
                       <td className="p-2.5 sm:p-3 text-slate-900 font-black flex items-center gap-1.5">
                         <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                           <RowIcon size={13} />
@@ -330,7 +330,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
 
               return (
                 <motion.div
-                  key={role.id}
+                  key={`role-item-${role.id || role.key || idx}-${idx}`}
                   whileHover={{ y: -2 }}
                   onClick={() => {
                     setSelectedRole(idx);
@@ -399,7 +399,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
 
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {roles[selectedRole].features.map((feat, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold">
+                    <span key={`feat-${selectedRole}-${i}-${feat}`} className="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold">
                       <CheckCircle2 size={11} className="text-emerald-600" />
                       <span>{feat}</span>
                     </span>
@@ -425,7 +425,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
       {/* REAL REGISTRATION MODAL */}
       <AnimatePresence>
         {modalRole && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs" dir="rtl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm" dir="rtl">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

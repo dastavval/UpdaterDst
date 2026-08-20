@@ -92,45 +92,43 @@ export default function OnboardingModal({ isOpen, onClose, theme, onSelectAction
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md" dir="rtl">
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm" dir="rtl">
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className={`relative w-full max-w-2xl overflow-hidden rounded-[2.5rem] border ${
-            theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 shadow-2xl text-slate-900'
-          }`}
+          className="relative w-full max-w-2xl overflow-hidden rounded-[2.5rem] border bg-white border-slate-200/80 shadow-2xl text-slate-900"
         >
           <button 
             onClick={onClose}
-            className="absolute top-6 left-6 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors z-10 cursor-pointer"
+            className="absolute top-6 left-6 p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors z-10 cursor-pointer"
           >
             <X size={20} />
           </button>
 
-          <div className="p-8 md:p-10">
-            <div className="flex flex-col items-center text-center space-y-6">
+          <div className="p-6 sm:p-8 md:p-10">
+            <div className="flex flex-col items-center text-center space-y-5">
               
               {/* Dynamic Icon Badge */}
               <motion.div
                 key={currentStep}
                 initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                className={`w-28 h-28 rounded-3xl bg-gradient-to-tr ${current.color} flex items-center justify-center overflow-hidden shadow-2xl text-white shrink-0 border-4 border-white/20`}
+                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr ${current.color} flex items-center justify-center overflow-hidden shadow-xl text-white shrink-0 border-4 border-white`}
               >
-                <IconComp size={48} className="animate-pulse" />
+                <IconComp size={44} className="animate-pulse" />
               </motion.div>
 
-              <div className="space-y-3">
-                <span className="inline-block bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-black px-3.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+              <div className="space-y-2.5 max-w-lg">
+                <span className="inline-block bg-emerald-50 text-emerald-800 text-[11px] font-black px-4 py-1.5 rounded-full border border-emerald-200 shadow-xs">
                   {current.badge}
                 </span>
 
-                <h2 className="text-xl sm:text-2xl font-black leading-tight">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 leading-snug">
                   {current.title}
                 </h2>
                 
-                <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-bold leading-relaxed max-w-lg mx-auto">
+                <p className="text-slate-600 text-xs sm:text-sm font-bold leading-relaxed px-2">
                   {current.desc}
                 </p>
               </div>
@@ -139,7 +137,7 @@ export default function OnboardingModal({ isOpen, onClose, theme, onSelectAction
               <div className="flex items-center gap-1.5 pt-1">
                 {STEPS.map((_, idx) => (
                   <button 
-                    key={idx}
+                    key={`onboarding-step-${idx}`}
                     onClick={() => setCurrentStep(idx)}
                     className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                       idx === currentStep ? 'w-8 bg-emerald-500' : 'w-2 bg-slate-200 dark:bg-slate-700'

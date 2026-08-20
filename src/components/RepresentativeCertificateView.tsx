@@ -9,8 +9,12 @@ interface RepresentativeCertificateViewProps {
   city: string;
   agencyCode: string;
   badge?: string;
+  tierLevel?: number;
+  tierTitle?: string;
+  monthlySales?: number;
   onClose: () => void;
   b2bConfig?: any;
+  isApproved?: boolean;
 }
 
 const toPersianNum = (num: number | string) => {
@@ -26,9 +30,13 @@ export default function RepresentativeCertificateView({
   companyName,
   city,
   agencyCode,
-  badge = "نماینده انحصاری توزیع",
+  badge = "عامل فروش رسمی",
+  tierLevel = 1,
+  tierTitle = "عامل فروش رسمی (سطح ۱)",
+  monthlySales = 350000000,
   onClose,
-  b2bConfig
+  b2bConfig,
+  isApproved = true
 }: RepresentativeCertificateViewProps) {
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -49,19 +57,17 @@ export default function RepresentativeCertificateView({
 
       let imgData = "";
       try {
-        imgData = await toJpeg(certElem, {
-          quality: 0.96,
-          pixelRatio: 2,
+        imgData = await toPng(certElem, {
+          pixelRatio: 3,
           backgroundColor: "#ffffff",
           cacheBust: true,
-          skipFonts: true,
         });
       } catch (e1) {
-        imgData = await toPng(certElem, {
+        imgData = await toJpeg(certElem, {
+          quality: 0.98,
           pixelRatio: 2,
           backgroundColor: "#ffffff",
           cacheBust: true,
-          skipFonts: true,
         });
       }
 
@@ -74,7 +80,8 @@ export default function RepresentativeCertificateView({
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
-        format: "a4"
+        format: "a4",
+        compress: true,
       });
 
       const pdfWidth = 297;
@@ -82,7 +89,7 @@ export default function RepresentativeCertificateView({
       const imgWidth = pdfWidth;
       const imgHeight = (img.naturalHeight * pdfWidth) / img.naturalWidth;
 
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, Math.min(imgHeight, pdfHeight));
+      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, Math.min(imgHeight, pdfHeight), undefined, 'FAST');
 
       const pdfOutput = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfOutput);
@@ -179,8 +186,47 @@ export default function RepresentativeCertificateView({
     }, 5000);
   };
 
+  if (!isApproved) {
+    return (
+      <div className="fixed inset-0 z-[120] bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 no-print">
+        <div className="bg-white w-full max-w-xl rounded-[2rem] shadow-2xl p-8 text-center space-y-6 border border-slate-200">
+          <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto border-4 border-white shadow-lg">
+            <Loader2 size={40} className="text-amber-600 animate-spin" />
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-2xl font-black text-slate-800">وضعیت نمایندگی: در حال بررسی</h2>
+            <p className="text-slate-500 leading-relaxed font-medium">
+              همکار گرامی <span className="text-indigo-600 font-bold">{repName}</span>، درخواست نمایندگی شما در سامانه ثبت شده و در حال حاضر توسط واحد بازرسی و نظارت دفتر مرکزی در حال بررسی مدارک و احراز صلاحیت است.
+            </p>
+          </div>
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-2 text-sm text-slate-600">
+            <div className="flex justify-between items-center px-2">
+              <span className="font-bold">شناسه پیگیری:</span>
+              <span className="font-mono text-indigo-700 font-black">{toPersianNum(agencyCode)}</span>
+            </div>
+            <div className="flex justify-between items-center px-2">
+              <span className="font-bold">وضعیت:</span>
+              <span className="text-amber-600 font-black">در انتظار تایید مدیریت</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={onClose}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              متوجه شدم (بستن)
+            </button>
+            <p className="text-[10px] text-slate-400 font-bold">
+              * پس از تایید نهایی، گواهی رسمی و حکم فعالیت انحصاری شما در این بخش قابل رویت و چاپ خواهد بود.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-[120] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto no-print">
+    <div className="fixed inset-0 z-[120] bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto no-print">
       <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[96vh] font-sans text-right border border-slate-200">
         
         {/* Top bar (Hidden when printing) */}
@@ -289,25 +335,25 @@ export default function RepresentativeCertificateView({
               {/* Title of Certificate */}
               <div className="space-y-1.5">
                 <h1 className="text-2xl sm:text-3xl font-black text-amber-900 tracking-wide font-sans pb-1.5 inline-block border-b-2 border-double border-amber-600 px-12">
-                  گواهی‌نامه رسمی اعطای نمایندگی انحصاری توزیع
+                  لوح افتخار و حکم اعطای رتبه نمایندگی
                 </h1>
                 <p className="text-[10px] sm:text-xs text-amber-800 font-black block mt-2 tracking-wide uppercase">
-                  حکم رسمی ابلاغ نمایندگی کل توزیع استانی و توزیع‌کننده معتمد بنکداری
+                  ابلاغ رسمی رتبه {toPersianNum(tierLevel)} ({tierTitle}) • ثبت‌شده در لیست نمایندگان رسمی پلتفرم دست اول
                 </p>
               </div>
 
               {/* Certificate content text - fully descriptive, professional and authentic */}
               <div className="max-w-3xl mx-auto text-xs sm:text-sm text-slate-800 leading-loose text-center font-semibold px-4 space-y-4">
                 <p>
-                  بدین‌وسیله و به موجب این حکم رسمی، همکار گرامی جناب آقای / سرکار خانم <strong className="text-amber-900 text-sm sm:text-base font-black border-b border-amber-600 pb-0.5 px-2">{repName}</strong> مدیریت محترم مجموعه تجاری و پخش بازرگانی <strong className="text-slate-900 text-sm sm:text-base font-black border-b border-amber-600 pb-0.5 px-2">{companyName}</strong> پس از احراز شایستگی تجاری، تامین امکانات لجستیکی، انبارداری و تایید مراجع نظارتی پلتفرم دست اول کشور، به سمت:
+                  بدین‌وسیله و به موجب این حکم رسمی، همکار گرامی جناب آقای / سرکار خانم <strong className="text-amber-900 text-sm sm:text-base font-black border-b border-amber-600 pb-0.5 px-2">{repName}</strong> مدیریت محترم مجموعه تجاری و پخش بازرگانی <strong className="text-slate-900 text-sm sm:text-base font-black border-b border-amber-600 pb-0.5 px-2">{companyName}</strong> با ثبت عملکرد فروش ماهانه نقد به میزان <strong className="text-indigo-900 font-black font-mono px-2 py-0.5 bg-indigo-50 rounded-lg">{toPersianNum(monthlySales.toLocaleString('fa-IR'))} تومان</strong>، موفق به احراز جایگاه رسمی:
                 </p>
                 <p className="py-2.5">
-                  <strong className="text-base sm:text-lg text-emerald-800 font-black bg-emerald-50 border border-emerald-150 px-8 py-2 rounded-2xl tracking-wide shadow-sm">
-                    « {badge} در منطقه رسمی {city} »
+                  <strong className="text-base sm:text-lg text-emerald-800 font-black bg-emerald-50 border border-emerald-200 px-8 py-2 rounded-2xl tracking-wide shadow-xs">
+                    « {badge} - {city} »
                   </strong>
                 </p>
                 <p>
-                  منصوب و معرفی می‌گردند. طبق ضوابط، تمامی کارخانجات همکار و تامین‌کنندگان زنجیره تامین دست اول موظف به تامین سهمیه درخواستی این دفتر در خطوط تولید خود بوده و کلیه خریداران محلی و بنکداران آن منطقه جهت هماهنگی ترانزیت ترجیحی بار به این مدیریت ارجاع داده می‌شوند. امید است با همت جهادی در راستای تعدیل قیمت‌ها گام بردارید.
+                  گردیده‌اند. نام و مشخصات دارنده این لوح در لیست عاملیت‌های فعال دست اول کشور به صورت آنلاین قرار گرفته و مادامی که حجم فروش در حد استاندارد مربوطه حفظ گردد، کلیه مزایا، سهمیه انحصاری و حق کمیسیون منطقه متعلق به این دفتر خواهد بود.
                 </p>
               </div>
             </div>
@@ -321,22 +367,22 @@ export default function RepresentativeCertificateView({
                   {/* Beautiful mock QR code representation */}
                   <div className="w-14 h-14 bg-slate-100 flex flex-col items-center justify-center p-1 border border-dashed border-slate-300">
                     <div className="grid grid-cols-4 gap-0.5 w-11 h-11">
-                      <div className="bg-slate-900 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-slate-900 rounded-sm"></div>
+                      <div className="bg-indigo-600 rounded-sm"></div>
                     </div>
                   </div>
                 </div>

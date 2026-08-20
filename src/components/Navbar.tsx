@@ -1,9 +1,10 @@
-import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown } from "lucide-react";
+import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
 import DastavvalLogo from "./DastavvalLogo";
 import SpecialPriceBagIcon from "./SpecialPriceBagIcon";
+import SiteFeedbackModal from "./SiteFeedbackModal";
 
 interface NavbarProps {
   cartCount: number;
@@ -12,7 +13,7 @@ interface NavbarProps {
   onSearchChange: (query: string) => void;
   appMode: 'presentation' | 'portal';
   onModeChange: (mode: 'presentation' | 'portal') => void;
-  user: { name: string; email: string; role: 'user' | 'admin'; company?: string } | null;
+  user: { name: string; email: string; role: 'user' | 'admin'; company?: string; phone?: string; mobile?: string } | null;
   onAuthClick: () => void;
   onLogout: () => void;
   language: Language;
@@ -44,7 +45,17 @@ interface NavbarProps {
   onOpenPwaModal?: () => void;
   onOpenCPanelWizard?: () => void;
   b2bConfig?: any;
+  selectedCity?: string;
+  onCityChange?: (city: string) => void;
 }
+
+const toPersianNum = (num: number | string) => {
+  if (num === undefined || num === null) return "";
+  const farsiDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+  return num
+    .toString()
+    .replace(/\d/g, (x) => farsiDigits[parseInt(x)]);
+};
 
 export default function Navbar({ 
   cartCount, 
@@ -72,8 +83,8 @@ export default function Navbar({
   appSub,
   logoUrl,
   mascotUrl,
-  topAnnouncement = "🚀 تخفیف ویژه جشنواره تابستانه کارخانجات - ارسال مستقیم و هماهنگ‌شده بر اساس ضوابط کارخانه",
-  showTopAnnouncement = true,
+  topAnnouncement = "",
+  showTopAnnouncement = false,
   onOpenAnnouncementModal,
   hqAddress,
   supportPhone,
@@ -83,9 +94,62 @@ export default function Navbar({
   onOpenPwaModal,
   onOpenCPanelWizard,
   b2bConfig,
+  selectedCity: propSelectedCity,
+  onCityChange,
 }: NavbarProps) {
   const t = translations[language] || translations.fa;
   const isRtl = language === "fa" || language === "ar";
+
+  const [localCity, setLocalCity] = useState(() => localStorage.getItem("dastavval_user_city") || "تهران");
+  const selectedCity = propSelectedCity || localCity;
+  const [activeProvince, setActiveProvince] = useState(() => localStorage.getItem("dastavval_user_province") || "تهران");
+  const [showCityModal, setShowCityModal] = useState(false);
+
+  const PROVINCE_CITIES_MAP = [
+    { province: "تهران", cities: ["تهران", "شهریار", "اسلامشهر", "ملارد", "قدس", "پاکدشت", "ری", "ورامین", "قرچک", "اندیشه", "رباط‌کریم", "بومهن", "پردیس", "دماوند", "فیروزکوه"] },
+    { province: "البرز", cities: ["کرج", "فردیس", "کمال‌شهر", "نظرآباد", "محمدشهر", "هشتگرد", "طالقان"] },
+    { province: "اصفهان", cities: ["اصفهان", "کاشان", "خمینی‌شهر", "نجف‌آباد", "شاهین‌شهر", "شهرضا", "فولادشهر", "مبارکه", "آران و بیدگل"] },
+    { province: "خراسان رضوی", cities: ["مشهد", "نیشابور", "سبزوار", "تربت حیدریه", "قوچان", "کاشمر", "تربت جام", "تایباد", "سرخس", "گناباد"] },
+    { province: "فارس", cities: ["شیراز", "مرودشت", "جهرم", "فسا", "کازرون", "صدرا", "لارستان", "فیروزآباد", "داراب", "ممسنی", "آباده", "نی‌ریز"] },
+    { province: "آذربایجان شرقی", cities: ["تبریز", "مراغه", "مرند", "میانه", "اهر", "بناب", "شبستر", "جلفا", "ملکان"] },
+    { province: "آذربایجان غربی", cities: ["ارومیه", "خوی", "بوکان", "مهاباد", "میاندوآب", "سلماس", "پیرانشهر", "نقده"] },
+    { province: "مازندران", cities: ["ساری", "بابل", "آمل", "قائم‌شهر", "بهشهر", "چالوس", "تنکابن", "بابلسر", "نوشهر", "رامسر", "محمودآباد"] },
+    { province: "گیلان", cities: ["رشت", "بندر انزلی", "لاهیجان", "لنگرود", "تالش", "آستارا", "صومعه‌سرا", "رودسر", "فومن"] },
+    { province: "خوزستان", cities: ["اهواز", "دزفول", "آبادان", "ماشهر", "خرمشهر", "اندیمشک", "ایذه", "بهبهان", "شوشتر", "شوش", "مسجدسلیمان", "امیدیه"] },
+    { province: "هرمزگان", cities: ["بندرعباس", "میناب", "دهبارز", "قشم", "کیش", "بندرلنگه", "حاجی‌آباد", "جاسک"] },
+    { province: "کرمان", cities: ["کرمان", "سیرجان", "رفسنجان", "جیرفت", "بم", "زرند", "کهنوج", "شهربابک"] },
+    { province: "کردستان", cities: ["سنندج", "سقز", "مریوان", "بانه", "قروه", "بیجار", "کامیاران", "دیواندره"] },
+    { province: "کرمانشاه", cities: ["کرمانشاه", "اسلام‌آباد غرب", "کنگاور", "جوانرود", "سنقر", "هرسین", "سرپل ذهاب"] },
+    { province: "گلستان", cities: ["گرگان", "گنبد کاووس", "بندر ترکمن", "علی‌آباد کتول", "آزادشهر", "آق‌قلا", "کلاله"] },
+    { province: "لرستان", cities: ["خرم‌آباد", "بروجرد", "دورود", "کوهدشت", "دلفان", "الیگودرز", "الشتر", "پلدختر"] },
+    { province: "همدان", cities: ["همدان", "ملایر", "نهاوند", "تویسرکان", "اسدآباد", "بهار", "کبودرآهنگ"] },
+    { province: "یزد", cities: ["یزد", "میبد", "اردکان", "بافق", "مهریز", "ابرکوه"] },
+    { province: "مرکزی", cities: ["اراک", "ساوه", "خمین", "محلات", "دلیجان", "شازند", "تفریش"] },
+    { province: "قم", cities: ["قم", "قنوات", "جعفریه"] },
+    { province: "قزوین", cities: ["قزوین", "الوند", "محمدیه", "تاکستان", "آبیک", "اقبالیه"] },
+    { province: "اردبیل", cities: ["اردبیل", "پارس‌آباد", "مشگین‌شهر", "خلخال", "گرمی", "بیله‌سوار"] },
+    { province: "بوشهر", cities: ["بوشهر", "دشتستان", "برازجان", "کنگان", "گناوه", "عسلویه", "جم", "دیر"] },
+    { province: "سیستان و بلوچستان", cities: ["زاهدان", "زابل", "ایرانشهر", "چابهار", "سراوان", "خاش", "نیک‌شهر", "بمپور"] },
+    { province: "چهارمحال و بختیاری", cities: ["شهرکرد", "بروجن", "لردگان", "فرخ‌شهر", "فارسان"] },
+    { province: "خراسان جنوبی", cities: ["بیرجند", "قائن", "طبس", "فردوس", "نهبندان"] },
+    { province: "خراسان شمالی", cities: ["بجنورد", "شیروان", "اسفراین", "آشخانه", "جاجرم"] },
+    { province: "سمنان", cities: ["سمنان", "شاهرود", "دامغان", "گرمسار", "مهدیشهر"] },
+    { province: "ایلام", cities: ["ایلام", "دهلران", "ایوان", "آبدانان", "مهران", "دره‌شهر"] },
+    { province: "کهگیلویه و بویراحمد", cities: ["یاسوج", "دوگنبدان", "دهدشت", "لیکک"] },
+    { province: "زنجان", cities: ["زنجان", "ابهر", "خرمدره", "قیدار", "طارم"] }
+  ];
+
+  const handleSelectCity = (city: string, province: string) => {
+    localStorage.setItem("dastavval_user_city", city);
+    localStorage.setItem("dastavval_user_province", province);
+    if (onCityChange) {
+      onCityChange(city);
+    } else {
+      setLocalCity(city);
+    }
+    window.dispatchEvent(new CustomEvent("dastavval-city-changed", { detail: { city, province } }));
+    setShowCityModal(false);
+  };
 
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [isAnnouncementDismissed, setIsAnnouncementDismissed] = useState(false);
@@ -106,46 +170,46 @@ export default function Navbar({
     badgeBg: string;
   }> = {
     emerald: {
-      bg: "bg-emerald-700 hover",
-      text: "text-emerald-700",
-      border: "border-emerald-600/30",
+      bg: "bg-emerald-600 hover",
+      text: "text-emerald-600",
+      border: "border-emerald-200",
       ring: "focus",
-      badgeBg: "bg-emerald-100 text-emerald-800"
+      badgeBg: "bg-emerald-50 text-emerald-700"
     },
     teal: {
-      bg: "bg-teal-700 hover",
-      text: "text-teal-700",
-      border: "border-teal-600/30",
+      bg: "bg-teal-600 hover",
+      text: "text-teal-600",
+      border: "border-teal-200",
       ring: "focus",
-      badgeBg: "bg-teal-100 text-teal-800"
+      badgeBg: "bg-teal-50 text-teal-700"
     },
     indigo: {
-      bg: "bg-indigo-700 hover",
-      text: "text-indigo-700",
-      border: "border-indigo-600/30",
+      bg: "bg-indigo-600 hover",
+      text: "text-indigo-600",
+      border: "border-indigo-200",
       ring: "focus",
-      badgeBg: "bg-indigo-100 text-indigo-800"
+      badgeBg: "bg-indigo-50 text-indigo-700"
     },
     amber: {
-      bg: "bg-amber-700 hover",
-      text: "text-amber-700",
-      border: "border-amber-600/30",
+      bg: "bg-amber-600 hover",
+      text: "text-amber-600",
+      border: "border-amber-200",
       ring: "focus",
-      badgeBg: "bg-amber-100 text-amber-800"
+      badgeBg: "bg-amber-50 text-amber-700"
     },
     sky: {
-      bg: "bg-sky-700 hover",
-      text: "text-sky-700",
-      border: "border-sky-600/30",
+      bg: "bg-sky-600 hover",
+      text: "text-sky-600",
+      border: "border-sky-200",
       ring: "focus",
-      badgeBg: "bg-sky-100 text-sky-800"
+      badgeBg: "bg-sky-50 text-sky-700"
     },
     violet: {
-      bg: "bg-violet-700 hover",
-      text: "text-violet-700",
-      border: "border-violet-600/30",
+      bg: "bg-violet-600 hover",
+      text: "text-violet-600",
+      border: "border-violet-200",
       ring: "focus",
-      badgeBg: "bg-violet-100 text-violet-800"
+      badgeBg: "bg-violet-50 text-violet-700"
     }
   };
 
@@ -175,19 +239,100 @@ export default function Navbar({
   };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [mascotFailed, setMascotFailed] = useState(false);
+
+  // Announcement Channel States
+  const [isChannelOpen, setIsChannelOpen] = useState(false);
+  const [channelPosts, setChannelPosts] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadChannelPosts = () => {
+    try {
+      const saved = localStorage.getItem("dastavval_announcements");
+      let posts = [];
+      if (saved) {
+        posts = JSON.parse(saved);
+      } else {
+        // Empty by default for production
+        posts = [];
+        localStorage.setItem("dastavval_announcements", JSON.stringify(posts));
+      }
+
+      // Sort: pinned first, then preserve existing ordering (which is newest first)
+      const sorted = [...posts].sort((a: any, b: any) => {
+        const aPinned = !!a.pinned;
+        const bPinned = !!b.pinned;
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+        return 0;
+      });
+
+      setChannelPosts(sorted);
+
+      // Calculate unread count
+      const lastReadId = localStorage.getItem("dastavval_last_read_announcement") || "";
+      if (posts.length > 0) {
+        if (!lastReadId) {
+          setUnreadCount(posts.length);
+        } else {
+          const index = posts.findIndex(p => p.id === lastReadId);
+          if (index !== -1) {
+            setUnreadCount(index);
+          } else {
+            setUnreadCount(posts.length);
+          }
+        }
+      } else {
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.warn("Could not load channel posts:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadChannelPosts();
+
+    const handleUpdate = () => {
+      loadChannelPosts();
+    };
+
+    window.addEventListener("dastavval_announcements_updated", handleUpdate);
+    return () => {
+      window.removeEventListener("dastavval_announcements_updated", handleUpdate);
+    };
+  }, []);
+
+  const handleOpenChannel = () => {
+    setIsChannelOpen(true);
+    setUnreadCount(0);
+    if (channelPosts.length > 0) {
+      localStorage.setItem("dastavval_last_read_announcement", channelPosts[0].id);
+    }
+  };
 
   useEffect(() => {
     setLogoFailed(false);
   }, [logoUrl]);
 
+  useEffect(() => {
+    const handleOpenPicker = () => {
+      setShowCityModal(true);
+    };
+    window.addEventListener("open-city-picker-modal-from-banner", handleOpenPicker);
+    return () => {
+      window.removeEventListener("open-city-picker-modal-from-banner", handleOpenPicker);
+    };
+  }, []);
+
   const navItems = [
-    { id: 'presentation', label: t.home, icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><Home size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
-    { id: 'order', label: t.wholesaleBuy, icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><ShoppingBag size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
-    { id: 'billboard', label: "کف بازار", icon: <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 group-hover:bg-white group-hover:border-amber-200 transition-all shadow-material-sm group-hover:scale-105"><SpecialPriceBagIcon size={18} animated={true} /></div> },
-    { id: 'factories', label: "کارخانجات", icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><Building2 size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
-    { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-all group-hover:scale-105 shadow-inner-sm"><User size={18} className="text-slate-500 group-hover:text-emerald-600 transition-colors" /></div> },
+    { id: 'presentation', label: t.home, icon: <Home size={18} className="text-slate-500 transition-colors" /> },
+    { id: 'order', label: t.wholesaleBuy, icon: <ShoppingBag size={18} className="text-slate-500 transition-colors" /> },
+    { id: 'billboard', label: "کف بازار", icon: <SpecialPriceBagIcon size={18} animated={true} plain={true} /> },
+    { id: 'factories', label: "کارخانجات", icon: <Building2 size={18} className="text-slate-500 transition-colors" /> },
+    { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <User size={18} className="text-slate-500 transition-colors" /> },
   ];
 
   const handleNavClick = (id: string) => {
@@ -215,33 +360,33 @@ export default function Navbar({
 
   return (
     <>
-      <nav className="sticky top-0 z-50 transition-all duration-300 bg-white/95 border-b border-slate-200/80 shadow-[0_4px_20px_rgba(15,23,42,0.04)] text-slate-900 backdrop-blur-md" dir={isRtl ? "rtl" : "ltr"}>
-        {/* Top Social Channels Bar (Disabled by default, toggleable in admin) */}
+      <nav className="sticky top-0 z-50 transition-all duration-300 bg-white/80 border-b border-slate-200/50 shadow-sm text-slate-900 backdrop-blur-xl" dir={isRtl ? "rtl" : "ltr"}>
+        {/* Top Social Channels Bar */}
         {showTopSocialBar && (
-          <div className="bg-emerald-600 text-white text-[10px] sm:text-[11px] font-bold py-1.5 px-3 sm:px-4 border-b border-emerald-700 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs">
+          <div className="bg-white text-slate-600 text-[10px] sm:text-[11px] font-bold py-1.5 px-3 sm:px-4 border-b border-slate-100 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs">
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <span className="text-[10px] text-emerald-100 font-black hidden sm:inline-block">شبکه‌های رسمی:</span>
+              <span className="text-[10px] text-slate-400 font-black hidden sm:inline-block">شبکه‌های رسمی:</span>
               
               {/* Rubika Button */}
               <a
                 href={rubikaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-purple-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
                 title="عضویت در کانال روبیکا"
               >
                 <span>روبیکا</span>
               </a>
 
-              {/* Telegram Button */}
+              {/* Instagram Button */}
               <a
-                href={telegramUrl}
+                href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
-                title="عضویت در کانال تلگرام"
+                className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-pink-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                title="عضویت در اینستاگرام دست اول"
               >
-                <span>تلگرام</span>
+                <span>اینستاگرام</span>
               </a>
 
               {/* WhatsApp Button */}
@@ -249,7 +394,7 @@ export default function Navbar({
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-emerald-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
                 title="گروه واتساپ"
               >
                 <span>واتساپ</span>
@@ -270,7 +415,7 @@ export default function Navbar({
             <div className="flex items-center gap-2 sm:gap-3 shrink-0 mr-auto">
               <button
                 onClick={() => onOpenPwaModal?.()}
-                className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-slate-950 text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer"
               >
                 <Download size={10} />
                 <span>نصب اپلیکیشن</span>
@@ -279,9 +424,9 @@ export default function Navbar({
               {supportPhone && !hideSupportPhone && (
                 <a
                   href={`tel:${supportPhone}`}
-                  className="text-slate-300 hover:text-amber-400 text-[10px] font-black hidden md:flex items-center gap-1"
+                  className="text-slate-500 hover:text-emerald-600 text-[10px] font-black hidden md:flex items-center gap-1"
                 >
-                  <Headphones size={11} className="text-amber-400" />
+                  <Headphones size={11} className="text-emerald-600" />
                   <span>پشتیبانی: {supportPhone}</span>
                 </a>
               )}
@@ -289,40 +434,7 @@ export default function Navbar({
           </div>
         )}
 
-        {/* Top Announcement Bar */}
-        {showTopAnnouncement && topAnnouncement && !isAnnouncementDismissed && (
-          <div 
-            className="bg-green-500 text-white text-[11px] font-black py-2 px-4 border-b border-green-400 flex items-center justify-between gap-2 overflow-hidden shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_1px_2px_rgba(0,0,0,0.1)] transition-all group relative"
-          >
-            {/* Glossy Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
-            
-            <div 
-              onClick={() => onOpenAnnouncementModal?.()}
-              className="flex-1 flex items-center justify-center gap-3 cursor-pointer truncate relative z-10"
-            >
-              <div className="relative">
-                <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse shrink-0 shadow-[0_0_10px_rgba(255,255,255,1)] block" />
-                <span className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-white animate-ping opacity-75" />
-              </div>
-              <span className="truncate group-hover:underline drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">{topAnnouncement}</span>
-              <span className="text-[9px] bg-white text-green-700 px-2.5 py-0.5 rounded-full shrink-0 flex items-center gap-1 font-black shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
-                <span>مشاهده جزئیات</span>
-                <span>←</span>
-              </span>
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsAnnouncementDismissed(true);
-              }}
-              className="p-1 text-white hover:bg-black/10 rounded-full transition-colors cursor-pointer shrink-0"
-              title="بستن اعلان"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        )}
+
 
         {/* Top Accent Bar */}
         <div className="h-0.5 w-full bg-gradient-to-r from-amber-400 via-emerald-500 to-amber-500 opacity-80" />
@@ -400,21 +512,27 @@ export default function Navbar({
                 onClick={() => {
                   setActiveTab?.('billboard');
                 }}
-                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 group overflow-hidden ${
+                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 group overflow-hidden border ${
                   activeTab === 'billboard'
-                    ? "bg-slate-900 text-amber-400 shadow-material-md border border-slate-800 scale-[1.05] ring-4 ring-slate-900/10"
-                    : "text-slate-500 hover:text-amber-600 hover:bg-amber-50"
+                    ? "bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30 border-amber-400 scale-[1.05] ring-2 ring-amber-400/20"
+                    : "bg-amber-50/70 text-amber-950 border-amber-200/80 hover:bg-amber-100 hover:border-amber-300 shadow-2xs"
                 }`}
               >
+                {/* Micro pulsating light to make it look extra alive & special */}
+                <span className="absolute top-1 right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                </span>
+
                 <SpecialPriceBagIcon 
                   size={18} 
-                  animated={activeTab === 'billboard'} 
-                  className={activeTab === 'billboard' ? "text-amber-400" : "text-amber-500"} 
+                  animated={true} 
+                  className="text-slate-950 drop-shadow-xs" 
                 />
                 <span className="relative z-10 flex items-center gap-1.5">
-                  <span>کف بازار</span>
-                  <span className="hidden xl:inline-block bg-white/20 text-[8px] font-black px-1.5 py-0.5 rounded-full backdrop-blur-sm">
-                    حراج مازاد
+                  <span className="tracking-tight">کفِ بازار</span>
+                  <span className="hidden xl:inline-block bg-slate-950/10 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    حراج ویژه 🔥
                   </span>
                 </span>
               </button>
@@ -459,7 +577,7 @@ export default function Navbar({
                   }}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'admin'
-                      ? "bg-slate-900 text-amber-400 shadow-md font-black ring-2 ring-amber-400/50"
+                      ? "bg-indigo-600 text-white shadow-md font-black ring-2 ring-indigo-400/50"
                       : "bg-amber-100 text-amber-900 hover:bg-amber-200"
                   }`}
                   title="ورود به پنل مدیریت سرور و بروزرسانی گیت‌هاب"
@@ -551,33 +669,62 @@ export default function Navbar({
                 </button>
               )}
 
-              {/* Support Call Button Next to Cart */}
-              <a
-                href="tel:09999123001"
-                className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs shrink-0 group"
-                title="تماس تلفنی با پشتیبانی مشتریان"
+              {/* City Selection Badge */}
+              <button
+                onClick={() => setShowCityModal(true)}
+                className="flex items-center gap-1 sm:gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] sm:text-xs font-black border border-slate-200 transition-all cursor-pointer shadow-2xs h-10"
+                title="انتخاب شهر شما برای بارگیری و عاملیت‌ها"
               >
-                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                  <PhoneCall size={13} className="animate-pulse" />
-                </div>
-                <span className="font-black text-emerald-950">پشتیبانی مشتریان</span>
-              </a>
+                <MapPin size={15} className="text-emerald-600 animate-bounce" />
+                <span className="hidden sm:inline">شهر:</span>
+                <span className="text-slate-900 font-black">{selectedCity}</span>
+              </button>
 
-              {/* Cart Button */}
-              <button 
-                onClick={onCartClick} 
-                className="p-2 sm:px-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl relative hover:scale-105 transition-transform cursor-pointer flex items-center gap-1.5"
-                aria-label="View Cart"
-                title="مشاهده سبد خرید"
+              {/* Official Announcement Channel Icon (Megaphone with unread count) */}
+              <button
+                onClick={handleOpenChannel}
+                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200/80 text-slate-700 flex items-center justify-center relative transition-all cursor-pointer shadow-2xs shrink-0"
+                title="کانال اطلاع‌رسانی رسمی دست اول"
               >
-                <ShoppingCart size={18} />
-                <span className="text-xs font-black hidden xs:inline">سبد خرید</span>
-                {cartCount > 0 && (
-                  <span className="w-4.5 h-4.5 bg-rose-600 text-white text-[10px] rounded-full flex items-center justify-center font-black shadow-xs">
-                    {cartCount}
+                <Megaphone size={16} className="text-indigo-600" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-600 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
+                    {unreadCount}
                   </span>
                 )}
               </button>
+
+              {/* Cart Button with Soft Pulse Animation */}
+              <motion.button 
+                key={`cart-pulse-${cartCount}`}
+                initial={cartCount > 0 ? { scale: 1 } : false}
+                animate={cartCount > 0 ? { 
+                  scale: [1, 1.1, 1],
+                  backgroundColor: ["#f1f5f9", "#ecfdf5", "#f1f5f9"],
+                  boxShadow: ["0 0 0px rgba(16, 185, 129, 0)", "0 0 15px rgba(16, 185, 129, 0.2)", "0 0 0px rgba(16, 185, 129, 0)"]
+                } : {}}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                onClick={onCartClick} 
+                className="p-2 sm:px-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl relative hover:scale-105 transition-transform cursor-pointer flex items-center gap-1.5 border border-slate-200"
+                aria-label="View Cart"
+                title="مشاهده سبد خرید"
+              >
+                <ShoppingCart size={18} className={cartCount > 0 ? "text-emerald-600" : ""} />
+                <span className="text-xs font-black hidden xs:inline">سبد خرید</span>
+                <AnimatePresence mode="popLayout">
+                  {cartCount > 0 && (
+                    <motion.span 
+                      key={`cart-badge-${cartCount}`}
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.5, opacity: 0 }}
+                      className="w-4.5 h-4.5 bg-rose-600 text-white text-[10px] rounded-full flex items-center justify-center font-black shadow-xs"
+                    >
+                      {cartCount}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
 
 
             </div>
@@ -588,22 +735,26 @@ export default function Navbar({
       {/* Floating Bottom App Navigation Bar for Mobile Viewports (Balanced, Centered Dock) */}
       <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-[0_12px_32px_rgba(0,0,0,0.08)] rounded-2xl px-2 py-1 transition-all duration-300">
         <div className="flex justify-around items-center h-14 relative">
-          {navItems.map((item) => {
+          {navItems.map((item, idx) => {
             const isActive = activeTab === item.id;
             if (item.id === 'billboard') {
               return (
                 <button
-                  key={item.id}
+                  key={`bottom-nav-${item.id}-${idx}`}
                   onClick={() => handleNavClick(item.id)}
                   className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer group"
                 >
-                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-xl transition-all border ${
                     isActive 
-                      ? "bg-slate-900 text-amber-400 font-black shadow-lg shadow-slate-900/20 scale-105" 
-                      : "text-slate-500"
+                      ? "bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20 scale-105 border-amber-400" 
+                      : "bg-amber-50/50 text-amber-900 border-amber-100/60"
                   }`}>
-                    <span className="relative">
-                      <SpecialPriceBagIcon size={20} animated={isActive} plain={true} className={isActive ? "text-amber-400" : "text-amber-500"} />
+                    <span className="relative flex items-center justify-center">
+                      <SpecialPriceBagIcon size={20} animated={true} plain={true} className="text-slate-950" />
+                      <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-600"></span>
+                      </span>
                     </span>
                     <span className="text-[9px] font-black tracking-tight flex items-center gap-0.5">
                       <span>کف بازار</span>
@@ -615,7 +766,7 @@ export default function Navbar({
             }
             if (item.id === 'news') {
               return (
-                <div key={item.id} className="relative z-20 flex flex-col items-center -mt-3">
+                <div key={`bottom-nav-${item.id}-${idx}`} className="relative z-20 flex flex-col items-center -mt-3">
                   <button
                     onClick={() => handleNavClick(item.id)}
                     className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-300 text-slate-950 border-2 border-white flex items-center justify-center shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95 transition-transform cursor-pointer font-black"
@@ -631,7 +782,7 @@ export default function Navbar({
             }
             if (item.id === 'ai') {
               return (
-                <div key={item.id} className="relative z-20 flex flex-col items-center">
+                <div key={`bottom-nav-${item.id}-${idx}`} className="relative z-20 flex flex-col items-center">
                   <button
                     onClick={() => handleNavClick(item.id)}
                     className="w-10 h-10 rounded-full bg-amber-500 text-slate-950 border border-amber-400 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer font-black"
@@ -644,11 +795,11 @@ export default function Navbar({
             }
             return (
               <button
-                key={item.id}
+                key={`bottom-nav-${item.id}-${idx}`}
                 onClick={() => handleNavClick(item.id)}
                 className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer"
               >
-                {isActive && (
+                {isActive && item.id === 'billboard' && (
                   <motion.div
                     layoutId="activeMobileIndicator"
                     className="absolute inset-y-1 inset-x-2 bg-slate-100 rounded-xl z-0"
@@ -708,14 +859,39 @@ export default function Navbar({
                   </button>
                 </div>
 
+                {/* Mobile Hamburger City Picker Widget */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50/40 p-3.5 rounded-2xl border border-amber-200/80 shadow-3xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-amber-800 font-black flex items-center gap-1">
+                      <MapPin size={13} className="text-amber-600 animate-pulse" />
+                      <span>شهر پیش‌فرض شما برای فیلتر:</span>
+                    </span>
+                    <span className="bg-amber-100 text-amber-950 font-black text-[10px] px-2 py-0.5 rounded-full border border-amber-300">
+                      {selectedCity || "تهران"}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 font-bold leading-relaxed">
+                    با انتخاب شهر، اولویت نمایش نمایندگان، عاملیت‌های توزیع و تخفیفات بر اساس منطقه شما تنظیم می‌گردد.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setShowCityModal(true);
+                    }}
+                    className="w-full text-center py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black rounded-xl transition-all shadow-xs cursor-pointer"
+                  >
+                    تغییر شهر و استان فعالیت
+                  </button>
+                </div>
+
                 {/* Quick Menu List */}
                 <div className="space-y-2">
                   <h4 className="text-[10px] text-slate-400 font-black tracking-wider uppercase">بخش‌های اصلی پلتفرم:</h4>
-                  {navItems.map(item => (
+                  {navItems.map((item, idx) => (
                     <button
-                      key={item.id}
+                      key={`drawer-nav-item-${item.id}-${idx}`}
                       onClick={() => handleNavClick(item.id)}
-                      className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover flex items-center gap-2 transition-colors cursor-pointer"
+                      className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
                     >
                       {item.icon}
                       {item.label}
@@ -728,31 +904,34 @@ export default function Navbar({
                   <h4 className="text-[10px] text-slate-400 font-black tracking-wider uppercase">خدمات و مجله پلتفرم:</h4>
                   <button
                     onClick={() => handleNavClick('news')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Newspaper size={18} className="text-rose-500 shrink-0" />
                     <span>مجله علمی و آخرین اخبار</span>
                   </button>
                   <button
                     onClick={() => handleNavClick('about')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Info size={18} className="text-blue-500 shrink-0" />
                     <span>درباره ما و ارتباط با ما</span>
                   </button>
                   <button
                     onClick={() => handleNavClick('learning')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <GraduationCap size={18} className="text-amber-500 shrink-0" />
                     <span>مرکز آموزش و راهنمایی</span>
                   </button>
                   <button
-                    onClick={() => handleNavClick('support')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsFeedbackModalOpen(true);
+                    }}
+                    className="w-full text-right p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-black flex items-center gap-2.5 transition-all cursor-pointer shadow-xs mt-2"
                   >
-                    <Headphones size={18} className="text-purple-500 shrink-0" />
-                    <span>پشتیبانی و امور مشترکان، سوالات متداول</span>
+                    <Lightbulb size={18} className="text-amber-600 shrink-0" />
+                    <span>💡 گزارش ایده، پیشنهاد یا اشکال در سایت</span>
                   </button>
                 </div>
 
@@ -781,7 +960,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'orders' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           📦 سفارشات سیستم
                         </button>
@@ -791,7 +970,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'products' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🛍️ کالاها و قیمت‌ها
                         </button>
@@ -801,7 +980,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'categories' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🏷️ دسته‌بندی‌ها
                         </button>
@@ -811,7 +990,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'branding' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🎨 برندینگ و رنگ
                         </button>
@@ -821,7 +1000,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'factories' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🏢 کارخانه‌ها
                         </button>
@@ -831,7 +1010,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'crm' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           👥 مدیریت CRM
                         </button>
@@ -841,7 +1020,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'profile' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           👤 پروفایل ادمین
                         </button>
@@ -851,7 +1030,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'reports' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           📊 آمار و گزارشات
                         </button>
@@ -864,7 +1043,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'overview' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           📈 خلاصه مالی عمده
                         </button>
@@ -874,7 +1053,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'tracking' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🚚 رهگیری زنده بار
                         </button>
@@ -884,7 +1063,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'roi' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🧮 آنالیزر سود بنکدار
                         </button>
@@ -894,7 +1073,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'profile' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           ⚙️ مشخصات و انبارها
                         </button>
@@ -904,7 +1083,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'tickets' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           💬 تیکت پشتیبانی
                         </button>
@@ -914,7 +1093,7 @@ export default function Navbar({
                             window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'notifications' } }));
                             setIsMobileMenuOpen(false);
                           }}
-                          className="text-right p-2 bg-slate-50 hover rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
+                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
                         >
                           🔔 اعلان‌های پورتال
                         </button>
@@ -1052,6 +1231,240 @@ export default function Navbar({
           </>
         )}
       </AnimatePresence>
+      {/* Announcement Channel Modal */}
+      <AnimatePresence>
+        {isChannelOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir="rtl">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsChannelOpen(false)}
+              className="absolute inset-0 bg-slate-400/50 backdrop-blur-sm"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-[2.5rem] border border-slate-200/80 w-full max-w-lg shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              {/* Header */}
+              <div className="bg-white border-b border-slate-100 p-6 flex items-center justify-between relative text-right">
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                    <Megaphone size={20} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-800">کانال رسمی اطلاع‌رسانی دست اول</h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">جدیدترین اخبار، حراجی‌ها و جشنواره‌های مستقیم کارخانجات</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsChannelOpen(false)}
+                  className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl transition-colors cursor-pointer relative z-10"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Announcements List */}
+              <div className="p-6 overflow-y-auto space-y-5 max-h-[55vh] bg-white custom-scrollbar flex-1 text-right">
+                {channelPosts.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 font-bold text-xs space-y-2">
+                    <Megaphone size={32} className="mx-auto text-slate-300" />
+                    <p dir="rtl">هنوز هیچ اطلاعیه‌ای در کانال منتشر نشده است.</p>
+                  </div>
+                ) : (
+                  channelPosts.map((post, idx) => (
+                    <div 
+                      key={post.id} 
+                      className={`bg-white border p-5 shadow-2xs hover:shadow-xs transition-all space-y-3 relative overflow-hidden text-right ${
+                        post.pinned
+                          ? "border-amber-400 bg-amber-50/10 ring-2 ring-amber-400/20 rounded-3xl"
+                          : idx === 0
+                            ? "border-indigo-500 ring-2 ring-indigo-500/10 rounded-3xl"
+                            : "border-slate-150 rounded-2xl"
+                      }`}
+                    >
+                      {post.pinned ? (
+                        <span className="absolute top-0 left-0 bg-amber-500 text-slate-900 text-[8px] font-black px-2.5 py-1 rounded-br-2xl flex items-center gap-1">
+                          <Pin size={8} className="fill-slate-900" />
+                          مهم / سنجاق شده
+                        </span>
+                      ) : idx === 0 ? (
+                        <span className="absolute top-0 left-0 bg-indigo-600 text-white text-[8px] font-black px-2.5 py-1 rounded-br-2xl">
+                          جدیدترین اطلاعیه
+                        </span>
+                      ) : null}
+
+                      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                            post.category === 'urgent' ? 'bg-red-100 text-red-700 border border-red-200/50' :
+                            post.category === 'festival' ? 'bg-amber-100 text-amber-800 border border-amber-200/50' :
+                            post.category === 'system' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/50' :
+                            'bg-slate-100 text-slate-750'
+                          }`}>
+                            {post.category === 'urgent' ? '🔴 فوری' :
+                             post.category === 'festival' ? '🎉 جشنواره' :
+                             post.category === 'system' ? '⚙️ سیستمی' :
+                             '📣 عمومی'}
+                          </span>
+                          <h4 className="font-black text-xs text-slate-900 leading-tight flex items-center gap-1.5">
+                            {post.pinned && <Pin size={11} className="text-amber-500 fill-amber-500" />}
+                            {post.title}
+                          </h4>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 shrink-0 font-mono" dir="rtl">{toPersianNum(post.createdAt)}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed whitespace-pre-line text-right" dir="rtl">
+                        {post.content}
+                      </p>
+
+                      {post.actionUrl && (
+                        <div className="pt-2 text-left">
+                          <a 
+                            href={post.actionUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-4.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-xl shadow-xs transition-all cursor-pointer"
+                          >
+                            <span>{post.actionLabel || "مشاهده پیوند / ثبت سفارش"}</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                <span>تضمین دست اول: خرید بدون واسطه</span>
+                <span>تعداد کل پیام‌ها: {toPersianNum(channelPosts.length)}</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* City & Province Selector Modal */}
+      <AnimatePresence>
+        {showCityModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 text-right" dir="rtl">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCityModal(false)}
+              className="absolute inset-0 bg-slate-400/50 backdrop-blur-sm"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-100"
+            >
+              {/* Header */}
+              <div className="bg-slate-50 p-5 border-b border-slate-200/60 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-800 flex items-center justify-center">
+                    <MapPin size={18} className="text-amber-600 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-xs sm:text-sm text-slate-900">انتخاب شهر و استان فعالیت شما</h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">شهر خود را جهت فیلترینگ و سفارشی‌سازی خدمات پلتفرم انتخاب کنید</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowCityModal(false)}
+                  className="p-1.5 hover bg-slate-200/50 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Body: Split Layout */}
+              <div className="flex flex-1 overflow-hidden min-h-[350px]">
+                {/* Right Column: Provinces List */}
+                <div className="w-1/3 bg-slate-50/50 border-l border-slate-100 overflow-y-auto p-3 space-y-1">
+                  <div className="text-[10px] text-slate-400 font-black px-2 pb-2 uppercase tracking-wide">استان‌ها</div>
+                  {PROVINCE_CITIES_MAP.map((item) => {
+                    const isSelected = activeProvince === item.province;
+                    return (
+                      <button
+                        key={item.province}
+                        onClick={() => setActiveProvince(item.province)}
+                        className={`w-full text-right px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? "bg-amber-500 text-slate-950 font-black shadow-3xs"
+                            : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span>{item.province}</span>
+                        <ChevronLeft size={12} className={isSelected ? "text-slate-950" : "text-slate-300"} />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Left Column: Cities List */}
+                <div className="w-2/3 p-4 overflow-y-auto space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wide">شهرهای استان {activeProvince}</span>
+                    <span className="text-[9px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-bold">تعداد: {toPersianNum(PROVINCE_CITIES_MAP.find(p => p.province === activeProvince)?.cities.length || 0)} شهر</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {PROVINCE_CITIES_MAP.find(p => p.province === activeProvince)?.cities.map((city, idx) => {
+                      const isSelected = selectedCity === city;
+                      return (
+                        <button
+                          key={`nav-city-opt-${city}-${idx}`}
+                          onClick={() => handleSelectCity(city, activeProvince)}
+                          className={`p-3 text-right rounded-2xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+                            isSelected
+                              ? "bg-emerald-50 border-emerald-500 text-emerald-800 font-black ring-2 ring-emerald-500/10"
+                              : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>{city}</span>
+                          {isSelected && <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-slate-50 p-4 border-t border-slate-200/60 flex items-center justify-between shrink-0">
+                <div className="text-[10px] text-slate-500 font-bold">
+                  موقعیت فعلی شما: <strong className="text-slate-850 font-black">{selectedCity} ({activeProvince})</strong>
+                </div>
+                <button
+                  onClick={() => setShowCityModal(false)}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+                >
+                  تأیید و بازگشت
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <SiteFeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        userPhone={user?.phone || user?.mobile}
+      />
     </>
   );
 }

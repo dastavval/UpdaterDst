@@ -8,7 +8,6 @@ import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
 import CatalogDownloadModal from "./components/CatalogDownloadModal";
 import AIAdvisor from "./components/AIAdvisor";
-import FloatingSupport from "./components/FloatingSupport";
 import DynamicPresentation from "./components/DynamicPresentation";
 import AuthModal from "./components/AuthModal";
 import QuickOrderList from "./components/QuickOrderList";
@@ -28,8 +27,13 @@ import TrustBadges from "./components/TrustBadges";
 import PwaInstallModal from "./components/PwaInstallModal";
 import PwaInstallBanner from "./components/PwaInstallBanner";
 import LazyViewport from "./components/LazyViewport";
+import VirtualizedProductGrid from "./components/VirtualizedProductGrid";
 
-// Lazy loading heavy components for optimal page-load and rendering performance
+import CheckoutWizard from "./components/CheckoutWizard";
+import WholesaleInvoiceView from "./components/WholesaleInvoiceView";
+import ChequeCharterModal from "./components/ChequeCharterModal";
+
+// Lazy loading heavy view sections for optimal page-load and rendering performance
 const WholesaleCatalogView = React.lazy(() => import("./components/WholesaleCatalogView"));
 const B2BNews = React.lazy(() => import("./components/B2BNews"));
 const SupportCenter = React.lazy(() => import("./components/SupportCenter"));
@@ -38,21 +42,23 @@ const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
 const UserPanel = React.lazy(() => import("./components/UserPanel"));
 const B2BBusinessDashboard = React.lazy(() => import("./components/B2BBusinessDashboard"));
 const AdBoard = React.lazy(() => import("./components/AdBoard"));
-const CheckoutWizard = React.lazy(() => import("./components/CheckoutWizard"));
-const WholesaleInvoiceView = React.lazy(() => import("./components/WholesaleInvoiceView"));
 const CPanelInstallerWizard = React.lazy(() => import("./components/CPanelInstallerWizard"));
 const DealershipRequestView = React.lazy(() => import("./components/DealershipRequestView"));
+const B2BProfitSimulator = React.lazy(() => import("./components/B2BProfitSimulator").then(m => ({ default: m.B2BProfitSimulator })));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
 import { recordCRMOrder } from "./lib/crm-helper";
+import { registerRegionalOrderFromCheckout } from "./lib/leads-store";
+import { getProductRolePricing, toPersianDigits } from "./lib/pricing";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search } from "lucide-react";
+import { SectionSkeleton, CatalogSkeleton, TableSkeleton, DashboardSkeleton, ModalSkeleton, CalculatorSkeleton, FadeInContainer } from "./components/Skeleton";
 import { translations, Language } from "./lib/translations";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "./lib/id-utils";
 import { PaymentMethod } from "./types";
 import { updatePageSEO, SEO_TAB_CONFIGS, getProductSEOMetadata, getCategorySEOMetadata } from "./utils/seoHelper";
 
-const CATEGORIES = ["همه", "تنقلات و شکلات", "کیک، کلوچه و بیسکویت", "مواد غذایی و کنسروجات", "نوشیدنی‌ها", "شوینده و بهداشتی"];
+const CATEGORIES = ["همه"];
 
 export const ORGANIC_PALETTES = [
   {
@@ -125,27 +131,27 @@ export const ORGANIC_PALETTES = [
     amber950: "#115e59"
   },
   {
-    name: "آبی دیپلمات و نقره‌ای براق",
+    name: "نقره‌ای مات و ذغالی کمرنگ",
     emerald50: "#f8fafc",
     emerald100: "#f1f5f9",
     emerald200: "#e2e8f0",
     emerald300: "#cbd5e1",
     emerald400: "#94a3b8",
-    emerald500: "#3b82f6",
-    emerald600: "#2563eb",
-    emerald700: "#1d4ed8",
-    emerald800: "#1e40af",
-    emerald900: "#1e3b8a",
-    amber50: "#f1f5f9",
-    amber100: "#cbd5e1",
-    amber200: "#94a3b8",
-    amber300: "#64748b",
-    amber400: "#475569",
-    amber500: "#334155",
-    amber600: "#1e293b",
-    amber700: "#0f172a",
-    amber800: "#020617",
-    amber950: "#000000"
+    emerald500: "#64748b",
+    emerald600: "#475569",
+    emerald700: "#334155",
+    emerald800: "#1e293b",
+    emerald900: "#0f172a",
+    amber50: "#ffffff",
+    amber100: "#f8fafc",
+    amber200: "#f1f5f9",
+    amber300: "#e2e8f0",
+    amber400: "#cbd5e1",
+    amber500: "#94a3b8",
+    amber600: "#64748b",
+    amber700: "#475569",
+    amber800: "#334155",
+    amber950: "#1e293b"
   }
 ];
 
@@ -182,7 +188,7 @@ export default function App() {
   });
   const [theme, setTheme] = useState<'light' | 'dark' | 'classic'>(() => {
     const saved = localStorage.getItem('dastavval_theme');
-    return (saved as any) || 'classic';
+    return (saved as any) || 'light';
   });
   const [dailyAI, setDailyAI] = useState<any>(null);
 
@@ -206,14 +212,15 @@ export default function App() {
       }
     } catch (e) {}
     return {
-      primaryColor: "sky",
+      primaryColor: "emerald",
       appName: "دست اول",
-      appSub: "مرجع مبادلات مستقیم و تامین کالای عمده",
+      appSub: "مرجع مبادلات مستقیم و تامین کالای عمده از درب کارخانه",
       factories: [],
       categories: [],
-      logoUrl: "/assets/logo.svg",
+      logoUrl: "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
       mascotUrl: "/assets/mascot_character.jpg",
       buyerCredit: 250000000,
+      supportPhone: "09999123001",
       minOrderAmount: 3000000, // 3 Million Toman default minimum order
       minOrderCartons: 3,
       topAnnouncement: "",
@@ -252,6 +259,7 @@ export default function App() {
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [showChequeCharterModal, setShowChequeCharterModal] = useState(false);
   const [showPwaModal, setShowPwaModal] = useState(false);
   const [isCPanelWizardOpen, setIsCPanelWizardOpen] = useState(false);
   const [lastOrderTracking, setLastOrderTracking] = useState("");
@@ -301,7 +309,7 @@ export default function App() {
         id: catId || 'cat-' + Date.now(),
         name: editingCatName.trim(),
         label: editingCatName.trim(),
-        image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600"
+        image: "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=600"
       });
     }
 
@@ -351,7 +359,7 @@ export default function App() {
       id: 'cat-' + Date.now(),
       name: newCatName.trim(),
       label: newCatName.trim(),
-      image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600"
+      image: "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=600"
     });
     
     handleUpdateB2bConfig({
@@ -416,6 +424,15 @@ export default function App() {
     return () => window.removeEventListener("open-catalog-modal", handleOpenCatalog);
   }, []);
 
+  // Global Open Cart Event Listener
+  useEffect(() => {
+    const handleOpenCart = () => {
+      setIsCartOpen(true);
+    };
+    window.addEventListener("open-cart", handleOpenCart);
+    return () => window.removeEventListener("open-cart", handleOpenCart);
+  }, []);
+
   // Read URL query parameter for direct factory links
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -443,38 +460,7 @@ export default function App() {
 
   const [articles, setArticles] = useState<any[]>([]);
 
-  const DEFAULT_NEWS_ITEMS = [
-    {
-      id: "news-sample-1",
-      title: "ابلاغیه جدید تخصیص سهمیه بنکداری و تخفیفات جاده‌ای کارخانجات",
-      summary: "تعرفه حمل و جابه‌جایی بار مستقیم از درب کارخانجات با حذف واسطه‌ها تا ۱۸ درصد کاهش یافت.",
-      content: "با هماهنگی انجمن بنکداران و مدیریت سامانه دست اول، نرخ حمل مستقیم سفارشات بالک و کارتن بالا از درب کارخانجات تا انبار بنکداران تحت پوشش تخفیف ویژه جاده‌ای قرار گرفت. تمامی همکارانی که سفارش خود را ثبت نمایند شامل پشتیبانی آنلاین باربری می‌باشند.",
-      category: "تنظیم بازار",
-      imageUrl: "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000",
-      source: "روابط عمومی سامانه دست اول",
-      date: new Date().toLocaleDateString('fa-IR'),
-    },
-    {
-      id: "news-sample-2",
-      title: "افتتاح خطوط جدید تولید اتوماتیک در کارخانجات رزطلا، نظری و باغبان",
-      summary: "با بهره‌برداری از فاز توسعه اتوماتیک، زمان تامین و تحویل محموله‌های عمده به کمتر از ۴۸ ساعت رسید.",
-      content: "گروه‌های صنعتی تولیدی رزطلا، کیک نظری و کنسروجات باغبان تحویل سفارشی خریداران عمده را با مکانیزاسیون بسته‌بندی سرعت بخشیدند. اکنون امکان استعلام آنلاین قیمت و ثبت سفارش مستقیم خط تولید فراهم گردیده است.",
-      category: "خط تولید",
-      imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
-      source: "اتاق خبر صنایع غذایی",
-      date: new Date().toLocaleDateString('fa-IR'),
-    },
-    {
-      id: "news-sample-3",
-      title: "طرح تضمین اصالت برند و سلامت بسته‌بندی محموله‌های بنکداری",
-      summary: "ارسال کلیه بارهای کارخانجات با بارکد اصالت، بیمه جاده‌ای و هولوگرام تضمین کیفیت صورت می‌گیرد.",
-      content: "به منظور ارتقای امنیت خریدهای بنکداری و عمده، تمامی کارخانجات طرف قرارداد سامانه موظف به صدور فاکتور یا پیش‌فاکتور معتبر و گواهی اصالت باربری شدند.",
-      category: "توزیع",
-      imageUrl: "https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80&w=1000",
-      source: "بازرسی و نظارت بر توزیع",
-      date: new Date().toLocaleDateString('fa-IR'),
-    }
-  ];
+  const DEFAULT_NEWS_ITEMS: any[] = [];
 
   const fetchArticles = async () => {
     try {
@@ -520,6 +506,38 @@ export default function App() {
   const [shippingMethod, setShippingMethod] = useState("barbari");
   const [paymentReceiptImage, setPaymentReceiptImage] = useState<string>("");
 
+  // Unified City & Province states
+  const [userCity, setUserCity] = useState<string>(() => localStorage.getItem("dastavval_user_city") || "تهران");
+  const [userProvince, setUserProvince] = useState<string>(() => localStorage.getItem("dastavval_user_province") || "تهران");
+  const [cityAgency, setCityAgency] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const usersObj = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      const users = Object.values(usersObj);
+      const rep = users.find((u: any) => 
+        (u.agencyApproved === true || u.role === 'representative' || u.role === 'agency') && 
+        (u.city === userCity || u.province === userProvince || u.agencyProvince === userProvince)
+      );
+      setCityAgency(rep || null);
+    } catch(e) {
+      setCityAgency(null);
+    }
+  }, [userCity, userProvince]);
+
+  useEffect(() => {
+    const handleCityChanged = (e: any) => {
+      if (e.detail?.city) {
+        setUserCity(e.detail.city);
+      }
+      if (e.detail?.province) {
+        setUserProvince(e.detail.province);
+      }
+    };
+    window.addEventListener("dastavval-city-changed", handleCityChanged);
+    return () => window.removeEventListener("dastavval-city-changed", handleCityChanged);
+  }, []);
+
   // Auth States
   const [user, setUser] = useState<any | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -527,9 +545,12 @@ export default function App() {
 
   // Firestore product mutation handlers
   const handleAddProduct = async (newProd: Omit<Product, 'id'>, skipStateUpdate = false) => {
+    const isFactory = userRole === 'factory';
     const prodWithCode = {
       ...newProd,
-      productCode: (newProd as any).productCode || generateProductCode()
+      productCode: (newProd as any).productCode || generateProductCode(),
+      approvalStatus: newProd.approvalStatus || (isFactory ? 'pending' : 'approved'),
+      isApproved: newProd.isApproved !== undefined ? newProd.isApproved : (!isFactory)
     };
     try {
       const docRef = await addDoc(collection(db, "products"), {
@@ -850,7 +871,7 @@ export default function App() {
 
   const initApp = async () => {
     try {
-      const isCleaned = localStorage.getItem("dastavval_v4_clean");
+      const isCleaned = localStorage.getItem("dastavval_v6_clean");
       if (isCleaned !== "true") {
         const keysToClear = [
           "mock_db_products",
@@ -864,12 +885,13 @@ export default function App() {
           "dastavval_price_alerts",
           "dastavval_raw_orders",
           "dastavval_local_users",
-          "dastavval_user"
+          "dastavval_user",
+          "dastavval_crm_leads"
         ];
         keysToClear.forEach(key => {
           try { localStorage.removeItem(key); } catch (e) {}
         });
-        try { localStorage.setItem("dastavval_v4_clean", "true"); } catch (e) {}
+        try { localStorage.setItem("dastavval_v6_clean", "true"); } catch (e) {}
       }
     } catch (e) {
       console.warn("localStorage initialization check error:", e);
@@ -961,60 +983,103 @@ export default function App() {
   };
 
   const addToCart = (product: Product, quantityCartons: number) => {
+    if (!product || !product.id) {
+      console.error("addToCart: Invalid product object", product);
+      return;
+    }
+    const qty = Math.max(1, Math.round(Number(quantityCartons) || 1));
+    const packCount = Math.max(1, product.carton_pack_count || 12);
+
     setCart(prev => {
-      const existing = prev.find(item => item.productId === product.id);
-      const pricePerCarton = product.bulk_price * product.carton_pack_count;
-      if (existing) {
-        return prev.map(item => 
-          item.productId === product.id 
-            ? { 
-                ...item, 
-                quantityCartons: item.quantityCartons + quantityCartons,
-                totalItems: (item.quantityCartons + quantityCartons) * product.carton_pack_count,
-                image_url: product.image_url || item.image_url
-              }
-            : item
-        );
+      try {
+        const existing = prev.find(item => item.productId === product.id);
+        let pricePerCarton = 0;
+        try {
+          const rolePricing = getProductRolePricing(product, user, userBadge);
+          pricePerCarton = rolePricing?.pricePerCarton || (product.bulk_price || product.price || 0) * packCount;
+        } catch (err) {
+          console.error("Error calculating role pricing in addToCart:", err);
+          pricePerCarton = (product.bulk_price || product.price || 0) * packCount;
+        }
+
+        if (existing) {
+          return prev.map(item => 
+            item.productId === product.id 
+              ? { 
+                  ...item, 
+                  quantityCartons: item.quantityCartons + qty,
+                  totalItems: (item.quantityCartons + qty) * packCount,
+                  pricePerCarton,
+                  image_url: product.image_url || item.image_url
+                }
+              : item
+          );
+        }
+        return [...prev, { 
+          productId: product.id, 
+          name: product.name || "کالای بدون نام", 
+          quantityCartons: qty, 
+          pricePerCarton,
+          totalItems: qty * packCount,
+          image_url: product.image_url || "",
+          unitsPerCarton: packCount
+        }];
+      } catch (err) {
+        console.error("Failed to update cart state:", err);
+        return prev;
       }
-      return [...prev, { 
-        productId: product.id, 
-        name: product.name, 
-        quantityCartons, 
-        pricePerCarton,
-        totalItems: quantityCartons * product.carton_pack_count,
-        image_url: product.image_url,
-        unitsPerCarton: product.carton_pack_count
-      }];
     });
     setIsCartOpen(true);
   };
 
   const addMultipleToCart = (items: { product: Product; quantityCartons: number }[]) => {
+    if (!Array.isArray(items)) {
+      console.error("addMultipleToCart: items is not an array", items);
+      return;
+    }
     setCart(prev => {
-      let currentCart = [...prev];
-      items.forEach(({ product, quantityCartons }) => {
-        const existingIdx = currentCart.findIndex(item => item.productId === product.id);
-        const pricePerCarton = product.bulk_price * product.carton_pack_count;
-        if (existingIdx > -1) {
-          currentCart[existingIdx] = {
-            ...currentCart[existingIdx],
-            quantityCartons: currentCart[existingIdx].quantityCartons + quantityCartons,
-            totalItems: (currentCart[existingIdx].quantityCartons + quantityCartons) * product.carton_pack_count,
-            image_url: product.image_url || currentCart[existingIdx].image_url
-          };
-        } else {
-          currentCart.push({
-            productId: product.id,
-            name: product.name,
-            quantityCartons,
-            pricePerCarton,
-            totalItems: quantityCartons * product.carton_pack_count,
-            image_url: product.image_url,
-            unitsPerCarton: product.carton_pack_count
-          });
-        }
-      });
-      return currentCart;
+      try {
+        let currentCart = [...prev];
+        items.forEach(({ product, quantityCartons }) => {
+          if (!product || !product.id) return;
+          const qty = Math.max(1, Math.round(Number(quantityCartons) || 1));
+          const packCount = Math.max(1, product.carton_pack_count || 12);
+          
+          const existingIdx = currentCart.findIndex(item => item.productId === product.id);
+          let pricePerCarton = 0;
+          try {
+            const rolePricing = getProductRolePricing(product, user, userBadge);
+            pricePerCarton = rolePricing?.pricePerCarton || (product.bulk_price || product.price || 0) * packCount;
+          } catch (err) {
+            console.error("Error calculating role pricing in addMultipleToCart:", err);
+            pricePerCarton = (product.bulk_price || product.price || 0) * packCount;
+          }
+
+          if (existingIdx > -1) {
+            currentCart[existingIdx] = {
+              ...currentCart[existingIdx],
+              quantityCartons: currentCart[existingIdx].quantityCartons + qty,
+              totalItems: (currentCart[existingIdx].quantityCartons + qty) * packCount,
+              pricePerCarton,
+              image_url: product.image_url || currentCart[existingIdx].image_url
+            };
+          } else {
+            currentCart.push({
+              productId: product.id,
+              name: product.name || "کالای بدون نام",
+              quantityCartons: qty,
+              pricePerCarton,
+              totalItems: qty * packCount,
+              image_url: product.image_url || "",
+              unitsPerCarton: packCount
+            });
+          }
+        });
+        return currentCart;
+      } catch (err) {
+        console.error("Failed to add multiple items to cart:", err);
+        return prev;
+      }
     });
     setIsCartOpen(true);
   };
@@ -1029,8 +1094,8 @@ export default function App() {
     setCheckoutError("");
 
     // Minimum Order checks
-    const minAmount = b2bConfig.minOrderAmount || 3000000;
-    const minCartons = b2bConfig.minOrderCartons || 3;
+    const minAmount = b2bConfig.minOrderAmount || 10000000;
+    const minCartons = b2bConfig.minOrderCartons || 5;
     const totalCartonsInCart = cart.reduce((sum, item) => sum + item.quantityCartons, 0);
 
     if (totalAmount < minAmount) {
@@ -1063,22 +1128,60 @@ export default function App() {
       const badgeDiscountPercent = getBadgeDiscountPercent(userBadge);
       const badgeDiscountAmount = Math.round(totalAmount * (badgeDiscountPercent / 100));
       
-      // 2. Payment Method Logic
+      // 2. Determine if cheque or cash payment
+      const isCheque = paymentMethod === 'full_check' || paymentMethod === 'half_check';
+      
+      // 3. Calculate Tiered Bulk Discount (Volume/Quantity) - only if NOT cheque!
+      const totalQuantity = cart.reduce((sum, item) => sum + item.quantityCartons, 0);
+      const bulkDiscount = !isCheque ? getBestDiscount(totalAmount, totalQuantity) : { percent: 0, type: 'none' };
+      const hasTierDiscount = bulkDiscount.percent > 0;
+
+      // 4. Calculate Cash/Cheque differences
       let paymentDiscountAmount = 0;
       let paymentPriceDifference = 0;
 
       if (paymentMethod === 'cash') {
-        paymentDiscountAmount = Math.round((totalAmount - badgeDiscountAmount) * 0.05); // 5% cash discount
+        // Only apply 5% cash discount if there is NO tiered discount active!
+        if (!hasTierDiscount) {
+          paymentDiscountAmount = Math.round((totalAmount - badgeDiscountAmount) * 0.05); // 5% cash discount
+        }
       } else if (paymentMethod === 'full_check') {
         paymentPriceDifference = Math.round((totalAmount - badgeDiscountAmount) * 0.10); // 10% markup for full check
       }
-      
-      // 3. Calculate Tiered Bulk Discount (Volume/Quantity)
-      const totalQuantity = cart.reduce((sum, item) => sum + item.quantityCartons, 0);
-      const bulkDiscount = getBestDiscount(totalAmount, totalQuantity);
-      const bulkDiscountAmount = Math.round((totalAmount - badgeDiscountAmount - paymentDiscountAmount) * (bulkDiscount.percent / 100));
+
+      const bulkDiscountAmount = hasTierDiscount 
+        ? Math.round((totalAmount - badgeDiscountAmount) * (bulkDiscount.percent / 100))
+        : 0;
 
       const finalAmount = totalAmount - badgeDiscountAmount - paymentDiscountAmount - bulkDiscountAmount + paymentPriceDifference;
+
+      // 5. بررسی شرایط خرید چکی و سقف اعتبار مشتری (buyerCredit)
+      // سقف اعتبار چکی اولیه پایه ۵۰ میلیون تومان (از مجموع خرید ۱۰۰ میلیون تومانی ۵۰٪ نقد + ۵۰٪ چک)
+      const allowedChequeCredit = Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 50000000));
+      
+      let actualChequeAmount = 0;
+      let actualCashAmount = 0;
+
+      if (paymentMethod === 'half_check') {
+        const standardHalf = Math.round(finalAmount * 0.5);
+        if (standardHalf <= allowedChequeCredit) {
+          actualChequeAmount = standardHalf;
+          actualCashAmount = finalAmount - actualChequeAmount;
+        } else {
+          // اگر فاکتور بیش از سقف باشد، سهم چک در سقف مجاز فیکس شده و الباقی نقد دریافت می‌شود
+          actualChequeAmount = allowedChequeCredit;
+          actualCashAmount = finalAmount - allowedChequeCredit;
+        }
+      } else if (paymentMethod === 'full_check') {
+        // اعتبارسنجی خرید تمام چکی: بررسی اینکه آیا کل مبلغ فاکتور کمتر از یا مساوی اعتبار باقیمانده مشتری (buyerCredit) است یا خیر
+        if (finalAmount > allowedChequeCredit) {
+          setCheckoutError(`کل مبلغ فاکتور خرید تمام‌چکی (${finalAmount.toLocaleString()} تومان) بیشتر از سقف اعتبار باقیمانده شما (${allowedChequeCredit.toLocaleString()} تومان) می‌باشد. طبق اساس‌نامه خرید چکی، برای سفارش‌های بالاتر از سقف اعتبار می‌توانید از روش «نصف نقد / نصف چک» استفاده فرمایید تا مبلغ ${allowedChequeCredit.toLocaleString()} تومان را چک و مابقی (${(finalAmount - allowedChequeCredit).toLocaleString()} تومان) را نقدی تسویه نمایید.`);
+          setOrderStatus('idle');
+          return;
+        }
+        actualChequeAmount = finalAmount;
+        actualCashAmount = 0;
+      }
 
       // Create Order in Firestore
       const trackingNumber = `DX-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1103,6 +1206,9 @@ export default function App() {
           checkMarkup: paymentPriceDifference
         },
         paymentMethod,
+        chequeShareAmount: actualChequeAmount,
+        cashShareAmount: actualCashAmount,
+        chequeCreditLimit: allowedChequeCredit,
         shippingMethod,
         receiptUrl: paymentReceiptImage || null,
         status: 'order_received',
@@ -1115,6 +1221,20 @@ export default function App() {
 
       // Sync with B2B CRM System
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalAmount);
+
+      // Register regional fulfillment task and notify regional representative
+      registerRegionalOrderFromCheckout({
+        orderId: trackingNumber,
+        buyerName,
+        buyerCompany: buyerCompany || "مشتری فروشگاه",
+        buyerPhone,
+        buyerAddress,
+        city: user?.city || "مشهد",
+        province: user?.province || "خراسان رضوی",
+        items: cart,
+        totalAmount: finalAmount,
+        originalAmount: totalAmount
+      });
 
       setLastOrderTracking(trackingNumber);
       setLastOrderAmount(finalAmount);
@@ -1135,6 +1255,11 @@ export default function App() {
   const filteredProducts = products.filter(product => {
     // Hide disabled products on public pages
     if (product.disabled) return false;
+
+    // Hide unapproved factory products from public showcase until approved
+    if (product.approvalStatus === 'pending' || product.isApproved === false) {
+      if (userRole !== 'admin') return false;
+    }
 
     const matchesCategory = activeCategory === "همه" || product.category === activeCategory;
     const matchesBrand = selectedBrand === "همه" || product.brand === selectedBrand;
@@ -1210,11 +1335,30 @@ export default function App() {
 
 
   const handleLogout = () => {
+    // Clear user state
     setUser(null);
+    setUserBadge('bronze');
+    
+    // Clear all user-related localStorage items
     localStorage.removeItem('dastavval_user');
-    if (activeTab === 'admin' || activeTab === 'portal') {
-      setActiveTab('presentation');
+    localStorage.removeItem('dastavval_user_token');
+    
+    // Call firebase mock signout if imported
+    try {
+      import("./lib/auth-helper").then(({ logoutUser }) => {
+        logoutUser().catch(() => {});
+      });
+    } catch (e) {
+      console.warn("Could not log out firebase user:", e);
     }
+
+    // Set tab to presentation
+    setActiveTab('presentation');
+    
+    // Perform a clean redirect/reload to reset all states completely
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 150);
   };
 
   const handleUpdateUser = (updatedUser: any) => {
@@ -1266,13 +1410,7 @@ export default function App() {
   }, [(b2bConfig as any)?.pwaPromptDelaySeconds]);
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 font-sans selection bg-[#fcfdfd] ${
-      theme === 'classic' 
-        ? 'text-slate-900 theme-classic' 
-        : theme === 'dark' 
-        ? 'bg-slate-950 text-slate-100' 
-        : 'text-slate-900'
-    }`} dir={language === 'en' ? 'ltr' : 'rtl'}>
+    <div className="min-h-screen transition-colors duration-300 font-sans bg-white text-slate-900" dir={language === 'en' ? 'ltr' : 'rtl'}>
       
       {/* Dynamic Theme Color Variables Injection */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -1329,7 +1467,7 @@ export default function App() {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="sticky top-0 z-[120] w-full bg-slate-900 text-white border-b border-slate-800 shadow-xl"
+            className="sticky top-0 z-[120] w-full bg-emerald-700 text-white border-b border-emerald-800 shadow-md"
             dir="rtl"
           >
             <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -1416,28 +1554,25 @@ export default function App() {
         onOpenPwaModal={() => setShowPwaModal(true)}
         onOpenCPanelWizard={() => setIsCPanelWizardOpen(true)}
         b2bConfig={b2bConfig}
+        selectedCity={userCity}
+        onCityChange={(city) => setUserCity(city)}
       />
 
       {/* Main Container */}
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 ${
-        (activeTab === 'presentation' || activeTab === 'about') ? 'pb-0' : 'pb-24 lg:py-8'
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 bg-white ${
+        (activeTab === 'presentation' || activeTab === 'about') ? 'pb-0' : 'pb-24 lg:py-6'
       }`}>
-        <Suspense fallback={
-          <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-3xl p-12">
-            <Loader2 className="animate-spin text-emerald-600 mb-3" size={32} />
-            <p className="text-xs text-slate-400 font-bold">در حال بارگذاری بخش مورد نظر...</p>
-          </div>
-        }>
+        <Suspense fallback={<DashboardSkeleton />}>
           <AnimatePresence mode="wait">
-          {activeTab === 'presentation' && (
-            <motion.div
-              key="presentation"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-6 sm:space-y-8"
-            >
+            {activeTab === 'presentation' && (
+              <motion.div
+                key="presentation"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6 sm:space-y-8"
+              >
                 <DynamicPresentation 
                   products={products} 
                   articles={articles}
@@ -1447,51 +1582,46 @@ export default function App() {
                   dailyAI={dailyAI}
                   b2bConfig={b2bConfig}
                   setActiveTab={setActiveTab}
-                  setActiveCategory={setActiveCategory}
                   onAddToCart={addToCart}
-                  onViewDetails={(prod) => setSelectedDetailProduct(prod)}
-                  userBadge={userBadge}
-                  user={user}
                 />
-                <AdBoard isMini={true} onNavigateToBillboard={() => setActiveTab('billboard')} user={user} products={products} />
                 <AboutUsSection articles={articles} theme={theme} />
-              <TrustSection theme={theme} />
-            </motion.div>
-          )}
+                <TrustSection theme={theme} />
+              </motion.div>
+            )}
 
-          {activeTab === 'order' && (
-            <motion.div
-              key="order"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-8"
-            >
-              {/* Simple order presentation header */}
-              <div id="order-panel-header" className="bg-white text-indigo-900 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-6 relative overflow-hidden text-right" dir="rtl">
-                <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
-                <div className="relative z-10 flex items-center gap-4 text-right">
-                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl font-bold border border-emerald-100">
-                    🛒
+            {activeTab === 'order' && (
+              <motion.div
+                key="order"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                {/* Simple order presentation header */}
+                <div id="order-panel-header" className="bg-white text-indigo-900 rounded-2xl p-2.5 sm:p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 relative overflow-hidden text-right border border-slate-100 shadow-xs" dir="rtl">
+                  <div className="absolute top-0 left-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
+                  <div className="relative z-10 flex items-center gap-3 text-right">
+                    <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xs font-bold border border-emerald-100 shrink-0">
+                      🛒
+                    </div>
+                    <div>
+                      <h4 className="font-black text-indigo-900 text-[10.5px] sm:text-xs">سفارش عمده مستقیم از کارخانجات</h4>
+                      <p className="text-[8px] sm:text-[9px] text-slate-400 font-bold mt-0.5">
+                        خرید مستقیم خط تولید با قیمت کارتن عمده و ترابری یکپارچه جاده‌ای
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-black text-indigo-900 text-base">ثبت سفارش عمده و مستقیم محصولات صنایع غذایی</h4>
-                    <p className="text-[11px] text-slate-500 font-bold mt-1">
-                      ثبت سفارش مستقیم و بی‌واسطه از خط تولید کارخانه؛ استعلام قیمت عمده و ارسال ناوگان حمل ترابری
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setActiveTab('presentation')}
+                    className="relative z-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-black text-[8px] px-2.5 py-1 rounded-lg transition-all border border-indigo-100 cursor-pointer shrink-0 sm:self-auto self-end"
+                  >
+                    معرفی پلتفرم دست اول
+                  </button>
                 </div>
-                <button
-                  onClick={() => setActiveTab('presentation')}
-                  className="relative z-10 bg-white hover text-indigo-800 font-black text-xs px-5 py-3 rounded-xl transition-all border border-slate-150 cursor-pointer shrink-0"
-                >
-                  مطالعه معرفی پلتفرم دست اول
-                </button>
-              </div>
 
               {/* Ordering Panel Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start" dir="rtl">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start" dir="rtl">
                 
                 {/* Mobile-Only Horizontal Navigation Chips */}
                 <div className="block lg:hidden space-y-3 w-full">
@@ -1506,38 +1636,19 @@ export default function App() {
                         ...products.map(p => p.category).filter(Boolean)
                       ])).filter(catName => catName !== "انبار های من" && catName !== "انبارهای من")
                       .map((catName, idx) => ({ id: `mob-cat-${idx}-${catName}`, name: catName, value: catName }))
-                    ].map((cat: any) => {
+                    ].map((cat: any, idx: number) => {
                       const isActive = activeCategory === cat.value;
                       return (
                         <button
-                          key={cat.id}
+                          key={`mob-cat-${cat.id || idx}-${idx}`}
                           onClick={() => setActiveCategory(cat.value)}
-                          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[11px] font-black transition-all shrink-0 border cursor-pointer ${
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[11px] font-black transition-all shrink-0 border cursor-pointer ${
                             isActive 
                               ? "bg-emerald-600 text-white border-emerald-500 shadow-md" 
                               : "bg-white text-slate-600 border-gray-200 hover:bg-white"
                           }`}
                         >
-                          <span>{cat.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    {["همه", ...Array.from(new Set(products.map(p => p.brand).filter(Boolean)))].map((brand, idx) => {
-                      const isActive = selectedBrand === brand;
-                      return (
-                        <button
-                          key={`mob-brand-${idx}-${brand}`}
-                          onClick={() => setSelectedBrand(brand)}
-                          className={`px-3 py-1.5 rounded-full text-[10px] font-black transition-all shrink-0 border cursor-pointer ${
-                            isActive
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-white text-slate-500 border-gray-100"
-                          }`}
-                        >
-                          {brand === "همه" ? "همه کارخانه‌ها" : brand}
+                          <span>📦 {cat.name}</span>
                         </button>
                       );
                     })}
@@ -1550,7 +1661,7 @@ export default function App() {
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-black text-xs text-gray-800 flex items-center gap-2">
-                          <span>🔖</span>
+                          <span>📦</span>
                           <span>دسته‌بندی‌های کالا</span>
                         </h3>
                         <div className="flex items-center gap-1">
@@ -1601,23 +1712,23 @@ export default function App() {
 
                       <div className="space-y-1.5">
                         {[
-                          { id: "همه", name: "همه محصولات", value: "همه" },
+                          { id: "desk-cat-all", name: "همه محصولات", value: "همه" },
                           ...Array.from(new Set([
                             ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name),
                             ...products.map(p => p.category).filter(Boolean)
                           ])).filter(catName => catName !== "انبار های من" && catName !== "انبارهای من")
                           .map((catName, idx) => {
                             const found = (b2bConfig.categories || []).find((c: any) => (typeof c === 'string' ? c : c.name) === catName);
-                            const id = found && typeof found !== 'string' ? found.id : `cat-gen-${idx}`;
+                            const id = (found && typeof found !== 'string' && found.id) ? `cat-${found.id}` : `cat-gen-${idx}-${catName}`;
                             return { id, name: catName, value: catName };
                           })
-                        ].map((cat: any) => {
+                        ].map((cat: any, idx: number) => {
                           const isActive = activeCategory === cat.value;
                           const isEditing = editingCatId === cat.id && cat.value !== "همه";
 
                           return (
                             <div
-                              key={cat.id}
+                              key={`desk-cat-item-${cat.id || idx}-${idx}`}
                               className={`group relative flex items-center justify-between rounded-xl transition-all ${
                                 isActive 
                                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-black" 
@@ -1653,8 +1764,9 @@ export default function App() {
                                 <>
                                   <button
                                     onClick={() => setActiveCategory(cat.value)}
-                                    className="flex-1 text-right px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer"
+                                    className="flex-1 text-right px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
                                   >
+                                    <span>📦</span>
                                     <span>{cat.name}</span>
                                   </button>
 
@@ -1731,19 +1843,19 @@ export default function App() {
                 </div>
 
                 {/* Catalog & Products list */}
-                <div className="lg:col-span-3 space-y-8">
+                <div className="lg:col-span-3 space-y-4">
                   {/* Display View modes controls - Refined Design */}
-                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-material-sm text-right">
-                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
+                  <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-100 shadow-material-sm text-right">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1">
                       {/* Search Input - Sophisticated Focus */}
-                      <div className="relative flex-1 min-w-[220px]">
-                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={16} />
+                      <div className="relative flex-1 min-w-[200px]">
+                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={15} />
                         <input
                           type="text"
                           placeholder="جستجو در نام محصول، برند یا دسته‌بندی..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pr-11 pl-5 py-3 bg-slate-50/50 border border-slate-100 rounded-2xl text-[12px] font-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-inner-sm"
+                          className="w-full pr-11 pl-5 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl text-[11px] font-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-inner-sm"
                         />
                         {searchQuery && (
                           <button 
@@ -1763,9 +1875,9 @@ export default function App() {
                             { id: 'grid', icon: Grid, label: 'نمای کارتی', short: 'کارتی' },
                             { id: 'list', icon: ShoppingBag, label: 'سفارش سریع', short: 'سریع' },
                             { id: 'high_margin', icon: TrendingDown, label: 'حاشیه سود بالا', short: 'پرسود' }
-                          ].map((mode) => (
+                          ].map((mode, idx) => (
                             <button
-                              key={mode.id}
+                              key={`app-view-mode-${mode.id}-${idx}`}
                               onClick={() => setViewMode(mode.id as any)}
                               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
                                 viewMode === mode.id
@@ -1806,38 +1918,57 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Homepage Category Filter */}
-                  <div className="flex items-center gap-2 overflow-x-auto pb-4 -mx-2 px-2 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    {[
-                      { id: "home-cat-all", name: "همه محصولات", value: "همه" },
-                      ...Array.from(new Set([
-                        ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? (c.startsWith("🔖") ? c.replace("🔖 ", "") : c) : c.name),
-                        ...products.map(p => p.category).filter(Boolean)
-                      ])).map((catName, idx) => ({ id: `home-cat-${idx}-${catName}`, name: catName, value: catName }))
-                    ].map((cat: any) => {
-                      const isActive = activeCategory === cat.value;
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => setActiveCategory(cat.value)}
-                          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[11px] font-black transition-all shrink-0 border cursor-pointer ${
-                            isActive 
-                              ? "bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20" 
-                              : "bg-white text-slate-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-700"
-                          }`}
-                        >
-                          {cat.value !== "همه" && <span>🔖</span>}
-                          <span>{cat.name}</span>
-                        </button>
-                      );
-                    })}
+                  {/* Dynamic City/Geographic Optimization Banner */}
+                  <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/25 rounded-2xl p-4.5 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-3xs text-right animate-fade-in" dir="rtl">
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-600/10 text-emerald-800 flex items-center justify-center shrink-0">
+                        <MapPin size={22} className="text-emerald-600 animate-bounce" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-black text-xs sm:text-sm text-slate-900">
+                          بومی‌سازی و هماهنگی ترابری ویژه شهرستان <span className="text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200/50">{userCity} ({userProvince})</span>
+                        </h4>
+                        <p className="text-[10px] sm:text-[11px] text-slate-500 font-bold leading-relaxed">
+                          سفارشات عمده شما بر اساس ضوابط ویژه باربری مستقیم از درب نزدیک‌ترین خطوط تولید کشور به مقصد <strong className="text-slate-800">{userCity}</strong> بارگیری خواهند شد. تمامی تخفیفات ترانزیت جاده‌ای و تخصیص عاملیت‌ها به صورت منطقه‌ای محاسبه می‌شود.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between border-t border-slate-100 md:border-t-0 pt-3 md:pt-0">
+                      <div className="flex flex-col text-right">
+                        <span className="text-[9px] text-slate-400 font-black uppercase">وضعیت عاملیت {userCity}:</span>
+                        {cityAgency ? (
+                          <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-0.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                            نماینده: {cityAgency.company || cityAgency.agencyName || cityAgency.displayName || 'عاملیت مجاز'}
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => setActiveTab('dealership_request')}
+                            className="text-[10px] text-amber-600 hover:text-amber-700 transition-colors font-black flex items-center gap-1 mt-0.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse inline-block" />
+                            فاقد نماینده - شما اولین نفر باشید!
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const customEvent = new CustomEvent("open-city-picker-modal-from-banner");
+                          window.dispatchEvent(customEvent);
+                        }}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-[10px] font-black shadow-3xs cursor-pointer transition-all hover:scale-102 shrink-0 mr-3"
+                      >
+                        تغییر شهر
+                      </button>
+                    </div>
                   </div>
 
                   {/* Products catalog list */}
                   {loading ? (
                     <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory hide-scrollbar scroll-smooth gap-4 pb-4 px-2">
                       {[...Array(6)].map((_, i) => (
-                        <div key={i} className="min-w-[85vw] sm:min-w-[320px] snap-center shrink-0 bg-white rounded-2xl h-96 animate-pulse border border-gray-100" />
+                        <div key={`app-skel-prod-${i}`} className="min-w-[85vw] sm:min-w-[320px] snap-center shrink-0 bg-white rounded-2xl h-96 animate-pulse border border-gray-100" />
                       ))}
                     </div>
                   ) : filteredProducts.length === 0 ? (
@@ -1857,7 +1988,7 @@ export default function App() {
                         .slice(0, 16)
                         .map((product, idx) => (
                           <ProductCard 
-                            key={product.id} 
+                            key={`app-prod-${product.id || idx}-${idx}`} 
                             product={product} 
                             index={idx}
                             onAddToCart={addToCart} 
@@ -1870,16 +2001,20 @@ export default function App() {
                         ))}
                     </div>
                   ) : viewMode === 'table' ? (
-                    <WholesaleCatalogView 
-                      products={filteredProducts} 
-                      activeCategory={activeCategory} 
-                      onAddToCart={addToCart} 
-                      userBadge={userBadge}
-                      onViewDetails={(product) => {
-                        setSelectedDetailProduct(product);
-                        setIsDetailModalOpen(true);
-                      }}
-                    />
+                    <Suspense fallback={<TableSkeleton />}>
+                      <FadeInContainer>
+                        <WholesaleCatalogView 
+                          products={filteredProducts} 
+                          activeCategory={activeCategory} 
+                          onAddToCart={addToCart} 
+                          userBadge={userBadge}
+                          onViewDetails={(product) => {
+                            setSelectedDetailProduct(product);
+                            setIsDetailModalOpen(true);
+                          }}
+                        />
+                      </FadeInContainer>
+                    </Suspense>
                   ) : viewMode === 'list' ? (
                     <QuickOrderList 
                       products={filteredProducts} 
@@ -1890,28 +2025,22 @@ export default function App() {
                     />
                   ) : (
                     <div className="space-y-6">
-                      {/* Products Grid with Limit */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {(
+                      {/* Products Grid with react-window Virtualization */}
+                      <VirtualizedProductGrid
+                        products={
                           !showAllHomepageProducts && searchQuery === "" && activeCategory === "همه" && selectedBrand === "همه"
                             ? filteredProducts.slice(0, 8)
                             : filteredProducts
-                        ).map(product => (
-                          <LazyViewport key={product.id} height="320px">
-                            <ProductCard 
-                              product={product} 
-                              onAddToCart={addToCart} 
-                              userBadge={userBadge}
-                              onCompare={toggleComparison}
-                              isComparing={!!comparisonList.find(p => p.id === product.id)}
-                              onViewDetails={(product) => {
-                                setSelectedDetailProduct(product);
-                                setIsDetailModalOpen(true);
-                              }}
-                            />
-                          </LazyViewport>
-                        ))}
-                      </div>
+                        }
+                        onAddToCart={addToCart}
+                        userBadge={userBadge}
+                        onCompare={toggleComparison}
+                        comparisonList={comparisonList}
+                        onViewDetails={(product) => {
+                          setSelectedDetailProduct(product);
+                          setIsDetailModalOpen(true);
+                        }}
+                      />
 
                       {/* Expand / Collapse Button if total products > 8 and default filters */}
                       {filteredProducts.length > 8 && searchQuery === "" && activeCategory === "همه" && selectedBrand === "همه" && (
@@ -1931,6 +2060,7 @@ export default function App() {
                       )}
                     </div>
                   )}
+                  
                 </div>
               </div>
             </motion.div>
@@ -1944,20 +2074,24 @@ export default function App() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
             >
-              <B2BBusinessDashboard 
-                products={products}
-                theme={theme}
-                language={language}
-                userBadge={userBadge}
-                user={user}
-                lastOrderTracking={lastOrderTracking}
-                lastOrderAmount={lastOrderAmount}
-                transitRoutes={b2bConfig?.transitRoutes}
-                b2bConfig={b2bConfig}
-                onLogout={handleLogout}
-                onUpdateUser={handleUpdateUser}
-                onUpdateB2bConfig={handleUpdateB2bConfig}
-              />
+              <Suspense fallback={<DashboardSkeleton />}>
+                <FadeInContainer>
+                  <B2BBusinessDashboard 
+                    products={products}
+                    theme={theme}
+                    language={language}
+                    userBadge={userBadge}
+                    user={user}
+                    lastOrderTracking={lastOrderTracking}
+                    lastOrderAmount={lastOrderAmount}
+                    transitRoutes={b2bConfig?.transitRoutes}
+                    b2bConfig={b2bConfig}
+                    onLogout={handleLogout}
+                    onUpdateUser={handleUpdateUser}
+                    onUpdateB2bConfig={handleUpdateB2bConfig}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -1970,20 +2104,24 @@ export default function App() {
                 exit={{ opacity: 0, y: -15 }}
                 transition={{ duration: 0.2 }}
               >
-                <AdminPanel 
-                  products={products}
-                  onAddProduct={handleAddProduct}
-                  onUpdateProduct={handleUpdateProduct}
-                  onDeleteProduct={handleDeleteProduct}
-                  onBatchDeleteProducts={handleBatchDeleteProducts}
-                  onRefreshProducts={fetchProducts}
-                  b2bConfig={b2bConfig}
-                  onUpdateB2bConfig={handleUpdateB2bConfig}
-                  articles={articles}
-                  onUpdateArticles={handleUpdateArticles}
-                  language={language}
-                  onLogout={handleLogout}
-                />
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <FadeInContainer>
+                    <AdminPanel 
+                      products={products}
+                      onAddProduct={handleAddProduct}
+                      onUpdateProduct={handleUpdateProduct}
+                      onDeleteProduct={handleDeleteProduct}
+                      onBatchDeleteProducts={handleBatchDeleteProducts}
+                      onRefreshProducts={fetchProducts}
+                      b2bConfig={b2bConfig}
+                      onUpdateB2bConfig={handleUpdateB2bConfig}
+                      articles={articles}
+                      onUpdateArticles={handleUpdateArticles}
+                      language={language}
+                      onLogout={handleLogout}
+                    />
+                  </FadeInContainer>
+                </Suspense>
               </motion.div>
             ) : (
               <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 text-center space-y-5 bg-white rounded-[2.5rem] max-w-2xl mx-auto my-8">
@@ -1995,7 +2133,7 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row gap-3 w-full justify-center pt-2">
                   <button 
                     onClick={() => setActiveTab('presentation')}
-                    className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-md shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
                   >
                     بازگشت به پیشخوان اصلی
                   </button>
@@ -2012,23 +2150,29 @@ export default function App() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
             >
-              <UserPanel 
-                user={user}
-                onUpdateUser={handleUpdateUser}
-                onLogout={handleLogout}
-                b2bConfig={b2bConfig}
-                products={products}
-                onAddToCart={addToCart}
-                setActiveTab={setActiveTab as any}
-                onUpdateB2bConfig={handleUpdateB2bConfig}
-                onAddProduct={handleAddProduct}
-                currentSellerId={currentSellerId}
-                setCurrentSeller={(id, name) => {
-                  setCurrentSellerId(id);
-                  setCurrentSellerName(name);
-                }}
-                onRefreshProducts={fetchProducts}
-              />
+              <Suspense fallback={<DashboardSkeleton />}>
+                <FadeInContainer>
+                  <UserPanel 
+                    user={user}
+                    onUpdateUser={handleUpdateUser}
+                    onLogout={handleLogout}
+                    b2bConfig={b2bConfig}
+                    products={products}
+                    onAddToCart={addToCart}
+                    setActiveTab={setActiveTab as any}
+                    onUpdateB2bConfig={handleUpdateB2bConfig}
+                    onAddProduct={handleAddProduct}
+                    onUpdateProduct={handleUpdateProduct}
+                    onDeleteProduct={handleDeleteProduct}
+                    currentSellerId={currentSellerId}
+                    setCurrentSeller={(id, name) => {
+                      setCurrentSellerId(id);
+                      setCurrentSellerName(name);
+                    }}
+                    onRefreshProducts={fetchProducts}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2040,21 +2184,28 @@ export default function App() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
             >
-              <UserPanel
-                user={user}
-                onLogout={handleLogout}
-                b2bConfig={b2bConfig}
-                products={products}
-                onAddToCart={addToCart}
-                setActiveTab={setActiveTab as any}
-                onUpdateUser={(updated) => setUser(updated)}
-                currentSellerId={currentSellerId}
-                setCurrentSeller={(id, name) => {
-                  setCurrentSellerId(id);
-                  setCurrentSellerName(name);
-                }}
-                onRefreshProducts={fetchProducts}
-              />
+              <Suspense fallback={<DashboardSkeleton />}>
+                <FadeInContainer>
+                  <UserPanel
+                    user={user}
+                    onLogout={handleLogout}
+                    b2bConfig={b2bConfig}
+                    products={products}
+                    onAddToCart={addToCart}
+                    setActiveTab={setActiveTab as any}
+                    onUpdateUser={(updated) => setUser(updated)}
+                    onAddProduct={handleAddProduct}
+                    onUpdateProduct={handleUpdateProduct}
+                    onDeleteProduct={handleDeleteProduct}
+                    currentSellerId={currentSellerId}
+                    setCurrentSeller={(id, name) => {
+                      setCurrentSellerId(id);
+                      setCurrentSellerName(name);
+                    }}
+                    onRefreshProducts={fetchProducts}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2066,22 +2217,26 @@ export default function App() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
             >
-              <FactoriesView 
-                factories={b2bConfig?.factories || []}
-                products={products}
-                b2bConfig={b2bConfig}
-                initialFactoryId={initialFactoryIdParam}
-                userBadge={userBadge}
-                user={user}
-                onSelectFactoryForOrder={(factoryName) => {
-                  setSearchQuery(factoryName);
-                  setActiveTab('order');
-                }}
-                onSelectProductForOrder={(product) => {
-                  setSelectedDetailProduct(product);
-                  setIsDetailModalOpen(true);
-                }}
-              />
+              <Suspense fallback={<SectionSkeleton />}>
+                <FadeInContainer>
+                  <FactoriesView 
+                    factories={b2bConfig?.factories || []}
+                    products={products}
+                    b2bConfig={b2bConfig}
+                    initialFactoryId={initialFactoryIdParam}
+                    userBadge={userBadge}
+                    user={user}
+                    onSelectFactoryForOrder={(factoryName) => {
+                      setSearchQuery(factoryName);
+                      setActiveTab('order');
+                    }}
+                    onSelectProductForOrder={(product) => {
+                      setSelectedDetailProduct(product);
+                      setIsDetailModalOpen(true);
+                    }}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2112,14 +2267,18 @@ export default function App() {
                   <ArrowUpRight size={14} className="rotate-90" />
                 </button>
               </div>
-              <B2BNews 
-                articles={articles} 
-                factories={b2bConfig?.factories || []} 
-                b2bConfig={b2bConfig} 
-                initialSubTab="news" 
-                userBadge={userBadge}
-                user={user}
-              />
+              <Suspense fallback={<SectionSkeleton />}>
+                <FadeInContainer>
+                  <B2BNews 
+                    articles={articles} 
+                    factories={b2bConfig?.factories || []} 
+                    b2bConfig={b2bConfig} 
+                    initialSubTab="news" 
+                    userBadge={userBadge}
+                    user={user}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2183,14 +2342,18 @@ export default function App() {
                   <ArrowUpRight size={14} className="rotate-90" />
                 </button>
               </div>
-              <B2BNews 
-                articles={articles} 
-                factories={b2bConfig?.factories || []} 
-                b2bConfig={b2bConfig} 
-                initialSubTab="education" 
-                userBadge={userBadge}
-                user={user}
-              />
+              <Suspense fallback={<SectionSkeleton />}>
+                <FadeInContainer>
+                  <B2BNews 
+                    articles={articles} 
+                    factories={b2bConfig?.factories || []} 
+                    b2bConfig={b2bConfig} 
+                    initialSubTab="education" 
+                    userBadge={userBadge}
+                    user={user}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2221,7 +2384,11 @@ export default function App() {
                   <ArrowUpRight size={14} className="rotate-90" />
                 </button>
               </div>
-              <SupportCenter theme={theme === 'dark' ? 'dark' : 'light'} />
+              <Suspense fallback={<SectionSkeleton />}>
+                <FadeInContainer>
+                  <SupportCenter theme={theme === 'dark' ? 'dark' : 'light'} />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2233,18 +2400,22 @@ export default function App() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.2 }}
             >
-              <AdBoard 
-                isMini={false} 
-                onTriggerPayment={triggerZarinpalPayment} 
-                onNavigateToBillboard={() => {}}
-                onNavigateHome={() => setActiveTab('presentation')}
-                user={user}
-                products={products}
-                onSelectProduct={(prod) => {
-                  setSelectedDetailProduct(prod);
-                  setIsDetailModalOpen(true);
-                }}
-              />
+              <Suspense fallback={<CatalogSkeleton />}>
+                <FadeInContainer>
+                  <AdBoard 
+                    isMini={false} 
+                    onTriggerPayment={triggerZarinpalPayment} 
+                    onNavigateToBillboard={() => {}}
+                    onNavigateHome={() => setActiveTab('presentation')}
+                    user={user}
+                    products={products}
+                    onSelectProduct={(prod) => {
+                      setSelectedDetailProduct(prod);
+                      setIsDetailModalOpen(true);
+                    }}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
 
@@ -2257,17 +2428,21 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="space-y-6"
             >
-              <DealershipRequestView 
-                b2bConfig={b2bConfig}
-                user={user}
-                onNavigateHome={() => {
-                  setActiveTab('presentation');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                onOpenCertificate={() => {
-                  setActiveTab('rep_cert');
-                }}
-              />
+              <Suspense fallback={<SectionSkeleton />}>
+                <FadeInContainer>
+                  <DealershipRequestView 
+                    b2bConfig={b2bConfig}
+                    user={user}
+                    onNavigateHome={() => {
+                      setActiveTab('presentation');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    onOpenCertificate={() => {
+                      setActiveTab('rep_cert');
+                    }}
+                  />
+                </FadeInContainer>
+              </Suspense>
             </motion.div>
           )}
         </AnimatePresence>
@@ -2348,40 +2523,81 @@ export default function App() {
 
       {/* Step-by-Step Checkout Wizard Modal */}
       {isCartOpen && (
-        <CheckoutWizard
-          isOpen={isCartOpen}
-          onClose={() => setIsCartOpen(false)}
-          cart={cart}
-          onUpdateQuantity={(productId, newCartons) => {
-            if (newCartons <= 0) {
-              setCart(prev => prev.filter(i => i.productId !== productId));
-            } else {
-              setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantityCartons: newCartons, totalItems: newCartons * (i.totalItems / i.quantityCartons || 1) } : i));
-            }
-          }}
-          onRemoveItem={(productId) => removeFromCart(productId)}
-          totalAmount={totalAmount}
-          user={user}
-          userBadge={userBadge}
-          b2bConfig={b2bConfig}
-          products={products}
-          setShowAuthModal={setShowAuthModal}
-          onOrderSuccess={(createdOrder) => {
-            setCart([]);
-            setIsCartOpen(false);
-            setLastCreatedOrder(createdOrder);
-          }}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <FadeInContainer>
+            <CheckoutWizard
+              isOpen={isCartOpen}
+              onClose={() => setIsCartOpen(false)}
+              cart={cart}
+              onAddToCart={(product, quantityCartons) => addToCart(product, quantityCartons)}
+              onUpdateQuantity={(productId, newCartons) => {
+                if (newCartons <= 0) {
+                  setCart(prev => prev.filter(i => i.productId !== productId));
+                } else {
+                  setCart(prev => {
+                    const exists = prev.some(i => i.productId === productId);
+                    if (exists) {
+                      return prev.map(i => {
+                        if (i.productId === productId) {
+                          const matchedProd = products.find(p => p.id === productId);
+                          const packCount = matchedProd?.carton_pack_count || i.unitsPerCarton || 24;
+                          return {
+                            ...i,
+                            quantityCartons: newCartons,
+                            totalItems: newCartons * packCount
+                          };
+                        }
+                        return i;
+                      });
+                    } else {
+                      const prod = products.find(p => p.id === productId);
+                      if (!prod) return prev;
+                      const pricePerCarton = prod.bulk_price * prod.carton_pack_count;
+                      return [...prev, {
+                        productId: prod.id,
+                        name: prod.name,
+                        quantityCartons: newCartons,
+                        pricePerCarton,
+                        totalItems: newCartons * prod.carton_pack_count,
+                        image_url: prod.image_url,
+                        unitsPerCarton: prod.carton_pack_count
+                      }];
+                    }
+                  });
+                }
+              }}
+              onRemoveItem={(productId) => removeFromCart(productId)}
+              totalAmount={totalAmount}
+              user={user}
+              userBadge={userBadge}
+              b2bConfig={b2bConfig}
+              products={products}
+              setShowAuthModal={setShowAuthModal}
+              userCity={userCity}
+              userProvince={userProvince}
+              cityAgency={cityAgency}
+              onOrderSuccess={(createdOrder) => {
+                setCart([]);
+                setIsCartOpen(false);
+                setLastCreatedOrder(createdOrder);
+              }}
+            />
+          </FadeInContainer>
+        </Suspense>
       )}
 
       {/* Official Invoice Modal after order success */}
       {lastCreatedOrder && (
-        <WholesaleInvoiceView
-          order={lastCreatedOrder}
-          b2bConfig={b2bConfig}
-          onClose={() => setLastCreatedOrder(null)}
-          isBuyer={true}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <FadeInContainer>
+            <WholesaleInvoiceView
+              order={lastCreatedOrder}
+              b2bConfig={b2bConfig}
+              onClose={() => setLastCreatedOrder(null)}
+              isBuyer={true}
+            />
+          </FadeInContainer>
+        </Suspense>
       )}
 
       {false && (
@@ -2391,7 +2607,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[60]"
+              className="fixed inset-0 bg-white/50 backdrop-blur-md z-[60]"
             />
             <motion.div 
               initial={{ x: "100%" }}
@@ -2418,8 +2634,8 @@ export default function App() {
                 ) : (
                   <>
                     <div className="space-y-3">
-                      {cart.map(item => (
-                        <div key={item.productId} className="flex gap-4 bg-white p-4 rounded-2xl border border-gray-100">
+                      {cart.map((item, idx) => (
+                        <div key={`cart-drawer-item-${item.productId || idx}-${idx}`} className="flex gap-4 bg-white p-4 rounded-2xl border border-gray-100">
                           <div className="flex-1">
                             <h4 className="font-black text-sm text-gray-900">{item.name}</h4>
                             <p className="text-xs text-gray-500 mt-1">
@@ -2496,7 +2712,7 @@ export default function App() {
                             </div>
                             <div className="text-right">
                               <span className="block text-xs font-black text-indigo-800">نصف نقد / نصف چک {userBadge === 'bronze' && "🔒"}</span>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">قیمت مستقیم درب کارخانه (ویژه بنکداران)</span>
+                              <span className="text-[10px] text-slate-500 font-bold">سقف اعتبار اولیه معامله: ۱۰۰ میلیون تومان (۵۰ م چک + مابقی نقد)</span>
                             </div>
                           </div>
                           <Receipt size={16} className="text-indigo-600" />
@@ -2519,10 +2735,18 @@ export default function App() {
                             </div>
                             <div className="text-right">
                               <span className="block text-xs font-black text-indigo-800">خرید تمام چکی {userBadge === 'bronze' && "🔒"}</span>
-                              <span className="text-[10px] text-amber-600 font-bold">۱۰٪ کارمزد فروش امانی (مخصوص همکاران طلایی و VIP)</span>
+                              <span className="text-[10px] text-amber-600 font-bold">۱۰٪ کارمزد فروش امانی (تا سقف اعتبار فعال خریدار)</span>
                             </div>
                           </div>
                           <FileText size={16} className="text-amber-600" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowChequeCharterModal(true)}
+                          className="text-[10px] text-indigo-600 hover:text-indigo-800 font-black text-right py-1 flex items-center gap-1.5 cursor-pointer underline"
+                        >
+                          <span>📜 مطالعه اساس‌نامه و جدول پلکانی افزایش اعتبار چکی</span>
                         </button>
                       </div>
                     </div>
@@ -2574,7 +2798,21 @@ export default function App() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] text-gray-500 font-bold mb-1">آدرس تخلیه بار کارتن عمده</label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[11px] text-gray-500 font-bold">آدرس تخلیه بار کارتن عمده</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prefix = `استان ${userProvince}، شهر ${userCity}، `;
+                              if (!buyerAddress.includes(prefix)) {
+                                setBuyerAddress(prefix + buyerAddress);
+                              }
+                            }}
+                            className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/50 px-2.5 py-1 rounded-lg font-black transition-all cursor-pointer"
+                          >
+                            📍 درج خودکار «{userCity}» در آدرس
+                          </button>
+                        </div>
                         <textarea 
                           rows={2}
                           required
@@ -2643,9 +2881,9 @@ export default function App() {
                             { id: 'khavar', name: 'کامیونت خاور', icon: '🚚', desc: 'درب کارخانه' },
                             { id: 'deka', name: 'دکا پست (اکسپرس)', icon: '📦', desc: 'تحویل انبار شبستر' },
                             { id: 'personal', name: 'تحویل حضوری (شخصی)', icon: '🏭', desc: 'درب انبار شبستر' }
-                          ].map((method) => (
+                          ].map((method, idx) => (
                             <button
-                              key={method.id}
+                              key={`ship-method-${method.id}-${idx}`}
                               onClick={() => setShippingMethod(method.id)}
                               className={`flex flex-col items-center justify-center p-3 rounded-xl border text-right transition-all ${
                                 shippingMethod === method.id
@@ -2669,11 +2907,28 @@ export default function App() {
                 const badgeDiscountPercent = getBadgeDiscountPercent(userBadge);
                 const badgeDiscountAmount = Math.round(totalAmount * (badgeDiscountPercent / 100));
                 
+                const isCheque = paymentMethod === 'full_check' || paymentMethod === 'half_check';
+                
                 const totalQuantity = cart.reduce((sum, item) => sum + item.quantityCartons, 0);
-                const bulkDiscount = getBestDiscount(totalAmount, totalQuantity);
-                const bulkDiscountAmount = Math.round((totalAmount - badgeDiscountAmount) * (bulkDiscount.percent / 100));
+                const bulkDiscount = !isCheque ? getBestDiscount(totalAmount, totalQuantity) : { percent: 0, type: 'none' };
+                const hasTierDiscount = bulkDiscount.percent > 0;
 
-                const finalPayableAmount = totalAmount - badgeDiscountAmount - bulkDiscountAmount;
+                let paymentDiscountAmount = 0;
+                let paymentPriceDifference = 0;
+
+                if (paymentMethod === 'cash') {
+                  if (!hasTierDiscount) {
+                    paymentDiscountAmount = Math.round((totalAmount - badgeDiscountAmount) * 0.05); // 5% cash discount
+                  }
+                } else if (paymentMethod === 'full_check') {
+                  paymentPriceDifference = Math.round((totalAmount - badgeDiscountAmount) * 0.10); // 10% markup
+                }
+
+                const bulkDiscountAmount = hasTierDiscount 
+                  ? Math.round((totalAmount - badgeDiscountAmount) * (bulkDiscount.percent / 100))
+                  : 0;
+
+                const finalPayableAmount = totalAmount - badgeDiscountAmount - paymentDiscountAmount - bulkDiscountAmount + paymentPriceDifference;
 
                 return (
                   <div className="p-6 border-t space-y-4 bg-white">
@@ -2697,6 +2952,112 @@ export default function App() {
                           <span>-{bulkDiscountAmount.toLocaleString()} تومان (%{bulkDiscount.percent})</span>
                         </div>
                       )}
+                      {paymentDiscountAmount > 0 && (
+                        <div className="flex justify-between text-teal-600">
+                          <span className="flex items-center gap-1">
+                             <Percent size={12} />
+                             تخفیف تسویه نقدی (۵٪):
+                          </span>
+                          <span>-{paymentDiscountAmount.toLocaleString()} تومان</span>
+                        </div>
+                      )}
+                      {paymentPriceDifference > 0 && (
+                        <div className="flex justify-between text-amber-700">
+                          <span className="flex items-center gap-1">
+                             <CreditCard size={12} />
+                             کارمزد خرید چکی (۱۰٪+):
+                          </span>
+                          <span>+{paymentPriceDifference.toLocaleString()} تومان</span>
+                        </div>
+                      )}
+
+                      {paymentMethod === 'half_check' && (() => {
+                        const allowedChequeCredit = Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 50000000));
+                        const standardHalf = Math.round(finalPayableAmount * 0.5);
+                        const isOverCredit = standardHalf > allowedChequeCredit;
+                        const actualChequeShare = isOverCredit ? allowedChequeCredit : standardHalf;
+                        const actualCashShare = finalPayableAmount - actualChequeShare;
+
+                        return (
+                          <div className="space-y-2 p-3 bg-indigo-50/80 rounded-2xl border border-indigo-200/80 text-indigo-950">
+                            <div className="flex justify-between items-center text-xs font-black border-b border-indigo-200/60 pb-1.5">
+                              <span className="flex items-center gap-1.5 text-indigo-900">
+                                <Receipt size={14} className="text-indigo-600" />
+                                تفکیک تسویه نصف نقد / نصف چک:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowChequeCharterModal(true)}
+                                className="text-[10px] text-indigo-700 hover:text-indigo-900 font-black underline cursor-pointer"
+                              >
+                                اساس‌نامه چکی 📜
+                              </button>
+                            </div>
+                            
+                            <div className="flex justify-between items-center text-[11px] font-black">
+                              <span>سهم پرداختی نقدی:</span>
+                              <span className="font-mono text-emerald-700 font-black">{actualCashShare.toLocaleString()} تومان</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-[11px] font-black">
+                              <span>سهم چک صیادی بنفش:</span>
+                              <span className="font-mono text-indigo-700 font-black">
+                                {actualChequeShare.toLocaleString()} تومان
+                                {isOverCredit && <span className="text-[9px] text-indigo-500 font-sans mr-1">(سقف مجاز)</span>}
+                              </span>
+                            </div>
+
+                            {isOverCredit && (
+                              <div className="p-2 bg-amber-100/70 rounded-xl border border-amber-200/80 text-[10px] font-medium text-amber-900 leading-tight">
+                                💡 با توجه به سقف اعتبار اولیه ۵۰ میلیون تومانی چک، سهم چک ۵۰ م تومان محاسبه شده و مبلغ {actualCashShare.toLocaleString()} تومان به صورت نقد تسویه می‌گردد.
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-1 border-t border-indigo-100/60">
+                              <span>سقف اعتبار چکی فعال شما:</span>
+                              <span className="font-mono">{allowedChequeCredit.toLocaleString()} تومان</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {paymentMethod === 'full_check' && (() => {
+                        const allowedChequeCredit = Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 50000000));
+                        const isOver = finalPayableAmount > allowedChequeCredit;
+                        return (
+                          <div className="space-y-2 p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-amber-950">
+                            <div className="flex justify-between items-center text-xs font-black border-b border-amber-200/60 pb-1.5">
+                              <span className="flex items-center gap-1.5 text-amber-900">
+                                <FileText size={14} className="text-amber-600" />
+                                تسویه تمام‌چکی (خرید امانی):
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowChequeCharterModal(true)}
+                                className="text-[10px] text-amber-800 hover:text-amber-950 font-black underline cursor-pointer"
+                              >
+                                اساس‌نامه چکی 📜
+                              </button>
+                            </div>
+
+                            <div className="flex justify-between items-center text-[11px] font-black">
+                              <span>سهم چک صیادی تمام‌مدت:</span>
+                              <span className="font-mono text-amber-800 font-black">{finalPayableAmount.toLocaleString()} تومان</span>
+                            </div>
+
+                            {isOver && (
+                              <div className="p-2 bg-rose-100/80 rounded-xl border border-rose-200/80 text-[10px] font-bold text-rose-900 leading-tight">
+                                ⚠ مبلغ کل فاکتور از سقف اعتبار چکی شما بیشتر است. لطفاً مبلغ سفارش را کاهش داده یا گزینه «نصف نقد / نصف چک» را انتخاب فرمایید.
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 pt-1 border-t border-amber-100/60">
+                              <span>سقف اعتبار مجاز چکی شما:</span>
+                              <span className="font-mono">{allowedChequeCredit.toLocaleString()} تومان</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex justify-between items-center text-lg font-black">
@@ -2751,6 +3112,7 @@ export default function App() {
         isOpen={isCatalogOpen} 
         onClose={() => setIsCatalogOpen(false)} 
         products={products} 
+        user={user}
       />
 
       {/* Auth Modal (Login / Signup) */}
@@ -2782,132 +3144,60 @@ export default function App() {
         }}
       />
 
-      {/* Clean, Pure White, Short & Creative Footer */}
-      <footer className="bg-white text-slate-700 border-t border-slate-200/80 pt-10 pb-8 mt-12 relative overflow-hidden shadow-sm" dir="rtl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          
-          {/* Top Compact Diamond Slogan Banner */}
-          <div className="mb-8 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-right shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm shrink-0">
-                <Sparkles size={16} className="animate-spin" style={{ animationDuration: '6s' }} />
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-emerald-700 tracking-wider block">قاعده تجارت پایدار</span>
-                <h4 className="text-xs sm:text-sm font-black text-slate-900">تأمین بدون واسطه و مستقیم از کارخانجات تراز اول کشور</h4>
-              </div>
-            </div>
-            <div className="text-[11px] text-slate-600 font-bold">
-              شفافیت و اصالت در فاکتورهای عمده سراسر کشور
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-right pb-8 border-b border-slate-100">
-            
-            {/* Column 1: Brand */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center p-1.5 text-white shadow-sm">
-                  <DastavvalLogo size={28} showText={false} logoUrl={b2bConfig.logoUrl} />
+      {/* Clean, Minimalist, Elegant Footer */}
+      <footer className="bg-white text-slate-600 border-t border-slate-100 py-10 mt-12 relative overflow-hidden" dir="rtl">
+        <div className="absolute inset-0 bg-slate-50/50"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-slate-100">
+            {/* Brand and Slogan */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-right space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center p-2 text-slate-900 shadow-sm ring-4 ring-slate-100 border border-slate-200">
+                  <DastavvalLogo size={24} showText={false} logoUrl={b2bConfig.logoUrl} />
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">{b2bConfig.appName || "بازرگانی دست اول"}</h3>
-                  <span className="text-[9px] text-emerald-600 font-bold">پلتفرم عمده‌فروشی کارخانه</span>
-                </div>
+                <h3 className="text-sm font-black text-slate-900 tracking-tight">{b2bConfig.appName || "بازرگانی دست اول"}</h3>
               </div>
-              <p className="text-slate-500 text-[11px] font-bold leading-relaxed">
-                پل ارتباطی امن میان کارخانجات مواد غذایی و بنکداران سراسر کشور.
+              <p className="text-slate-500 text-[11px] font-bold max-w-sm">
+                تأمین بی‌واسطه و توزیع مویرگی مستقیم از خطوط تولید کارخانجات تراز اول به مقصد انبارهای سراسر کشور.
               </p>
-              <div className="flex flex-wrap gap-1.5 pt-1">
+            </div>
+
+            {/* Quick Contact & Socials */}
+            <div className="flex flex-col items-center md:items-end gap-3">
+              <div className="flex items-center gap-2">
                 {[
-                  { name: 'ایتا', icon: '🇮🇷', href: 'https://eitaa.com/dastavval_b2b' },
-                  { name: 'تلگرام', icon: '✈️', href: 'https://t.me/dastavval_b2b' },
-                  { name: 'واتساپ', icon: '💬', href: 'https://wa.me/989044502900' },
-                  { name: 'تماس', icon: '📞', href: 'tel:09044502900' }
-                ].map(social => (
+                  { name: 'روبیکا', href: 'https://rubika.ir/dastavval_official' },
+                  { name: 'اینستاگرام', href: 'https://instagram.com/dastavval_official' }
+                ].map((social, idx) => (
                   <a 
-                    key={social.name} 
+                    key={`foot-social-${social.name}-${idx}`} 
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 text-slate-700 transition-all text-[10px] font-black flex items-center gap-1 shadow-2xs"
+                    className="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-emerald-700 transition-colors text-[10px] font-black"
                   >
-                    <span>{social.icon}</span>
-                    <span>{social.name}</span>
+                    {social.name}
                   </a>
                 ))}
               </div>
             </div>
-
-            {/* Column 2: Quick Links */}
-            <div>
-              <h4 className="text-[11px] font-black mb-3 text-slate-900 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                دسترسی سریع
-              </h4>
-              <ul className="space-y-2 text-[11px] font-bold text-slate-600">
-                <li onClick={() => { setActiveTab('order'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
-                  <span className="text-emerald-600">›</span> ثبت سفارش عمده
-                </li>
-                <li onClick={() => { setActiveTab('factories'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
-                  <span className="text-emerald-600">›</span> ویترین کارخانجات
-                </li>
-                <li onClick={() => { setActiveTab('order'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
-                  <span className="text-emerald-600">›</span> استعلام قیمت رسمی
-                </li>
-                <li onClick={() => { setActiveTab('news'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-emerald-700 cursor-pointer transition-colors flex items-center gap-1.5">
-                  <span className="text-emerald-600">›</span> مجله و اخبار بازار
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 3: Contact */}
-            <div>
-              <h4 className="text-[11px] font-black mb-3 text-slate-900 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-600"></span>
-                ارتباط با ما
-              </h4>
-              <ul className="space-y-2 text-[11px] font-bold text-slate-600">
-                <li className="flex items-start gap-1.5">
-                  <MapPin size={13} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span className="leading-tight text-[10px]">{b2bConfig.hqAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد"}</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <Phone size={13} className="text-emerald-600 shrink-0" />
-                  <a href={`tel:${b2bConfig.supportPhone || '09044502900'}`} className="font-mono text-slate-900 font-black" dir="ltr">
-                    {b2bConfig.supportPhone || "0904 450 2900"}
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Trust */}
-            <div className="space-y-2">
-              <h4 className="text-[11px] font-black mb-2 text-slate-900 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
-                مجوزها و اصالت
-              </h4>
-              <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
-                <div className="flex flex-wrap gap-1.5 justify-start">
-                  <TrustBadges b2bConfig={b2bConfig} />
-                </div>
-                <p className="text-[9px] text-slate-500 font-bold leading-tight">
-                  تضمین اصالت کالا و بیمه باربری رسمی.
-                </p>
-              </div>
-            </div>
-
           </div>
 
-          {/* Bottom Bar */}
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-[10px] font-bold text-slate-500">
-            <p>© {new Date().getFullYear()} {b2bConfig.appName || "بازرگانی دست اول"}. تمامی حقوق محفوظ است.</p>
-            <div className="flex gap-4">
-              <span onClick={() => setActiveTab('support')} className="hover:text-emerald-750 cursor-pointer">قوانین و مقررات</span>
-              <span onClick={() => setActiveTab('support')} className="hover:text-emerald-750 cursor-pointer">حریم خصوصی</span>
+          {/* Bottom copyright & simplified info */}
+          <div className="pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-bold text-slate-400">
+            <p className="flex items-center gap-1.5">
+              © {new Date().getFullYear()} <span className="text-slate-600">{b2bConfig.appName || "بازرگانی دست اول"}</span>. تمامی حقوق محفوظ است.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+              <button onClick={() => setActiveTab('support')} className="hover:text-emerald-700 transition-colors">قوانین و مقررات</button>
+              <button onClick={() => setActiveTab('support')} className="hover:text-emerald-700 transition-colors">حریم خصوصی</button>
+              <div className="hidden md:block w-1 h-1 rounded-full bg-slate-300 self-center"></div>
+              <span className="text-slate-500 flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-full">
+                <MapPin size={12} className="text-slate-400" />
+                دفتر مرکزی: {b2bConfig.hqAddress || "شبستر، شهرک صنعتی شندآباد"}
+              </span>
             </div>
           </div>
-
         </div>
       </footer>
       <AIAdvisor mascotUrl={b2bConfig.mascotUrl} />
@@ -2919,7 +3209,7 @@ export default function App() {
         logoUrl={b2bConfig.logoUrl}
       />
 
-      {/* Floating Scroll To Top Button */}
+      {/* Floating Scroll To Top Button (Positioned comfortably on the left side to prevent overlap with right-side contact button) */}
       <AnimatePresence>
         {showScrollTop && (
           <motion.button
@@ -2927,7 +3217,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToTop}
-            className="fixed bottom-24 left-4 sm:bottom-8 sm:left-8 z-[9999] p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/50 flex items-center justify-center group"
+            className="fixed bottom-24 left-6 lg:bottom-8 lg:left-8 z-[90] p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/50 flex items-center justify-center group"
             title="بازگشت به بالای صفحه"
           >
             <ArrowUp size={22} className="group-hover:-translate-y-1 transition-transform" />
@@ -3019,9 +3309,9 @@ export default function App() {
               items: [{
                 productId: selectedDetailProduct.id,
                 name: selectedDetailProduct.name,
-                quantityCartons: selectedDetailProduct.min_order_cartons,
+                quantityCartons: Math.max(5, selectedDetailProduct.min_order_cartons || 5),
                 pricePerCarton: selectedDetailProduct.bulk_price * selectedDetailProduct.carton_pack_count,
-                totalItems: selectedDetailProduct.min_order_cartons * selectedDetailProduct.carton_pack_count,
+                totalItems: Math.max(5, selectedDetailProduct.min_order_cartons || 5) * selectedDetailProduct.carton_pack_count,
                 image_url: selectedDetailProduct.image_url
               }]
             });
@@ -3104,39 +3394,56 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-      {/* Magic cPanel Installation & GitHub Sync Wizard */}
-      <CPanelInstallerWizard 
-        isOpen={isCPanelWizardOpen}
-        onClose={() => setIsCPanelWizardOpen(false)}
-        b2bConfig={b2bConfig}
-        onUpdateConfig={setB2bConfig}
+      {/* Cheque Charter and Credit Rules Modal */}
+      <ChequeCharterModal 
+        isOpen={showChequeCharterModal}
+        onClose={() => setShowChequeCharterModal(false)}
+        userCredit={Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 50000000))}
       />
 
-      {/* Full-screen Glassmorphic Shimmer Preloader */}
+      {/* Magic cPanel Installation & GitHub Sync Wizard */}
+      {isCPanelWizardOpen && (
+        <Suspense fallback={<ModalSkeleton />}>
+          <FadeInContainer>
+            <CPanelInstallerWizard 
+              isOpen={isCPanelWizardOpen}
+              onClose={() => setIsCPanelWizardOpen(false)}
+              b2bConfig={b2bConfig}
+              onUpdateConfig={setB2bConfig}
+            />
+          </FadeInContainer>
+        </Suspense>
+      )}
+
+      {/* Unified Minimalist White Splash Preloader */}
       <AnimatePresence>
         {loading && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
-            className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-2xl flex flex-col items-center justify-center space-y-6 text-white p-6 font-sans"
+            className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center space-y-6 text-slate-900 p-6 font-sans"
             dir="rtl"
           >
             <div className="relative">
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-indigo-500/20 via-white/10 to-purple-500/20 border border-white/30 backdrop-blur-2xl shadow-2xl shadow-indigo-500/20 flex items-center justify-center animate-pulse">
-                <Building2 size={44} className="text-indigo-400" />
+              <div className="w-24 h-24 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+                <ShoppingBag size={44} className="text-emerald-600" />
               </div>
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-indigo-500 to-purple-500 opacity-30 blur-lg" />
             </div>
 
             <div className="text-center space-y-2">
-              <h2 className="text-xl font-black tracking-tight text-white">مرجع دست اول</h2>
-              <p className="text-xs text-slate-300 font-bold">در حال همگام‌سازی کاتالوگ مرکزی و شبکه کارخانجات کشور...</p>
+              <h2 className="text-xl font-black tracking-tight text-slate-900">مرجع دست اول</h2>
+              <p className="text-xs text-slate-400 font-bold">در حال همگام‌سازی کاتالوگ مرکزی و شبکه کارخانجات کشور...</p>
             </div>
 
-            {/* Shimmer progress bar */}
-            <div className="w-64 h-1.5 bg-white/10 backdrop-blur-md rounded-full overflow-hidden border border-white/20 relative">
-              <div className="h-full bg-gradient-to-r from-indigo-500 via-indigo-300 to-purple-500 animate-pulse w-3/4 rounded-full" />
+            {/* Subtle progress bar */}
+            <div className="w-64 h-1 bg-slate-100 rounded-full overflow-hidden relative">
+              <motion.div 
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="h-full bg-emerald-500 rounded-full" 
+              />
             </div>
           </motion.div>
         )}

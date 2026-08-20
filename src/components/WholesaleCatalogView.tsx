@@ -4,17 +4,20 @@ import { Product } from "../types";
 import { ShoppingCart, Plus, Minus, Package, ArrowLeftRight, Check, Info, ShieldCheck, Sparkles, Star, Search, Filter, Flame } from "lucide-react";
 import StarRating from "./StarRating";
 import { PremiumProductCard } from "./PremiumProductCard";
+import VirtualizedProductGrid from "./VirtualizedProductGrid";
 
 interface WholesaleCatalogViewProps {
   products: Product[];
   activeCategory: string;
   onAddToCart: (product: Product, quantityCartons: number) => void;
   userBadge?: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin';
+  user?: any;
+  onRequireAuth?: () => void;
   onViewDetails?: (product: Product) => void;
   interfaceMode?: 'simple' | 'advanced';
 }
 
-export default function WholesaleCatalogView({ products, activeCategory, onAddToCart, userBadge, onViewDetails, interfaceMode }: WholesaleCatalogViewProps) {
+export default function WholesaleCatalogView({ products, activeCategory, onAddToCart, userBadge, user, onRequireAuth, onViewDetails, interfaceMode }: WholesaleCatalogViewProps) {
   // Store ordered carton quantities per product in local state
   const [cartonQuantities, setCartonQuantities] = useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,33 +96,35 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
   return (
     <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-xl text-right" dir="rtl">
       {/* Photo-accurate Top Header Block */}
-      <div className="p-4 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-50/45 via-white to-emerald-50/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-        {/* Left Side: Info Box */}
-        <div className="bg-slate-50/85 border border-slate-100 p-3.5 rounded-2xl w-full sm:w-auto text-right shadow-sm text-xs space-y-1.5 font-bold text-gray-700 min-w-[200px]">
-          <div className="flex justify-between sm:block">
-            <span className="text-gray-400">تاریخ مبادلات:</span>{" "}
-            <span className="text-gray-900 font-mono">۱۳ تیر ۱۴۰۵</span>
+      <div className="p-3 sm:py-3 sm:px-5 border-b border-gray-100 bg-gradient-to-r from-emerald-50/45 via-white to-emerald-50/5 flex flex-col sm:flex-row-reverse justify-between items-center gap-3">
+        {/* Right Side: Title & Subtitle */}
+        <div className="text-center sm:text-right flex items-center gap-2">
+          <div className="flex flex-col">
+            <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight flex items-center gap-2 justify-end">
+              <span className="text-emerald-700">بازرگانی دست اول</span>
+            </h2>
+            <p className="text-[10px] text-gray-400 font-bold mt-0.5">سامانه استعلام و مبادلات مستقیم تولیدات کارخانه</p>
           </div>
-          <div className="flex justify-between sm:block">
-            <span className="text-gray-400">دسته‌بندی:</span>{" "}
-            <span className="text-emerald-600 font-black">{activeCategory}</span>
-          </div>
-          <div className="flex justify-between sm:block">
-            <span className="text-gray-400">نوع قیمت مبنا:</span>{" "}
-            <span className="text-slate-900 font-black bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md">قیمت مستقیم درب کارخانه</span>
+          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-emerald-700 rounded-lg flex items-center justify-center text-white font-black text-[10px] sm:text-xs shadow-md shadow-emerald-600/30">
+            دست‌اول
           </div>
         </div>
 
-        {/* Right Side: Title & Subtitle */}
-        <div className="text-center sm flex items-center gap-3">
-          <div className="flex flex-col">
-            <h2 className="text-xl sm font-black text-gray-900 tracking-tight flex items-center gap-2 justify-end">
-              <span className="text-emerald-700">بازرگانی دست اول</span>
-            </h2>
-            <p className="text-[11px] text-gray-400 font-bold mt-1">سامانه استعلام و مبادلات مستقیم تولیدات کارخانه</p>
+        {/* Left Side: Info Box - Sleek and Compact */}
+        <div className="bg-slate-50/85 border border-slate-100 p-2 rounded-xl w-full sm:w-auto text-right shadow-xs text-[11px] flex flex-col sm:flex-row items-stretch sm:items-center gap-x-4 gap-y-1 font-bold text-gray-700">
+          <div className="flex justify-between items-center gap-1">
+            <span className="text-gray-400">تاریخ:</span>{" "}
+            <span className="text-gray-900 font-mono">۱۳ تیر ۱۴۰۵</span>
           </div>
-          <div className="w-10 h-10 sm:w-11 sm:h-11 bg-emerald-700 rounded-xl flex items-center justify-center text-white font-black text-xs sm shadow-md shadow-emerald-600/30">
-            دست‌اول
+          <div className="hidden sm:block w-[1px] h-3 bg-gray-200"></div>
+          <div className="flex justify-between items-center gap-1">
+            <span className="text-gray-400">دسته:</span>{" "}
+            <span className="text-emerald-600 font-black">{activeCategory}</span>
+          </div>
+          <div className="hidden sm:block w-[1px] h-3 bg-gray-200"></div>
+          <div className="flex justify-between items-center gap-1">
+            <span className="text-gray-400">قیمت مبنا:</span>{" "}
+            <span className="text-slate-900 font-black bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md text-[10px]">درب کارخانه</span>
           </div>
         </div>
       </div>
@@ -221,41 +226,18 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
           </button>
         </div>
       ) : (
-        <>
-          {/* 1. Mobile-Optimized Product List (Premium Grid) */}
-          <div className="md:hidden grid grid-cols-1 gap-6 p-4">
-            {displayProducts.map((product, idx) => (
-              <PremiumProductCard 
-                key={`mob-cat-${product.id}-${idx}`}
-                product={product}
-                qty={getQuantity(product.id, product.min_order_cartons)}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                onAddToCart={onAddToCart}
-                onViewDetails={onViewDetails}
-                toPersianNum={toPersianNum}
-                interfaceMode={interfaceMode}
-              />
-            ))}
-          </div>
-
-          {/* 2. Desktop-Optimized Product Grid (Royal Bento Style) */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-8 p-8 bg-slate-50/30">
-            {displayProducts.map((product, idx) => (
-              <PremiumProductCard 
-                key={`desk-cat-${product.id}-${idx}`}
-                product={product}
-                qty={getQuantity(product.id, product.min_order_cartons)}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                onAddToCart={onAddToCart}
-                onViewDetails={onViewDetails}
-                toPersianNum={toPersianNum}
-                interfaceMode={interfaceMode}
-              />
-            ))}
-          </div>
-        </>
+        <div className="p-4 sm:p-6 bg-slate-50/20">
+          <VirtualizedProductGrid
+            products={displayProducts}
+            onAddToCart={onAddToCart}
+            userBadge={userBadge}
+            user={user}
+            onRequireAuth={onRequireAuth}
+            onViewDetails={onViewDetails}
+            usePremiumCards={true}
+            toPersianNum={toPersianNum}
+          />
+        </div>
       )}
     </div>
   );

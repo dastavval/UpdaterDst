@@ -55,7 +55,7 @@ interface SupplyChainProps {
 
 export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOrderClick }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [animSpeed, setAnimSpeed] = useState<number>(3500); // 3.5 seconds
   const [activeTab, setActiveTab] = useState<'flow' | 'calculator'>('flow');
 
@@ -411,7 +411,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
                     {/* Key Metrics */}
                     <div className="grid grid-cols-3 gap-2">
                       {currentStep.commercialMetrics.map((metric, i) => (
-                        <div key={i} className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                        <div key={`supply-metric-${activeStep}-${metric.label}-${i}`} className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-center">
                           <span className="block text-[10px] font-bold text-slate-500 mb-0.5">{metric.label}</span>
                           <span className="block text-xs sm:text-sm font-black text-emerald-800">{metric.value}</span>
                         </div>

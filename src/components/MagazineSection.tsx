@@ -24,28 +24,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
 }) => {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
-  const displayArticles = articles !== undefined ? articles : [
-    {
-      id: "news-sample-1",
-      title: "ابلاغیه جدید تخصیص سهمیه بنکداری و تخفیفات جاده‌ای کارخانجات",
-      summary: "تعرفه حمل و جابه‌جایی بار مستقیم از درب کارخانجات با حذف واسطه‌ها تا ۱۸ درصد کاهش یافت.",
-      content: "با هماهنگی انجمن بنکداران و مدیریت سامانه دست اول، نرخ حمل مستقیم سفارشات بالک و کارتن بالا از درب کارخانجات تا انبار بنکداران تحت پوشش تخفیف ویژه جاده‌ای قرار گرفت. تمامی همکارانی که سفارش خود را ثبت نمایند شامل پشتیبانی آنلاین باربری می‌باشند.",
-      category: "تنظیم بازار",
-      imageUrl: "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000",
-      source: "روابط عمومی سامانه دست اول",
-      date: new Date().toLocaleDateString('fa-IR'),
-    },
-    {
-      id: "news-sample-2",
-      title: "افتتاح خطوط جدید تولید اتوماتیک در کارخانجات رزطلا، نظری و باغبان",
-      summary: "با بهره‌برداری از فاز توسعه اتوماتیک، زمان تامین و تحویل محموله‌های عمده به کمتر از ۴۸ ساعت رسید.",
-      content: "گروه‌های صنعتی تولیدی رزطلا، کیک نظری و کنسروجات باغبان تحویل سفارشی خریداران عمده را با مکانیزاسیون بسته‌بندی سرعت بخشیدند. اکنون امکان استعلام آنلاین قیمت و ثبت سفارش مستقیم خط تولید فراهم گردیده است.",
-      category: "خط تولید",
-      imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
-      source: "اتاق خبر صنایع غذایی",
-      date: new Date().toLocaleDateString('fa-IR'),
-    }
-  ];
+  const displayArticles = articles && articles.length > 0 ? articles : [];
 
   const handleArticleClick = (article: Article) => {
     if (onOpenArticleModal) {
@@ -96,7 +75,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
           <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-4 pb-2 pt-1 hide-scrollbar scroll-smooth">
             {displayArticles.map((article, idx) => (
               <div
-                key={article.id || idx}
+                key={`mag-art-${article.id || idx}-${idx}`}
                 onClick={() => handleArticleClick(article)}
                 className="snap-start shrink-0 w-[290px] sm:w-[350px] bg-white border border-slate-200/90 hover:border-emerald-500 rounded-2xl p-3.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between shadow-xs hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
               >
@@ -112,13 +91,13 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
                         (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800";
                       }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-60" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/60 via-transparent to-transparent opacity-60" />
                     
                     <span className="absolute top-2.5 right-2.5 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-lg shadow-sm">
                       {article.category || "خبر بازار"}
                     </span>
 
-                    <span className="absolute bottom-2 right-2.5 text-[10px] font-black text-white flex items-center gap-1 bg-slate-900/70 px-2 py-0.5 rounded-md backdrop-blur-md">
+                    <span className="absolute bottom-2 right-2.5 text-[10px] font-black text-slate-900 flex items-center gap-1 bg-white/70 px-2 py-0.5 rounded-md backdrop-blur-md border border-slate-200">
                       <Calendar size={11} className="text-amber-300" />
                       {article.date}
                     </span>
@@ -154,7 +133,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
       {/* ARTICLE READER MODAL */}
       <AnimatePresence>
         {selectedArticle && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/80 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -169,20 +148,20 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
                   alt={selectedArticle.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/20 to-transparent" />
                 <button
                   onClick={() => setSelectedArticle(null)}
-                  className="absolute top-4 left-4 p-2.5 bg-slate-900/70 hover:bg-slate-900 text-white rounded-full transition-colors cursor-pointer"
+                  className="absolute top-4 left-4 p-2.5 bg-white/70 hover:bg-white text-slate-900 rounded-full transition-colors cursor-pointer border border-slate-200 shadow-sm"
                 >
                   <X size={18} />
                 </button>
 
-                <div className="absolute bottom-4 right-4 left-4 text-white">
+                <div className="absolute bottom-4 right-4 left-4 text-slate-900">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2.5 py-0.5 bg-rose-600 text-white rounded-md text-[10px] font-black">
                       {selectedArticle.category}
                     </span>
-                    <span className="text-[10px] text-slate-300 font-bold flex items-center gap-1">
+                    <span className="text-[10px] text-slate-600 font-bold flex items-center gap-1">
                       <Calendar size={11} />
                       {selectedArticle.date}
                     </span>
@@ -211,7 +190,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
               <div className="pt-4 border-t border-slate-100 flex justify-end">
                 <button
                   onClick={() => setSelectedArticle(null)}
-                  className="px-6 py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-slate-100 text-slate-900 border border-slate-200 font-black text-xs rounded-xl hover:bg-slate-200 transition-all cursor-pointer"
                 >
                   بستن
                 </button>

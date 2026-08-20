@@ -38,7 +38,7 @@ export default function QuickOrderList({
     setQuantities(prev => {
       const current = prev[productId] || 0;
       const product = products.find(p => p.id === productId);
-      const minQty = product ? product.min_order_cartons : 1;
+      const minQty = product ? Math.max(5, product.min_order_cartons || 5) : 5;
       let next;
       if (delta > 0) {
         next = current === 0 ? minQty : current + 1;
@@ -112,9 +112,9 @@ export default function QuickOrderList({
           >
             همه
           </button>
-          {categories.map(cat => (
+          {categories.map((cat, idx) => (
             <button
-              key={cat}
+              key={`quick-cat-${cat}-${idx}`}
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all cursor-pointer border ${
                 selectedCategory === cat
@@ -129,43 +129,37 @@ export default function QuickOrderList({
       </div>
 
       {/* PRODUCT TABLE */}
-      <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-50">
           <div className="col-span-6">نام محصول و برند</div>
           <div className="col-span-3 text-center">قیمت عمده (هر کارتن)</div>
           <div className="col-span-3 text-center">تعداد سفارش</div>
         </div>
 
-        <div className="divide-y divide-slate-100 min-h-[200px]">
-          <AnimatePresence mode="popLayout">
-            {filteredProducts.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="py-12 text-center space-y-3"
-              >
-                <div className="text-3xl">🔍</div>
-                <p className="text-xs font-black text-slate-400">محصولی پیدا نشد.</p>
-              </motion.div>
-            ) : (
-              filteredProducts.map(product => {
-                const inCart = getProductQtyInCart(product.id);
-                const pendingQty = quantities[product.id] || 0;
-                const cartonPrice = product.bulk_price * product.carton_pack_count;
+        <div className="flex flex-col divide-y divide-slate-100 min-h-[200px] w-full">
+          {filteredProducts.length === 0 ? (
+            <div className="py-12 text-center space-y-3">
+              <div className="text-3xl">🔍</div>
+              <p className="text-xs font-black text-slate-400">محصولی پیدا نشد.</p>
+            </div>
+          ) : (
+            filteredProducts.map((product, idx) => {
+              const inCart = getProductQtyInCart(product.id);
+              const pendingQty = quantities[product.id] || 0;
+              const cartonPrice = product.bulk_price * product.carton_pack_count;
 
-                return (
-                  <motion.div 
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    key={product.id} 
-                    className={`flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 px-4 sm:px-6 py-3.5 items-center transition-colors ${
-                      inCart > 0 ? 'bg-purple-50/50' : ''
-                    } hover`}
-                  >
-                    {/* Left Product Info */}
-                    <div className="w-full md:col-span-6 flex items-center gap-3">
+              return (
+                <div 
+                  key={`quick-prod-${product.id || idx}-${idx}`} 
+                  className={`flex flex-col md:grid md:grid-cols-12 gap-5 md:gap-4 px-4 sm:px-6 py-7 md:py-4 items-center transition-all duration-300 w-full ${
+                    inCart > 0 ? 'bg-purple-50/80' : 'bg-white'
+                  } hover:bg-slate-50/80 relative border-b border-slate-100 last:border-0`}
+                >
+                  {inCart > 0 && (
+                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-purple-600 rounded-l-full" />
+                  )}
+                  {/* Left Product Info */}
+                  <div className="w-full md:col-span-6 flex items-center gap-3">
                       <div className="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden text-emerald-700">
                         {product.image_url ? (
                           <img 
@@ -203,8 +197,8 @@ export default function QuickOrderList({
                     </div>
 
                     {/* Actions & Quantity Controls */}
-                    <div className="w-full md:col-span-3 flex items-center justify-between md:justify-center gap-2 pt-2 md:pt-0 border-t md border-slate-100">
-                      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                    <div className="w-full md:col-span-3 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 mt-2 md:mt-0 bg-slate-50/40 md:bg-transparent p-4 md:p-0 rounded-2xl md:rounded-none">
+                      <div className="flex items-center gap-2 bg-white md:bg-slate-100/80 p-2 md:p-1.5 rounded-xl border border-slate-200 shadow-sm md:shadow-none w-full sm:w-auto justify-center">
                         <button 
                           onClick={() => handleQtyChange(product.id, 1)}
                           className="w-6 h-6 flex items-center justify-center rounded hover transition-colors text-purple-700 font-black cursor-pointer"
@@ -227,21 +221,20 @@ export default function QuickOrderList({
 
                       <button
                         onClick={() => {
-                          const qtyToAdd = pendingQty > 0 ? pendingQty : (product.min_order_cartons || 1);
+                          const qtyToAdd = pendingQty > 0 ? pendingQty : (product ? Math.max(5, product.min_order_cartons || 5) : 5);
                           onAddToCart(product, qtyToAdd);
                           setQuantities(prev => ({ ...prev, [product.id]: 0 }));
                         }}
-                        className="px-4 py-2 rounded-lg font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer bg-purple-700 text-white hover shadow-sm"
+                        className="px-4 py-2 rounded-lg font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer bg-purple-700 text-white hover:bg-purple-800 shadow-sm"
                       >
                         <ShoppingBag size={12} />
                         افزودن
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 );
-              })
-            )}
-          </AnimatePresence>
+            })
+          )}
         </div>
       </div>
 

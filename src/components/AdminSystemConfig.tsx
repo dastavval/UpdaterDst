@@ -43,7 +43,10 @@ import {
   Save,
   Code2,
   ShieldAlert,
-  Webhook
+  Webhook,
+  DollarSign,
+  Percent,
+  TrendingDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -70,7 +73,8 @@ type ActiveTab =
   | "load_balancer"
   | "installer"
   | "backup"
-  | "parspack_storage";
+  | "parspack_storage"
+  | "financial";
 
 export default function AdminSystemConfig({
   b2bConfig,
@@ -92,18 +96,16 @@ export default function AdminSystemConfig({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    "سیستم آماده به کار است.",
-    "هسته مرکزی مانیتورینگ سرور فعال شد.",
-    "اتصال به دیتابیس ابر دست‌اول تایید گردید."
+    "سیستم آماده به کار است."
   ]);
 
   // --- 1. SERVER STATUS STATES ---
-  const [cpuUsage, setCpuUsage] = useState(18);
-  const [ramUsage, setRamUsage] = useState(42);
-  const [diskUsage, setDiskUsage] = useState(29);
-  const [activeConnections, setActiveConnections] = useState(142);
-  const [pingLatency, setPingLatency] = useState(12);
-  const [uptimeDays, setUptimeDays] = useState(48);
+  const [cpuUsage, setCpuUsage] = useState(0);
+  const [ramUsage, setRamUsage] = useState(0);
+  const [diskUsage, setDiskUsage] = useState(0);
+  const [activeConnections, setActiveConnections] = useState(0);
+  const [pingLatency, setPingLatency] = useState(0);
+  const [uptimeDays, setUptimeDays] = useState(0);
 
   // --- 2. GITHUB AUTO UPDATE STATES ---
   const [githubRepoUrl, setGithubRepoUrl] = useState(
@@ -120,10 +122,10 @@ export default function AdminSystemConfig({
     date: string;
     message: string;
   }>({
-    hash: "a4f89d2",
-    author: "DastAvval Core Team",
-    date: new Date().toLocaleDateString("fa-IR"),
-    message: "بهینه‌سازی سیستم فاکتور رسمی و مانیتورینگ لودبالانسر سرور"
+    hash: "-",
+    author: "-",
+    date: "-",
+    message: "-"
   });
 
   const [githubDiagnostics, setGithubDiagnostics] = useState<any>(null);
@@ -198,11 +200,7 @@ export default function AdminSystemConfig({
   const [autoIndexStatus, setAutoIndexStatus] = useState("فعال و بهینه");
   const [isOptimizingDb, setIsOptimizingDb] = useState(false);
   const [crossHostSyncEnabled, setCrossHostSyncEnabled] = useState(!!(b2bConfig as any).crossHostSyncEnabled);
-  const [remoteDbNodes, setRemoteDbNodes] = useState<any[]>((b2bConfig as any).remoteDbNodes || [
-    { id: 'master', host: 'primary.dastavval.ir', role: 'master', status: 'connected', latency: 12 },
-    { id: 'slave-1', host: 'secondary-de.dastavval.ir', role: 'slave', status: 'syncing', latency: 45 },
-    { id: 'replica-1', host: 'load-balance-01.local', role: 'replica', status: 'standby', latency: 2 }
-  ]);
+  const [remoteDbNodes, setRemoteDbNodes] = useState<any[]>((b2bConfig as any).remoteDbNodes || []);
   const [dbSyncInterval, setDbSyncInterval] = useState<number>((b2bConfig as any).dbSyncInterval || 300);
   const [newRemoteNodeHost, setNewRemoteNodeHost] = useState("");
 
@@ -210,12 +208,7 @@ export default function AdminSystemConfig({
   const [lbStrategy, setLbStrategy] = useState<"round_robin" | "least_conn" | "ip_hash" | "weighted">(
     (b2bConfig as any).lbStrategy || "least_conn"
   );
-  const [lbNodes, setLbNodes] = useState([
-    { id: "node-1", name: "سرور مرکزی تهران (Node-01)", ip: "185.142.12.10", status: "online", load: 24, ping: 8 },
-    { id: "node-2", name: "سرور پشتیبان تبریز (Node-02)", ip: "185.142.12.11", status: "online", load: 18, ping: 14 },
-    { id: "node-3", name: "سرور توزیع شیراز (Node-03)", ip: "185.142.12.12", status: "online", load: 12, ping: 22 },
-    { id: "node-4", name: "شبکه توزیع محتوا Edge CDN", ip: "cdn.dastavval.ir", status: "online", load: 31, ping: 5 }
-  ]);
+  const [lbNodes, setLbNodes] = useState([]);
 
   // --- 6. AUTO INSTALLER / SETUP WIZARD STATES ---
   const [showInstallerWizard, setShowInstallerWizard] = useState(false);
@@ -236,6 +229,14 @@ export default function AdminSystemConfig({
   const [serverBackups, setServerBackups] = useState<any[]>([]);
   const [isFetchingBackups, setIsFetchingBackups] = useState(false);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+  
+  // --- 8. FINANCIAL & COMMISSION SETTINGS ---
+  const [commissionRate, setCommissionRate] = useState<number>((b2bConfig as any).commissionRate || 5);
+  const [customerMarkupPercent, setCustomerMarkupPercent] = useState<number>((b2bConfig as any).customerMarkupPercent || 10);
+  const [consumerPriceFactor, setConsumerPriceFactor] = useState<number>((b2bConfig as any).consumerPriceFactor || 1.3);
+  const [marketerCommissionPercent, setMarketerCommissionPercent] = useState<number>((b2bConfig as any).marketerCommissionPercent || 5);
+  const [repRegionalProfitSharePercent, setRepRegionalProfitSharePercent] = useState<number>((b2bConfig as any).repRegionalProfitSharePercent || 50);
+  const [repFloorSalesThreshold, setRepFloorSalesThreshold] = useState<number>((b2bConfig as any).repFloorSalesThreshold || 300000000);
 
   const fetchBackups = async () => {
     setIsFetchingBackups(true);
@@ -1142,6 +1143,28 @@ export default function AdminSystemConfig({
     }
   };
 
+  const handleSaveFinancialConfigs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    addLog("ذخیره تنظیمات مالی، درصد کمیسیون‌ها و حاشیه سود بازار...");
+    try {
+      await onUpdateB2bConfig({
+        commissionRate: Number(commissionRate),
+        customerMarkupPercent: Number(customerMarkupPercent),
+        consumerPriceFactor: Number(consumerPriceFactor),
+        marketerCommissionPercent: Number(marketerCommissionPercent),
+        repRegionalProfitSharePercent: Number(repRegionalProfitSharePercent),
+        repFloorSalesThreshold: Number(repFloorSalesThreshold)
+      } as any);
+      addLog("تنظیمات مالی و درصدها با موفقیت در هسته مرکزی بروزرسانی شد.");
+      setSuccessMsg("تنظیمات مالی، کمیسیون‌ها و حاشیه سود با موفقیت ذخیره شدند.");
+    } catch (e: any) {
+      setErrorMsg("خطا در ذخیره تنظیمات مالی.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
     const persian: Record<string, string> = {
@@ -1190,37 +1213,37 @@ export default function AdminSystemConfig({
       </AnimatePresence>
 
       {/* TOP HEADER OVERVIEW BANNER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-6 sm:p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden border border-slate-700/50">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] text-slate-900 shadow-xl relative overflow-hidden border border-slate-200">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-50 rounded-full blur-3xl opacity-60 pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
-              <span className="text-[10px] font-mono tracking-widest text-emerald-400 font-bold uppercase">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[10px] font-mono tracking-widest text-emerald-600 font-bold uppercase">
                 INFRASTRUCTURE & SYSTEM CONTROL CENTER
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
-              <Server className="text-emerald-400" size={28} />
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 flex items-center gap-3">
+              <Server className="text-emerald-600" size={28} />
               مدیریت سرور، دیتابیس و زیرساخت هوشمند
             </h2>
-            <p className="text-xs text-slate-300 font-bold max-w-2xl leading-relaxed">
+            <p className="text-xs text-slate-500 font-bold max-w-2xl leading-relaxed">
               مرکز مدیریت همه‌جانبه وضعیت سرور، لودبالانسینگ، دیتابیس جادویی، بروزرسانی از گیت‌هاب، راه اندازی اتوماتیک و سیستم‌های آسان بکاپ و انتقال اطلاعات.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 bg-white/10 p-3 rounded-2xl border border-white/10 backdrop-blur-md">
-            <div className="text-center px-3 border-l border-white/10">
+          <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            <div className="text-center px-3 border-l border-slate-200">
               <span className="text-[9px] text-slate-400 block font-bold">وضعیت سرور</span>
-              <span className="text-xs font-black text-emerald-400">آنلاین و پایدار</span>
+              <span className="text-xs font-black text-emerald-600">آنلاین و پایدار</span>
             </div>
-            <div className="text-center px-3 border-l border-white/10">
+            <div className="text-center px-3 border-l border-slate-200">
               <span className="text-[9px] text-slate-400 block font-bold">آپتایم سیستم</span>
-              <span className="text-xs font-black text-amber-300">{toPersianNum(uptimeDays)} روز</span>
+              <span className="text-xs font-black text-amber-600">{toPersianNum(uptimeDays)} روز</span>
             </div>
             <div className="text-center px-3">
               <span className="text-[9px] text-slate-400 block font-bold">امتیاز دیتابیس</span>
-              <span className="text-xs font-black text-indigo-300">{toPersianNum(magicDbHealthScore)}/۱۰۰</span>
+              <span className="text-xs font-black text-indigo-600">{toPersianNum(magicDbHealthScore)}/۱۰۰</span>
             </div>
           </div>
         </div>
@@ -1232,8 +1255,8 @@ export default function AdminSystemConfig({
           onClick={() => setActiveTab("github")}
           className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
             activeTab === "github"
-              ? "bg-slate-900 text-white shadow-xl ring-2 ring-purple-500/50"
-              : "bg-purple-100 text-purple-900 hover:bg-purple-200"
+              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+              : "bg-indigo-50 text-indigo-900 hover:bg-indigo-100"
           }`}
         >
           <GitBranch size={16} className="text-amber-400" />
@@ -1286,6 +1309,18 @@ export default function AdminSystemConfig({
         >
           <Sliders size={16} />
           کانفیگ سایت و دیتابیس
+        </button>
+
+        <button
+          onClick={() => setActiveTab("financial")}
+          className={`flex-1 min-w-[120px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "financial"
+              ? "bg-emerald-700 text-white shadow-lg shadow-emerald-700/20 ring-2 ring-emerald-500/30"
+              : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+          }`}
+        >
+          <DollarSign size={16} />
+          تنظیم درصدها و امور مالی
         </button>
 
         <button
@@ -1356,8 +1391,8 @@ export default function AdminSystemConfig({
           {/* Header & Main Automated Actions */}
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/30">
-                <Github size={24} className="text-amber-400 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100">
+                <Github size={24} className="animate-pulse" />
               </div>
               <div>
                 <h3 className="text-sm font-black text-slate-800">مرکز مدیریت و همگام‌سازی زنده گیت‌هاب (GitHub Sync Hub)</h3>
@@ -1371,7 +1406,7 @@ export default function AdminSystemConfig({
                 type="button"
                 onClick={handleAutomatedFullPipeline}
                 disabled={loading}
-                className="px-5 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:brightness-110 text-white rounded-2xl text-xs font-black transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer active:scale-95"
+                className="px-5 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer active:scale-95"
               >
                 {loading ? <RefreshCw size={18} className="animate-spin" /> : <Zap size={18} className="text-amber-300" />}
                 <span>⚡ اجرای اتوماتیک ۱-کلیکه (کل فرآیند)</span>
@@ -1484,36 +1519,36 @@ export default function AdminSystemConfig({
           {/* Versioning & Affected System Sections Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Installed Local Version Card */}
-            <div className="bg-slate-900 text-white p-5 rounded-3xl space-y-3 shadow-md">
+            <div className="bg-white border border-slate-200 p-5 rounded-3xl space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-slate-300 flex items-center gap-1.5">
-                  <CheckCircle size={16} className="text-emerald-400" />
+                <span className="text-xs font-black text-slate-500 flex items-center gap-1.5">
+                  <CheckCircle size={16} className="text-emerald-500" />
                   نسخه فعال سرور
                 </span>
-                <span className="px-2 py-0.5 bg-slate-800 text-emerald-400 text-[10px] font-mono font-black rounded-md dir-ltr">
+                <span className="px-2 py-0.5 bg-slate-50 text-emerald-600 text-[10px] font-mono font-black rounded-md border border-slate-100 dir-ltr">
                   {lastCommitInfo.hash}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 font-bold line-clamp-2">« {lastCommitInfo.message} »</p>
-              <div className="text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-800 pt-2">
+              <p className="text-xs text-slate-700 font-bold line-clamp-2">« {lastCommitInfo.message} »</p>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 pt-2">
                 <span>توسعه‌دهنده: {lastCommitInfo.author}</span>
                 <span>{lastCommitInfo.date}</span>
               </div>
             </div>
 
             {/* Remote Git Version Card */}
-            <div className="bg-gradient-to-br from-indigo-900 via-purple-950 to-slate-900 text-white p-5 rounded-3xl space-y-3 shadow-md">
+            <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-3xl space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-indigo-200 flex items-center gap-1.5">
-                  <Github size={16} className="text-amber-400" />
+                <span className="text-xs font-black text-indigo-700 flex items-center gap-1.5">
+                  <Github size={16} className="text-indigo-600" />
                   آخرین نسخه مخزن Git
                 </span>
-                <span className="px-2 py-0.5 bg-purple-900/60 text-amber-300 text-[10px] font-mono font-black rounded-md dir-ltr">
+                <span className="px-2 py-0.5 bg-white text-amber-600 text-[10px] font-mono font-black rounded-md border border-indigo-200 dir-ltr">
                   {remoteCommitInfo?.sha || "در حال استعلام"}
                 </span>
               </div>
-              <p className="text-xs text-indigo-100 font-bold line-clamp-2">« {remoteCommitInfo?.message || "کلید استعلام و دانلود را کلیک کنید"} »</p>
-              <div className="text-[10px] text-indigo-300 flex items-center justify-between border-t border-purple-900/60 pt-2">
+              <p className="text-xs text-indigo-900 font-bold line-clamp-2">« {remoteCommitInfo?.message || "کلید استعلام و دانلود را کلیک کنید"} »</p>
+              <div className="text-[10px] text-indigo-400 flex items-center justify-between border-t border-indigo-200/50 pt-2">
                 <span>نویسنده: {remoteCommitInfo?.author || "GitHub"}</span>
                 <span>{remoteCommitInfo?.date || "-"}</span>
               </div>
@@ -1686,7 +1721,7 @@ export default function AdminSystemConfig({
                       }
                     }}
                     disabled={loading}
-                    className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer"
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer active:scale-95"
                   >
                     <Save size={16} />
                     <span>ذخیره تنظیمات مخزن Git</span>
@@ -1715,14 +1750,14 @@ export default function AdminSystemConfig({
                 </button>
               </div>
               
-              <div className="bg-slate-950 text-emerald-400 p-5 rounded-[2rem] font-mono text-[11px] leading-relaxed h-[360px] overflow-y-auto border border-slate-800 shadow-inner flex flex-col space-y-2.5" dir="ltr">
-                <div className="text-slate-400 font-bold border-b border-slate-800 pb-2 flex items-center justify-between">
+              <div className="bg-slate-50 text-slate-700 p-5 rounded-[2rem] font-mono text-[11px] leading-relaxed h-[360px] overflow-y-auto border border-slate-200 shadow-inner flex flex-col space-y-2.5" dir="ltr">
+                <div className="text-slate-400 font-bold border-b border-slate-200 pb-2 flex items-center justify-between">
                   <span>[SYSTEM GIT LOG MONITOR]</span>
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1">
                   {terminalLogs.map((log, i) => (
-                    <div key={i} className="whitespace-pre-wrap font-mono">
+                    <div key={`admin-sys-log-${log.slice(0, 10)}-${i}`} className="whitespace-pre-wrap font-mono">
                       {log}
                     </div>
                   ))}
@@ -1771,8 +1806,8 @@ export default function AdminSystemConfig({
                 <button
                   type="button"
                   onClick={() => setFileStatusFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer ${
-                    fileStatusFilter === 'all' ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-200"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-sm transition-all ${
+                    fileStatusFilter === 'all' ? "bg-indigo-600 text-white shadow-indigo-600/20" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
                   همه فایل‌ها ({previewFiles.length})
@@ -1929,6 +1964,168 @@ export default function AdminSystemConfig({
         </div>
       )}
 
+      {/* --- TAB: FINANCIAL & COMMISSION SETTINGS --- */}
+      {activeTab === "financial" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <form onSubmit={handleSaveFinancialConfigs} className="space-y-6">
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 border border-emerald-100 shadow-sm shrink-0">
+                    <DollarSign size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight">تنظیم درصدها، کمیسیون‌ها و حاشیه سود بازار</h3>
+                    <p className="text-xs text-slate-500 font-bold mt-1">پیکربندی هوشمند قوانین مالی، سود نمایندگان، بازاریابان و قیمت‌گذاری مصرف‌کننده</p>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-700/20 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
+                  <span>ذخیره تنظیمات مالی</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Section 1: Sales & Commissions */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 text-indigo-700 mb-2">
+                    <Percent size={18} />
+                    <h4 className="text-sm font-black uppercase tracking-wider">قوانین کمیسیون و کارمزد سامانه</h4>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-black text-slate-700">درصد کارمزد خدمات پلتفرم (Service Fee):</label>
+                        <span className="text-xs font-black text-indigo-600">{toPersianNum(commissionRate)}٪</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        step="0.5"
+                        value={commissionRate}
+                        onChange={(e) => setCommissionRate(Number(e.target.value))}
+                        className="w-full accent-emerald-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                      />
+                      <p className="text-[9px] text-slate-400 font-bold leading-relaxed">این درصد از هر معامله موفق به عنوان هزینه خدمات و نگهداری پلتفرم کسر می‌شود.</p>
+                    </div>
+
+                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-black text-slate-700">سهم بازاریاب از هر سفارش (Marketer Fee):</label>
+                        <span className="text-xs font-black text-amber-600">{toPersianNum(marketerCommissionPercent)}٪</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="15"
+                        step="0.5"
+                        value={marketerCommissionPercent}
+                        onChange={(e) => setMarketerCommissionPercent(Number(e.target.value))}
+                        className="w-full accent-amber-500 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                      />
+                      <p className="text-[9px] text-slate-400 font-bold leading-relaxed">درصدی که به ازای هر سفارش ثبت شده توسط ویزیتور یا بازاریاب به کیف پول ایشان واریز می‌گردد.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Pricing Logic */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 text-indigo-700 mb-2">
+                    <TrendingDown size={18} />
+                    <h4 className="text-sm font-black uppercase tracking-wider">منطق قیمت‌گذاری و حاشیه سود خریدار</h4>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-black text-slate-700">ضریب تبدیل قیمت عمده به مصرف‌کننده (Markup):</label>
+                        <span className="text-xs font-black text-emerald-600">×{toPersianNum(consumerPriceFactor.toFixed(2))}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="2"
+                        step="0.01"
+                        value={consumerPriceFactor}
+                        onChange={(e) => setConsumerPriceFactor(Number(e.target.value))}
+                        className="w-full accent-emerald-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                      />
+                      <p className="text-[9px] text-slate-400 font-bold leading-relaxed">سود خرده‌فروشی پیشنهادی؛ مثال ۱.۳۰ یعنی ۳۰٪ سود برای مغازه‌دار نسبت به قیمت خرید عمده.</p>
+                    </div>
+
+                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-black text-slate-700">درصد حاشیه سود بنکداری در نمایش کاتالوگ:</label>
+                        <span className="text-xs font-black text-indigo-600">{toPersianNum(customerMarkupPercent)}٪</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="30"
+                        step="1"
+                        value={customerMarkupPercent}
+                        onChange={(e) => setCustomerMarkupPercent(Number(e.target.value))}
+                        className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                      />
+                      <p className="text-[9px] text-slate-400 font-bold leading-relaxed">این عدد صرفاً جهت نمایش "سود تخمینی شما" در نمای کاتالوگ و جلب رضایت مشتریان استفاده می‌شود.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rep Section */}
+              <div className="mt-10 pt-8 border-t border-slate-100">
+                <div className="flex items-center gap-2 text-indigo-700 mb-6">
+                  <ShieldCheck size={18} />
+                  <h4 className="text-sm font-black uppercase tracking-wider">تنظیمات مالی عاملیت‌ها و نمایندگان استانی</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-black text-slate-700">سهم نماینده از کارمزد تراکنش‌های منطقه خود:</label>
+                      <span className="text-xs font-black text-indigo-700">{toPersianNum(repRegionalProfitSharePercent)}٪</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={repRegionalProfitSharePercent}
+                      onChange={(e) => setRepRegionalProfitSharePercent(Number(e.target.value))}
+                      className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                    />
+                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">نماینده از کل سودی که "دست اول" از فروش در شهر/استان وی کسب می‌کند، این درصد را دریافت می‌کند.</p>
+                  </div>
+
+                  <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-black text-slate-700">کف فروش ماهانه جهت حفظ عاملیت (تومان):</label>
+                      <span className="text-xs font-black text-slate-800">{toPersianNum(repFloorSalesThreshold.toLocaleString('fa-IR'))} تومان</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={repFloorSalesThreshold}
+                      onChange={(e) => setRepFloorSalesThreshold(Number(e.target.value))}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-black text-slate-800"
+                    />
+                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">حداقل میزان فروش ماهانه محصولات در منطقه که نماینده موظف به تحقق آن برای تمدید قرارداد است.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* --- TAB 1: SERVER STATUS & TELEMETRY --- */}
       {activeTab === "status" && (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -2021,7 +2218,7 @@ export default function AdminSystemConfig({
               <button
                 onClick={() => handleServerAction("restart_services")}
                 disabled={loading}
-                className="p-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                 ری‌استارت سرویس‌های سرور
@@ -2083,18 +2280,18 @@ export default function AdminSystemConfig({
           </div>
 
           {/* Top Social Bar Toggle Banner */}
-          <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 rounded-2xl border border-purple-500/30 flex items-center justify-between gap-4">
+          <div className="bg-slate-50 text-slate-900 p-5 rounded-2xl border border-slate-200 flex items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black border border-amber-200">
                   تنظیمات نوار بالایی هدر
                 </span>
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${showTopSocialBar ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-700 text-slate-300"}`}>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${showTopSocialBar ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-slate-200 text-slate-600"}`}>
                   {showTopSocialBar ? "فعال" : "غیرفعال (پیش‌فرض)"}
                 </span>
               </div>
-              <h4 className="text-sm font-black text-white">نمایش نوار اعلان دکمه‌های شبکه اجتماعی بالای سایت (Header Bar)</h4>
-              <p className="text-[11px] text-slate-300 font-bold">با فعال‌سازی، دکمه‌های مستقیم کانال روبیکا، تلگرام، واتساپ و اینستاگرام در بالاترین بخش تمام صفحات نمایش داده می‌شود.</p>
+              <h4 className="text-sm font-black text-slate-900">نمایش نوار اعلان دکمه‌های شبکه اجتماعی بالای سایت (Header Bar)</h4>
+              <p className="text-[11px] text-slate-500 font-bold">با فعال‌سازی، دکمه‌های مستقیم کانال روبیکا، تلگرام، واتساپ و اینستاگرام در بالاترین بخش تمام صفحات نمایش داده می‌شود.</p>
             </div>
 
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2217,7 +2414,7 @@ export default function AdminSystemConfig({
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-6 animate-in fade-in duration-300">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
                 <GitBranch size={22} />
               </div>
               <div>
@@ -2287,7 +2484,7 @@ export default function AdminSystemConfig({
                 type="button"
                 onClick={() => handleGitHubSync()}
                 disabled={loading}
-                className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 {loading ? <RefreshCw size={18} className="animate-spin" /> : <GitBranch size={18} />}
                 دریافت و بروزرسانی مستقیم از گیت‌هاب (One-Click Pull & Deploy)
@@ -2295,22 +2492,22 @@ export default function AdminSystemConfig({
             </div>
 
             {/* LAST COMMIT CARD */}
-            <div className="bg-slate-900 text-white p-6 rounded-3xl space-y-4 shadow-xl border border-slate-800 flex flex-col justify-between">
+            <div className="bg-white text-slate-900 p-6 rounded-3xl space-y-4 shadow-md border border-slate-200 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-                  <span className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider">
+                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                  <span className="text-[10px] text-emerald-600 font-mono font-bold uppercase tracking-wider">
                     LATEST COMMIT LOG
                   </span>
-                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] font-mono rounded font-bold">
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-mono rounded font-bold border border-emerald-100">
                     {lastCommitInfo.hash}
                   </span>
                 </div>
-                <h5 className="text-xs font-black text-white leading-relaxed">{lastCommitInfo.message}</h5>
-                <p className="text-[10px] text-slate-400 font-bold mt-2">نویسنده: {lastCommitInfo.author}</p>
-                <p className="text-[10px] text-slate-400 font-bold mt-1">تاریخ: {lastCommitInfo.date}</p>
+                <h5 className="text-xs font-black text-slate-800 leading-relaxed">{lastCommitInfo.message}</h5>
+                <p className="text-[10px] text-slate-500 font-bold mt-2">نویسنده: {lastCommitInfo.author}</p>
+                <p className="text-[10px] text-slate-500 font-bold mt-1">تاریخ: {lastCommitInfo.date}</p>
               </div>
 
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono">
                 <span>STATUS: SYNCHRONIZED</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </div>
@@ -2323,7 +2520,7 @@ export default function AdminSystemConfig({
       {activeTab === "config" && (
         <form onSubmit={handleSaveConfigs} className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm">
               <Sliders size={22} />
             </div>
             <div>
@@ -2611,7 +2808,7 @@ export default function AdminSystemConfig({
                     />
                     <button
                       onClick={handleAddRemoteDbNode}
-                      className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-colors shrink-0"
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-colors shrink-0 shadow-md shadow-indigo-600/20"
                     >
                       افزودن نود
                     </button>
@@ -2646,13 +2843,13 @@ export default function AdminSystemConfig({
             </div>
 
             {/* LIVE TERMINAL MONITOR */}
-            <div className="bg-slate-900 text-emerald-400 p-5 rounded-3xl font-mono text-[11px] leading-relaxed h-[280px] overflow-y-auto border border-slate-800 shadow-inner flex flex-col space-y-1" dir="ltr">
-              <div className="text-slate-400 font-bold border-b border-slate-800 pb-2 mb-2 flex items-center justify-between">
+            <div className="bg-slate-50 text-slate-700 p-5 rounded-3xl font-mono text-[11px] leading-relaxed h-[280px] overflow-y-auto border border-slate-200 shadow-inner flex flex-col space-y-1" dir="ltr">
+              <div className="text-slate-400 font-bold border-b border-slate-200 pb-2 mb-2 flex items-center justify-between">
                 <span>[MAGIC DB REALTIME LOGS]</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               </div>
               {terminalLogs.map((log, i) => (
-                <div key={i} className="whitespace-pre-wrap">
+                <div key={`admin-sys-log-2-${i}`} className="whitespace-pre-wrap">
                   {log}
                 </div>
               ))}
@@ -2775,7 +2972,7 @@ export default function AdminSystemConfig({
               { title: "۴. ساختار کاتالوگ اولیه", desc: "دسته‌بندی‌های پایه و دیتای نمونه", status: wizardStepsStatus.sampleCatalog },
               { title: "۵. لایه امنیت و SSL", desc: "گواهی SSL و کلیدهای امنیتی CORS", status: wizardStepsStatus.security }
             ].map((step, idx) => (
-              <div key={idx} className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-2">
+              <div key={`admin-sys-p-item-${idx}`} className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <h5 className="text-xs font-black text-slate-800">{step.title}</h5>
                   <CheckCircle size={18} className="text-emerald-500" />
@@ -2791,22 +2988,22 @@ export default function AdminSystemConfig({
           </div>
 
           {/* Special phpMyAdmin & LAMP (PHP + cPanel) Box */}
-          <div className="p-6 bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 rounded-3xl text-white space-y-6 shadow-xl border border-amber-500/30">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="p-6 bg-slate-50 rounded-3xl text-slate-900 space-y-6 shadow-sm border border-slate-200">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black">
                     پشتیبانی ۱۰۰٪ از cPanel & LAMP Stack
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-black">
                     PHP + phpMyAdmin
                   </span>
                 </div>
-                <h4 className="text-base font-black text-amber-300 flex items-center gap-2 mt-1">
-                  <Database size={20} className="text-emerald-400" />
+                <h4 className="text-base font-black text-amber-700 flex items-center gap-2 mt-1">
+                  <Database size={20} className="text-emerald-600" />
                   بسته نصب و راه اندازی روی cPanel و هاست‌های PHP (بدون نیاز به VPS)
                 </h4>
-                <p className="text-xs text-slate-300 font-bold">
+                <p className="text-xs text-slate-500 font-bold">
                   ویژه مدیریت آسان: می‌توانید پلتفرم را مستقیم روی cPanel آپلود کرده و دیتابیس را در phpMyAdmin ایمپورت کنید.
                 </p>
               </div>
@@ -2815,7 +3012,7 @@ export default function AdminSystemConfig({
                 <a
                   href="/database.sql"
                   download="dastavval_mysql_database.sql"
-                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer"
                 >
                   <Download size={15} />
                   <span>دانلود database.sql (برای phpMyAdmin)</span>
@@ -2824,7 +3021,7 @@ export default function AdminSystemConfig({
                 <a
                   href="/LAMP_CPANEL_GUIDE_FA.md"
                   download="LAMP_CPANEL_GUIDE_FA.md"
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-2xl transition-all border border-indigo-400/40 flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-2xl transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 cursor-pointer"
                 >
                   <FileText size={15} />
                   <span>دفترچه راهنمای cPanel (فارسی)</span>
@@ -2833,46 +3030,46 @@ export default function AdminSystemConfig({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
-              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
-                  <Server size={14} className="text-amber-400" />
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-xs">
+                <span className="text-xs font-black text-amber-600 flex items-center gap-1.5">
+                  <Server size={14} />
                   ۱. ساخت دیتابیس در cPanel:
                 </span>
-                <p className="text-[11px] text-slate-300 leading-relaxed font-bold">
-                  در cPanel از منوی MySQL Databases یک دیتابیس با نام <code className="text-amber-300 font-mono">dastavval_db</code> ایجاد کرده و رمز عبور تخصیص دهید.
+                <p className="text-[11px] text-slate-600 leading-relaxed font-bold">
+                  در cPanel از منوی MySQL Databases یک دیتابیس با نام <code className="text-amber-700 font-mono">dastavval_db</code> ایجاد کرده و رمز عبور تخصیص دهید.
                 </p>
               </div>
 
-              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
-                  <Database size={14} className="text-emerald-400" />
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-xs">
+                <span className="text-xs font-black text-emerald-600 flex items-center gap-1.5">
+                  <Database size={14} />
                   ۲. ایمپورت در phpMyAdmin:
                 </span>
-                <p className="text-[11px] text-slate-300 leading-relaxed font-bold">
-                  وارد phpMyAdmin شوید، دیتابیس را انتخاب کرده و از زبانه Import فایل <code className="text-emerald-300 font-mono">database.sql</code> را وارد کنید.
+                <p className="text-[11px] text-slate-600 leading-relaxed font-bold">
+                  وارد phpMyAdmin شوید، دیتابیس را انتخاب کرده و از زبانه Import فایل <code className="text-emerald-700 font-mono">database.sql</code> را وارد کنید.
                 </p>
               </div>
 
-              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-xs font-black text-blue-400 flex items-center gap-1.5">
-                  <Globe size={14} className="text-blue-400" />
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-xs font-black text-blue-600 flex items-center gap-1.5">
+                  <Globe size={14} className="text-blue-600" />
                   ۳. فایل‌های PHP آماده cPanel:
                 </span>
-                <p className="text-[11px] text-slate-300 leading-relaxed font-bold">
-                  کدهای Backend PHP درون پوشه <code className="text-blue-300 font-mono">/php/config.php</code> و <code className="text-blue-300 font-mono">/php/api.php</code> قرار دارند.
+                <p className="text-[11px] text-slate-600 leading-relaxed font-bold">
+                  کدهای Backend PHP درون پوشه <code className="text-blue-600 font-mono">/php/config.php</code> و <code className="text-blue-600 font-mono">/php/api.php</code> قرار دارند.
                 </p>
               </div>
             </div>
 
             {/* GitHub Repo Integration & 1-Click Sync */}
-            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl mb-8">
-              <div className="p-6 border-b border-slate-800 bg-slate-800/30 flex justify-between items-center">
+            <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-xl mb-8">
+              <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-indigo-500/20 text-indigo-400 rounded-2xl">
+                  <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 shadow-sm">
                     <Network size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white">وضعیت اتصال به ریپازیتوری (Repository Connectivity)</h3>
+                    <h3 className="text-sm font-black text-slate-900">وضعیت اتصال به ریپازیتوری (Repository Connectivity)</h3>
                     <p className="text-[10px] text-slate-400 font-bold mt-0.5">مانیتورینگ و مدیریت همگام‌سازی مستقیم با مخزن GitHub</p>
                   </div>
                 </div>
@@ -2887,7 +3084,7 @@ export default function AdminSystemConfig({
               <div className="p-8 space-y-8">
                 {/* Repository Health & Info */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-3">
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
                       <Code2 size={14} />
                       <span className="text-[10px] font-black">شاخه یا تگ فعال (Ref)</span>
@@ -2897,53 +3094,53 @@ export default function AdminSystemConfig({
                       value={githubBranch}
                       onChange={(e) => setGithubBranch(e.target.value)}
                       placeholder="main, master, v1.0 ..."
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-black text-white focus:border-indigo-500 outline-none transition-all"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:border-indigo-500 outline-none transition-all shadow-sm"
                     />
                     <p className="text-[9px] text-slate-500 font-bold">نام Branch یا Tag مورد نظر برای بروزرسانی را وارد کنید.</p>
                   </div>
-                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
                       <Activity size={14} />
                       <span className="text-[10px] font-black">وضعیت سرویس</span>
                     </div>
-                    <div className="text-sm font-black text-emerald-400 flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <div className="text-sm font-black text-emerald-600 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       عملیاتی (Connected)
                     </div>
                     <p className="text-[9px] text-slate-500 font-bold mt-2">ارتباط با API گیت‌هاب برقرار است.</p>
                   </div>
-                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
                       <Clock size={14} />
                       <span className="text-[10px] font-black">آخرین بروزرسانی موفق</span>
                     </div>
-                    <p className="text-sm font-black text-slate-300">
+                    <p className="text-sm font-black text-slate-800">
                       {b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleString('fa-IR') : 'ثبت نشده'}
                     </p>
                     <p className="text-[9px] text-slate-500 font-bold mt-2">زمان دقیق آخرین همگام‌سازی موفق</p>
                   </div>
-                  <div className="p-5 bg-slate-800/50 rounded-2xl border border-slate-700 space-y-1">
+                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                     <div className="flex items-center gap-2 text-slate-500 mb-1">
                       <ShieldCheck size={14} />
                       <span className="text-[10px] font-black">سطح امنیت</span>
                     </div>
-                    <p className="text-sm font-black text-indigo-400">SSL / OAuth 2.0</p>
+                    <p className="text-sm font-black text-indigo-600">SSL / OAuth 2.0</p>
                     <p className="text-[9px] text-slate-500 font-bold mt-2">اتصال امن و رمزنگاری شده</p>
                   </div>
                 </div>
 
                 {/* Hard Reset Action Banner */}
-                <div className="bg-gradient-to-r from-rose-900/40 via-slate-800 to-slate-800 rounded-[2rem] p-8 border border-rose-500/20 relative overflow-hidden group">
+                <div className="bg-gradient-to-r from-rose-50 via-white to-white rounded-[2rem] p-8 border border-rose-200 relative overflow-hidden group shadow-sm">
                   <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
                     <Terminal size={120} />
                   </div>
                   <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8">
                     <div className="flex-1 space-y-2">
-                      <h4 className="text-lg font-black text-white flex items-center gap-2">
+                      <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
                         <ShieldAlert className="text-rose-500" size={24} />
                         همگام‌سازی اجباری (Hard-Reset Sync)
                       </h4>
-                      <p className="text-[11px] text-slate-400 font-bold leading-relaxed max-w-2xl">
+                      <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-2xl">
                         اگر بروزرسانی استاندارد با خطا مواجه می‌شود یا فایل‌ها به درستی جایگزین نشده‌اند، از این گزینه استفاده کنید. 
                         در این حالت پوشه‌های <b>src</b> و <b>public</b> ابتدا حذف و سپس با نسخه جدید جایگزین می‌شوند.
                       </p>
@@ -2974,18 +3171,18 @@ export default function AdminSystemConfig({
                 </div>
 
                 {/* Manual ZIP Upload & Direct Sync Card */}
-                <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 rounded-[2rem] p-8 border border-amber-500/30 relative overflow-hidden group shadow-xl">
+                <div className="bg-gradient-to-r from-amber-50 via-white to-white rounded-[2rem] p-8 border border-amber-200 relative overflow-hidden group shadow-xl">
                   <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
                     <FileCode size={120} />
                   </div>
                   <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8">
                     <div className="flex-1 space-y-2">
-                      <h4 className="text-lg font-black text-white flex items-center gap-2">
-                        <Upload className="text-amber-400" size={24} />
+                      <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <Upload className="text-amber-500" size={24} />
                         بارگذاری دستی بسته بروزرسانی (Manual ZIP Upload)
                       </h4>
-                      <p className="text-[11px] text-slate-300 font-bold leading-relaxed max-w-2xl">
-                        اگر گیت‌هاب در دسترس نیست یا می‌خواهید فایل زیپ آپدیت را مستقیماً از سیستم خود بارگذاری کنید، فایل `.zip` پروژه را انتخاب کنید. سرور به صورت خودکار پوشه‌های قبلی را پاکسازی، بسته جدید را استخراج، کامپایل (<code className="text-amber-300 font-mono">npm run build</code>) و جایگزین می‌کند.
+                      <p className="text-[11px] text-slate-600 font-bold leading-relaxed max-w-2xl">
+                        اگر گیت‌هاب در دسترس نیست یا می‌خواهید فایل زیپ آپدیت را مستقیماً از سیستم خود بارگذاری کنید، فایل `.zip` پروژه را انتخاب کنید. سرور به صورت خودکار پوشه‌های قبلی را پاکسازی، بسته جدید را استخراج، کامپایل (<code className="text-amber-600 font-mono">npm run build</code>) و جایگزین می‌کند.
                       </p>
                     </div>
                     <div className="shrink-0">
@@ -3007,17 +3204,17 @@ export default function AdminSystemConfig({
             </div>
 
             {/* GitHub Repo Integration & 1-Click Sync */}
-            <div className="mt-4 p-4 bg-slate-950/90 rounded-2xl border border-indigo-500/30 space-y-4">
+            <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner space-y-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100 shadow-sm">
                     <Github size={20} />
                   </div>
                   <div>
-                    <h5 className="text-xs font-black text-white flex items-center gap-2">
+                    <h5 className="text-xs font-black text-slate-900 flex items-center gap-2">
                       لینک مخزن گیت‌هاب (GitHub Repository) و بروزرسانی آنلاین
                     </h5>
-                    <p className="text-[11px] text-slate-400 font-bold dir-ltr text-right">
+                    <p className="text-[11px] text-slate-500 font-bold dir-ltr text-right">
                       {b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/UpdaterDst'}
                     </p>
                   </div>
@@ -3028,7 +3225,7 @@ export default function AdminSystemConfig({
                     href={b2bConfig?.githubRepoUrl || 'https://github.com/dastavval/UpdaterDst'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-black rounded-xl border border-slate-700 flex items-center gap-1.5 cursor-pointer text-center"
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-black rounded-xl border border-slate-200 flex items-center gap-1.5 cursor-pointer text-center shadow-sm"
                   >
                     <ExternalLink size={14} />
                     <span>بازکردن GitHub</span>
@@ -3055,8 +3252,8 @@ export default function AdminSystemConfig({
                     این آدرس را در تنظیمات Webhooks مخزن گیت‌هاب خود اضافه کنید تا به محض Push، سایت خودکار بروز شود.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
-                  <code className="text-[10px] text-emerald-400 font-mono select-all">
+                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+                  <code className="text-[10px] text-emerald-600 font-mono select-all">
                     {window.location.origin}/api/github-webhook
                   </code>
                   <button 
@@ -3064,7 +3261,7 @@ export default function AdminSystemConfig({
                       navigator.clipboard.writeText(`${window.location.origin}/api/github-webhook`);
                       alert("آدرس وب‌هوک کپی شد.");
                     }}
-                    className="p-1.5 hover:bg-slate-800 text-slate-400 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-slate-100 text-slate-500 rounded-lg transition-colors"
                   >
                     <Copy size={12} />
                   </button>
@@ -3075,7 +3272,7 @@ export default function AdminSystemConfig({
 
           {/* INSTALLER WIZARD MODAL */}
           {showInstallerWizard && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -3190,7 +3387,7 @@ export default function AdminSystemConfig({
               <button
                 type="button"
                 onClick={handleDownloadSourceZip}
-                className="w-full py-4 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-slate-950 font-black rounded-2xl text-xs transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 <Download size={18} />
                 <span>دانلود سورس کد کامل پروژه (.ZIP)</span>
@@ -3243,7 +3440,7 @@ export default function AdminSystemConfig({
               />
               <label
                 htmlFor="restore-backup-file-input"
-                className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-center block"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-center block"
               >
                 <Upload size={18} />
                 انتخاب فایل JSON بکاپ و بازیابی اطلاعات
@@ -3252,14 +3449,14 @@ export default function AdminSystemConfig({
           </div>
 
           {/* SERVER-SIDE CLOUD BACKUP SECTION */}
-          <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-[2rem] shadow-xl space-y-6">
+          <div className="bg-white text-slate-900 p-6 sm:p-8 rounded-[2rem] shadow-md space-y-6 border border-slate-200">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h4 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                <h4 className="text-sm font-black text-cyan-600 flex items-center gap-2">
                   <RotateCcw size={20} />
                   بکاپ‌گیری کامل سروری روی باکت پارس‌پک (Cloud Backup)
                 </h4>
-                <p className="text-xs text-slate-300 font-bold mt-1">
+                <p className="text-xs text-slate-500 font-bold mt-1">
                   ایجاد بکاپ کامل از سورس پروژه، دیتابیس و تنظیمات به صورت فایل ZIP و ذخیره مستقیم در پوشه backups باکت پارس‌پک.
                 </p>
               </div>
@@ -3287,37 +3484,37 @@ export default function AdminSystemConfig({
             )}
 
             {/* Backup List Table */}
-            <div className="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
-              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-                <h5 className="text-[11px] font-black text-slate-200 flex items-center gap-2">
+            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-200">
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h5 className="text-[11px] font-black text-slate-700 flex items-center gap-2">
                   <Clock size={14} />
                   تاریخچه بکاپ‌های ذخیره شده در ابر ({toPersianNum(serverBackups.length)} مورد)
                 </h5>
                 <button 
                   onClick={fetchBackups}
                   disabled={isFetchingBackups}
-                  className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                  className="text-[10px] font-bold text-cyan-600 hover:text-cyan-700 flex items-center gap-1 cursor-pointer"
                 >
                   <RefreshCw size={10} className={isFetchingBackups ? "animate-spin" : ""} />
                   بروزرسانی لیست
                 </button>
               </div>
 
-              <div className="max-h-60 overflow-y-auto divide-y divide-slate-700/30">
+              <div className="max-h-60 overflow-y-auto divide-y divide-slate-200">
                 {isFetchingBackups && serverBackups.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400 italic">در حال دریافت لیست بکاپ‌ها...</div>
                 ) : serverBackups.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-500 italic">هنوز بکاپ سروری ایجاد نشده است.</div>
                 ) : (
                   serverBackups.map((bk, i) => (
-                    <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-700/20 transition-colors">
+                    <div key={`admin-sys-i-item-${i}`} className="p-4 flex items-center justify-between hover:bg-slate-100 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-cyan-400">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100">
                           <FileCode size={16} />
                         </div>
                         <div>
-                          <p className="text-[11px] font-black text-slate-200 font-mono" dir="ltr">{bk.fileName}</p>
-                          <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                          <p className="text-[11px] font-black text-slate-800 font-mono" dir="ltr">{bk.fileName}</p>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
                             تاریخ: {bk.lastModified ? new Date(bk.lastModified).toLocaleString("fa-IR") : "-"} | حجم: {toPersianNum(Math.round(bk.size / 1024 / 1024 * 10) / 10)} MB
                           </p>
                         </div>
@@ -3325,7 +3522,7 @@ export default function AdminSystemConfig({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleRestoreServerBackup(bk.key)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all shadow-md shadow-indigo-600/20"
                         >
                           <RotateCcw size={12} />
                           <span>بازیابی</span>
@@ -3334,14 +3531,14 @@ export default function AdminSystemConfig({
                           href={bk.proxyUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                          className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all shadow-md shadow-cyan-600/20"
                         >
                           <Download size={12} />
                           <span>دانلود</span>
                         </a>
                         <button
                           onClick={() => handleDeleteStorageFile(bk.key).then(fetchBackups)}
-                          className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                         >
                           <X size={14} />
                         </button>
@@ -3405,14 +3602,14 @@ export default function AdminSystemConfig({
             </div>
           </div>
 
-          <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-4">
+          <div className="p-6 bg-amber-50 text-slate-900 rounded-3xl space-y-4 border border-amber-200">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h4 className="text-sm font-black text-amber-400 flex items-center gap-2">
+                <h4 className="text-sm font-black text-amber-700 flex items-center gap-2">
                   <Sparkles size={18} />
                   تولید و ثبت خودکار فایل فیزیکی sitemap.xml
                 </h4>
-                <p className="text-xs text-slate-300 font-bold mt-1">
+                <p className="text-xs text-slate-600 font-bold mt-1">
                   این دکمه آخرین لیست محصولات، کارخانجات و دسته‌بندی‌ها را استخراج کرده و فایل فیزیکی /sitemap.xml را بازنویسی می‌کند.
                 </p>
               </div>
@@ -3486,7 +3683,7 @@ export default function AdminSystemConfig({
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-600 text-white flex items-center justify-center shadow-lg shadow-cyan-600/30">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center border border-cyan-100 shadow-sm">
                 <HardDrive size={24} />
               </div>
               <div>
@@ -3510,7 +3707,7 @@ export default function AdminSystemConfig({
                 type="button"
                 onClick={() => fetchStorageFiles()}
                 disabled={isFetchingStorageFiles}
-                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer"
+                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-600/20"
               >
                 <RefreshCw size={14} className={isFetchingStorageFiles ? "animate-spin" : ""} />
                 <span>بروزرسانی فایل‌ها</span>
@@ -3661,7 +3858,7 @@ export default function AdminSystemConfig({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
                 >
                   <Save size={14} />
                   <span>ذخیره کلیدها و تغییرات</span>
@@ -3680,24 +3877,24 @@ export default function AdminSystemConfig({
           </form>
 
           {/* Direct File Upload to ParsPack Bucket Box */}
-          <div className="bg-gradient-to-br from-cyan-900 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-6">
+          <div className="bg-gradient-to-br from-cyan-50 to-white text-slate-900 p-6 sm:p-8 rounded-3xl shadow-xl space-y-6 border border-cyan-100">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h4 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                <h4 className="text-sm font-black text-cyan-700 flex items-center gap-2">
                   <Upload size={20} />
                   آپلود مستقیم عکس، PDF و فایل به باکت پارس‌پک
                 </h4>
-                <p className="text-xs text-slate-300 font-bold mt-1">
+                <p className="text-xs text-slate-600 font-bold mt-1">
                   عکس محصول، لوگوی کارخانه، کاتالوگ یا فایل اختصاصی را انتخاب کنید تا مستقیماً روی باکت ذخیره شود.
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-300 shrink-0">پوشه مقصد:</span>
+                <span className="text-xs font-bold text-slate-500 shrink-0">پوشه مقصد:</span>
                 <select
                   value={uploadFolder}
                   onChange={(e) => setUploadFolder(e.target.value)}
-                  className="px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-cyan-400"
+                  className="px-3 py-2 bg-white border border-slate-200 text-slate-800 rounded-xl text-xs font-bold focus:ring-2 focus:ring-cyan-500"
                 >
                   <option value="uploads">uploads/ (عمومی)</option>
                   <option value="products">products/ (عکس کالا)</option>
@@ -3708,8 +3905,8 @@ export default function AdminSystemConfig({
               </div>
             </div>
 
-            <div className="border-2 border-dashed border-cyan-500/40 hover:border-cyan-400 bg-slate-800/50 p-8 rounded-2xl text-center space-y-4 transition-all">
-              <div className="w-16 h-16 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
+            <div className="border-2 border-dashed border-cyan-200 hover:border-cyan-400 bg-white p-8 rounded-2xl text-center space-y-4 transition-all">
+              <div className="w-16 h-16 rounded-full bg-cyan-50 text-cyan-600 flex items-center justify-center mx-auto border border-cyan-100">
                 {isUploadingToStorage ? (
                   <RefreshCw size={28} className="animate-spin" />
                 ) : (
@@ -3718,8 +3915,8 @@ export default function AdminSystemConfig({
               </div>
 
               <div className="space-y-1">
-                <p className="text-sm font-black text-white">فایل خود را اینجا رها کنید یا کلیک کنید</p>
-                <p className="text-[11px] text-slate-400 font-bold">پشتیبانی کامل از تصاویر (PNG, JPG, WebP)، فایل‌های PDF، zip و اسناد</p>
+                <p className="text-sm font-black text-slate-900">فایل خود را اینجا رها کنید یا کلیک کنید</p>
+                <p className="text-[11px] text-slate-500 font-bold">پشتیبانی کامل از تصاویر (PNG, JPG, WebP)، فایل‌های PDF، zip و اسناد</p>
               </div>
 
               <input
@@ -3771,8 +3968,8 @@ export default function AdminSystemConfig({
                 <p className="text-[11px] text-slate-400 font-bold">از فرم بالا اولین فایل خود را روی باکت پارس‌پک آپلود کنید.</p>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100">
-                <div className="bg-slate-900 text-slate-300 p-3 text-[11px] font-black grid grid-cols-12 gap-2 text-right">
+              <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 shadow-sm">
+                <div className="bg-slate-50 text-slate-600 p-3 text-[11px] font-black grid grid-cols-12 gap-2 text-right border-b border-slate-200">
                   <span className="col-span-5">نام فایل / کلید</span>
                   <span className="col-span-2 text-center">حجم</span>
                   <span className="col-span-2 text-center">تاریخ آپلود</span>
@@ -3786,7 +3983,7 @@ export default function AdminSystemConfig({
                     const dateStr = file.lastModified ? new Date(file.lastModified).toLocaleDateString("fa-IR") : "-";
 
                     return (
-                      <div key={idx} className="p-3 bg-white hover:bg-slate-50 grid grid-cols-12 gap-2 items-center text-xs font-bold text-slate-700">
+                      <div key={`admin-sys-a-item-${idx}`} className="p-3 bg-white hover:bg-slate-50 grid grid-cols-12 gap-2 items-center text-xs font-bold text-slate-700">
                         <div className="col-span-5 flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
                           {isImg ? (
                             <img

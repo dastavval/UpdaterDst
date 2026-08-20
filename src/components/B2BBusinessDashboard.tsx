@@ -124,15 +124,7 @@ export default function B2BBusinessDashboard({
     return num.toString().replace(/[0-9]/g, (w) => (persian as any)[w]);
   };
 
-  const PROVINCE_AGENTS = [
-    { province: "تهران و البرز", agent: "مهندس علیرضا رضایی", company: "بازرگانی دست اول پایتخت", phone: "۰۲۱-۸۸۸۸۴۴۴۴", address: "تهران، میدان ونک، برج فناوری تجارت ملی", status: "فعال و مستقل" },
-    { province: "اصفهان", agent: "حاج عباس احمدی", company: "توزیع گستر اصفهان سهند", phone: "۰۳۱-۳۳۳۳۲۲۲۲", address: "اصفهان، شهرک صنعتی جی، خیابان چهارم", status: "فعال و مستقل" },
-    { province: "خراسان رضوی", agent: "سید محمد موسوی", company: "پخش و توزیع شرق خراسان", phone: "۰۵۱-۳۸۸۸۷۷۷۷", address: "مشهد، بزرگراه کلانتری، مجتمع تجاری اطلس", status: "فعال و مستقل" },
-    { province: "فارس", agent: "خانم مهندس سلطانی", company: "توزیع تخصصی جنوب شیراز", phone: "۰۷۱-۳۲۲۲۵۵۵۵", address: "شیراز، بلوار امیرکبیر، کوچه ۱۲", status: "فعال و مستقل" },
-    { province: "آذربایجان شرقی", agent: "کربلایی یعقوب نوری", company: "صنایع پخش بنکداری سهند تبریز", phone: "۰۴۱-۳۶۶۶۹۹۹۹", address: "تبریز، جاده صوفیان، مجتمع پخش انبارها", status: "فعال و مستقل" },
-    { province: "خوزستان", agent: "آقای امین کریمی", company: "بازرگانی توزیع کارون اهواز", phone: "۰۶۱-۳۲۲۲۱۱۱۱", address: "اهواز، جاده اندیمشک، شهرک انبارداران", status: "فعال و مستقل" },
-    { province: "مازندران و گیلان", agent: "مهندس حسن یوسفی", company: "پخش خزر ساحل شمال", phone: "۰۱۱-۳۲۲۲۹۹۹۹", address: "ساری، کمربندی شرقی، روبروی ترمینال", status: "فعال و مستقل" }
-  ];
+  const PROVINCE_AGENTS: any[] = [];
 
   const getBadgeTranslation = (badge: string) => {
     switch (badge) {
@@ -155,56 +147,7 @@ export default function B2BBusinessDashboard({
   };
 
   // Simulated Past Wholesale Orders
-  const SIMULATED_ORDERS = [
-    {
-      id: "ord-102",
-      trackingNumber: lastOrderTracking || "TRK-88540",
-      totalAmount: lastOrderAmount || 24500000,
-      paymentMethod: "half_check" as PaymentMethod,
-      status: lastOrderTracking ? "production_line" : "quality_assurance",
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000 * 1), // 1 day ago
-      companyName: user?.company || "شرکت پخش زرین تهران",
-      taxId: "14015694200",
-      items: [
-        {
-          id: products[0]?.id || "p1",
-          name: products[0]?.name || "چیپس کتل سنتی نمک دریایی",
-          brand: products[0]?.brand || "مزمز",
-          bulk_price: products[0]?.bulk_price || 18500,
-          carton_pack_count: products[0]?.carton_pack_count || 24,
-          quantity: 12, // cartons
-          category: products[0]?.category || "تنقلات و شکلات",
-          image_url: products[0]?.image_url || "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=300&q=80",
-          consumer_price: products[0]?.consumer_price || 25000,
-          min_order_cartons: 5
-        }
-      ]
-    },
-    {
-      id: "ord-101",
-      trackingNumber: "TRK-99432",
-      totalAmount: 48600000,
-      paymentMethod: "cash" as PaymentMethod,
-      status: "delivered",
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000 * 12), // 12 days ago
-      companyName: user?.company || "شرکت پخش زرین تهران",
-      taxId: "14015694200",
-      items: [
-        {
-          id: products[1]?.id || "p2",
-          name: products[1]?.name || "کلوچه خرمایی ویژه سنتی",
-          brand: products[1]?.brand || "نظری",
-          bulk_price: products[1]?.bulk_price || 12500,
-          carton_pack_count: products[1]?.carton_pack_count || 36,
-          quantity: 15,
-          category: products[1]?.category || "کیک، کلوچه و بیسکویت",
-          image_url: products[1]?.image_url || "https://images.unsplash.com/photo-1558961309-dbdf71799f5a?auto=format&fit=crop&w=300&q=80",
-          consumer_price: products[1]?.consumer_price || 18000,
-          min_order_cartons: 8
-        }
-      ]
-    }
-  ];
+  const SIMULATED_ORDERS: any[] = [];
 
   const getOrderStatusBadge = (status: string) => {
     switch (status) {
@@ -608,7 +551,7 @@ export default function B2BBusinessDashboard({
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-bold bg-white">
                       {SIMULATED_ORDERS.map((order, idx) => (
-                        <tr key={idx} className="hover transition-colors">
+                        <tr key={`b2b-dash-order-desk-${order.id || order.trackingNumber || idx}-${idx}`} className="hover transition-colors">
                           <td className="px-5 py-4 whitespace-nowrap font-mono text-emerald-600 font-black">{order.trackingNumber}</td>
                           <td className="px-5 py-4 whitespace-nowrap text-slate-600">{toPersianNum(order.createdAt.toLocaleDateString("fa-IR"))}</td>
                           <td className="px-5 py-4 whitespace-nowrap font-mono">{order.totalAmount.toLocaleString()}</td>
@@ -639,7 +582,7 @@ export default function B2BBusinessDashboard({
                 <div className="md:hidden space-y-4">
                   {SIMULATED_ORDERS.map((order, idx) => (
                     <div 
-                      key={idx} 
+                      key={`b2b-dash-order-mob-${order.id || order.trackingNumber || idx}-${idx}`} 
                       className="bg-white border border-slate-150 rounded-xl p-4.5 space-y-3.5 shadow-sm"
                     >
                       <div className="grid grid-cols-2 gap-y-2.5 gap-x-4 text-xs font-bold">
@@ -818,7 +761,7 @@ export default function B2BBusinessDashboard({
                       const isCurrent = idx === activeStageIdx;
 
                       return (
-                        <div key={stage.key} className="relative flex flex-col sm:flex-row items-start gap-4">
+                        <div key={`b2b-dash-stage-${stage.key}-${idx}`} className="relative flex flex-col sm:flex-row items-start gap-4">
                           <div className={`absolute -right-[31px] top-1.5 w-4 h-4 rounded-full border-4 flex items-center justify-center transition-all ${
                             isPassed 
                               ? 'bg-emerald-500 border-white scale-110 shadow-lg shadow-emerald-500/20' 
@@ -941,8 +884,8 @@ export default function B2BBusinessDashboard({
                   onChange={e => handleProductChange(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus focus text-xs font-bold text-slate-700 text-right"
                 >
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
+                  {products.map((p, idx) => (
+                    <option key={`b2b-dash-prod-opt-${p.id || idx}-${idx}`} value={p.id}>
                       {p.brand} - {p.name}
                     </option>
                   ))}
@@ -1087,7 +1030,7 @@ export default function B2BBusinessDashboard({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {PROVINCE_AGENTS.map((item, idx) => (
-                <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover transition-all flex flex-col justify-between">
+                <div key={`b2b-dash-agent-${item.province || idx}-${idx}`} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-xs bg-emerald-50 text-emerald-700 font-black px-2.5 py-1 rounded-lg">

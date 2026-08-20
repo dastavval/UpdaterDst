@@ -41,11 +41,11 @@ export default function StarRating({
   return (
     <div className={`inline-flex items-center gap-1.5 ${className}`}>
       <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => {
+        {[1, 2, 3, 4, 5].map((star, idx) => {
           const isFilled = star <= Math.round(displayRating);
           return (
             <button
-              key={star}
+              key={`star-rating-btn-${star}-${idx}`}
               type="button"
               disabled={!interactive}
               onClick={() => handleStarClick(star)}

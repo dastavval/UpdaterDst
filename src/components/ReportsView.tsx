@@ -230,7 +230,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ language, user, userBadge }) 
       </div>
 
       {/* Additional Stats */}
-      <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
+      <div className="bg-indigo-600 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
         <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-2">

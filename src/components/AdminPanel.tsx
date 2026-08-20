@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -7,13 +7,14 @@ import { Product, B2BConfig, OrderItem, SlideItem, BrandItem } from "../types";
 import { fetchCRMCustomers, CRMCustomer, updateCRMCustomer, deleteCRMCustomer, addCRMCustomer } from "../lib/crm-helper";
 import { fetchCallbackRequests, updateCallbackStatus, deleteCallbackRequest } from "../lib/callback-helper";
 import { db } from "../lib/firebase";
-import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc, serverTimestamp } from "../lib/firebase-mock";
+import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc, serverTimestamp, where } from "../lib/firebase-mock";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import CatalogPrintView from "./CatalogPrintView";
 import AdminInvoiceSettings from "./AdminInvoiceSettings";
 import AdminSystemConfig from "./AdminSystemConfig";
 import AdminPendingApprovals from "./AdminPendingApprovals";
+import AdminFactoryProductAudit from "./AdminFactoryProductAudit";
 import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
@@ -36,6 +37,7 @@ import {
   PieChart,
   Pie
 } from "recharts";
+import AddAdButton from "./AddAdButton";
 
 interface AdminPanelProps {
   products: Product[];
@@ -58,7 +60,7 @@ import { AdminSalesCharts } from "./AdminSalesCharts";
 import { getCacheStatus, CacheStatus } from "../lib/db";
 import ProductSyncStatusView from "./ProductSyncStatusView";
 
-type SubTab = 'dashboard' | 'approvals' | 'products' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy' | 'parspack_storage' | 'product_sync_status';
+type SubTab = 'dashboard' | 'approvals' | 'products' | 'factory_audit' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy' | 'parspack_storage' | 'product_sync_status' | 'channel_posts';
 
 export default function AdminPanel({ 
   products, 
@@ -97,6 +99,8 @@ export default function AdminPanel({
   // Bulk action states
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [batchPriceChange, setBatchPriceChange] = useState<number>(0);
+  const [globalPriceChangePercent, setGlobalPriceChangePercent] = useState<string>("");
+  const [globalPriceChangeDirection, setGlobalPriceChangeDirection] = useState<'increase' | 'decrease'>('increase');
 
   // Overarching 3-part Panel Role selector & AI Marketing States
   const [panelRole, setPanelRole] = useState<'sellers' | 'suppliers' | 'customers'>('sellers');
@@ -327,10 +331,7 @@ export default function AdminPanel({
             await addDoc(collection(db, "safe_buy_requests"), req);
           }
         } else {
-          const defaultRequests = [
-            { id: 'SB-1001', productTitle: 'برنج طارم هاشمی درجه یک (کیسه ۱۰ کیلویی)', wholesalePrice: '۲,۸۵۰,۰۰۰ تومان', marketPrice: '۳,۲۰۰,۰۰۰ تومان', buyerProfit: '۳۵۰,۰۰۰ تومان (۱۱٪)', quantity: '۲ تن (۲۰۰ کیسه)', brand: 'طارم هاشمی گیلان', description: 'برنج معطر با پخت عالی و ضمانت اصالت فیزیکی کالا', buyerPhone: '09123456789', buyerMessage: 'درخواست خرید ۲ تنی با فاکتور رسمی و ارسال به انبار کرج', status: 'pending', date: '۱۴۰۵/۰۵/۲۴', createdAt: new Date().toISOString() },
-            { id: 'SB-1002', productTitle: 'روغن آفتابگردان ۱.۵ لیتری (کارتن ۱۲ عددی)', wholesalePrice: '۹۸۰,۰۰۰ تومان', marketPrice: '۱,۱۲۰,۰۰۰ تومان', buyerProfit: '۱۴۰,۰۰۰ تومان (۱۲.۵٪)', quantity: '۱۰۰ کارتن', brand: 'اویلا', description: 'روغن مایع خالص درجه یک کارخانه‌ای بدون چربی ترانس', buyerPhone: '09198765432', buyerMessage: 'خرید عمده تناژ بالا جهت فروشگاه‌های زنجیره‌ای زنجان', status: 'approved', date: '۱۴۰۵/۰۵/۲۳', createdAt: new Date().toISOString() }
-          ];
+          const defaultRequests: any[] = [];
           setSafeBuyRequests(defaultRequests);
           localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(defaultRequests));
           for (const req of defaultRequests) {
@@ -636,64 +637,9 @@ export default function AdminPanel({
   };
 
   // Barter (تهاتر کالا و مواد اولیه) States
-  const [barterDeals, setBarterDeals] = useState<any[]>([
-    {
-      id: "b1",
-      factoryName: "صنایع غذایی سالار",
-      supplierName: "بازرگانی شکر سپهر (شکر یزد)",
-      materialName: "شکر سفید تصفیه شده صنعتی",
-      materialQty: "۵۰,۰۰۰",
-      materialUnit: "کیلوگرم",
-      materialPricePerUnit: 420000,
-      totalMaterialValue: 21000000000,
-      requestedProductId: "",
-      requestedProductName: "کلوچه سنتی گردویی سالار",
-      requestedQtyCartons: 80000,
-      dealDate: "۱۴۰۵/۰۴/۱۰",
-      status: "در حال لجستیک",
-      description: "تحویل شکر درجه یک وارداتی و تسویه با محموله کیک و کلوچه ممتاز"
-    },
-    {
-      id: "b2",
-      factoryName: "کنسروسازی شاهین",
-      supplierName: "توسعه صنایع دانه روغنی ایران",
-      materialName: "روغن سویا خوراکی خام فله",
-      materialQty: "۲۰,۰۰۰",
-      materialUnit: "کیلوگرم",
-      materialPricePerUnit: 680000,
-      totalMaterialValue: 13600000000,
-      requestedProductId: "",
-      requestedProductName: "تن ماهی زعفرانی شاهین",
-      requestedQtyCartons: 45000,
-      dealDate: "۱۴۰۵/۰۴/۱۵",
-      status: "تایید نهایی شده",
-      description: "تامین روغن خام کارخانه جهت تسویه با کارتن‌های فاکتور شده تن ماهی"
-    },
-    {
-      id: "b3",
-      factoryName: "صنایع آشامیدنی گوارا",
-      supplierName: "پتروپک پارسیان اروند",
-      materialName: "پت پلاستیکی نوشیدنی ۲۵۰ سی‌سی",
-      materialQty: "۲۰۰,۰۰۰",
-      materialUnit: "عدد",
-      materialPricePerUnit: 12000,
-      totalMaterialValue: 2400000000,
-      requestedProductId: "",
-      requestedProductName: "آبمیوه رانی هلو گوارا",
-      requestedQtyCartons: 12000,
-      dealDate: "۱۴۰۵/۰۴/۱۷",
-      status: "در انتظار تایید مدارک",
-      description: "ارسال ظروف پت اختصاصی رانی جهت استحصال محصول فینیشد گودز"
-    }
-  ]);
+  const [barterDeals, setBarterDeals] = useState<any[]>([]);
 
-  const [rawMaterials, setRawMaterials] = useState<any[]>([
-    { id: "rm1", name: "شکر سفید تصفیه شده صنعتی", pricePerUnit: 420000, unit: "کیلوگرم" },
-    { id: "rm2", name: "روغن سویا خوراکی خام فله", pricePerUnit: 680000, unit: "کیلوگرم" },
-    { id: "rm3", name: "پت پلاستیکی نوشیدنی ۲۵۰ سی‌سی", pricePerUnit: 12000, unit: "عدد" },
-    { id: "rm4", name: "آرد گندم گلوتن‌دار صنعتی دامی", pricePerUnit: 180000, unit: "کیلوگرم" },
-    { id: "rm5", name: "ورق مقوا و کارتن سه‌لایه چاپدار با کلیشه", pricePerUnit: 45000, unit: "عدد" }
-  ]);
+  const [rawMaterials, setRawMaterials] = useState<any[]>([]);
 
   const [isAddingBarter, setIsAddingBarter] = useState(false);
   const [editingBarterId, setEditingBarterId] = useState<string | null>(null);
@@ -753,18 +699,37 @@ export default function AdminPanel({
   const [zarinpalMerchantCode, setZarinpalMerchantCode] = useState("");
   const [officialSealUrl, setOfficialSealUrl] = useState("");
   const [brandImages, setBrandImages] = useState<any[]>([]);
-  const [sponsoredAds, setSponsoredAds] = useState<any[]>([]);
-  const [safeBuyRequests, setSafeBuyRequests] = useState<any[]>(() => {
+  const [sponsoredAds, setSponsoredAds] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem("dastavval_safe_buy_requests");
-      return saved ? JSON.parse(saved) : [
-        { id: 'SB-1001', productTitle: 'برنج طارم هاشمی درجه یک (کیسه ۱۰ کیلویی)', wholesalePrice: '۲,۸۵۰,۰۰۰ تومان', buyerPhone: '09123456789', buyerMessage: 'درخواست خرید ۲ تنی با فاکتور رسمی و ارسال به انبار کرج', status: 'pending', date: '۱۴۰۵/۰۵/۲۴' },
-        { id: 'SB-1002', productTitle: 'روغن آفتابگردان ۱.۵ لیتری (کارتن ۱۲ عددی)', wholesalePrice: '۹۸۰,۰۰۰ تومان', buyerPhone: '09198765432', buyerMessage: 'خرید عمده تناژ بالا', status: 'approved', date: '۱۴۰۵/۰۵/۲۳' }
-      ];
-    } catch (e) {
-      return [];
-    }
+      const saved = localStorage.getItem("dastavval_sponsored_ads_v2");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
   });
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadAds = () => {
+      try {
+        const saved = localStorage.getItem("dastavval_sponsored_ads_v2");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setSponsoredAds(parsed);
+        }
+      } catch (e) {}
+    };
+    loadAds();
+    window.addEventListener("storage", loadAds);
+    window.addEventListener("dastavval_ads_updated", loadAds);
+    return () => {
+      window.removeEventListener("storage", loadAds);
+      window.removeEventListener("dastavval_ads_updated", loadAds);
+    };
+  }, []);
+  const [safeBuyRequests, setSafeBuyRequests] = useState<any[]>([]);
   const [safeBuyFilter, setSafeBuyFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedSafeBuyDetail, setSelectedSafeBuyDetail] = useState<any | null>(null);
 
@@ -777,7 +742,7 @@ export default function AdminPanel({
       marketPrice: 'تعیین نشده',
       buyerProfit: '۱۲٪ الی ۱۵٪ سود ناخالص عمده‌فروشی',
       description: 'این کالا به صورت مستقیم و بدون واسطه از کارخانه یا تأمین‌کننده دست‌اول تهیه می‌شود و دارای ضمانت اصالت و سلامت فیزیکی است.',
-      imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400'
+      imageUrl: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=400'
     };
     
     // 1. Try to find in sponsoredAds
@@ -802,7 +767,7 @@ export default function AdminPanel({
     const marketPrice = (!isInvalid(req.marketPrice) ? req.marketPrice : '') || ad?.marketPrice || (prod?.consumer_price ? prod.consumer_price.toLocaleString('fa-IR') + ' تومان' : '') || 'تعیین نشده';
     const buyerProfit = (!isInvalid(req.buyerProfit) ? req.buyerProfit : '') || ad?.buyerProfit || '۱۲٪ الی ۱۵٪ سود ناخالص عمده‌فروشی';
     const description = (!isInvalid(req.description) ? req.description : '') || ad?.description || prod?.description || 'توضیحات تکمیلی توسط خریدار ارائه نشده است. کالا با تضمین سلامت فیزیکی و اصالت کالا تحت بستر امن دست‌اول معامله می‌شود.';
-    const imageUrl = ad?.imageUrl || prod?.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400';
+    const imageUrl = ad?.imageUrl || prod?.image_url || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=400';
     
     return {
       title,
@@ -816,7 +781,6 @@ export default function AdminPanel({
     };
   };
 
-  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
   const [selectedAdForView, setSelectedAdForView] = useState<any | null>(null);
   const [adsFilter, setAdsFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [adsCategoryFilter, setAdsCategoryFilter] = useState<'all' | 'under_market' | 'buy' | 'sell' | 'barter' | 'liquid' | 'direct_supply'>('all');
@@ -855,6 +819,89 @@ export default function AdminPanel({
     setSuccessMsg(isApproved ? "درخواست عاملیت و نمایندگی با موفقیت تایید شد." : "درخواست نمایندگی رد شد.");
     setTimeout(() => setSuccessMsg(null), 3000);
   };
+
+  const handleUpdateSupplierStatus = async (id: string, status: 'active' | 'suspended' | 'pending') => {
+    setLoading(true);
+    try {
+      // Find in local list first
+      const sup = suppliersList.find(s => (s.id === id || s.email === id));
+      if (!sup) throw new Error("Supplier not found");
+
+      // 1. Update status in Firestore (suppliers collection)
+      const q = query(collection(db, "suppliers"), where("email", "==", sup.email));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        await updateDoc(doc(db, "suppliers", snap.docs[0].id), { status });
+      }
+
+      // 1.5 Sync approved status inside local users database to enable instant logins
+      try {
+        const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+        // Find key by matching email/phone
+        const userKey = Object.keys(localUsers).find(key => 
+          key.toLowerCase().trim() === sup.email?.toLowerCase().trim() ||
+          localUsers[key].email?.toLowerCase().trim() === sup.email?.toLowerCase().trim() ||
+          localUsers[key].phone?.trim() === sup.phone?.trim()
+        );
+        if (userKey) {
+          localUsers[userKey].status = status;
+          localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+        }
+      } catch (localSyncErr) {
+        console.warn("Could not sync approval status to dastavval_local_users:", localSyncErr);
+      }
+
+      // 2. If approved, add to b2bConfig factories if not already there
+      if (status === 'active') {
+        const factoryId = sup.factoryCode || `fac_${Date.now()}`;
+        const newFactory = {
+          id: factoryId,
+          factoryCode: factoryId,
+          name: sup.company || sup.name,
+          city: sup.city || "تهران",
+          province: sup.city || "تهران",
+          isVerified: true,
+          badge: "silver",
+          category: sup.category || "تنقلات و شکلات",
+          logoUrl: "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
+          managerName: sup.name,
+          phone: sup.phone,
+          status: 'active',
+          rating: 5,
+          location: sup.city || "تهران"
+        };
+
+        const existingFactories = b2bConfig.factories || [];
+        if (!existingFactories.some((f: any) => f.factoryCode === factoryId || f.name === newFactory.name)) {
+          const updatedFactories = [newFactory, ...existingFactories];
+          await onUpdateB2bConfig({ ...b2bConfig, factories: updatedFactories });
+        }
+
+        // 📢 Automatic channel post for new approved factory
+        try {
+          triggerAutoChannelPost(
+            `🏢 الحاق کارخانه جدید: ${newFactory.name}`,
+            `با افتخار، کارخانه جدید "${newFactory.name}" از خطه "${newFactory.city}" پس از بررسی و احراز هویت، تایید و به شبکه توزیع سرتاسری «دست اول» ملحق شد.\n\n👤 مدیریت: ${newFactory.managerName || 'نامشخص'}\n📂 دسته‌بندی کالا: ${newFactory.category}\n\nجهت ارتباط مستقیم با واحد فروش این کارخانه، کاتالوگ آن را بررسی بفرمایید.`,
+            "urgent",
+            "مشاهده کارخانجات فعال",
+            `#factories`
+          );
+        } catch (autoPostErr) {
+          console.error("Failed to auto-post factory approval:", autoPostErr);
+        }
+      }
+
+      // 3. Update local state
+      setSuppliersList(prev => prev.map(s => (s.id === id || s.email === id) ? { ...s, status } : s));
+      setSuccessMsg(status === 'active' ? "پنل کارخانه با موفقیت تایید و فعال شد." : "وضعیت کارخانه بروزرسانی شد.");
+    } catch (err) {
+      console.error("Error updating supplier status:", err);
+      setErrorMsg("خطا در بروزرسانی وضعیت کارخانه.");
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    }
+  };
   const [hqAddress, setHqAddress] = useState("آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد");
   const [supportPhone, setSupportPhone] = useState("۰۹۰۴ ۴۵۰ ۲۹۰۰");
   const [hideHqAddress, setHideHqAddress] = useState(false);
@@ -862,6 +909,12 @@ export default function AdminPanel({
   const [termsAndConditions, setTermsAndConditions] = useState("");
   const [buyerCredit, setBuyerCredit] = useState<number>(250000000);
   const [commissionRate, setCommissionRate] = useState<number>(5);
+  // B2B Pricing Rules & Regional Rep Profit Sharing States
+  const [customerMarkupPercent, setCustomerMarkupPercent] = useState<number>(10);
+  const [marketerCommissionPercent, setMarketerCommissionPercent] = useState<number>(5);
+  const [repRegionalProfitSharePercent, setRepRegionalProfitSharePercent] = useState<number>(50);
+  const [repFloorSalesThreshold, setRepFloorSalesThreshold] = useState<number>(300000000);
+  const [requireAdminApprovalForRep, setRequireAdminApprovalForRep] = useState<boolean>(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [userLevels, setUserLevels] = useState<any[]>([]);
 
@@ -872,10 +925,7 @@ export default function AdminPanel({
   const [customInstagramUrl, setCustomInstagramUrl] = useState("https://instagram.com/dastavval_official");
 
   // Site Builder / Page Editor states
-  const [sitePages, setSitePages] = useState<any[]>([
-    { id: 'home', title: 'صفحه اصلی', content: 'محتوای صفحه اصلی...' },
-    { id: 'about', title: 'درباره ما', content: 'درباره برند دست اول...' }
-  ]);
+  const [sitePages, setSitePages] = useState<any[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [pageEditorContent, setPageEditorContent] = useState("");
 
@@ -996,6 +1046,8 @@ export default function AdminPanel({
   const [crmNotes, setCrmNotes] = useState("");
   const [crmTotalOrders, setCrmTotalOrders] = useState(0);
   const [crmTotalPurchase, setCrmTotalPurchase] = useState(0);
+  const [crmRole, setCrmRole] = useState<'customer' | 'representative' | 'marketer' | 'factory'>("customer");
+  const [crmRoleFilter, setCrmRoleFilter] = useState<'all' | 'customer' | 'representative' | 'marketer' | 'factory'>("all");
 
   // Representatives Management state
   const [representativesList, setRepresentativesList] = useState<any[]>(() => {
@@ -1008,6 +1060,7 @@ export default function AdminPanel({
     }
     return [];
   });
+  const [suppliersList, setSuppliersList] = useState<any[]>([]);
   const [showRepModal, setShowRepModal] = useState(false);
   const [editingRep, setEditingRep] = useState<any | null>(null);
   const [repCity, setRepCity] = useState("");
@@ -1120,30 +1173,105 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const [newsImage, setNewsImage] = useState("");
   const [newsSource, setNewsSource] = useState("مدیریت سامانه");
 
+  // Channel Posts States
+  const [editingChannelPostId, setEditingChannelPostId] = useState<string | null>(null);
+  const [channelPostTitle, setChannelPostTitle] = useState("");
+  const [channelPostContent, setChannelPostContent] = useState("");
+  const [channelPostCategory, setChannelPostCategory] = useState("info");
+  const [channelPostActionLabel, setChannelPostActionLabel] = useState("");
+  const [channelPostActionUrl, setChannelPostActionUrl] = useState("");
+
+  const [autoPostSettings, setAutoPostSettings] = useState<{
+    new_product: boolean;
+    new_discount: boolean;
+    new_ad: boolean;
+    new_factory: boolean;
+  }>(() => {
+    const saved = localStorage.getItem("dastavval_autopost_settings");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      new_product: true,
+      new_discount: true,
+      new_ad: true,
+      new_factory: true
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("dastavval_autopost_settings", JSON.stringify(autoPostSettings));
+  }, [autoPostSettings]);
+
+  const triggerAutoChannelPost = (title: string, content: string, category: string, actionLabel?: string, actionUrl?: string) => {
+    try {
+      const saved = localStorage.getItem("dastavval_announcements");
+      let currentPosts = [];
+      if (saved) {
+        try { currentPosts = JSON.parse(saved); } catch(e){}
+      }
+      const newPost = {
+        id: `ann_${Date.now()}_auto`,
+        title,
+        content,
+        category,
+        actionLabel,
+        actionUrl,
+        createdAt: new Date().toLocaleDateString('fa-IR'),
+        isAuto: true
+      };
+      currentPosts = [newPost, ...currentPosts];
+      localStorage.setItem("dastavval_announcements", JSON.stringify(currentPosts));
+      window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
+    } catch (e) {
+      console.error("Auto post failed:", e);
+    }
+  };
+
+  const handleToggleKafBazaar = async (p: any) => {
+    const nextVal = !p.isKafBazaar;
+    await onUpdateProduct(p.id, { isKafBazaar: nextVal });
+    
+    // If we turned it ON, trigger auto post!
+    if (nextVal) {
+      if (autoPostSettings.new_product !== false) {
+        triggerAutoChannelPost(
+          `📉 الحاق محصول جدید به «کف بازار»: ${p.name}`,
+          `محصول "${p.name}" از برند "${p.brand || p.factory_name || 'تولیدکننده همکار'}" با موفقیت تایید و به بخش کف بازار دست اول الحاق گردید.\n\nقیمت پیشنهادی کف: ${p.bulk_price?.toLocaleString()} تومان\nبسته‌بندی: کارتن ${p.carton_pack_count || p.unitsPerCarton || 24} عددی\nحداقل سفارش: ${p.min_order_cartons || p.minOrderCartons || 5} کارتن`,
+          "urgent",
+          "مشاهده در کف بازار بیلبورد",
+          `#billboard`
+        );
+      }
+    }
+  };
+
   // Product field states
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [brandLogoUrl, setBrandLogoUrl] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("تنقلات و شکلات");
-  const [price, setPrice] = useState(15000);
-  const [bulkPrice, setBulkPrice] = useState(12000);
-  const [consumerPrice, setConsumerPrice] = useState(18000);
-  const [packDescription, setPackDescription] = useState("هر کارتن ۲۴ عدد");
-  const [shippingOrigin, setShippingOrigin] = useState("ارسال مستقیم از خط تولید کارخانه");
-  const [cartonPackCount, setCartonPackCount] = useState(24);
-  const [minOrderCartons, setMinOrderCartons] = useState(5);
-  const [stockQuantityCartons, setStockQuantityCartons] = useState(200);
-  const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=60");
+  const [category, setCategory] = useState("");
+  const [price, setPrice] = useState(0);
+  const [bulkPrice, setBulkPrice] = useState(0);
+  const [consumerPrice, setConsumerPrice] = useState(0);
+  const [packDescription, setPackDescription] = useState("");
+  const [shippingOrigin, setShippingOrigin] = useState("");
+  const [cartonPackCount, setCartonPackCount] = useState(0);
+  const [minOrderCartons, setMinOrderCartons] = useState(0);
+  const [stockQuantityCartons, setStockQuantityCartons] = useState(0);
+  const [imageUrl, setImageUrl] = useState("");
   const [unit, setUnit] = useState("بسته");
-  const [leadTimeDays, setLeadTimeDays] = useState(2);
+  const [leadTimeDays, setLeadTimeDays] = useState(0);
   const [purchasePrice, setPurchasePrice] = useState(0);
   const [badge, setBadge] = useState("");
   const [isFavorite, setIsFavorite] = useState(false);
-  const [hasHealthApple, setHasHealthApple] = useState(true);
-  const [isNatural, setIsNatural] = useState(true);
+  const [hasHealthApple, setHasHealthApple] = useState(false);
+  const [isNatural, setIsNatural] = useState(false);
   const [isOrganic, setIsOrganic] = useState(false);
-  const [healthCertCode, setHealthCertCode] = useState("۱۶/۱۲۴۵۸");
+  const [healthCertCode, setHealthCertCode] = useState("");
 
   const handleResetForm = () => {
     setIsEditing(null);
@@ -1179,10 +1307,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setSelectedColor(b2bConfig.primaryColor || "indigo");
       setCustomAppName(b2bConfig.appName || "دست اول");
       setCustomAppSub(b2bConfig.appSub || "مرجع مبادلات مستقیم و تامین کالای عمده");
-      setCustomTopAnnouncement(b2bConfig.topAnnouncement || "🚀 تخفیف ویژه جشنواره تابستانه کارخانجات - ارسال مستقیم و هماهنگ‌شده بر اساس ضوابط کارخانه");
-      setCustomShowTopAnnouncement(b2bConfig.showTopAnnouncement !== false);
-      setCustomTopAnnouncementPopupTitle(b2bConfig.topAnnouncementPopupTitle || "جزئیات جشنواره تابستانه دست اول");
-      setCustomTopAnnouncementPopupContent(b2bConfig.topAnnouncementPopupContent || "همکار گرامی، برخی کارخانجات در جشنواره تابستانه بسته به شرایط خرید، هزینه حمل و نقل تا باربری شهر مقصد را پرداخت می‌نمایند و برخی دیگر نیز ارسال با کمترین هزینه ترانزیت خط تولید را دارند.");
+      setCustomTopAnnouncement(b2bConfig.topAnnouncement || "");
+      setCustomShowTopAnnouncement(!!b2bConfig.showTopAnnouncement);
+      setCustomTopAnnouncementPopupTitle(b2bConfig.topAnnouncementPopupTitle || "");
+      setCustomTopAnnouncementPopupContent(b2bConfig.topAnnouncementPopupContent || "");
       setCustomSlides(b2bConfig.slides || []);
       setCatalogPdfUrl(b2bConfig.catalogPdfUrl || "");
       setFactories(b2bConfig.factories || []);
@@ -1199,17 +1327,19 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setZarinpalMerchantCode((b2bConfig as any).zarinpalMerchantCode || "");
       setOfficialSealUrl((b2bConfig as any).officialSealUrl || "");
       setBrandImages((b2bConfig as any).brandImages || []);
-      setHqAddress((b2bConfig as any).hqAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد");
-      setSupportPhone((b2bConfig as any).supportPhone || "۰۹۰۴ ۴۵۰ ۲۹۰۰");
+      setHqAddress((b2bConfig as any).hqAddress || "");
+      setSupportPhone((b2bConfig as any).supportPhone || "");
       setHideHqAddress(!!(b2bConfig as any).hideHqAddress);
       setHideSupportPhone(!!(b2bConfig as any).hideSupportPhone);
       setTermsAndConditions((b2bConfig as any).termsAndConditions || "");
       setBuyerCredit((b2bConfig as any).buyerCredit !== undefined ? (b2bConfig as any).buyerCredit : 250000000);
       setCommissionRate((b2bConfig as any).commissionRate || 5);
-      setCategories((b2bConfig as any).categories || [
-        { id: '1', name: "تنقلات و شکلات", imageUrl: "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?w=200" },
-        { id: '2', name: "کیک، کلوچه و بیسکویت", imageUrl: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=200" }
-      ]);
+      setCustomerMarkupPercent(b2bConfig.customerMarkupPercent !== undefined ? b2bConfig.customerMarkupPercent : 10);
+      setMarketerCommissionPercent(b2bConfig.marketerCommissionPercent !== undefined ? b2bConfig.marketerCommissionPercent : 5);
+      setRepRegionalProfitSharePercent(b2bConfig.repRegionalProfitSharePercent !== undefined ? b2bConfig.repRegionalProfitSharePercent : 50);
+      setRepFloorSalesThreshold(b2bConfig.repFloorSalesThreshold !== undefined ? b2bConfig.repFloorSalesThreshold : 300000000);
+      setRequireAdminApprovalForRep(b2bConfig.requireAdminApprovalForRep !== undefined ? b2bConfig.requireAdminApprovalForRep : true);
+      setCategories((b2bConfig as any).categories || []);
       setBrands(b2bConfig.brands || []);
       setUserLevels((b2bConfig as any).userLevels || []);
       setCustomRubikaUrl(b2bConfig.rubikaChannelUrl || "https://rubika.ir/dastavval_official");
@@ -1225,21 +1355,23 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   }, []);
 
   const fetchAiConfig = async () => {
+    // ... existing ...
+  };
+
+  const fetchSuppliers = async () => {
     try {
-      const res = await fetch("/api/admin/ai-config");
-      const contentType = res.headers.get("content-type");
-      if (res.ok && contentType && contentType.includes("application/json")) {
-        const data = await res.json();
-        if (data) {
-          setAiProvider(data.provider || "gemini");
-          setAiEndpointUrl(data.endpointUrl || "https://api.gapgpt.ir/v1");
-        }
-      }
-    } catch (e) {
-      const savedProvider = localStorage.getItem("ai_provider") || "gemini";
-      setAiProvider(savedProvider as any);
+      const q = query(collection(db, "suppliers"));
+      const snap = await getDocs(q);
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSuppliersList(list);
+    } catch (err) {
+      console.error("Error fetching suppliers:", err);
     }
   };
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
 
   const handleAiConfigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1408,11 +1540,64 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           }, true);
         }
       }
+      if (batchPriceChange < 0 && autoPostSettings.new_discount) {
+        triggerAutoChannelPost(
+          `🔥 تخفیف گروهی جدید ویژه بنکداران!`,
+          `یک تخفیف گروهی جذاب به میزان ${Math.abs(batchPriceChange)}٪ روی ${ids.length} محصول از سبد کالاهای رسمی سامانه دست اول اعمال گردید.\n\nهم‌اکنون می‌توانید کالاها را با قیمت‌های باورنکردنی و حاشیه سود بالا تهیه نمایید.`,
+          "promotion",
+          "مشاهده کاتالوگ تخفیف‌دار",
+          `#catalog`
+        );
+      }
       setBatchPriceChange(0);
       setSuccessMsg("بروزرسانی دسته جمعی قیمت‌ها اعمال شد.");
       if (onRefreshProducts) await onRefreshProducts();
     } catch (err) {
       setErrorMsg("خطا در بروزرسانی قیمت‌ها.");
+    } finally {
+      setLoading(false);
+      setBatchProgress(null);
+    }
+  };
+
+  const handleGlobalPriceUpdate = async () => {
+    const percentNum = Number(globalPriceChangePercent);
+    if (isNaN(percentNum) || percentNum <= 0) {
+      setErrorMsg("لطفا درصد معتبری وارد نمایید.");
+      return;
+    }
+    
+    if (!confirm(`آیا مطمئن هستید که می‌خواهید قیمت تمام محصولات را به میزان ${percentNum}٪ ${globalPriceChangeDirection === 'increase' ? 'افزایش' : 'کاهش'} دهید؟`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const totalCount = products.length;
+      for (let i = 0; i < totalCount; i++) {
+        const prod = products[i];
+        if (i % 5 === 0 || i === totalCount - 1) {
+          setBatchProgress({
+            current: i + 1,
+            total: totalCount,
+            message: `در حال بروزرسانی قیمت کلی محصولات: ${i + 1} از ${totalCount}...`
+          });
+        }
+        await new Promise(resolve => setTimeout(resolve, 0)); // Yield thread
+        
+        const sign = globalPriceChangeDirection === 'increase' ? 1 : -1;
+        const multiplier = 1 + (sign * percentNum / 100);
+        
+        await onUpdateProduct(prod.id, {
+          bulk_price: Math.round(prod.bulk_price * multiplier),
+          price: Math.round(prod.price * multiplier)
+        }, true);
+      }
+      setGlobalPriceChangePercent("");
+      setSuccessMsg("تغییر سراسری قیمت تمام محصولات با موفقیت انجام شد.");
+      if (onRefreshProducts) await onRefreshProducts();
+    } catch (err) {
+      setErrorMsg("خطا در بروزرسانی سراسری قیمت‌ها.");
     } finally {
       setLoading(false);
       setBatchProgress(null);
@@ -1534,6 +1719,15 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       } else {
         await onAddProduct(productPayload);
         setSuccessMsg("محصول جدید با موفقیت به خط تولید دیجیتال اضافه شد.");
+        if (autoPostSettings.new_product) {
+          triggerAutoChannelPost(
+            `📦 محصول جدید: ${name.trim()}`,
+            `محصول جدید "${name.trim()}" متعلق به برند "${brand || 'بدون برند'}" با قیمت عمده شگفت‌انگیز در دست اول قرار گرفت.\n\nتوضیحات: ${description || 'ارسال مستقیم و دست اول از درب کارخانه'}\nحداقل تعداد سفارش: ${minOrderCartons || 5} کارتن.`,
+            "info",
+            "مشاهده و ثبت سفارش محصول",
+            `#product-${name.trim()}`
+          );
+        }
       }
       handleResetForm();
       if (onRefreshProducts) await onRefreshProducts();
@@ -1606,6 +1800,11 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         termsAndConditions: termsAndConditions,
         buyerCredit: Number(buyerCredit),
         commissionRate: Number(commissionRate),
+        customerMarkupPercent: Number(customerMarkupPercent),
+        marketerCommissionPercent: Number(marketerCommissionPercent),
+        repRegionalProfitSharePercent: Number(repRegionalProfitSharePercent),
+        repFloorSalesThreshold: Number(repFloorSalesThreshold),
+        requireAdminApprovalForRep: requireAdminApprovalForRep,
         categories: categories,
         userLevels: userLevels
       };
@@ -2109,7 +2308,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         imageUrl = 'https:' + imageUrl;
       }
 
-      if (!imageUrl || (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:'))) {
+      if (!imageUrl || (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:') && !imageUrl.startsWith('/') && !imageUrl.startsWith('.') && !imageUrl.includes('.'))) {
         imageUrl = "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?w=500";
       }
 
@@ -3029,6 +3228,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setCrmNotes("");
     setCrmTotalOrders(0);
     setCrmTotalPurchase(0);
+    setCrmRole("customer");
     setShowCrmModal(true);
   };
 
@@ -3044,6 +3244,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setCrmNotes(c.notes || "");
     setCrmTotalOrders(c.totalOrdersCount || 0);
     setCrmTotalPurchase(c.totalPurchaseValue || 0);
+    setCrmRole(c.role || "customer");
     setShowCrmModal(true);
   };
 
@@ -3061,15 +3262,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         status: crmStatus,
         notes: crmNotes,
         totalOrdersCount: Number(crmTotalOrders),
-        totalPurchaseValue: Number(crmTotalPurchase)
+        totalPurchaseValue: Number(crmTotalPurchase),
+        role: crmRole
       };
 
       if (editingCrmCustomer) {
         await updateCRMCustomer(editingCrmCustomer.id, payload);
-        setSuccessMsg("اطلاعات بنکدار با موفقیت بروزرسانی شد.");
+        setSuccessMsg("اطلاعات کاربر با موفقیت بروزرسانی شد.");
       } else {
         await addCRMCustomer(payload);
-        setSuccessMsg("بنکدار جدید با موفقیت به باشگاه مشتریان اضافه شد.");
+        setSuccessMsg("کاربر جدید با موفقیت اضافه شد.");
       }
       setShowCrmModal(false);
       setEditingCrmCustomer(null);
@@ -3371,10 +3573,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               <nav className="space-y-1.5">
                 <button
                   onClick={() => { setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'dashboard' && !showImporterDashboard
-                      ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25"
-                      : "text-slate-500 hover"
+                      ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25 animate-pulse"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <Activity size={18} />
@@ -3383,10 +3585,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
                 <button
                   onClick={() => { setActiveSubTab('products'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'products'
                       ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <Package size={18} />
@@ -3395,10 +3597,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 
                 <button
                   onClick={() => { setActiveSubTab('orders'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'orders'
                       ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <ClipboardList size={18} />
@@ -3412,10 +3614,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               <nav className="space-y-1.5">
                 <button
                   onClick={() => { setShowImporterDashboard(true); setShowForm(false); setShowAiSettings(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     showImporterDashboard
                       ? "bg-blue-600 text-white shadow-xl shadow-blue-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <RefreshCw size={18} />
@@ -3424,10 +3626,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 
                 <button
                   onClick={() => { setActiveSubTab('crm'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'crm'
                       ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <Users size={18} />
@@ -3441,10 +3643,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               <nav className="space-y-1.5">
                 <button
                   onClick={() => { setActiveSubTab('parspack_storage'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'parspack_storage'
                       ? "bg-cyan-600 text-white shadow-xl shadow-cyan-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <HardDrive size={18} />
@@ -3453,10 +3655,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
                 <button
                   onClick={() => { setActiveSubTab('system'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'system' && !showAiSettings && !showImporterDashboard
-                      ? "bg-slate-900 text-white shadow-xl shadow-slate-900/25"
-                      : "text-slate-500 hover"
+                      ? "bg-slate-100 text-slate-900 shadow-xl shadow-slate-200/25 border border-slate-200"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <Server size={18} />
@@ -3473,10 +3675,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
                 <button
                   onClick={() => { setActiveSubTab('invoice'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'invoice'
                       ? "bg-purple-600 text-white shadow-xl shadow-purple-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <FileText size={18} />
@@ -3485,10 +3687,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
                 <button
                   onClick={() => { setActiveSubTab('profile'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'profile'
                       ? "bg-slate-100 text-slate-800 shadow-xl"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <User size={18} />
@@ -3497,14 +3699,26 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 
                 <button
                   onClick={() => { setShowAiSettings(true); setShowForm(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     showAiSettings
                       ? "bg-amber-600 text-white shadow-xl shadow-amber-600/25"
-                      : "text-slate-500 hover"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   }`}
                 >
                   <Cpu size={18} />
                   هسته هوش مصنوعی
+                </button>
+
+                <button
+                  onClick={() => { setActiveSubTab('channel_posts'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+                    activeSubTab === 'channel_posts' && !showAiSettings && !showImporterDashboard
+                      ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  }`}
+                >
+                  <Megaphone size={18} />
+                  کانال اطلاع‌رسانی
                 </button>
               </nav>
             </section>
@@ -3518,7 +3732,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-[11px] font-black text-slate-800 truncate">مدیریت کل سامانه</p>
-              <p className="text-[9px] text-slate-400 font-bold truncate">admin@dastaval.ir</p>
+              <p className="text-[9px] text-slate-400 font-bold truncate">09914762406</p>
             </div>
           </div>
           <button
@@ -3557,6 +3771,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   {activeSubTab === 'system' && !showAiSettings && !showImporterDashboard && "مدیریت سرور و زیرساخت"}
                   {activeSubTab === 'invoice' && "تنظیمات فاکتور رسمی"}
                   {activeSubTab === 'profile' && "تنظیمات پروفایل"}
+                  {activeSubTab === 'channel_posts' && "مدیریت پست‌های کانال اطلاع‌رسانی"}
                   {showImporterDashboard && "واردکننده هوشمند"}
                   {showAiSettings && "هسته پردازش AI"}
                 </h2>
@@ -3568,6 +3783,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+            {(activeSubTab === 'products' || activeSubTab === 'dashboard') && (
+              <AddAdButton variant="desktop" className="flex-1 sm:flex-none py-3.5 sm:py-4 rounded-2xl" />
+            )}
             {activeSubTab === 'products' && (
               <button
                 onClick={() => {
@@ -3640,10 +3858,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         </AnimatePresence>
 
         {/* ROLE SELECTOR BAR & PERMISSION NOTICE */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-3 rounded-2xl border border-indigo-900/60 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-white">
+        <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-900">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
-            <span className="text-xs font-black text-slate-200">سطح دسترسی پنل:</span>
+            <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+            <span className="text-xs font-black text-slate-700">سطح دسترسی پنل:</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
@@ -3651,7 +3869,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
                 panelRole === 'sellers'
                   ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/30"
-                  : "bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-800"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Users size={14} />
@@ -3663,7 +3881,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
                 panelRole === 'suppliers'
                   ? "bg-amber-500 border-amber-400 text-slate-950 shadow-lg shadow-amber-500/30"
-                  : "bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-800"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Building2 size={14} />
@@ -3675,7 +3893,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
                 panelRole === 'customers'
                   ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30"
-                  : "bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-800"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               <ShoppingBag size={14} />
@@ -3886,6 +4104,22 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             {adminCategory === 'catalog' && (
               <>
                 <button
+                  onClick={() => { setActiveSubTab('factory_audit' as any); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'factory_audit'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black ring-2 ring-amber-400"
+                      : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+                  }`}
+                >
+                  <Building2 size={12} className="text-amber-700" />
+                  <span>🏢 محصولات ممیزی کارخانه‌ها</span>
+                  {products.filter(p => (p.factoryName || p.factory_name || (p.sellerId && p.sellerId !== 'admin')) && (p.approvalStatus === 'pending' || (!p.approvalStatus && !p.isApproved)) && !p.disabled).length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-600 text-white animate-pulse">
+                      {toPersianNum(products.filter(p => (p.factoryName || p.factory_name || (p.sellerId && p.sellerId !== 'admin')) && (p.approvalStatus === 'pending' || (!p.approvalStatus && !p.isApproved)) && !p.disabled).length)}
+                    </span>
+                  )}
+                </button>
+                <button
                   onClick={() => { setActiveSubTab('products'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeSubTab === 'products'
@@ -3939,6 +4173,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 >
                   <Building2 size={12} />
                   <span>مشخصات کارخانجات</span>
+                </button>
+                <button
+                  onClick={() => { setActiveSubTab('branding'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'branding'
+                      ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Settings size={12} />
+                  <span>تنظیمات سود و کمیسیون</span>
                 </button>
                 <button
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -4097,6 +4342,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <User size={12} />
                   <span>پروفایل و کلیدها</span>
                 </button>
+                <button
+                  onClick={() => { setActiveSubTab('channel_posts'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeSubTab === 'channel_posts'
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  <Megaphone size={12} />
+                  <span>مدیریت کانال اطلاع‌رسانی</span>
+                </button>
               </>
             )}
           </div>
@@ -4185,6 +4441,26 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       {activeSubTab === 'dashboard' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-500">
           
+          {/* 📢 هدر اختصاصی عرضه بار فروشنده (ثبت فروش فوری نقدی) */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-6 sm:p-8 rounded-[2.5rem] text-white flex flex-col md:flex-row md:items-center md:justify-between gap-6 relative overflow-hidden border border-slate-800 shadow-xl">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl" />
+            
+            <div className="space-y-2 relative z-10 text-right">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full text-[10px] font-black">ابزار معاملاتی پنل فروشگاه</span>
+                <h2 className="text-lg font-black text-white">عرضه بار نقدی و فروش فوری زیر قیمت صنف</h2>
+              </div>
+              <p className="text-slate-300 text-xs font-semibold max-w-xl leading-relaxed">
+                با درج سریع کالای خود در تالار بیلبورد کف بازار دست‌اول، امکان معرفی محصول به بنکداران کل کشور و معامله امن به واسطه صندوق امانی پلتفرم را فراهم نمایید.
+              </p>
+            </div>
+            
+            <div className="relative z-10 shrink-0">
+              <AddAdButton variant="inline" className="px-8 py-4 text-sm font-black shadow-lg shadow-amber-500/20" />
+            </div>
+          </div>
+
           {/* STATS BENTO GRID */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="bg-white border border-slate-100 p-6 rounded-[2.5rem] shadow-sm hover transition-all group overflow-hidden relative">
@@ -4316,13 +4592,15 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             sponsoredAds={sponsoredAds}
             barterDeals={barterDeals}
             representativesList={representativesList}
+            onUpdateRepStatus={handleUpdateRepStatus}
+            suppliersList={suppliersList}
+            onUpdateSupplierStatus={handleUpdateSupplierStatus}
             callbackRequests={callbackRequests}
             supportTickets={supportTickets}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
             onUpdateAdStatus={handleUpdateAdStatus}
             onUpdateBarterStatus={handleUpdateBarterStatus}
-            onUpdateRepStatus={handleUpdateRepStatus}
             onUpdateCallback={handleUpdateCallback}
             onUpdateTicketStatus={handleUpdateTicketStatus}
             onNavigateTab={(tab) => {
@@ -4333,39 +4611,39 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
           {/* GitHub & Cache Status Widget Banner */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl hover transition-all group overflow-hidden relative">
+            <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 p-8 opacity-5">
-                <Network size={160} className="text-white" />
+                <Network size={160} className="text-slate-900" />
               </div>
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="p-4 bg-indigo-500/20 text-indigo-400 rounded-[1.5rem]">
+                    <div className="p-4 bg-indigo-50 text-indigo-600 rounded-[1.5rem]">
                       <Github size={32} />
                     </div>
                     <div>
-                      <h4 className="text-lg font-black text-white">وضعیت زیرساخت ابری و همگام‌سازی</h4>
-                      <p className="text-[10px] text-slate-400 font-bold">مانیتورینگ زنده ارتباط با گیت‌هاب و دیتابیس محلی</p>
+                      <h4 className="text-lg font-black text-slate-900">وضعیت زیرساخت ابری و همگام‌سازی</h4>
+                      <p className="text-[10px] text-slate-500 font-bold">مانیتورینگ زنده ارتباط با گیت‌هاب و دیتابیس محلی</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className={`text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-2 ${cacheStatus.isHealthy ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${cacheStatus.isHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-2 ${cacheStatus.isHealthy ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${cacheStatus.isHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                       IndexedDB Health: {cacheStatus.isHealthy ? 'Operational' : 'Critical'}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8 pt-8 border-t border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8 pt-8 border-t border-slate-100">
                   <div className="space-y-2">
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">آخرین سینک گیت‌هاب</p>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">آخرین سینک گیت‌هاب</p>
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-800 rounded-xl text-slate-400">
+                      <div className="p-2 bg-slate-50 rounded-xl text-slate-500">
                         <Clock size={16} />
                       </div>
-                      <span className="text-sm font-black text-slate-200">
+                      <span className="text-sm font-black text-slate-700">
                         {b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleTimeString('fa-IR') : 'ثبت نشده'}
-                        <span className="text-[10px] text-slate-500 font-bold mr-2">
+                        <span className="text-[10px] text-slate-400 font-bold mr-2">
                           ({b2bConfig.lastGithubUpdate ? new Date(b2bConfig.lastGithubUpdate).toLocaleDateString('fa-IR') : '-'})
                         </span>
                       </span>
@@ -4373,13 +4651,13 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">موجودی کش محصولات</p>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">موجودی کش محصولات</p>
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-800 rounded-xl text-slate-400">
+                      <div className="p-2 bg-slate-50 rounded-xl text-slate-500">
                         <Layers size={16} />
                       </div>
-                      <span className="text-sm font-black text-slate-200">
-                        {toPersianNum(cacheStatus.itemCount)} <span className="text-[10px] text-slate-500 font-bold">آیتم فعال در IDB</span>
+                      <span className="text-sm font-black text-slate-700">
+                        {toPersianNum(cacheStatus.itemCount)} <span className="text-[10px] text-slate-400 font-bold">آیتم فعال در IDB</span>
                       </span>
                     </div>
                   </div>
@@ -4388,7 +4666,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 <div className="mt-8 flex gap-3">
                   <button 
                     onClick={() => window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'system' } }))}
-                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-black rounded-2xl transition-all border border-slate-700/50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-black rounded-2xl transition-all border border-slate-200 flex items-center justify-center gap-2"
                   >
                     <Settings size={14} />
                     تنظیمات پیشرفته زیرساخت
@@ -5357,7 +5635,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                           {/* TERMINAL */}
                           <div className="bg-slate-50 text-emerald-400 p-4 rounded-2xl font-mono text-[11px] leading-relaxed h-[220px] overflow-y-auto border border-slate-800 shadow-inner flex flex-col space-y-1 text-left" dir="ltr">
                             {importLogs.map((log, i) => (
-                              <div key={i} className="whitespace-pre-wrap">
+                              <div key={`admin-import-log-${i}`} className="whitespace-pre-wrap">
                                 <span className="text-slate-500">[{new Date().toLocaleTimeString()}]</span> <span className="text-emerald-500">WOO_CSV:</span> {log}
                               </div>
                             ))}
@@ -5922,6 +6200,23 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         </div>
       )}
 
+      {/* --- TAB: FACTORY PRODUCT AUDIT (ممیزی و تایید کالای کارخانه) --- */}
+      {(activeSubTab as any) === 'factory_audit' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <AdminFactoryProductAudit
+            products={products}
+            onUpdateProduct={async (productId, updatedFields) => {
+              await onUpdateProduct(productId, updatedFields);
+              if (onRefreshProducts) await onRefreshProducts();
+            }}
+            onDeleteProduct={async (productId) => {
+              await onDeleteProduct(productId);
+              if (onRefreshProducts) await onRefreshProducts();
+            }}
+          />
+        </div>
+      )}
+
       {/* --- TAB: BARTER SYSTEM (تهاتر) --- */}
       {activeSubTab === 'barter' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 text-right" dir="rtl">
@@ -6146,13 +6441,15 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             sponsoredAds={sponsoredAds}
             barterDeals={barterDeals}
             representativesList={representativesList}
+            onUpdateRepStatus={handleUpdateRepStatus}
+            suppliersList={suppliersList}
+            onUpdateSupplierStatus={handleUpdateSupplierStatus}
             callbackRequests={callbackRequests}
             supportTickets={supportTickets}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
             onUpdateAdStatus={handleUpdateAdStatus}
             onUpdateBarterStatus={handleUpdateBarterStatus}
-            onUpdateRepStatus={handleUpdateRepStatus}
             onUpdateCallback={handleUpdateCallback}
             onUpdateTicketStatus={handleUpdateTicketStatus}
             onNavigateTab={(tab) => {
@@ -6470,7 +6767,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           {/* Add / Edit Modal */}
           <AnimatePresence>
             {showRepModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-sm">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -6678,6 +6975,65 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     </button>
                   </div>
                 )}
+
+                {/* Global Bulk Price Adjustment */}
+                <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-[1.5rem] space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Percent size={16} className="text-amber-600 shrink-0" />
+                    <div>
+                      <h5 className="text-xs font-black text-amber-950">تغییر سراسری قیمت تمام کالاها</h5>
+                      <p className="text-[9px] text-amber-800 font-medium">افزایش یا کاهش کلی قیمت تمام کالاها به صورت درصدی</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex-1 min-w-[120px]">
+                      <input 
+                        type="number"
+                        min="1"
+                        max="100"
+                        placeholder="درصد تغییر (مثلا ۵)"
+                        value={globalPriceChangePercent}
+                        onChange={(e) => setGlobalPriceChangePercent(e.target.value)}
+                        className="w-full bg-white px-3 py-2 border border-amber-200 rounded-xl text-xs font-black outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-center"
+                      />
+                    </div>
+                    
+                    <div className="flex bg-amber-100 p-1 rounded-xl gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setGlobalPriceChangeDirection('increase')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                          globalPriceChangeDirection === 'increase'
+                            ? "bg-amber-600 text-white shadow-xs"
+                            : "text-amber-800 hover:bg-amber-200"
+                        }`}
+                      >
+                        📈 افزایش
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGlobalPriceChangeDirection('decrease')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                          globalPriceChangeDirection === 'decrease'
+                            ? "bg-rose-600 text-white shadow-xs"
+                            : "text-amber-800 hover:bg-amber-200"
+                        }`}
+                      >
+                        📉 کاهش
+                      </button>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={handleGlobalPriceUpdate}
+                      disabled={loading || !globalPriceChangePercent}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-amber-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-[10px] font-black transition-all cursor-pointer shadow-xs border border-slate-200"
+                    >
+                      اعمال سراسری
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-6 lg lg lg:pr-8">
@@ -6934,7 +7290,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       >
                         <option value="">-- انتخاب از لیست برندها --</option>
                         {brands.map((b, idx) => (
-                          <option key={idx} value={b.name}>
+                          <option key={`admin-panel-brand-opt-${b.id || idx}-${idx}`} value={b.name}>
                             {b.name} ({b.type || "تولیدکننده"})
                           </option>
                         ))}
@@ -6985,7 +7341,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                           names.push("دسته‌بندی جدید");
                         }
                         return names.map((catName: string, i: number) => (
-                          <option key={i} value={catName}>
+                          <option key={`admin-panel-cat-opt-2-${catName}-${i}`} value={catName}>
                             {catName}
                           </option>
                         ));
@@ -7382,7 +7738,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         </button>
 
                         <button 
-                          onClick={() => onUpdateProduct(p.id, { isKafBazaar: !p.isKafBazaar })}
+                          onClick={() => handleToggleKafBazaar(p)}
                           className={`px-2 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
                             p.isKafBazaar 
                               ? "bg-amber-50 text-amber-700 border-amber-200" 
@@ -7555,7 +7911,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                               </button>
 
                               <button 
-                                onClick={() => onUpdateProduct(p.id, { isKafBazaar: !p.isKafBazaar })}
+                                onClick={() => handleToggleKafBazaar(p)}
                                 className={`px-2 py-0.5 rounded-lg text-[8px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer border ${
                                   p.isKafBazaar 
                                     ? "bg-amber-50 text-amber-700 border-amber-200" 
@@ -7826,7 +8182,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <label className="text-xs font-black text-slate-600">نام و نام خانوادگی مدیر:</label>
                   <input 
                     type="text" 
-                    defaultValue="مدیر ارشد بازرگانی دست اول" 
+                    defaultValue="" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus focus"
                   />
                 </div>
@@ -7834,7 +8190,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <label className="text-xs font-black text-slate-600">شماره همراه مستقیم:</label>
                   <input 
                     type="text" 
-                    defaultValue="۰۹۰۴۴۵۰۲۹۰۰" 
+                    defaultValue="" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus focus"
                     dir="ltr"
                   />
@@ -7843,7 +8199,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <label className="text-xs font-black text-slate-600">پست الکترونیک (ایمیل):</label>
                   <input 
                     type="email" 
-                    defaultValue="admin@dastaval.ir" 
+                    defaultValue="" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 outline-none focus focus"
                     dir="ltr"
                   />
@@ -8681,6 +9037,99 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </div>
             </div>
 
+            {/* B2B Roles, Commissions & Regional Sharing Rules Card */}
+            <div className="bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-6 rounded-[2rem] border border-indigo-100/80 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/10">
+                  <span className="text-white text-lg font-black">%</span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900">تنظیمات نرخ‌گذاری نقش‌ها، سود بازاریاب و نماینده منطقه‌ای (B2B Multi-Role Rules)</h4>
+                  <p className="text-[10px] text-indigo-600 font-bold">درصد افزایش قیمت، پورسانت‌ها، آستانه خرید نقدی و قوانین سهم سود نمایندگی عاملیت در شهرستان‌ها را تعیین کنید.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Customer Markup Percent */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-600 block">درصد افزایش قیمت خریدار خرد/مغازه نسبت به کاتالوگ:</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={customerMarkupPercent}
+                      onChange={(e) => setCustomerMarkupPercent(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 pr-10"
+                    />
+                    <span className="absolute inset-y-0 right-3 flex items-center text-xs font-black text-slate-400 select-none">%</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-bold">قیمت خریداران خرد بر اساس کاتالوگ کارخانه به علاوه این درصد محاسبه می‌شود. پیش‌فرض: ۱۰٪</p>
+                </div>
+
+                {/* Marketer Commission Percent */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-600 block">درصد پورسانت بازاریاب از کل ارزش فاکتور معرفی‌شده:</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={marketerCommissionPercent}
+                      onChange={(e) => setMarketerCommissionPercent(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 pr-10"
+                    />
+                    <span className="absolute inset-y-0 right-3 flex items-center text-xs font-black text-slate-400 select-none">%</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-bold">پورسانت نقدی بازاریاب از هر فروشی که به بنکداران و مغازه‌ها معرفی کند. پیش‌فرض: ۵٪</p>
+                </div>
+
+                {/* Rep Regional Profit Share Percent */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-600 block">درصد سهم سود نماینده از کل سود سفارشات منطقه خود:</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={repRegionalProfitSharePercent}
+                      onChange={(e) => setRepRegionalProfitSharePercent(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 pr-10"
+                    />
+                    <span className="absolute inset-y-0 right-3 flex items-center text-xs font-black text-slate-400 select-none">%</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-bold">زمانی که مشتری از شهر تحت پوشش نماینده خرید می‌کند، این درصد از سود سفارش به حساب نماینده منظور می‌شود. پیش‌فرض: ۵۰٪</p>
+                </div>
+
+                {/* Rep Floor Sales Threshold */}
+                <div className="space-y-2 lg:col-span-2">
+                  <label className="text-[11px] font-black text-slate-600 block">حداقل مجموع خرید نقدی تجمعی جهت تایید سطح نمایندگی (تومان):</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={repFloorSalesThreshold.toLocaleString("fa-IR")}
+                      onChange={(e) => {
+                        const clean = toEnglishNum(e.target.value).replace(/[^0-9]/g, '');
+                        setRepFloorSalesThreshold(clean === "" ? 0 : Number(clean));
+                      }}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left"
+                      dir="ltr"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-bold">حداقل آستانه خرید نقدی اولیه نماینده جهت فعال‌سازی دائمی تخفیف خرید کف نمایندگی کارخانه. پیش‌فرض: ۳۰۰,۰۰۰,۰۰۰ تومان</p>
+                </div>
+
+                {/* Require Admin Approval for Rep */}
+                <div className="space-y-2 flex flex-col justify-end">
+                  <div className="flex items-center gap-2 p-3 bg-white/80 border border-slate-200 rounded-2xl h-11 shrink-0">
+                    <input
+                      type="checkbox"
+                      id="require_admin_approval"
+                      checked={requireAdminApprovalForRep}
+                      onChange={(e) => setRequireAdminApprovalForRep(e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 rounded"
+                    />
+                    <label htmlFor="require_admin_approval" className="text-xs font-black text-slate-700 cursor-pointer">الزام به تایید ادمین برای فعال‌سازی نمایندگی</label>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-bold">فعال‌سازی عاملیت نماینده منوط به ثبت ضمانت‌نامه معتبر (چک صیاد یا ضمانت بانکی) و تایید دستی ادمین خواهد بود.</p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-slate-50/60 p-5 rounded-[1.5rem] border border-slate-100/80 space-y-4">
               <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                 📥 سیستم واردکننده دسته‌ای کالاها با کدهای JSON
@@ -8769,11 +9218,13 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               {((categories && categories.length > 0) ? categories : (b2bConfig.categories && b2bConfig.categories.length > 0) ? b2bConfig.categories : [
                 { id: '1', name: "تنقلات و شکلات", imageUrl: "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?w=200" },
                 { id: '2', name: "کیک، کلوچه و بیسکویت", imageUrl: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=200" }
-              ]).map((cat: any) => (
-                <div key={cat.id} className="group relative bg-white border border-slate-100 rounded-2xl overflow-hidden hover transition-all">
+              ]).map((cat: any, idx: number) => {
+                const safeCatKey = (cat && typeof cat === 'object') ? (cat.id || cat.name || idx) : `${cat}-${idx}`;
+                return (
+                <div key={`admin-cat-card-${safeCatKey}-${idx}`} className="group relative bg-white border border-slate-100 rounded-2xl overflow-hidden hover transition-all">
                   <div className="aspect-square bg-slate-100 relative">
                     <img src={cat.imageUrl || "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?w=200"} alt={cat.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
                         onClick={() => {
                           setEditingCategoryId(cat.id);
@@ -8808,7 +9259,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     <p className="text-[10px] font-black text-slate-900">{cat.name}</p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -8942,7 +9394,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             : Array.from(new Set(factories.map((f: any) => f.category).filter(Boolean)));
                           if (!cats.includes("سایر صنایع")) cats.push("سایر صنایع");
                           return cats.map((catName: string, i: number) => (
-                            <option key={i} value={catName}>{catName}</option>
+                            <option key={`admin-panel-cat-opt-${catName}-${i}`} value={catName}>{catName}</option>
                           ));
                         })()}
                       </select>
@@ -9132,7 +9584,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                           setNewGalleryUrl("");
                           setNewGalleryTitle("");
                         }}
-                        className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all cursor-pointer"
+                        className="px-4 py-2 bg-slate-100 text-slate-900 rounded-xl text-xs font-black hover:bg-slate-200 transition-all cursor-pointer border border-slate-200"
                       >
                         + افزودن عکس
                       </button>
@@ -9141,9 +9593,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     {factoryGalleryImages.length > 0 && (
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                         {factoryGalleryImages.map((img, idx) => (
-                          <div key={idx} className="relative group bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 h-28">
+                          <div key={`admin-panel-gallery-${img.url || idx}-${idx}`} className="relative group bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 h-28">
                             <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-between text-white">
+                            <div className="absolute inset-0 bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-between text-slate-900 backdrop-blur-xs">
                               <span className="text-[10px] font-black truncate">{img.title}</span>
                               <button
                                 type="button"
@@ -9193,7 +9645,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                               value={factoryCustomHtml}
                               onChange={e => setFactoryCustomHtml(e.target.value)}
                               placeholder="<div>...</div>"
-                              className="w-full px-4 py-3 bg-slate-900 text-emerald-400 border border-slate-800 rounded-xl text-xs font-mono leading-relaxed"
+                              className="w-full px-4 py-3 bg-slate-50 text-emerald-700 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed"
                               dir="ltr"
                             />
                           </div>
@@ -9206,7 +9658,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                               value={factoryCustomCss}
                               onChange={e => setFactoryCustomCss(e.target.value)}
                               placeholder=".custom-class { ... }"
-                              className="w-full px-4 py-3 bg-slate-900 text-blue-400 border border-slate-800 rounded-xl text-xs font-mono leading-relaxed"
+                              className="w-full px-4 py-3 bg-slate-50 text-blue-700 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed"
                               dir="ltr"
                             />
                           </div>
@@ -9220,7 +9672,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             value={factoryCustomJs}
                             onChange={e => setFactoryCustomJs(e.target.value)}
                             placeholder="console.log('Factory Page Loaded');"
-                            className="w-full px-4 py-3 bg-slate-900 text-yellow-400 border border-slate-800 rounded-xl text-xs font-mono leading-relaxed"
+                            className="w-full px-4 py-3 bg-slate-50 text-amber-700 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed"
                             dir="ltr"
                           />
                         </div>
@@ -9280,7 +9732,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     {factoryCatalogs.length > 0 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                         {factoryCatalogs.map((cat, idx) => (
-                          <div key={idx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-150">
+                          <div key={`admin-panel-cat-item-${cat.name || idx}-${idx}`} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-150">
                             <button 
                               type="button"
                               onClick={() => setFactoryCatalogs(prev => prev.filter((_, i) => i !== idx))}
@@ -9344,7 +9796,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         </div>
                         <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 p-2 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
                           <img 
-                            src={f.logoUrl} 
+                            src={getDisplayImageUrl(f.logoUrl)} 
                             alt={f.name} 
                             className="w-full h-full object-contain" 
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -9372,7 +9824,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         <div className="flex flex-wrap gap-1">
                           {f.catalogs.map((cat: any, i: number) => (
                             <a 
-                              key={i} 
+                              key={`admin-panel-f-cat-${cat.id || i}-${i}`} 
                               href={cat.url} 
                               target="_blank" 
                               rel="referrer" 
@@ -9546,35 +9998,64 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
 
           {/* CRM Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-2xl shadow-sm">
-            <span className="text-xs font-black text-slate-500 ml-2">فیلتر بر اساس نشان:</span>
-            {[
-              { id: 'all', label: 'همه بنکداران' },
-              { id: 'vip', label: '👑 ویژه VIP' },
-              { id: 'gold', label: '🥇 طلایی' },
-              { id: 'silver', label: '🥈 نقره‌ای' },
-              { id: 'bronze', label: '🥉 برنزی' }
-            ].map((pill) => (
-              <button
-                key={pill.id}
-                type="button"
-                onClick={() => setCrmBadgeFilter(pill.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  crmBadgeFilter === pill.id
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
-                }`}
-              >
-                {pill.label}
-              </button>
-            ))}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-2xl shadow-sm">
+              <span className="text-xs font-black text-slate-500 ml-2">فیلتر بر اساس نشان:</span>
+              {[
+                { id: 'all', label: 'همه نشان‌ها' },
+                { id: 'vip', label: '👑 ویژه VIP' },
+                { id: 'gold', label: '🥇 طلایی' },
+                { id: 'silver', label: '🥈 نقره‌ای' },
+                { id: 'bronze', label: '🥉 برنزی' }
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setCrmBadgeFilter(pill.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    crmBadgeFilter === pill.id
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-2xl shadow-sm">
+              <span className="text-xs font-black text-slate-500 ml-2">فیلتر بر اساس نقش کاربر:</span>
+              {[
+                { id: 'all', label: 'همه نقش‌ها' },
+                { id: 'customer', label: '👥 مشتری' },
+                { id: 'representative', label: '🛡️ نماینده' },
+                { id: 'marketer', label: '📣 بازاریاب' },
+                { id: 'factory', label: '🏭 کارخانه' }
+              ].map((pill) => {
+                const count = crmCustomers.filter(c => pill.id === 'all' || c.role === pill.id || (!c.role && pill.id === 'customer')).length;
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setCrmRoleFilter(pill.id as any)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      crmRoleFilter === pill.id
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                    }`}
+                  >
+                    {pill.label} ({toPersianNum(count)})
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             {crmLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <RefreshCw className="animate-spin text-indigo-500" size={40} />
-                <span className="text-xs font-black text-slate-400">در حال فراخوانی پایگاه داده مشتریان...</span>
+                <span className="text-xs font-black text-slate-400">در حال فراخوانی پایگاه داده کاربران...</span>
               </div>
             ) : (() => {
               const filteredCrmList = crmCustomers.filter(c => {
@@ -9585,7 +10066,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   (c.city || '').toLowerCase().includes(crmSearch.toLowerCase());
                 
                 const matchesBadge = crmBadgeFilter === 'all' || c.badge === crmBadgeFilter;
-                return matchesSearch && matchesBadge;
+                const matchesRole = crmRoleFilter === 'all' || c.role === crmRoleFilter || (!c.role && crmRoleFilter === 'customer');
+                return matchesSearch && matchesBadge && matchesRole;
               });
               return (
                 <>
@@ -9688,7 +10170,20 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                                 {customer.badge === 'vip' ? '👑' : customer.badge === 'gold' ? '🥇' : customer.badge === 'silver' ? '🥈' : '🥉'}
                               </div>
                               <div className="space-y-1 text-right overflow-hidden">
-                                <h4 className="text-sm font-black text-slate-800 group-hover transition-colors truncate">{customer.company}</h4>
+                                <div className="flex items-center gap-2 justify-end">
+                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${
+                                    customer.role === 'representative' ? 'bg-indigo-100 text-indigo-700' :
+                                    customer.role === 'marketer' ? 'bg-amber-100 text-amber-700' :
+                                    customer.role === 'factory' ? 'bg-pink-100 text-pink-700' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {customer.role === 'representative' ? '🛡️ نماینده' :
+                                     customer.role === 'marketer' ? '📣 بازاریاب' :
+                                     customer.role === 'factory' ? '🏭 کارخانه' :
+                                     '👥 مشتری'}
+                                  </span>
+                                  <h4 className="text-sm font-black text-slate-800 group-hover transition-colors truncate">{customer.company}</h4>
+                                </div>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold justify-end">
                                    <span className="flex items-center gap-1">{customer.city} <MapPin size={10} /></span>
                                    <span className="flex items-center gap-1" dir="ltr">{customer.phone} <Phone size={10} /></span>
@@ -9919,7 +10414,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                               {order.items?.map((item: any, idx: number) => (
-                                <tr key={idx} className="text-slate-800 font-bold">
+                                <tr key={`admin-panel-order-item-${item.id || item.productId || idx}-${idx}`} className="text-slate-800 font-bold">
                                   <td className="py-2.5 text-right font-black text-[10px] sm">{item.name}</td>
                                   <td className="py-2.5 text-center font-mono text-emerald-600">{toPersianNum(item.quantityCartons)} ک</td>
                                   <td className="py-2.5 text-center font-mono">{(item.pricePerCarton || 0).toLocaleString()}</td>
@@ -9972,7 +10467,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             { key: 'cancelled', label: "لغو فاکتور", color: "bg-rose-600" }
                           ].map((step, idx) => (
                             <button
-                              key={idx}
+                              key={`admin-panel-order-step-${step.key}-${idx}`}
                               onClick={() => handleUpdateOrderStatus(order.id, step.key)}
                               className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border ${
                                 order.status === step.key 
@@ -10074,7 +10569,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             </h3>
             <div className="space-y-4">
               {orders.slice(0, 10).map((o, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div key={`admin-panel-fin-order-${o.id || idx}-${idx}`} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${o.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
                       <DollarSign size={20} />
@@ -10364,7 +10859,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 { code: "MAZMAZ-GOLD", title: "۸٪ تخفیف بار مزمز", desc: "بدون محدودیت حداقل سفارش", expires: "تا انتهای هفته" },
                 { code: "SUNICH-VIP", title: "۱۲٪ تخفیف اختصاصی سن‌ایچ", desc: "ویژه خریدهای نقدی خط تولید", expires: "تا فردا شب" }
               ].map((c, i) => (
-                <div key={i} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between space-y-3">
+                <div key={`admin-panel-discount-${c.code}-${i}`} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between space-y-3">
                   <div>
                     <h4 className="text-xs font-black text-slate-800">{c.title}</h4>
                     <p className="text-[9px] text-slate-400 font-bold mt-1">{c.desc}</p>
@@ -10546,7 +11041,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
                   return (
                     <div 
-                      key={cat.id || idx} 
+                      key={`b2b-cat-${cat.id || cat.name || idx}-${idx}`} 
                       className={`group relative p-4 rounded-3xl border transition-all flex flex-col gap-3 ${
                         isCatSelected ? "bg-amber-50/60 border-amber-400 shadow-md" : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
                       }`}
@@ -10797,7 +11292,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           {/* Bulk Edit Category Modal */}
           <AnimatePresence>
             {showBulkEditCatModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/70 backdrop-blur-md">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -10980,15 +11475,15 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {brands.map((brand) => (
+                  {brands.map((brand, idx) => (
                     <div 
-                      key={brand.id || brand.name}
+                      key={`admin-brand-${brand.id || brand.name || idx}-${idx}`}
                       className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 hover:bg-white hover:border-amber-400 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-sm text-2xl overflow-hidden">
                           {brand.logoUrl ? (
-                            <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
+                            <img src={getDisplayImageUrl(brand.logoUrl)} alt={brand.name} className="w-full h-full object-contain" />
                           ) : (
                             <span>{brand.icon || "🏬"}</span>
                           )}
@@ -11179,6 +11674,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         logoUrl: brandFormLogoUrl.trim()
                       };
                       updated = [newB, ...brands];
+
+                      if (autoPostSettings.new_factory) {
+                        triggerAutoChannelPost(
+                          `🏭 کارخانه جدید همکار: ${brandFormName.trim()}`,
+                          `برند تجاری و کارخانه تولیدی جدید "${brandFormName.trim()}" به خانواده بزرگ تولیدکنندگان بدون واسطه سامانه دست اول پیوست.\n\nنوع تولیدات: ${brandFormType.trim() || "صنایع غذایی"}\nهم‌اکنون بنکداران و مراجعین محترم می‌توانند کالاهای بی‌واسطه خط تولید این کارخانه را در کاتالوگ سامانه به طور زنده دنبال کنند.`,
+                          "system",
+                          "مشاهده کاتالوگ محصولات",
+                          `#brands`
+                        );
+                      }
                     }
 
                     setBrands(updated);
@@ -11218,7 +11723,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </div>
               <div>
                 <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت بیلبورد آگهی‌ها</h3>
-                <p className="text-[11px] text-slate-400 font-bold mt-1">تایید، رد و ویژه کردن آگهی‌های ثبت شده کاربران.</p>
+                <p className="text-[11px] text-slate-400 font-bold mt-1">تایید، رد، ویرایش و حذف گروهی آگهی‌های ثبت شده کاربران.</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -11279,11 +11784,122 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                </button>
             </div>
           </div>
+
+          {/* Batch Operations Bar */}
+          {selectedAdIds.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-black">
+                  {selectedAdIds.length}
+                </span>
+                <span className="text-xs font-black text-amber-900">آگهی انتخاب شده</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (autoPostSettings.new_ad) {
+                      selectedAdIds.forEach(id => {
+                        const ad = sponsoredAds.find(a => a.id === id);
+                        if (ad && ad.status !== 'approved') {
+                          triggerAutoChannelPost(
+                            `📢 آگهی جدید همکار: ${ad.title}`,
+                            `یک آگهی همکار جدید تایید و در سامانه منتشر شد:\n\nعنوان: "${ad.title}"\nتوسط: ${ad.factoryName}\nتوضیحات: ${ad.description}`,
+                            "announcement",
+                            "مشاهده جزئیات آگهی",
+                            `#ads`
+                          );
+                        }
+                      });
+                    }
+
+                    const newAds = sponsoredAds.map(a => selectedAdIds.includes(a.id) ? { ...a, status: 'approved', rejectionReason: undefined } : a);
+                    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                    setSponsoredAds(newAds);
+                    window.dispatchEvent(new Event("storage"));
+                    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                    setSuccessMsg(`${selectedAdIds.length} آگهی با موفقیت تایید و منتشر شدند.`);
+                    setSelectedAdIds([]);
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckCircle size={14} />
+                  <span>تایید گروهی</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const newAds = sponsoredAds.map(a => selectedAdIds.includes(a.id) ? { ...a, status: 'rejected', rejectionReason: 'رد گروهی توسط مدیریت' } : a);
+                    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                    setSponsoredAds(newAds);
+                    window.dispatchEvent(new Event("storage"));
+                    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                    setSuccessMsg(`${selectedAdIds.length} آگهی رد شدند.`);
+                    setSelectedAdIds([]);
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <XCircle size={14} />
+                  <span>رد گروهی</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`آیا از حذف ${selectedAdIds.length} آگهی انتخاب شده اطمینان دارید؟`)) {
+                      const newAds = sponsoredAds.filter(a => !selectedAdIds.includes(a.id));
+                      localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                      setSponsoredAds(newAds);
+                      window.dispatchEvent(new Event("storage"));
+                      window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                      setSuccessMsg(`${selectedAdIds.length} آگهی حذف شدند.`);
+                      setSelectedAdIds([]);
+                      setTimeout(() => setSuccessMsg(null), 3000);
+                    }
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                >
+                  <Trash2 size={14} />
+                  <span>حذف گروهی</span>
+                </button>
+                <button
+                  onClick={() => setSelectedAdIds([])}
+                  className="px-4 py-2 bg-white text-slate-600 hover:bg-slate-100 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  لغو انتخاب
+                </button>
+              </div>
+            </div>
+          )}
           
           <div className="overflow-x-auto">
             <table className="w-full text-right border-separate border-spacing-y-2">
               <thead>
                 <tr className="text-[10px] font-black text-slate-400">
+                  <th className="px-3 py-2 w-10 text-center">
+                    {(() => {
+                      const filtered = sponsoredAds.filter(ad => {
+                        const statusMatch = adsFilter === 'all' || (ad.status || 'pending') === adsFilter;
+                        const categoryMatch = adsCategoryFilter === 'all' || ad.category === adsCategoryFilter;
+                        return statusMatch && categoryMatch;
+                      });
+                      const allIds = filtered.map(a => a.id);
+                      const isAllSelected = allIds.length > 0 && allIds.every(id => selectedAdIds.includes(id));
+                      return (
+                        <input 
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedAdIds(allIds);
+                            } else {
+                              setSelectedAdIds([]);
+                            }
+                          }}
+                          className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                          title="انتخاب همه این لیست"
+                        />
+                      );
+                    })()}
+                  </th>
                   <th className="px-4 py-2 font-black text-right">تصویر</th>
                   <th className="px-4 py-2 font-black text-right">عنوان آگهی / کاربر</th>
                   <th className="px-4 py-2 font-black text-right">دسته‌بندی و قیمت</th>
@@ -11301,118 +11917,135 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   });
 
                   if (filtered.length === 0) {
-                    return <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">هیچ آگهی در این وضعیت یافت نشد.</td></tr>;
+                    return <tr><td colSpan={7} className="text-center py-12 text-slate-400 font-bold">هیچ آگهی در این وضعیت یافت نشد.</td></tr>;
                   }
 
-                  return filtered.map((ad: any) => (
-                    <tr key={ad.id} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 rounded-r-2xl border-y border-r border-slate-100">
-                        <div className="relative group">
-                          <img 
-                            src={ad.imageUrl} 
-                            alt={ad.title} 
-                            className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm" 
-                            referrerPolicy="no-referrer"
+                  return filtered.map((ad: any) => {
+                    const isSelected = selectedAdIds.includes(ad.id);
+                    return (
+                      <tr key={ad.id} className={`transition-colors ${isSelected ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50/50 hover:bg-slate-50'}`}>
+                        <td className="px-3 py-3 rounded-r-2xl border-y border-r border-slate-100 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedAdIds(prev => [...prev, ad.id]);
+                              } else {
+                                setSelectedAdIds(prev => prev.filter(id => id !== ad.id));
+                              }
+                            }}
+                            className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
                           />
-                          {ad.specialRequest && (
-                            <div className="absolute -top-1 -right-1 bg-amber-500 text-white p-1 rounded-full border-2 border-white shadow-sm" title="درخواست ویژه سازی">
-                              <Sparkles size={8} />
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <div className="font-black text-slate-800 text-sm">{ad.title}</div>
-                        <div className="text-[10px] text-slate-500 font-bold mt-1 flex items-center gap-2">
-                          <span>👤 {ad.factoryName}</span>
-                          <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                          <span>📞 {ad.contactPhone}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <div className="flex flex-col gap-1.5">
-                          <span className={`inline-block w-fit px-2 py-1 rounded-lg text-[10px] font-black ${
-                            ad.category === "under_market" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
+                        </td>
+                        <td className="px-4 py-3 border-y border-slate-100">
+                          <div className="relative group">
+                            <img 
+                              src={ad.imageUrl} 
+                              alt={ad.title} 
+                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm" 
+                              referrerPolicy="no-referrer"
+                            />
+                            {ad.specialRequest && (
+                              <div className="absolute -top-1 -right-1 bg-amber-500 text-white p-1 rounded-full border-2 border-white shadow-sm" title="درخواست ویژه سازی">
+                                <Sparkles size={8} />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 border-y border-slate-100">
+                          <div className="font-black text-slate-800 text-sm">{ad.title}</div>
+                          <div className="text-[10px] text-slate-500 font-bold mt-1 flex items-center gap-2">
+                            <span>👤 {ad.factoryName}</span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                            <span>📞 {ad.contactPhone}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 border-y border-slate-100">
+                          <div className="flex flex-col gap-1.5">
+                            <span className={`inline-block w-fit px-2 py-1 rounded-lg text-[10px] font-black ${
+                              ad.category === "under_market" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
+                            }`}>
+                              {ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔄 تهاتر" : ad.category === "buy" ? "📥 خرید" : ad.category === "sell" ? "📤 فروش" : ad.category === "jobs" ? "💼 استخدام" : ad.category === "services" ? "🛠️ خدمات" : ad.category}
+                            </span>
+                            {(ad.wholesalePrice || ad.marketPrice) && (
+                              <div className="text-[10px] font-bold text-indigo-700 flex items-center gap-2">
+                                <span>💰 عمده: {ad.wholesalePrice}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 border-y border-slate-100">
+                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border ${
+                            (ad.status || 'pending') === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                            ad.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
+                            'bg-emerald-50 text-emerald-700 border-emerald-200'
                           }`}>
-                            {ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔄 تهاتر" : ad.category === "buy" ? "📥 خرید" : ad.category === "sell" ? "📤 فروش" : ad.category === "jobs" ? "💼 استخدام" : ad.category === "services" ? "🛠️ خدمات" : ad.category}
-                          </span>
-                          {(ad.wholesalePrice || ad.marketPrice) && (
-                            <div className="text-[10px] font-bold text-indigo-700 flex items-center gap-2">
-                              <span>💰 عمده: {ad.wholesalePrice}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border ${
-                          (ad.status || 'pending') === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
-                          ad.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
-                          'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${
-                            (ad.status || 'pending') === 'pending' ? 'bg-amber-500' : 
-                            ad.status === 'rejected' ? 'bg-rose-500' : 
-                            'bg-emerald-500'
-                          }`} />
-                          {(ad.status || 'pending') === 'pending' ? 'در انتظار تایید' : 
-                           ad.status === 'rejected' ? 'رد شده' : 'تایید شده'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <button
-                          onClick={() => {
-                             const newAds = sponsoredAds.map(a => a.id === ad.id ? {...a, isSponsored: !a.isSponsored} : a);
-                             localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                             setSponsoredAds(newAds);
-                             setSuccessMsg(ad.isSponsored ? "آگهی از حالت ویژه خارج شد." : "آگهی ویژه شد.");
-                             setTimeout(() => setSuccessMsg(null), 2000);
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border flex items-center gap-1.5 cursor-pointer ${ad.isSponsored ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-600'}`}
-                        >
-                          <Sparkles size={12} />
-                          {ad.isSponsored ? "ویژه" : "عادی"}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 rounded-l-2xl border-y border-l border-slate-100 text-left">
-                        <div className="flex items-center gap-2 justify-end">
-                          <button
-                            onClick={() => setSelectedAdForView(ad)}
-                            className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm"
-                            title="مشاهده جزئیات و تایید"
-                          >
-                            <Eye size={16} />
-                          </button>
+                            <div className={`w-1.5 h-1.5 rounded-full ${
+                              (ad.status || 'pending') === 'pending' ? 'bg-amber-500' : 
+                              ad.status === 'rejected' ? 'bg-rose-500' : 
+                              'bg-emerald-500'
+                            }`} />
+                            {(ad.status || 'pending') === 'pending' ? 'در انتظار تایید' : 
+                             ad.status === 'rejected' ? 'رد شده' : 'تایید شده'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 border-y border-slate-100">
                           <button
                             onClick={() => {
-                              setAdToEdit(ad);
-                              setEditAdForm({...ad});
+                               const newAds = sponsoredAds.map(a => a.id === ad.id ? {...a, isSponsored: !a.isSponsored} : a);
+                               localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                               setSponsoredAds(newAds);
+                               setSuccessMsg(ad.isSponsored ? "آگهی از حالت ویژه خارج شد." : "آگهی ویژه شد.");
+                               setTimeout(() => setSuccessMsg(null), 2000);
                             }}
-                            className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors shadow-sm"
-                            title="ویرایش سریع آگهی"
+                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border flex items-center gap-1.5 cursor-pointer ${ad.isSponsored ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-600'}`}
                           >
-                            <Edit2 size={16} />
+                            <Sparkles size={12} />
+                            {ad.isSponsored ? "ویژه" : "عادی"}
                           </button>
-                          <button
-                             onClick={() => {
-                                if(window.confirm("آیا از حذف این آگهی مطمئن هستید؟")) {
-                                   const newAds = sponsoredAds.filter(a => a.id !== ad.id);
-                                   localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                                   setSponsoredAds(newAds);
-                                   window.dispatchEvent(new Event("storage"));
-                                   window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                                   setSuccessMsg("آگهی حذف شد.");
-                                   setTimeout(() => setSuccessMsg(null), 2000);
-                                }
-                             }}
-                             className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
-                             title="حذف آگهی"
-                          >
-                             <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ));
+                        </td>
+                        <td className="px-4 py-3 rounded-l-2xl border-y border-l border-slate-100 text-left">
+                          <div className="flex items-center gap-2 justify-end">
+                            <button
+                              onClick={() => setSelectedAdForView(ad)}
+                              className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm cursor-pointer"
+                              title="مشاهده جزئیات و تایید"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAdToEdit(ad);
+                                setEditAdForm({...ad});
+                              }}
+                              className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors shadow-sm cursor-pointer"
+                              title="ویرایش سریع آگهی"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                               onClick={() => {
+                                  if(window.confirm("آیا از حذف این آگهی مطمئن هستید؟")) {
+                                     const newAds = sponsoredAds.filter(a => a.id !== ad.id);
+                                     localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+                                     setSponsoredAds(newAds);
+                                     window.dispatchEvent(new Event("storage"));
+                                     window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                                     setSuccessMsg("آگهی حذف شد.");
+                                     setTimeout(() => setSuccessMsg(null), 2000);
+                                  }
+                               }}
+                               className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm cursor-pointer"
+                               title="حذف آگهی"
+                            >
+                               <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
                 })()}
               </tbody>
             </table>
@@ -11422,7 +12055,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
       {/* Edit Ad Modal */}
       {adToEdit && editAdForm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" dir="rtl">
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" dir="rtl">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -11519,7 +12152,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       )}
 
       {selectedAdForView && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-md">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-white/60 backdrop-blur-md">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -11650,11 +12283,23 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               <div className="mt-10 pt-6 border-t border-slate-100 flex items-center gap-4">
                 <button
                   onClick={() => {
+                    const wasApproved = selectedAdForView.status === "approved";
                     const newAds = sponsoredAds.map(a => a.id === selectedAdForView.id ? {...a, status: "approved", rejectionReason: undefined} : a);
                     localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
                     setSponsoredAds(newAds);
                     setSelectedAdForView({...selectedAdForView, status: "approved", rejectionReason: undefined});
                     setSuccessMsg("آگهی با موفقیت تایید و منتشر شد.");
+
+                    if (!wasApproved && autoPostSettings.new_ad) {
+                      triggerAutoChannelPost(
+                        `📢 آگهی جدید همکار: ${selectedAdForView.title}`,
+                        `یک آگهی همکار جدید تایید و در سامانه منتشر شد:\n\nعنوان: "${selectedAdForView.title}"\nتوسط: ${selectedAdForView.factoryName}\nتوضیحات: ${selectedAdForView.description}`,
+                        "announcement",
+                        "مشاهده جزئیات آگهی",
+                        `#ads`
+                      );
+                    }
+
                     setTimeout(() => setSuccessMsg(null), 2000);
                   }}
                   className={`flex-1 py-4 rounded-2xl text-[13px] font-black transition-all shadow-xl flex items-center justify-center gap-2.5 ${selectedAdForView.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30 hover:-translate-y-0.5 cursor-pointer active:translate-y-0'}`}
@@ -11679,7 +12324,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       )}
 
       {showRejectionReasonModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-white/40 backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -11739,6 +12384,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           city={selectedRepForCertificate.city}
           agencyCode={selectedRepForCertificate.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`}
           badge={selectedRepForCertificate.badge || "نماینده انحصاری توزیع"}
+          isApproved={selectedRepForCertificate.isApproved}
           onClose={() => setSelectedRepForCertificate(null)}
           b2bConfig={b2bConfig}
         />
@@ -11855,6 +12501,19 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       onChange={e => setCrmYear(Number(e.target.value))}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400">نقش کاربر:</label>
+                    <select 
+                      value={crmRole} 
+                      onChange={e => setCrmRole(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus"
+                    >
+                      <option value="customer">👥 مشتری (بنکدار)</option>
+                      <option value="representative">🛡️ نماینده رسمی فروش</option>
+                      <option value="marketer">📣 بازاریاب و معرف</option>
+                      <option value="factory">🏭 کارخانه / تولیدکننده</option>
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">سطح وفاداری بنکدار:</label>
@@ -12166,7 +12825,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     <span className="block text-[10px] text-slate-400 font-black">کالاهای موجود در پیش‌نویس فاکتور:</span>
                     <div className="space-y-1.5 max-h-36 overflow-y-auto">
                       {directInvoiceItems.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 font-sans">
+                        <div key={`admin-panel-draft-item-${item.id || idx}-${idx}`} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 font-sans">
                           <button 
                             type="button"
                             onClick={() => setDirectInvoiceItems(prev => prev.filter((_, i) => i !== idx))}
@@ -12292,7 +12951,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <label className="block text-[10px] font-black text-slate-400 mb-3 mr-2">ویرایش اقلام و تعداد فاکتور عمده:</label>
                   <div className="space-y-3">
                     {editOrderItems.map((item, idx) => (
-                      <div key={idx} className="flex gap-3 items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                      <div key={`admin-panel-edit-order-${item.id || idx}-${idx}`} className="flex gap-3 items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                         <div className="flex-1 text-[11px] font-black text-slate-700">{item.name}</div>
                         <div className="flex items-center gap-2">
                           <input 
@@ -12565,7 +13224,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             {selectedSafeBuyDetail && (() => {
               const details = getProductDetailsForSafeBuy(selectedSafeBuyDetail);
               return (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
+                <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -12737,6 +13396,468 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               );
             })()}
           </AnimatePresence>
+        </div>
+      )}
+
+      {activeSubTab === 'channel_posts' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right animate-fade-in" dir="rtl">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-100">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shadow-inner">
+                <Megaphone size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت کانال اطلاع‌رسانی دست اول</h3>
+                <p className="text-[11px] text-slate-400 font-bold mt-1">ایجاد، ویرایش و حذف اطلاعیه‌ها، اخبار فوری و فراخوان‌های ویژه کاربران سامانه.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Form and Channel List Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Form Column */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* Manual Form */}
+              <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-150 space-y-4">
+                <h4 className="font-black text-xs text-slate-800 border-b border-slate-200 pb-2">
+                  {editingChannelPostId ? "📝 ویرایش اطلاعیه" : "✨ انتشار پیام جدید در کانال"}
+                </h4>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-slate-500 block">عنوان پیام:</label>
+                  <input
+                    type="text"
+                    value={channelPostTitle}
+                    onChange={(e) => setChannelPostTitle(e.target.value)}
+                    placeholder="مثلاً: شروع فروش حراج زعفران قائنات"
+                    className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-slate-500 block">دسته‌بندی:</label>
+                  <select
+                    value={channelPostCategory}
+                    onChange={(e) => setChannelPostCategory(e.target.value)}
+                    className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  >
+                    <option value="info">📣 عمومی / اطلاع‌رسانی</option>
+                    <option value="urgent">🔴 فوری / حراج ویژه</option>
+                    <option value="festival">🎉 جشنواره تخفیف کارخانجات</option>
+                    <option value="system">⚙️ اطلاعیه فنی و سیستمی</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-slate-500 block">متن کامل پیام:</label>
+                  <textarea
+                    rows={6}
+                    value={channelPostContent}
+                    onChange={(e) => setChannelPostContent(e.target.value)}
+                    placeholder="متن پیام خود را با جزئیات کامل، قیمت‌ها و نحوه سفارش وارد کنید..."
+                    className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none leading-relaxed focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5 border-t border-slate-200/50 pt-3 mt-2">
+                  <span className="text-[10px] font-black text-indigo-600 block mb-1">🔗 دکمه اکشن / پیوند دکمه (اختیاری)</span>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 block">متن دکمه:</label>
+                    <input
+                      type="text"
+                      value={channelPostActionLabel}
+                      onChange={(e) => setChannelPostActionLabel(e.target.value)}
+                      placeholder="مثلاً: ورود به صفحه خرید ویژه"
+                      className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[10px] font-bold text-slate-400 block">لینک یا آدرس اینترنتی (URL):</label>
+                    <input
+                      type="text"
+                      value={channelPostActionUrl}
+                      onChange={(e) => setChannelPostActionUrl(e.target.value)}
+                      placeholder="مثلاً: https://dastavval.com/special"
+                      className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-700 outline-none focus:border-indigo-500 transition-all text-left"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!channelPostTitle.trim() || !channelPostContent.trim()) {
+                        alert("لطفا عنوان و متن پیام را کامل کنید.");
+                        return;
+                      }
+
+                      const saved = localStorage.getItem("dastavval_announcements");
+                      let currentPosts = [];
+                      if (saved) {
+                        currentPosts = JSON.parse(saved);
+                      } else {
+                        currentPosts = [
+                          {
+                            id: "ann-1",
+                            title: "📣 راه‌اندازی کانال رسمی اطلاع‌رسانی دست اول",
+                            content: "به کانال رسمی دست اول خوش آمدید! از این پس کلیه حراج‌های کف بازار، جشنواره‌های تخفیف خط تولید کارخانجات، شرایط اعطای نمایندگی استانی و اطلاعیه‌های مهم صنف مواد غذایی و بهداشتی را به صورت مستقیم و آنی در این کانال دریافت خواهید کرد.",
+                            category: "system",
+                            createdAt: "۱۴۰۵/۰۵/۲۸"
+                          },
+                          {
+                            id: "ann-2",
+                            title: "🔥 جشنواره تخفیف ۲۲٪ ویژه محصولات شوینده",
+                            content: "جشنواره استثنایی فروش مستقیم از درب کارخانه برای انواع مایع دستشویی، ظرفشویی و پودرهای لباسشویی کلید خورد. تمامی بنکداران با سطح نقره‌ای به بالا می‌توانند سفارشات خود را با تخفیف مضاعف در سبد خرید ثبت نمایند.",
+                            category: "festival",
+                            createdAt: "۱۴۰۵/۰۵/۲۷"
+                          },
+                          {
+                            id: "ann-3",
+                            title: "⚡ اعلام شرایط دریافت نمایندگی شهر و شهرستان",
+                            content: "با توجه به درخواست‌های مکرر، جدول سطوح نمایندگی فعال شد. هر فرد با دستیابی به سقف فروش مشخص (۳۰۰ میلیون، ۱ میلیارد، ۲ میلیارد و ۵ میلیارد تومان) می‌تواند لوح تقدیر گرافیکی آنلاین دریافت کرده و مدارک خود را ثبت کند.",
+                            category: "urgent",
+                            createdAt: "۱۴۰۵/۰۵/۲۶"
+                          }
+                        ];
+                      }
+
+                      if (editingChannelPostId) {
+                        // Edit mode
+                        currentPosts = currentPosts.map((p: any) => p.id === editingChannelPostId ? {
+                          ...p,
+                          title: channelPostTitle.trim(),
+                          content: channelPostContent.trim(),
+                          category: channelPostCategory,
+                          actionLabel: channelPostActionLabel.trim() || undefined,
+                          actionUrl: channelPostActionUrl.trim() || undefined
+                        } : p);
+                        setEditingChannelPostId(null);
+                        setSuccessMsg("اطلاعیه با موفقیت ویرایش شد.");
+                      } else {
+                        // Add mode
+                        const newP = {
+                          id: `ann_${Date.now()}`,
+                          title: channelPostTitle.trim(),
+                          content: channelPostContent.trim(),
+                          category: channelPostCategory,
+                          actionLabel: channelPostActionLabel.trim() || undefined,
+                          actionUrl: channelPostActionUrl.trim() || undefined,
+                          createdAt: new Date().toLocaleDateString('fa-IR')
+                        };
+                        currentPosts = [newP, ...currentPosts];
+                        setSuccessMsg("پیام جدید با موفقیت در کانال اطلاع‌رسانی منتشر شد.");
+                      }
+
+                      localStorage.setItem("dastavval_announcements", JSON.stringify(currentPosts));
+                      window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
+                      
+                      // Reset fields
+                      setChannelPostTitle("");
+                      setChannelPostContent("");
+                      setChannelPostCategory("info");
+                      setChannelPostActionLabel("");
+                      setChannelPostActionUrl("");
+                      
+                      setTimeout(() => setSuccessMsg(null), 3000);
+                    }}
+                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Save size={14} />
+                    <span>{editingChannelPostId ? "ذخیره تغییرات" : "انتشار فوری در کانال"}</span>
+                  </button>
+                  
+                  {editingChannelPostId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingChannelPostId(null);
+                        setChannelPostTitle("");
+                        setChannelPostContent("");
+                        setChannelPostCategory("info");
+                        setChannelPostActionLabel("");
+                        setChannelPostActionUrl("");
+                      }}
+                      className="px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs rounded-xl transition-all cursor-pointer"
+                    >
+                      انصراف
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Auto-Post Settings Panel */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 text-right" dir="rtl">
+                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <Settings size={16} />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-xs text-slate-800">تنظیمات انتشار خودکار کانال</h4>
+                    <p className="text-[10px] text-slate-400 font-bold">فعال/غیرفعال‌سازی ارسال پیام خودکار سیستم</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {/* Toggle 1: New Product */}
+                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] font-black text-slate-700">📦 محصولات جدید</span>
+                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار با ثبت محصول جدید</span>
+                    </div>
+                    <button
+                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_product: !prev.new_product }))}
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        autoPostSettings.new_product ? "bg-indigo-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          autoPostSettings.new_product ? "-translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Toggle 2: New Discount */}
+                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] font-black text-slate-700">🔥 تخفیفات جدید</span>
+                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار کاهش قیمت‌های گروهی</span>
+                    </div>
+                    <button
+                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_discount: !prev.new_discount }))}
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        autoPostSettings.new_discount ? "bg-indigo-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          autoPostSettings.new_discount ? "-translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Toggle 3: New Ad */}
+                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] font-black text-slate-700">📢 آگهی‌های همکار</span>
+                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار تایید آگهی‌های بیلبورد</span>
+                    </div>
+                    <button
+                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_ad: !prev.new_ad }))}
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        autoPostSettings.new_ad ? "bg-indigo-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          autoPostSettings.new_ad ? "-translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Toggle 4: New Factory */}
+                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] font-black text-slate-700">🏭 کارخانجات جدید</span>
+                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار عضویت کارخانه جدید</span>
+                    </div>
+                    <button
+                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_factory: !prev.new_factory }))}
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        autoPostSettings.new_factory ? "bg-indigo-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          autoPostSettings.new_factory ? "-translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* List and Statistics */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-[11px] font-black text-slate-400">لیست آخرین پیام‌های منتشر شده در کانال</span>
+                <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-mono">
+                  {toPersianNum((() => {
+                    const saved = localStorage.getItem("dastavval_announcements");
+                    if (saved) {
+                      try { return JSON.parse(saved).length; } catch(e){}
+                    }
+                    return 3;
+                  })())} پیام فعال
+                </span>
+              </div>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                {(() => {
+                  const saved = localStorage.getItem("dastavval_announcements");
+                  let posts = [];
+                  if (saved) {
+                    try { posts = JSON.parse(saved); } catch(e){}
+                  } else {
+                    posts = [
+                      {
+                        id: "ann-1",
+                        title: "📣 راه‌اندازی کانال رسمی اطلاع‌رسانی دست اول",
+                        content: "به کانال رسمی دست اول خوش آمدید! از این پس کلیه حراج‌های کف بازار، جشنواره‌های تخفیف خط تولید کارخانجات، شرایط اعطای نمایندگی استانی و اطلاعیه‌های مهم صنف مواد غذایی و بهداشتی را به صورت مستقیم و آنی در این کانال دریافت خواهید کرد.",
+                        category: "system",
+                        createdAt: "۱۴۰۵/۰۵/۲۸"
+                      },
+                      {
+                        id: "ann-2",
+                        title: "🔥 جشنواره تخفیف ۲۲٪ ویژه محصولات شوینده",
+                        content: "جشنواره استثنایی فروش مستقیم از درب کارخانه برای انواع مایع دستشویی، ظرفشویی و پودرهای لباسشویی کلید خورد. تمامی بنکداران با سطح نقره‌ای به بالا می‌توانند سفارشات خود را با تخفیف مضاعف در سبد خرید ثبت نمایند.",
+                        category: "festival",
+                        createdAt: "۱۴۰۵/۰۵/۲۷"
+                      },
+                      {
+                        id: "ann-3",
+                        title: "⚡ اعلام شرایط دریافت نمایندگی شهر و شهرستان",
+                        content: "با توجه به درخواست‌های مکرر، جدول سطوح نمایندگی فعال شد. هر فرد با دستیابی به سقف فروش مشخص (۳۰۰ میلیون، ۱ میلیارد، ۲ میلیارد و ۵ میلیارد تومان) می‌تواند لوح تقدیر گرافیکی آنلاین دریافت کرده و مدارک خود را ثبت کند.",
+                        category: "urgent",
+                        createdAt: "۱۴۰۵/۰۵/۲۶"
+                      }
+                    ];
+                  }
+
+                  // Sort: pinned first, then normal descending
+                  const sortedPosts = [...posts].sort((a: any, b: any) => {
+                    const aPinned = !!a.pinned;
+                    const bPinned = !!b.pinned;
+                    if (aPinned && !bPinned) return -1;
+                    if (!aPinned && bPinned) return 1;
+                    return 0; // maintain relative order
+                  });
+
+                  if (sortedPosts.length === 0) {
+                    return (
+                      <div className="text-center py-16 text-slate-400 font-bold text-xs space-y-2 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                        <Megaphone size={36} className="mx-auto text-slate-300" />
+                        <p>هیچ پیامی در کانال وجود ندارد. همین حالا اولین پیام خود را منتشر کنید.</p>
+                      </div>
+                    );
+                  }
+
+                  return sortedPosts.map((post: any) => (
+                    <div 
+                      key={post.id} 
+                      className={`bg-white border transition-all p-5 rounded-2xl shadow-2xs space-y-3 relative overflow-hidden group text-right ${
+                        post.pinned ? 'border-amber-300/80 bg-amber-50/5 ring-1 ring-amber-200' : 'border-slate-150 hover:border-slate-250'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                            post.category === 'urgent' ? 'bg-red-100 text-red-750 border border-red-200/50' :
+                            post.category === 'festival' ? 'bg-amber-100 text-amber-800 border border-amber-200/50' :
+                            post.category === 'system' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/50' :
+                            'bg-slate-100 text-slate-750'
+                          }`}>
+                            {post.category === 'urgent' ? '🔴 فوری' :
+                             post.category === 'festival' ? '🎉 جشنواره' :
+                             post.category === 'system' ? '⚙️ سیستمی' :
+                             '📣 عمومی'}
+                          </span>
+                          
+                          {post.pinned && (
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-850 border border-amber-250 flex items-center gap-1 shrink-0">
+                              <Pin size={9} className="fill-amber-600 text-amber-600" />
+                              <span>سنجاق شده</span>
+                            </span>
+                          )}
+
+                          <h5 className="font-black text-xs text-slate-900 leading-tight mr-1">{post.title}</h5>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 font-mono shrink-0">{toPersianNum(post.createdAt)}</span>
+                      </div>
+
+                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed whitespace-pre-line text-right">
+                        {post.content}
+                      </p>
+
+                      {post.actionUrl && (
+                        <div className="pt-1 text-left">
+                          <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg">
+                            🔗 دکمه اکشن: {post.actionLabel || "مشاهده پیوند"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Controls on Hover */}
+                      <div className="flex justify-end gap-1.5 pt-2 border-t border-slate-50">
+                        <button
+                          onClick={() => {
+                            const updated = posts.map((p: any) => {
+                              if (p.id === post.id) {
+                                return { ...p, pinned: !p.pinned };
+                              }
+                              // Set other posts to unpinned if we're pinning this one
+                              return p.pinned && !post.pinned ? { ...p, pinned: false } : p;
+                            });
+                            localStorage.setItem("dastavval_announcements", JSON.stringify(updated));
+                            window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
+                            setSuccessMsg(post.pinned ? "پیام از حالت پین خارج شد." : "پیام با موفقیت به بالای کانال سنجاق شد.");
+                            setTimeout(() => setSuccessMsg(null), 3000);
+                          }}
+                          className={`px-2 py-1 bg-slate-50 hover:bg-slate-100 border text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                            post.pinned ? 'border-amber-200 text-amber-800' : 'border-slate-200 text-slate-600'
+                          }`}
+                        >
+                          <Pin size={11} className={post.pinned ? "fill-amber-600 text-amber-600" : ""} />
+                          <span>{post.pinned ? "برداشتن پین" : "سنجاق پیام"}</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setEditingChannelPostId(post.id);
+                            setChannelPostTitle(post.title);
+                            setChannelPostContent(post.content);
+                            setChannelPostCategory(post.category);
+                            setChannelPostActionLabel(post.actionLabel || "");
+                            setChannelPostActionUrl(post.actionUrl || "");
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[9px] font-black transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                        >
+                          <Edit2 size={11} />
+                          <span>ویرایش</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (window.confirm("آیا از حذف این اطلاعیه از کانال رسمی مطمئن هستید؟")) {
+                              const updated = posts.filter((p: any) => p.id !== post.id);
+                              localStorage.setItem("dastavval_announcements", JSON.stringify(updated));
+                              window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
+                              setSuccessMsg("اطلاعیه با موفقیت حذف گردید.");
+                              setTimeout(() => setSuccessMsg(null), 3000);
+                            }
+                          }}
+                          className="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-[9px] font-black transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                        >
+                          <Trash2 size={11} />
+                          <span>حذف</span>
+                        </button>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

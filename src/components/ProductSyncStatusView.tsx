@@ -466,8 +466,8 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
     <div className="space-y-6 text-right" dir="rtl">
       
       {/* Top Banner & Quick Controls */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-700">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-indigo-400/30">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
           <div>
@@ -503,7 +503,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
             
             <a
               href="#pdf-uploader-section"
-              className="flex-1 lg:flex-none px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 lg:flex-none px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-black text-xs rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/20 backdrop-blur-sm"
             >
               <FileText size={16} />
               <span>مدیریت کاتالوگ PDF باکت</span>
@@ -574,7 +574,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               href={jsonUrl}
               target="_blank"
               rel="noreferrer"
-              className="px-3.5 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+              className="px-3.5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-md shadow-indigo-600/20"
             >
               <ExternalLink size={14} />
               <span>مشاهده مستقیم</span>
@@ -591,9 +591,9 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
           )}
 
           {syncLogs.length > 0 && (
-            <div className="p-3.5 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-2xl max-h-40 overflow-y-auto space-y-1 dir-ltr text-left border border-slate-800 shadow-inner">
+            <div className="p-3.5 bg-slate-50 text-slate-800 font-mono text-[11px] rounded-2xl max-h-40 overflow-y-auto space-y-1 dir-ltr text-left border border-slate-200 shadow-inner">
               {syncLogs.map((log, idx) => (
-                <div key={idx} className="leading-relaxed">{log}</div>
+                <div key={`sync-log-${idx}`} className="leading-relaxed">{log}</div>
               ))}
             </div>
           )}
@@ -860,8 +860,8 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500 cursor-pointer"
               >
                 <option value="all">تمام دسته‌بندی‌ها</option>
-                {allCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {allCategories.map((cat, idx) => (
+                  <option key={`sync-cat-opt-${cat}-${idx}`} value={cat}>{cat}</option>
                 ))}
               </select>
             )}
@@ -986,7 +986,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
 
       {/* JSON Import Modal */}
       {showJsonModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-fade-in" dir="rtl">
             
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
@@ -1040,7 +1040,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
                     value={jsonUrl}
                     onChange={(e) => setJsonUrl(e.target.value)}
                     placeholder="https://c102393.parspack.net/c102393/catalog.json"
-                    className="w-full p-3 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 dir-ltr text-left"
+                    className="w-full p-3 bg-slate-50 text-slate-800 font-mono text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 dir-ltr text-left"
                   />
                 </div>
 
@@ -1066,15 +1066,15 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
                   value={jsonInput}
                   onChange={(e) => setJsonInput(e.target.value)}
                   placeholder={`{\n  "products": [\n    {\n      "sku": "PRD-FACT-992",\n      "name": "روغن موتور تمام‌سنتتیک",\n      "wholesalePrice": 2650000,\n      "marketPrice": 3200000,\n      "imageUrl": "http://c102393.parspack.net/c102393/products/prd-fact-992.webp"\n    }\n  ]\n}`}
-                  className="w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-2xl border border-slate-800 focus:outline-none focus:border-amber-500 dir-ltr text-left"
+                  className="w-full p-4 bg-slate-50 text-slate-800 font-mono text-xs rounded-2xl border border-slate-200 focus:outline-none focus:border-indigo-500 dir-ltr text-left"
                 />
               </div>
             )}
 
             {syncLogs.length > 0 && (
-              <div className="p-3 bg-slate-900 text-slate-300 font-mono text-[11px] rounded-xl max-h-36 overflow-y-auto space-y-1 dir-ltr text-left border border-slate-800">
+              <div className="p-3 bg-slate-50 text-slate-600 font-mono text-[11px] rounded-xl max-h-36 overflow-y-auto space-y-1 dir-ltr text-left border border-slate-200">
                 {syncLogs.map((log, idx) => (
-                  <div key={idx}>{log}</div>
+                  <div key={`sync-log-modal-${idx}`}>{log}</div>
                 ))}
               </div>
             )}

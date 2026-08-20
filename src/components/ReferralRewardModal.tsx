@@ -78,7 +78,7 @@ export const ReferralRewardModal: React.FC<ReferralRewardModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm" dir="rtl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-400/50 backdrop-blur-sm" dir="rtl">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -233,7 +233,7 @@ export const ReferralRewardModal: React.FC<ReferralRewardModalProps> = ({
 
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl text-xs font-black transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Send size={13} />
                 <span>ارسال پیامک دعوت‌نامه همکار</span>

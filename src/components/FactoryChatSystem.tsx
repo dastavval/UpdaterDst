@@ -379,7 +379,7 @@ export default function FactoryChatSystem({
         </span>
         {quickActions.map((action, idx) => (
           <button
-            key={idx}
+            key={`chat-quick-action-${action.label || idx}-${idx}`}
             onClick={() => handleSendMessage(action.query)}
             className="bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-[11px] font-black px-3 py-1.5 rounded-xl whitespace-nowrap transition-all shadow-2xs shrink-0 cursor-pointer"
           >
@@ -579,7 +579,7 @@ export default function FactoryChatSystem({
       {/* MODAL FOR B2B NEGOTIATION FORM */}
       <AnimatePresence>
         {showOfferModal && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

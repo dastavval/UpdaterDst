@@ -462,7 +462,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
               <div className="grid grid-cols-1 gap-1.5">
                 {selectedHub.factories.map((factory, i) => (
                   <div 
-                    key={i} 
+                    key={`hub-fac-${selectedHub.id}-${i}-${factory}`} 
                     className={`px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-between border ${
                       theme === 'dark' ? 'bg-slate-50/40 border-slate-850' : 'bg-white border-slate-200/40'
                     }`}
@@ -488,7 +488,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
               <div className="grid grid-cols-1 gap-1.5">
                 {selectedHub.representatives.map((rep, i) => (
                   <div 
-                    key={i} 
+                    key={`hub-rep-${selectedHub.id}-${i}-${rep}`} 
                     className={`px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-between border ${
                       theme === 'dark' ? 'bg-slate-50/40 border-slate-850' : 'bg-white border-slate-200/40'
                     }`}

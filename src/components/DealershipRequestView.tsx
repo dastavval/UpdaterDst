@@ -169,18 +169,6 @@ export default function DealershipRequestView({
           </button>
 
           <button
-            onClick={() => setActiveTab('certificate')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'certificate' 
-                ? "bg-white text-slate-900 shadow-md" 
-                : "text-white/80 hover:text-white bg-white/5"
-            }`}
-          >
-            <Award size={14} />
-            <span>صدور و مشاهده حکم نمایندگی رسمی</span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('tracking')}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'tracking' 
@@ -222,13 +210,6 @@ export default function DealershipRequestView({
                     <span className="text-lg font-black font-mono text-emerald-700">{trackingCode}</span>
                   </div>
                   <div className="pt-2 flex justify-center gap-3">
-                    <button
-                      onClick={() => setActiveTab('certificate')}
-                      className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Award size={15} />
-                      <span>مشاهده نمونه حکم نمایندگی</span>
-                    </button>
                     <button
                       onClick={() => setSubmitSuccess(false)}
                       className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-200 transition-all cursor-pointer"
@@ -420,8 +401,8 @@ export default function DealershipRequestView({
                 </p>
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-600">تلفن مستقیم:</span>
-                  <a href="tel:09044502900" className="font-mono font-black text-emerald-700 text-sm" dir="ltr">
-                    ۰۹۰۴ ۴۵۰ ۲۹۰۰
+                  <a href="tel:09999123001" className="font-mono font-black text-emerald-700 text-sm" dir="ltr">
+                    ۰۹۹۹ ۹۱۲ ۳۰۰۱
                   </a>
                 </div>
               </div>
@@ -471,47 +452,6 @@ export default function DealershipRequestView({
           </motion.div>
         )}
 
-        {activeTab === 'certificate' && (
-          <motion.div
-            key="certificate"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
-              <div>
-                <h3 className="text-sm font-black text-slate-900">حکم نمایندگی رسمی و انحصاری</h3>
-                <p className="text-xs font-bold text-slate-500 mt-1">
-                  این گواهی معتبر حقوقی نشان‌دهنده احراز صلاحیت تجاری و توزیع مستقیم محصولات کارخانجات در استان می‌باشد.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  if (onOpenCertificate) onOpenCertificate();
-                }}
-                className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all shadow-md cursor-pointer flex items-center gap-2 shrink-0"
-              >
-                <Award size={16} />
-                <span>باز کردن گواهی تمام‌صفحه و چاپ</span>
-              </button>
-            </div>
-
-            {/* Embedded Certificate Preview */}
-            <div className="bg-slate-100 p-4 rounded-3xl overflow-x-auto flex justify-center">
-              <RepresentativeCertificateView
-                repName={user?.name || fullName || "بازرگان محترم البرز"}
-                companyName={user?.company || companyName || "شرکت پخش سراسری فرتاک"}
-                city={user?.city || city || "تهران و حومه"}
-                agencyCode={trackingCode || "DS-AG-7821"}
-                badge="نماینده انحصاری توزیع استانی"
-                onClose={() => setActiveTab('form')}
-                b2bConfig={b2bConfig}
-              />
-            </div>
-          </motion.div>
-        )}
-
         {activeTab === 'tracking' && (
           <motion.div
             key="tracking"
@@ -551,7 +491,7 @@ export default function DealershipRequestView({
               return (
                 <div className="space-y-3">
                   {localRequests.map((req, idx) => (
-                    <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div key={`agency-req-${req.code || idx}-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-black text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
