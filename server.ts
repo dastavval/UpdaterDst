@@ -767,6 +767,65 @@ app.get("/api/v1/config", (req, res) => {
   });
 });
 
+// Smart Fetch with automatic DNS-failover and direct IP bypass for ParsPack/S3 CDNs
+async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<string, string> = {}, extraOptions: any = {}) {
+  try {
+    return await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, application/octet-stream, */*",
+        ...baseHeaders
+      },
+      ...extraOptions
+    });
+  } catch (error: any) {
+    const isParsPack = targetUrl.includes(".parspack.net");
+    const isDnsError = error.message?.includes("ENOTFOUND") || 
+                       error.message?.includes("EAI_AGAIN") || 
+                       error.message?.includes("fetch failed") || 
+                       error.message?.includes("getaddrinfo") ||
+                       error.message?.includes("DNS");
+
+    if (isParsPack || isDnsError) {
+      try {
+        const parsedUrl = new URL(targetUrl);
+        const originalHostname = parsedUrl.hostname;
+        
+        // ParsPack S3/CDN generally maps to 176.97.218.120.
+        let ipAddress = "176.97.218.120"; 
+        try {
+          const lookupResult = await dns.promises.lookup(originalHostname);
+          if (lookupResult && lookupResult.address) {
+            ipAddress = lookupResult.address;
+          }
+        } catch (dnsErr: any) {
+          console.log(`[DNS Bypass] Dynamic DNS lookup failed for ${originalHostname}: ${dnsErr.message}. Using default IP fallback: ${ipAddress}`);
+        }
+
+        // Rewrite URL to direct IP routing
+        parsedUrl.hostname = ipAddress;
+        const ipBypassUrl = parsedUrl.toString();
+
+        console.log(`[DNS Bypass] Routing request directly to IP to bypass DNS: ${ipBypassUrl} (Host: ${originalHostname})`);
+
+        return await fetch(ipBypassUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, application/octet-stream, */*",
+            ...baseHeaders,
+            "Host": originalHostname // Required for ParsPack CDN vhost routing
+          },
+          ...extraOptions
+        });
+      } catch (bypassErr: any) {
+        console.error(`[DNS Bypass] Fallback failed: ${bypassErr.message}`);
+        throw error;
+      }
+    }
+    throw error;
+  }
+}
+
 // Enhanced Proxy fetch to bypass CORS, protocol mismatches (HTTP on ParsPack S3 vs HTTPS on domains), and inspect status/headers
 const handleProxyFetchRequest = async (req: express.Request, res: express.Response) => {
   const urlParam = req.body?.url || req.query?.url;
@@ -803,24 +862,14 @@ const handleProxyFetchRequest = async (req: express.Request, res: express.Respon
     let fallbackError: string | null = null;
 
     try {
-      response = await fetch(targetUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "application/json, text/plain, application/octet-stream, */*"
-        }
-      });
+      response = await smartFetchWithDnsBypass(targetUrl);
     } catch (netErr: any) {
       if (targetUrl.startsWith('https://')) {
         attemptedFallback = true;
         const httpUrl = targetUrl.replace('https://', 'http://');
         console.log(`[Proxy Fetch] HTTPS failed (${netErr.message}), trying HTTP fallback: ${httpUrl}`);
         try {
-          response = await fetch(httpUrl, {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "Accept": "application/json, text/plain, application/octet-stream, */*"
-            }
-          });
+          response = await smartFetchWithDnsBypass(httpUrl);
           targetUrl = httpUrl;
         } catch (httpErr: any) {
           fallbackError = httpErr.message;
@@ -1046,11 +1095,7 @@ app.get("/api/proxy-image", async (req, res) => {
   }
 
   try {
-    const response = await fetch(targetUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-      }
-    });
+    const response = await smartFetchWithDnsBypass(targetUrl);
 
     if (!response.ok) {
       return res.status(response.status).send(`Failed to fetch target image: ${response.statusText}`);
