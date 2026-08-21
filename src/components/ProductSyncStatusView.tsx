@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { getDisplayImageUrl } from "../lib/image-utils";
+import { SmartJsonCatalogModal } from "./SmartJsonCatalogModal";
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -102,7 +103,10 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
 
   // Handle Sync from JSON URL
   const handleSyncFromUrl = async (urlToFetch?: string) => {
-    const targetUrl = (urlToFetch || jsonUrl).trim();
+    let targetUrl = (urlToFetch || jsonUrl).trim();
+    if (targetUrl.includes("parspack.net") && targetUrl.startsWith("https://")) {
+      targetUrl = targetUrl.replace(/^https:\/\//i, "http://");
+    }
     if (!targetUrl) {
       alert("لطفاً لینک مستقیم فایل JSON محصولات را وارد نمایید.");
       return;
@@ -147,6 +151,15 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         if (res.ok) {
           rawData = await res.json();
           logs.push("✅ ارتباط موفق با پروکسی سرور برقرار شد و محتوای پاسخ دریافت گردید.");
+          
+          // Verify if response is a default PHP ping/status response instead of target catalog JSON
+          if (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) {
+            const hasProducts = Array.isArray(rawData.products) || Array.isArray(rawData.items) || Array.isArray(rawData.data) || Array.isArray(rawData.catalog) || Array.isArray(rawData.result) || Array.isArray(rawData.goods) || Array.isArray(rawData.rows) || (rawData.data && Array.isArray(rawData.data.products));
+            if (!hasProducts && (rawData.platform || rawData.status === 'online')) {
+              logs.push("⚠️ پاسخ دریافت شده مربوط به پینگ موتور PHP بود. در حال تلاش مجدد با اکشن صریح PHP proxy-fetch...");
+              rawData = null;
+            }
+          }
         } else {
           const errData = await res.json().catch(() => ({}));
           const errMsg = errData.error || errData.error_fa || `پروکسی با وضعیت ${res.status} پاسخ داد.`;
@@ -159,10 +172,28 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         logs.push(`⚠️ خطا در اتصال به پروکسی داخلی: ${proxyErr.message}`);
       }
 
-      // Attempt 2: Direct fetch fallback (works if user is on HTTP or CORS permits)
+      // Attempt 2: Explicit PHP API Proxy Route for cPanel hosting
+      if (!rawData) {
+        try {
+          logs.push("📡 ارسال درخواست به اکشن پروکسی cPanel PHP (/php/api.php?action=proxy-fetch)...");
+          const phpRes = await fetch(`/php/api.php?action=proxy-fetch&url=${encodeURIComponent(targetUrl)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: targetUrl })
+          });
+          if (phpRes.ok) {
+            rawData = await phpRes.json();
+            logs.push("✅ پاسخ موفقیت‌آمیز از سرویس پروکسی PHP دریافت گردید.");
+          }
+        } catch (phpErr: any) {
+          logs.push(`⚠️ تلاش اکشن PHP ناموفق بود: ${phpErr.message}`);
+        }
+      }
+
+      // Attempt 3: Direct fetch fallback (works if user is on HTTP or CORS permits)
       if (!rawData) {
         if (clientProto === 'https:' && targetUrl.startsWith('http://')) {
-          logs.push("⚠️ توجه: با توجه به اینکه دامنه شما HTTPS است، درخواست مستقیم HTTP توسط مرورگر (Mixed Content) مسدود می‌شود. لطفاً از پروکسی سرور نودجی‌اس استفاده کنید.");
+          logs.push("⚠️ توجه: با توجه به اینکه دامنه شما HTTPS است، درخواست مستقیم HTTP توسط مرورگر (Mixed Content) مسدود می‌شود.");
         }
         logs.push("در حال تلاش برای دریافت مستقیم از باکت...");
         try {
@@ -546,6 +577,75 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
       setSyncLogs(logs);
       setIsSyncing(false);
     }
+  };
+
+  // Handle Multi-channel Smart Catalog Application
+  const handleApplyImportedProducts = (newItems: any[], mode: 'merge' | 'replace') => {
+    setIsSyncing(true);
+    let updatedCount = 0;
+    let addedCount = 0;
+    
+    const currentProductsCopy = mode === 'replace' ? [] : [...products];
+    
+    newItems.forEach((incItem: any, idx: number) => {
+      const sku = incItem.sku || String(incItem.id) || `PRD-${idx + 1}`;
+      const existingIdx = currentProductsCopy.findIndex(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
+      
+      const processedImage = getDisplayImageUrl(incItem.imageUrl);
+      
+      if (existingIdx >= 0) {
+        currentProductsCopy[existingIdx] = {
+          ...currentProductsCopy[existingIdx],
+          name: incItem.name || currentProductsCopy[existingIdx].name,
+          price: incItem.factoryPrice || currentProductsCopy[existingIdx].price,
+          bulk_price: incItem.sellPrice || currentProductsCopy[existingIdx].bulk_price,
+          consumer_price: incItem.consumerPrice || currentProductsCopy[existingIdx].consumer_price,
+          carton_pack_count: incItem.cartonPackCount || currentProductsCopy[existingIdx].carton_pack_count,
+          stock_quantity_cartons: incItem.stockCartons,
+          min_order_cartons: incItem.minOrderCartons,
+          min_stock_alert: incItem.minStockAlert,
+          unit: incItem.unit || currentProductsCopy[existingIdx].unit || "عدد",
+          image_url: processedImage || currentProductsCopy[existingIdx].image_url,
+          category: incItem.category || currentProductsCopy[existingIdx].category,
+          brand: incItem.brand || currentProductsCopy[existingIdx].brand,
+          sellerName: incItem.brand || currentProductsCopy[existingIdx].sellerName,
+          description: incItem.description || currentProductsCopy[existingIdx].description,
+          updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+        };
+        updatedCount++;
+      } else {
+        const newProd: Product = {
+          id: String(sku),
+          sku: sku,
+          name: incItem.name || "محصول کاتالوگ",
+          brand: incItem.brand || "انبار دست اول",
+          category: incItem.category || "محصولات غذایی",
+          price: incItem.factoryPrice || 750000,
+          bulk_price: incItem.sellPrice || 780000,
+          consumer_price: incItem.consumerPrice || 1000000,
+          carton_pack_count: incItem.cartonPackCount || 1,
+          min_order_cartons: incItem.minOrderCartons || 1,
+          stock_quantity_cartons: incItem.stockCartons || 10,
+          min_stock_alert: incItem.minStockAlert || 5,
+          unit: incItem.unit || "عدد",
+          sellerId: "factory-json",
+          sellerName: incItem.brand || "انبار دست اول",
+          production_lead_time_days: 1,
+          image_url: processedImage,
+          description: incItem.description || "واردشده از موتور هوشمند کاتالوگ‌ساز",
+          updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+        };
+        currentProductsCopy.unshift(newProd);
+        addedCount++;
+      }
+    });
+
+    if (onUpdateProducts) {
+      onUpdateProducts(currentProductsCopy);
+    }
+
+    setSyncSummary({ updated: updatedCount, added: addedCount, unchanged: 0 });
+    setIsSyncing(false);
   };
 
   const copyPdfLink = () => {
@@ -1077,7 +1177,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
                 </tr>
               ) : (
                 filteredProducts.map((item, idx) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={`sync-status-item-${item.id || idx}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                     <td className="p-3.5 text-center font-mono text-slate-400 font-bold">{idx + 1}</td>
                     
                     {/* Image & S3 status */}
@@ -1168,132 +1268,12 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
       </div>
 
       {/* JSON Import Modal */}
-      {showJsonModal && (
-        <div className="fixed inset-0 z-50 bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-fade-in" dir="rtl">
-            
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Globe size={20} className="text-emerald-600" />
-                <h3 className="font-black text-sm text-slate-900">همگام‌سازی و واردسازی کاتالوگ محصولات (JSON)</h3>
-              </div>
-              <button 
-                onClick={() => setShowJsonModal(false)}
-                className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Mode Switcher Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
-              <button
-                type="button"
-                onClick={() => setSyncMode('url')}
-                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  syncMode === 'url' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <Globe size={14} />
-                <span>دریافت مستقیم از لینک آنلاین (URL)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSyncMode('json_paste')}
-                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  syncMode === 'json_paste' ? 'bg-white text-amber-800 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <Upload size={14} />
-                <span>پیست کردن متن فایل JSON</span>
-              </button>
-            </div>
-
-            {syncMode === 'url' ? (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                  آدرس فایل JSON کاتالوگ محصولات را وارد کنید. سیستم به صورت اتوماتیک اطلاعات را از هاست ابری پارس‌پک فراخوانی کرده و محصولات را همگام می‌کند.
-                </p>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-700">لینک مستقیم فایل JSON:</label>
-                  <input
-                    type="text"
-                    value={jsonUrl}
-                    onChange={(e) => setJsonUrl(e.target.value)}
-                    placeholder="https://c102393.parspack.net/c102393/catalog.json"
-                    className="w-full p-3 bg-slate-50 text-slate-800 font-mono text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 dir-ltr text-left"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                  <span>لینک پبش‌فرض:</span>
-                  <button
-                    type="button"
-                    onClick={() => setJsonUrl("https://c102393.parspack.net/c102393/catalog.json")}
-                    className="text-emerald-700 font-bold hover:underline dir-ltr"
-                  >
-                    https://c102393.parspack.net/c102393/catalog.json
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                  محتوای فایل JSON خروجی برنامه اندروید کاتالوگ‌ساز را در کادر زیر پیست (Paste) کنید تا تمام قیمت‌ها، موجودی‌ها، کد کالاها و لینک‌های عکس باکت پارس‌پک به صورت خودکار بروزرسانی شوند.
-                </p>
-
-                <textarea
-                  rows={7}
-                  value={jsonInput}
-                  onChange={(e) => setJsonInput(e.target.value)}
-                  placeholder={`{\n  "products": [\n    {\n      "sku": "PRD-FACT-992",\n      "name": "روغن موتور تمام‌سنتتیک",\n      "wholesalePrice": 2650000,\n      "marketPrice": 3200000,\n      "imageUrl": "http://c102393.parspack.net/c102393/products/prd-fact-992.webp"\n    }\n  ]\n}`}
-                  className="w-full p-4 bg-slate-50 text-slate-800 font-mono text-xs rounded-2xl border border-slate-200 focus:outline-none focus:border-indigo-500 dir-ltr text-left"
-                />
-              </div>
-            )}
-
-            {syncLogs.length > 0 && (
-              <div className="p-3 bg-slate-50 text-slate-600 font-mono text-[11px] rounded-xl max-h-36 overflow-y-auto space-y-1 dir-ltr text-left border border-slate-200">
-                {syncLogs.map((log, idx) => (
-                  <div key={`sync-log-modal-${idx}`}>{log}</div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setShowJsonModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black rounded-xl cursor-pointer"
-              >
-                بستن
-              </button>
-              
-              {syncMode === 'url' ? (
-                <button
-                  onClick={() => handleSyncFromUrl()}
-                  disabled={isSyncing}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
-                >
-                  {isSyncing ? <RefreshCw size={14} className="animate-spin" /> : <DownloadCloud size={14} />}
-                  <span>{isSyncing ? "در حال دریافت..." : "دریافت و بروزرسانی از لینک"}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleSyncJson}
-                  disabled={isSyncing}
-                  className="px-6 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
-                >
-                  {isSyncing ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                  <span>{isSyncing ? "در حال بروزرسانی..." : "اجرای بروزرسانی دیتابیس"}</span>
-                </button>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
+      <SmartJsonCatalogModal
+        isOpen={showJsonModal}
+        onClose={() => setShowJsonModal(false)}
+        onApplyProducts={handleApplyImportedProducts}
+        defaultUrl={jsonUrl}
+      />
 
     </div>
   );

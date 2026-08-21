@@ -150,6 +150,15 @@ export default function MultiVendorPanel({
     if (isLoggedIn && currentSellerId) {
       fetchVendorData();
     }
+    const handleSync = () => {
+      if (isLoggedIn && currentSellerId) {
+        fetchVendorData();
+      }
+    };
+    window.addEventListener("dastavval-manual-sync", handleSync);
+    return () => {
+      window.removeEventListener("dastavval-manual-sync", handleSync);
+    };
   }, [currentSellerId, isLoggedIn]);
 
   const fetchVendorData = async () => {
@@ -718,8 +727,8 @@ export default function MultiVendorPanel({
               }}
               className="px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 font-bold text-xs cursor-pointer focus focus"
             >
-              {ALL_FACTORIES.map(fac => (
-                <option key={fac.id} value={fac.id}>{fac.name}</option>
+              {ALL_FACTORIES.map((fac, idx) => (
+                <option key={`mv-fac-opt-${fac.id || idx}-${idx}`} value={fac.id}>{fac.name}</option>
               ))}
             </select>
           </div>
@@ -937,8 +946,8 @@ export default function MultiVendorPanel({
               <p className="text-xs text-gray-400 text-center py-12">هنوز هیچ محصولی برای این کارخانه بارگذاری نشده است.</p>
             ) : (
               <div className="flex overflow-x-auto gap-4 pb-4 px-2 snap-x snap-mandatory hide-scrollbar">
-                {products.map(prod => (
-                  <div key={prod.id} className="min-w-[85vw] sm:min-w-[360px] snap-center shrink-0 flex flex-col p-5 bg-gray-50/50 rounded-2xl border border-gray-100 gap-4">
+                {products.map((prod, idx) => (
+                  <div key={`mv-prod-card-${prod.id || idx}-${idx}`} className="min-w-[85vw] sm:min-w-[360px] snap-center shrink-0 flex flex-col p-5 bg-gray-50/50 rounded-2xl border border-gray-100 gap-4">
                     {/* Top Row: Details */}
                     <div className="flex justify-between items-center w-full">
                       <div className="flex items-center gap-3">
@@ -1035,8 +1044,8 @@ export default function MultiVendorPanel({
               <p className="text-xs text-gray-400 text-center py-12">هیچ سفارش فعال تولید یا تامینی برای کارخانه صادر نشده است.</p>
             ) : (
               <div className="flex overflow-x-auto gap-4 pb-4 px-2 snap-x snap-mandatory hide-scrollbar">
-                {orders.map(order => (
-                  <div key={order.id} className="min-w-[85vw] sm:min-w-[320px] snap-center shrink-0 bg-gray-50/70 rounded-2xl p-5 border border-gray-100 space-y-4">
+                {orders.map((order, idx) => (
+                  <div key={`mv-order-card-${order.id || idx}-${idx}`} className="min-w-[85vw] sm:min-w-[320px] snap-center shrink-0 bg-gray-50/70 rounded-2xl p-5 border border-gray-100 space-y-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-100 pb-3">
                       <div>
                         <span className="text-[10px] text-gray-400 font-mono">شناسه سفارش: {order.trackingNumber}</span>

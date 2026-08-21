@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -19,7 +19,7 @@ import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
-import { getDisplayImageUrl } from "../lib/image-utils";
+import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -441,8 +441,19 @@ export default function AdminPanel({
       loadCallbackRequests();
     };
 
+    const handleSync = () => {
+      fetchOrders();
+      fetchSafeBuyRequests();
+      loadCallbackRequests();
+      loadSupportTickets();
+    };
+
     window.addEventListener("dastavval_callback_added", handleNewCallback);
-    return () => window.removeEventListener("dastavval_callback_added", handleNewCallback);
+    window.addEventListener("dastavval-manual-sync", handleSync);
+    return () => {
+      window.removeEventListener("dastavval_callback_added", handleNewCallback);
+      window.removeEventListener("dastavval-manual-sync", handleSync);
+    };
   }, []);
 
   const handleUpdateOrderStatus = async (orderId: string, nextStatus: string) => {
@@ -1266,6 +1277,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const [stockQuantityCartons, setStockQuantityCartons] = useState(0);
   const [imageUrl, setImageUrl] = useState("");
   const [unit, setUnit] = useState("بسته");
+  const [salesUnitType, setSalesUnitType] = useState<'carton' | 'count' | 'weight'>('carton');
+  const [weightPerCartonKg, setWeightPerCartonKg] = useState<number>(0);
   const [leadTimeDays, setLeadTimeDays] = useState(0);
   const [purchasePrice, setPurchasePrice] = useState(0);
   const [badge, setBadge] = useState("");
@@ -1300,6 +1313,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setStockQuantityCartons(100);
     setImageUrl("");
     setUnit("بسته");
+    setSalesUnitType("carton");
+    setWeightPerCartonKg(0);
     setLeadTimeDays(3);
   };
 
@@ -1420,7 +1435,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setMinOrderCartons(p.min_order_cartons);
     setStockQuantityCartons(p.stock_quantity_cartons);
     setImageUrl(p.image_url);
-    setUnit(p.unit);
+    setUnit(p.unit ? cleanUnitName(p.unit) : "بسته");
+    setSalesUnitType(p.sales_unit_type || (p.unit === 'کیلوگرم' || p.unit === 'گرم' ? 'weight' : 'carton'));
+    setWeightPerCartonKg(p.weight_per_carton_kg || 0);
     setLeadTimeDays(p.production_lead_time_days);
     setPurchasePrice(p.purchase_price || 0);
     setBadge(p.badge || "");
@@ -1701,7 +1718,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       min_order_cartons: Number(minOrderCartons) || 5,
       stock_quantity_cartons: Number(stockQuantityCartons) || 100,
       image_url: imageUrl || "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500",
-      unit,
+      unit: cleanUnitName(unit),
+      sales_unit_type: salesUnitType,
+      weight_per_carton_kg: Number(weightPerCartonKg) || 0,
       sellerId: "hq_admin",
       sellerName: "مدیریت مرکزی دست اول",
       production_lead_time_days: Number(leadTimeDays) || 2,
@@ -1868,14 +1887,36 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         });
         if (res.ok) {
           rawData = await res.json();
+          // Verify if response is a default PHP status response instead of catalog
+          if (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) {
+            const hasProducts = Array.isArray(rawData.products) || Array.isArray(rawData.items) || Array.isArray(rawData.data) || Array.isArray(rawData.catalog) || Array.isArray(rawData.result) || Array.isArray(rawData.goods) || Array.isArray(rawData.rows) || (rawData.data && Array.isArray(rawData.data.products));
+            if (!hasProducts && (rawData.platform || rawData.status === 'online')) {
+              rawData = null;
+            }
+          }
         }
       } catch (e) {}
 
       if (!rawData) {
-        const directRes = await fetch(catalogJsonSyncUrl.trim());
-        if (directRes.ok) {
-          rawData = await directRes.json();
-        }
+        try {
+          const phpRes = await fetch(`/php/api.php?action=proxy-fetch&url=${encodeURIComponent(catalogJsonSyncUrl.trim())}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: catalogJsonSyncUrl.trim() })
+          });
+          if (phpRes.ok) {
+            rawData = await phpRes.json();
+          }
+        } catch (e) {}
+      }
+
+      if (!rawData) {
+        try {
+          const directRes = await fetch(catalogJsonSyncUrl.trim());
+          if (directRes.ok) {
+            rawData = await directRes.json();
+          }
+        } catch (e) {}
       }
 
       if (!rawData) {
@@ -4942,13 +4983,13 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       <p className="text-xs text-slate-400 font-bold">هیچ درخواست تماسی ثبت نشده است.</p>
                     </div>
                   ) : (
-                    callbackRequests.map((req) => {
+                    callbackRequests.map((req, idx) => {
                       const isPending = req.status === 'pending';
                       const isCalled = req.status === 'called';
                       
                       return (
                         <div 
-                          key={req.id} 
+                          key={`admin-cb-req-${req.id || idx}-${idx}`} 
                           className={`p-4 rounded-2xl border transition-all ${
                             isPending 
                               ? "bg-amber-50/40 border-amber-200/50 shadow-sm shadow-amber-500/5" 
@@ -5058,13 +5099,13 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       <p className="text-xs text-slate-400 font-bold">تیکت یا استعلام فعالی وجود ندارد.</p>
                     </div>
                   ) : (
-                    supportTickets.map((ticket) => {
+                    supportTickets.map((ticket, idx) => {
                       const isOpen = ticket.status === 'open' || !ticket.status;
                       const isProcessing = ticket.status === 'in_progress';
                       
                       return (
                         <div 
-                          key={ticket.id} 
+                          key={`admin-ticket-${ticket.id || idx}-${idx}`} 
                           className={`p-4 rounded-2xl border transition-all ${
                             isOpen 
                               ? "bg-indigo-50/20 border-indigo-100 shadow-sm" 
@@ -5728,7 +5769,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             const isSelected = selectedCsvIndices.includes(idx);
                             return (
                               <div
-                                key={p.id}
+                                key={`csv-prod-item-${p.id || idx}-${idx}`}
                                 onClick={() => {
                                   if (isSelected) {
                                     setSelectedCsvIndices(prev => prev.filter(i => i !== idx));
@@ -5990,11 +6031,11 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {previewProducts.map((p) => {
+                      {previewProducts.map((p, idx) => {
                         const isSelected = selectedPreviewIds.includes(p.id);
                         return (
                           <div
-                            key={p.id}
+                            key={`prev-prod-item-${p.id || idx}-${idx}`}
                             onClick={() => {
                               if (isSelected) {
                                 setSelectedPreviewIds(prev => prev.filter(id => id !== p.id));
@@ -6301,8 +6342,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     onChange={(e) => setBFormMaterialId(e.target.value)}
                     className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
                   >
-                    {rawMaterials.map(rm => (
-                      <option key={rm.id} value={rm.id}>{rm.name} ({rm.unit})</option>
+                    {rawMaterials.map((rm, idx) => (
+                      <option key={`rm-opt-${rm.id || idx}-${idx}`} value={rm.id}>{rm.name} ({rm.unit})</option>
                     ))}
                   </select>
                 </div>
@@ -6325,8 +6366,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
                   >
                     <option value="">انتخاب محصول نهایی...</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                    {products.map((p, idx) => (
+                      <option key={`prod-opt-barter-${p.id || idx}-${idx}`} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 </div>
@@ -6368,9 +6409,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {barterDeals.map((deal) => (
+            {barterDeals.map((deal, idx) => (
               <div 
-                key={deal.id} 
+                key={`barter-deal-${deal.id || idx}-${idx}`} 
                 className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-material-md hover transition-all duration-500 group relative overflow-hidden"
               >
                 <div className="absolute top-0 left-0 w-32 h-32 bg-teal-50 rounded-full -ml-16 -mt-16 group-hover:scale-150 transition-transform duration-700 opacity-50" />
@@ -6695,9 +6736,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
           {/* Representatives Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {representativesList.map((rep) => (
+            {representativesList.map((rep, idx) => (
               <div
-                key={rep.id}
+                key={`rep-card-${rep.id || idx}-${idx}`}
                 className="bg-white rounded-3xl border border-slate-150 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between"
               >
                 <div className="space-y-3">
@@ -7576,6 +7617,74 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       }}
                       className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl focus focus transition-all text-xs font-mono font-bold text-slate-800 text-left"
                     />
+                  </div>
+
+                  {/* Sales Unit & Weight Config Block */}
+                  <div className="md:col-span-3 p-4 bg-indigo-50/70 rounded-2xl border border-indigo-150 space-y-3 my-1">
+                    <h4 className="text-xs font-black text-indigo-950 flex items-center gap-2">
+                      <Scale size={16} className="text-indigo-600" />
+                      <span>تنظیم نحوه فروش و واحد سنجش کالا (اختیاز ادمین)</span>
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-black text-slate-600 block">نوع واحد اصلی فروش:</label>
+                        <select
+                          value={salesUnitType}
+                          onChange={e => setSalesUnitType(e.target.value as any)}
+                          className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-black text-indigo-950 cursor-pointer"
+                        >
+                          <option value="carton">کارتنی / بسته‌ای (فروش بر اساس کارتن/جعبه)</option>
+                          <option value="count">عددی / خرد (فروش بر اساس عدد، پاکت، قوطی)</option>
+                          <option value="weight">وزنی / کیلویی (فروش بر اساس کیلوگرم، کیسه، حلب)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-black text-slate-600 block">نام واحد خرد/فرعی کالا:</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={unit}
+                            onChange={e => setUnit(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-black text-indigo-950 cursor-pointer"
+                          >
+                            <option value="پاکت">پاکت</option>
+                            <option value="عدد">عدد</option>
+                            <option value="قوطی">قوطی</option>
+                            <option value="بطری">بطری</option>
+                            <option value="شیشه">شیشه</option>
+                            <option value="کیلوگرم">کیلوگرم</option>
+                            <option value="کیسه">کیسه</option>
+                            <option value="حلب">حلب</option>
+                            <option value="بسته">بسته</option>
+                            <option value="طاقه">طاقه</option>
+                            <option value="کارتن">کارتن</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={unit}
+                            onChange={e => setUnit(e.target.value)}
+                            placeholder="تایپ واحد"
+                            className="w-28 px-2 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-black text-indigo-950 text-center"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-black text-slate-600 block">وزن هر کارتن / کیسه (کیلوگرم):</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={weightPerCartonKg === 0 ? "" : weightPerCartonKg}
+                          onChange={e => {
+                            const clean = toEnglishNum(e.target.value).replace(/[^0-9.]/g, '');
+                            setWeightPerCartonKg(clean === "" ? 0 : parseFloat(clean));
+                          }}
+                          placeholder="مثلاً ۲۰"
+                          className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-indigo-950 text-left"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-1 md:col-span-3">
@@ -9797,13 +9906,13 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </AnimatePresence>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-right">
-            {factories.map((f) => {
+            {factories.map((f, idx) => {
               const activeProducts = products.filter(p => p.brand === f.name || (p.sellerName && p.sellerName.includes(f.name)));
               const isCurrentlyActive = f.isActive !== false;
 
               return (
                 <motion.div 
-                  key={f.id}
+                  key={`admin-fac-item-${f.id || idx}-${idx}`}
                   className={`bg-white border rounded-[2rem] p-6 shadow-sm hover transition-all group relative overflow-hidden flex flex-col justify-between ${
                     isCurrentlyActive ? 'border-slate-100' : 'border-rose-200 bg-rose-50/5'
                   }`}
@@ -10162,12 +10271,12 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       هیچ بنکداری با این مشخصات یافت نشد.
                     </div>
                   ) : (
-                    filteredCrmList.map((customer) => {
+                    filteredCrmList.map((customer, idx) => {
                       const isSelected = selectedCrmIds.includes(customer.id);
                       return (
                         <motion.div 
                           layout
-                          key={customer.id}
+                          key={`cust-item-${customer.id || idx}-${idx}`}
                           className={`border rounded-[2.5rem] p-5 sm:p-6 hover transition-all group shadow-sm text-right ${
                             isSelected ? 'border-indigo-400 bg-indigo-50/10' : 'bg-white border-gray-100'
                           }`}
@@ -10368,14 +10477,14 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   o.buyerPhone?.includes(ordersSearch) ||
                   o.buyerCompany?.includes(ordersSearch)
                 )
-                .map((order) => {
+                .map((order, idx) => {
                   const statusInfo = getStatusLabel(order.status);
                   const isDelivered = order.status === 'delivered';
 
                   return (
                     <motion.div 
                       layout
-                      key={order.id}
+                      key={`admin-order-card-${order.id || idx}-${idx}`}
                       className="bg-white border border-gray-100 rounded-[2.5rem] p-6 sm:p-8 hover transition-all shadow-md text-right relative overflow-hidden"
                     >
                       {/* Top Bar inside Invoice Card */}
@@ -10678,8 +10787,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       className="w-full bg-slate-50 border border-slate-800 rounded-xl px-4 py-3.5 text-xs font-bold outline-none text-white focus transition-colors"
                     >
                       <option value="">-- انتخاب یک کالا از انبار بازرگانی --</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>
+                      {products.map((p, idx) => (
+                        <option key={`fin-prod-opt-${p.id || idx}-${idx}`} value={p.id}>
                           {p.name} ({p.brand}) • قیمت عمده: {toPersianNum(p.bulk_price.toLocaleString())} تومان
                         </option>
                       ))}
@@ -11946,10 +12055,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     return <tr><td colSpan={7} className="text-center py-12 text-slate-400 font-bold">هیچ آگهی در این وضعیت یافت نشد.</td></tr>;
                   }
 
-                  return filtered.map((ad: any) => {
+                  return filtered.map((ad: any, idx: number) => {
                     const isSelected = selectedAdIds.includes(ad.id);
                     return (
-                      <tr key={ad.id} className={`transition-colors ${isSelected ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50/50 hover:bg-slate-50'}`}>
+                      <tr key={`ad-row-${ad.id || idx}-${idx}`} className={`transition-colors ${isSelected ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50/50 hover:bg-slate-50'}`}>
                         <td className="px-3 py-3 rounded-r-2xl border-y border-r border-slate-100 text-center">
                           <input 
                             type="checkbox"
@@ -12440,8 +12549,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <p className="text-center text-xs font-bold text-slate-400 py-8">هیچ محصولی در کاتالوگ جاری برای این تولیدکننده یافت نشد.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {products.filter(p => p.brand === selectedFactoryForProducts.name || (p.sellerName && p.sellerName.includes(selectedFactoryForProducts.name))).map(p => (
-                      <div key={p.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex items-center gap-3">
+                    {products.filter(p => p.brand === selectedFactoryForProducts.name || (p.sellerName && p.sellerName.includes(selectedFactoryForProducts.name))).map((p, idx) => (
+                      <div key={`fac-prod-item-${p.id || idx}-${idx}`} className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex items-center gap-3">
                         <img src={getDisplayImageUrl(p.image_url)} alt={p.name} className="w-12 h-12 object-cover rounded-xl border shrink-0" referrerPolicy="no-referrer" />
                         <div className="space-y-1">
                           <h4 className="text-xs font-black text-slate-800">{p.name}</h4>
@@ -12811,8 +12920,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       id="direct-product-selector"
                       className="col-span-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black font-sans"
                     >
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>
+                      {products.map((p, idx) => (
+                        <option key={`direct-inv-opt-${p.id || idx}-${idx}`} value={p.id}>
                           {p.name} ({p.brand}) • {toPersianNum((p.bulk_price || p.price || 0).toLocaleString())} تومان
                         </option>
                       ))}
@@ -13191,8 +13300,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   if (filtered.length === 0) {
                     return <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">هیچ درخواست خرید امنی در این وضعیت یافت نشد.</td></tr>;
                   }
-                  return filtered.map((req: any) => (
-                    <tr key={req.id} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  return filtered.map((req: any, idx: number) => (
+                    <tr key={`safebuy-item-${req.id || idx}-${idx}`} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 rounded-r-2xl border-y border-r border-slate-100">
                         <div className="font-mono font-black text-slate-800">{req.id}</div>
                         <div className="text-[10px] text-slate-400 mt-0.5">{req.date}</div>
@@ -13777,9 +13886,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     );
                   }
 
-                  return sortedPosts.map((post: any) => (
+                  return sortedPosts.map((post: any, idx: number) => (
                     <div 
-                      key={post.id} 
+                      key={`community-post-${post.id || idx}-${idx}`} 
                       className={`bg-white border transition-all p-5 rounded-2xl shadow-2xs space-y-3 relative overflow-hidden group text-right ${
                         post.pinned ? 'border-amber-300/80 bg-amber-50/5 ring-1 ring-amber-200' : 'border-slate-150 hover:border-slate-250'
                       }`}

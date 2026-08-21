@@ -71,6 +71,70 @@ switch ($action) {
         }
         break;
 
+    // پروکسی هوشمند برای دریافت فایل‌های JSON کاتالوگ و بای‌پاس CORS روی cPanel/LAMP
+    case 'proxy-fetch':
+    case 'proxy_fetch':
+        $input = json_decode(file_get_contents('php://input'), true);
+        $url = $input['url'] ?? $_GET['url'] ?? $_POST['url'] ?? '';
+
+        if (empty($url)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'پارامتر URL الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $url = trim($url);
+        if (strpos($url, '.parspack.net') !== false && strpos($url, 'https://') === 0) {
+            $url = str_replace('https://', 'http://', $url);
+        }
+        if (strpos($url, 'http://') !== 0 && strpos($url, 'https://') !== 0) {
+            $url = 'http://' . $url;
+        }
+
+        $response = false;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Accept: application/json, text/plain, */*',
+                'Cache-Control: no-cache'
+            ]);
+            $response = curl_exec($ch);
+            curl_close($ch);
+        }
+
+        if ($response === false || empty($response)) {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\nAccept: application/json, text/plain, */*\r\n",
+                    'timeout' => 15
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]);
+            $response = @file_get_contents($url, false, $context);
+        }
+
+        if ($response === false || $response === null || strlen(trim($response)) === 0) {
+            http_response_code(502);
+            echo json_encode(['error' => 'خطا در دریافت پاسخ از سرور مبدا یا لینک باکت.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $cleanText = preg_replace('/^\xEF\xBB\xBF/', '', trim($response));
+        header('Content-Type: application/json; charset=utf-8');
+        echo $cleanText;
+        exit();
+
     // ۲. ثبت سفارش جدید در phpMyAdmin / MySQL
     case 'create_order':
         $input = json_decode(file_get_contents('php://input'), true);

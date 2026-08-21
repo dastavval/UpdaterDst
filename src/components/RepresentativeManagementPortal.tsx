@@ -2105,18 +2105,43 @@ export default function RepresentativeManagementPortal({
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm font-black shrink-0">۲</div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-black text-slate-900">ضمانت‌نامه تعهد پرداخت بانکی</h4>
-                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">تسهیل ترخیص کالا از گمرکات و انبار تولیدی کارخانجات با ثبت ضمانت تعهد پرداخت بدون جریمه.</p>
+                  <h4 className="text-xs font-black text-slate-900">گواهی اعتباریتو (Etebarito)</h4>
+                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">استعلام آنلاین رتبه اعتباری از سامانه اعتباریتو جهت افزایش سقف اعتبار تخصیصی به منطقه.</p>
                 </div>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm font-black shrink-0">۳</div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-black text-slate-900">تسهیل در اعتبارسنجی انحصار</h4>
-                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">تایید هرگونه وثیقه معتبر بلافاصله به عنوان نمره مثبت در ارزیابی دوره‌ای امتیاز نمایندگی ثبت خواهد شد.</p>
+                  <h4 className="text-xs font-black text-slate-900">ضمانت‌نامه تعهد پرداخت بانکی</h4>
+                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">تسهیل ترخیص کالا از گمرکات و انبار تولیدی کارخانجات با ثبت ضمانت تعهد پرداخت.</p>
                 </div>
               </div>
+            </div>
+
+            {/* Etebarito Direct Action Box */}
+            <div className="bg-indigo-900 text-white p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl shrink-0">
+                  🌐
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white">سامانه اعتبارسنجی ملی اعتباریتو (Etebarito.ir)</h4>
+                  <p className="text-[11px] text-indigo-200 font-medium mt-0.5">
+                    جهت دریافت کارنامه و استعلام رتبه اعتباری بانکی خود، به سامانه اعتباریتو مراجعه نموده و فایل گزارش را بارگذاری نمایید.
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href="https://etebarito.ir"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-md"
+              >
+                <span>ورود به سایت اعتباریتو</span>
+                <ExternalLink size={14} />
+              </a>
             </div>
           </div>
 
@@ -2155,6 +2180,7 @@ export default function RepresentativeManagementPortal({
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer"
                   >
                     <option value="sayad_cheque">چک صیادی بنفش (ضمانت)</option>
+                    <option value="etebarito_cert">گواهی اعتبارسنجی سامانه اعتباریتو (Etebarito)</option>
                     <option value="bank_guarantee">ضمانت‌نامه تعهد پرداخت بانکی</option>
                     <option value="promissory_note">سفته الکترونیکی هوشمند</option>
                     <option value="cash_deposit">ودیعه نقدی حسن انجام کار</option>

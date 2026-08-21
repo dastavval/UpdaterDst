@@ -2,7 +2,7 @@ import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, TrendingUp, Building2, Eye, ShieldCheck, Zap, Percent, CheckCircle2, ShoppingCart, Lock, Award, Tag } from "lucide-react";
 import { Product } from "../types";
-import { getDisplayImageUrl } from "../lib/image-utils";
+import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { HealthBadgesStrip, HealthCertModal, HealthAppleLogo } from "./HealthAppleBadge";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
@@ -321,15 +321,32 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
+                    <span className="text-[8.5px] font-bold text-slate-500">کارتن مشتری/بنکدار ({toPersianNum(pricing.customerMarkupPercent)}٪ مارک‌آپ):</span>
+                    <span className="font-black text-indigo-700 font-mono">
+                      {toPersianNum((Math.round(pricing.floorFactoryUnitPrice * (1 + pricing.customerMarkupPercent / 100)) * product.carton_pack_count).toLocaleString())} ت
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8.5px] font-bold text-emerald-600">کارتن نماینده استانی (کف قیمت):</span>
+                    <span className="font-black text-emerald-700 font-mono">
+                      {toPersianNum((pricing.floorFactoryUnitPrice * product.carton_pack_count).toLocaleString())} ت
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-[8.5px] font-bold text-emerald-600">سود هر کارتن ({toPersianNum(profitPercent)}٪):</span>
                     <span className="font-black text-emerald-700 font-mono">
                       +{toPersianNum(profitPerCarton.toLocaleString())} ت
                     </span>
                   </div>
-                  {pricing.isRepresentative && (
+                  {pricing.isRepresentative ? (
                     <div className="flex justify-between items-center bg-emerald-50/70 p-1 rounded-md text-[8.5px] font-bold text-emerald-800">
                       <span>مزیت انحصاری عاملیت:</span>
                       <span>+{toPersianNum(pricing.repSavingsPerCarton.toLocaleString())} تومان در هر کارتن</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center bg-indigo-50 p-1 rounded-md text-[8px] font-bold text-indigo-800">
+                      <span>با دریافت عاملیت رسمی:</span>
+                      <span>کارتنی +{toPersianNum((Math.round(pricing.floorFactoryUnitPrice * pricing.customerMarkupPercent / 100) * product.carton_pack_count).toLocaleString())} تومان سود خالص بیشتر!</span>
                     </div>
                   )}
                 </motion.div>
@@ -346,7 +363,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
               <div className="flex flex-col">
                 <span className="text-[8px] font-bold text-slate-400 uppercase">بسته‌بندی</span>
                 <span className="text-[10px] font-black text-slate-800">
-                  {toPersianNum(product.carton_pack_count)} {product.unit || "عدد"} در کارتن
+                  {toPersianNum(product.carton_pack_count)} {cleanUnitName(product.unit)} در کارتن
                 </span>
               </div>
             </div>

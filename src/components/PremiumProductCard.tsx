@@ -1,5 +1,6 @@
 import React from "react";
 import { Product } from "../types";
+import { cleanUnitName } from "../lib/image-utils";
 import { Plus, Minus, Sparkles, Factory, MapPin, Package, Star, TrendingUp, ShieldCheck, Lock, Award, Percent, Tag, ShoppingCart } from "lucide-react";
 import { motion } from "motion/react";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
@@ -119,7 +120,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
               <span>مصرف‌کننده: {toPersianNum(consumerPrice.toLocaleString())} ت</span>
             </span>
             <span className="text-slate-400 text-[9.5px]">
-              {pricing.isRepresentative ? "⭐ ۱۰٪ تخفیف عاملیت" : "🏷️ قیمت هر کارتن: " + toPersianNum(pricing.pricePerCarton.toLocaleString()) + " ت"}
+              {pricing.isRepresentative ? `⭐ ${toPersianNum(pricing.customerMarkupPercent)}٪ تخفیف عاملیت` : "🏷️ کارتن: " + toPersianNum(pricing.pricePerCarton.toLocaleString()) + " ت"}
             </span>
           </div>
         </div>
@@ -127,7 +128,7 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
         {/* Logistics Detail */}
         <div className="flex items-center gap-3 text-[11px] text-slate-500 font-bold bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
           <Package size={14} className="text-indigo-400" />
-          <span>{toPersianNum(product.carton_pack_count)} {product.unit} در کارتن</span>
+          <span>{toPersianNum(product.carton_pack_count)} {cleanUnitName(product.unit)} در کارتن</span>
           <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mx-auto" />
           <MapPin size={14} className="text-indigo-400" />
           <span>{product.shipping_origin || "کارخانه مرکزی"}</span>

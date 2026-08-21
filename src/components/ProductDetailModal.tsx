@@ -7,7 +7,7 @@ import {
   Star, MessageSquare, ShoppingCart, Lock
 } from "lucide-react";
 import type { Product, User } from "../types";
-import { getDisplayImageUrl } from "../lib/image-utils";
+import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import ProductReviews from "./ProductReviews";
 import StarRating from "./StarRating";
 import { ExpandableText } from "./ExpandableText";
@@ -166,11 +166,17 @@ export default function ProductDetailModal({
     ? Math.round((totalNetProfit / totalOrderPrice) * 100) 
     : 0;
 
+  // Sales Unit Type & Clean Unit Name Determination
+  const salesUnitType: 'carton' | 'count' | 'weight' = product?.sales_unit_type || (
+    product?.unit === 'کیلوگرم' || product?.unit === 'گرم' ? 'weight' : 'carton'
+  );
+  const cleanUnit = cleanUnitName(product?.unit);
+
   // Approximate weight calculation
-  // Let's assume each pack has an average weight of 250 grams
-  const packWeightKg = 0.25; 
+  const kgPerCarton = product?.weight_per_carton_kg || (salesUnitType === 'weight' ? 20 : (packCount * 0.25));
+  const packWeightKg = kgPerCarton / Math.max(1, packCount); 
   const totalPacks = cartons * packCount;
-  const totalWeightKg = Math.round(totalPacks * packWeightKg);
+  const totalWeightKg = Math.round(cartons * kgPerCarton);
   const totalWeightTons = (totalWeightKg / 1000).toFixed(2);
 
   const handleIncrement = () => {
@@ -182,21 +188,19 @@ export default function ProductDetailModal({
   };
 
   // Convert unit input to equivalent cartons
-  const handleUnitQuantityChange = (val: number, unit: typeof unitType) => {
+  const handleUnitQuantityChange = (val: number, targetUnit: typeof unitType) => {
     if (isNaN(val) || val <= 0 || !product) return;
     let computedCartons = minCartons;
     
-    if (unit === 'carton') {
+    if (targetUnit === 'carton') {
       computedCartons = val;
-    } else if (unit === 'pack') {
-      computedCartons = Math.ceil(val / packCount);
-    } else if (unit === 'kg') {
-      const computedPacks = val / packWeightKg;
-      computedCartons = Math.ceil(computedPacks / packCount);
-    } else if (unit === 'ton') {
+    } else if (targetUnit === 'pack') {
+      computedCartons = Math.ceil(val / Math.max(1, packCount));
+    } else if (targetUnit === 'kg') {
+      computedCartons = Math.ceil(val / Math.max(1, kgPerCarton));
+    } else if (targetUnit === 'ton') {
       const computedKg = val * 1000;
-      const computedPacks = computedKg / packWeightKg;
-      computedCartons = Math.ceil(computedPacks / packCount);
+      computedCartons = Math.ceil(computedKg / Math.max(1, kgPerCarton));
     }
 
     setCartons(Math.max(minCartons, computedCartons));
@@ -381,7 +385,7 @@ export default function ProductDetailModal({
                 {/* B2B Pricing Metrics Block */}
                 <div className="grid grid-cols-2 gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">قیمت مصرف‌کننده:</span>
+                    <span className="text-[10px] font-bold text-slate-400 block">قیمت مصرف‌کننده (واحد):</span>
                     <span className="text-xs font-black text-slate-700">
                       {toPersianNum((product.consumer_price || 0).toLocaleString())} تومان
                     </span>
@@ -393,15 +397,21 @@ export default function ProductDetailModal({
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">حاشیه سود بنکدار:</span>
-                    <span className="text-xs font-black text-emerald-600">
-                      {toPersianNum((((product.consumer_price || 0) - (product.bulk_price || 0)) / (product.consumer_price || 1) * 100).toFixed(1))}٪ سود
+                    <span className="text-[10px] font-bold text-slate-400 block">قیمت نماینده استانی (کف کارخانه):</span>
+                    <span className="text-xs font-black text-emerald-700 font-mono">
+                      {toPersianNum(((product.bulk_price || 0) * product.carton_pack_count).toLocaleString())} تومان
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">قیمت هر کارتن:</span>
-                    <span className="text-xs font-black text-indigo-600">
-                      {toPersianNum((product.bulk_price * product.carton_pack_count).toLocaleString())} تومان
+                    <span className="text-[10px] font-bold text-slate-400 block">قیمت خریدار/بنکدار ({toPersianNum(rolePricing?.customerMarkupPercent || 10)}٪ مارک‌آپ):</span>
+                    <span className="text-xs font-black text-indigo-700 font-mono">
+                      {toPersianNum((Math.round((product.bulk_price || 0) * (1 + (rolePricing?.customerMarkupPercent || 10) / 100)) * product.carton_pack_count).toLocaleString())} تومان
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-emerald-200/50 flex justify-between items-center text-[9px] text-slate-500 font-bold">
+                    <span>تفاوت قیمت نماینده و مشتری:</span>
+                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                      {toPersianNum((Math.round((product.bulk_price || 0) * (rolePricing?.customerMarkupPercent || 10) / 100) * product.carton_pack_count).toLocaleString())} تومان تخفیف عاملیت
                     </span>
                   </div>
                 </div>
@@ -578,25 +588,35 @@ export default function ProductDetailModal({
                     </div>
 
                     {/* Unit Selector Chips */}
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'carton', label: "کارتن عمده" },
-                        { id: 'pack', label: `پاکت (${product.unit})` },
-                        { id: 'kg', label: "کیلوگرم (وزنی)" }
-                      ].map((u, uIdx) => (
-                        <button
-                          key={`unit-chip-${u.id}-${uIdx}`}
-                          onClick={() => setUnitType(u.id as any)}
-                          className={`py-2 px-1 text-center rounded-xl text-[10px] font-black border transition-all cursor-pointer ${
-                            unitType === u.id 
-                              ? "bg-emerald-600 text-white border-emerald-500 shadow-md" 
-                              : "bg-slate-50 text-slate-500 border-gray-100"
-                          }`}
-                        >
-                          {u.label}
-                        </button>
-                      ))}
-                    </div>
+                    {(() => {
+                      const unitChips = salesUnitType === 'weight'
+                        ? [
+                            { id: 'carton', label: `کیسه / کارتن (${toPersianNum(kgPerCarton)} کیلوگرم)` },
+                            { id: 'kg', label: `کیلوگرم` }
+                          ]
+                        : [
+                            { id: 'carton', label: `کارتن عمده (${toPersianNum(packCount)} ${cleanUnit})` },
+                            { id: 'pack', label: cleanUnit !== 'کارتن' ? cleanUnit : 'واحد خرد' }
+                          ];
+
+                      return (
+                        <div className={`grid gap-2 ${unitChips.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                          {unitChips.map((u, uIdx) => (
+                            <button
+                              key={`unit-chip-${u.id}-${uIdx}`}
+                              onClick={() => setUnitType(u.id as any)}
+                              className={`py-2 px-1 text-center rounded-xl text-[10px] font-black border transition-all cursor-pointer ${
+                                unitType === u.id 
+                                  ? "bg-emerald-600 text-white border-emerald-500 shadow-md" 
+                                  : "bg-slate-50 text-slate-500 border-gray-100"
+                              }`}
+                            >
+                              {u.label}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
 
                     {/* Quantity Selector input panel */}
                     <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
@@ -611,13 +631,18 @@ export default function ProductDetailModal({
                           <input 
                             type="text"
                             inputMode="numeric"
-                            value={cartons === 0 ? "" : cartons}
+                            value={
+                              cartons === 0 ? "" :
+                              unitType === 'carton' ? cartons :
+                              unitType === 'pack' ? (cartons * packCount) :
+                              unitType === 'kg' ? Math.round(cartons * kgPerCarton) : cartons
+                            }
                             onChange={(e) => {
                               const clean = toEnglishNum(e.target.value).replace(/[^0-9]/g, '');
                               const numVal = clean === "" ? 0 : parseInt(clean, 10);
-                              handleUnitQuantityChange(numVal, 'carton');
+                              handleUnitQuantityChange(numVal, unitType);
                             }}
-                            className="w-14 text-center font-black text-sm text-gray-800 font-mono focus:outline-none"
+                            className="w-16 text-center font-black text-sm text-gray-800 font-mono focus:outline-none"
                           />
                           <button 
                             disabled={cartons <= minCartons}
@@ -627,7 +652,11 @@ export default function ProductDetailModal({
                             <Minus size={16} />
                           </button>
                         </div>
-                        <span className="text-xs font-black text-indigo-800">کارتن کالا</span>
+                        <span className="text-xs font-black text-indigo-800">
+                          {unitType === 'carton' ? (salesUnitType === 'weight' ? 'کیسه / کارتن کالا' : 'کارتن کالا') :
+                           unitType === 'kg' ? 'کیلوگرم کالا' :
+                           cleanUnit}
+                        </span>
                       </div>
 
                       <div className="text-left">
@@ -670,8 +699,12 @@ export default function ProductDetailModal({
                     {/* Dynamic Conversions display */}
                     <div className="grid grid-cols-3 gap-3 text-center bg-slate-50/50 p-3 rounded-2xl border border-gray-150 text-[10px] text-slate-500 font-black">
                       <div>
-                        <span className="text-slate-400 block mb-0.5">تعداد کل بسته‌ها:</span>
-                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(totalPacks.toLocaleString())} {product.unit}</span>
+                        <span className="text-slate-400 block mb-0.5">{salesUnitType === 'weight' ? 'مقدار کل:' : 'تعداد کل بسته‌ها:'}</span>
+                        <span className="text-indigo-800 font-mono text-xs">
+                          {salesUnitType === 'weight' 
+                            ? `${toPersianNum(totalWeightKg)} کیلوگرم` 
+                            : `${toPersianNum(totalPacks.toLocaleString())} ${cleanUnit}`}
+                        </span>
                       </div>
                       <div>
                         <span className="text-slate-400 block mb-0.5">وزن تقریبی مرسوله:</span>
@@ -679,7 +712,7 @@ export default function ProductDetailModal({
                       </div>
                       <div>
                         <span className="text-slate-400 block mb-0.5">بار حجمی ترانزیت:</span>
-                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(cartons)} کارتن</span>
+                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(cartons)} {salesUnitType === 'weight' ? 'کیسه/کارتن' : 'کارتن'}</span>
                       </div>
                     </div>
 

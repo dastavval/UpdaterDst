@@ -1013,6 +1013,49 @@ export default function App() {
     }
   };
 
+  const [isSyncingData, setIsSyncingData] = useState(false);
+  const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
+
+  const handleManualSync = async () => {
+    setIsSyncingData(true);
+    setSyncToastMessage("در حال همگام‌سازی لحظه‌ای تمام داده‌های سامانه و فاکتورها...");
+    try {
+      // 1. Clear firebase mock internal memory database cache
+      const { clearMockCache } = await import('./lib/firebase-mock');
+      clearMockCache();
+      
+      // 2. Clear IndexedDB cache for products to force fresh fetch
+      try {
+        const { cacheProducts } = await import('./lib/db');
+        await cacheProducts([]); // clear cache to force bypass
+      } catch (err) {
+        console.warn("IndexedDB cache clear issue:", err);
+      }
+
+      // 3. Re-initialize and fetch all core data
+      await fetchProducts();
+      await fetchDailyPresentation();
+      await fetchB2bConfig();
+      await fetchArticles();
+
+      // 4. Dispatch global event so other panels (UserPanel, AdminPanel, MultiVendorPanel) can reload their local data (like orders)
+      window.dispatchEvent(new CustomEvent("dastavval-manual-sync"));
+      
+      setSyncToastMessage("همگام‌سازی لحظه‌ای با موفقیت انجام شد! تمامی داده‌ها به‌روز شدند.");
+      setTimeout(() => {
+        setSyncToastMessage(null);
+      }, 4000);
+    } catch (e) {
+      console.error("Error during manual sync:", e);
+      setSyncToastMessage("خطایی در همگام‌سازی داده‌ها رخ داد.");
+      setTimeout(() => {
+        setSyncToastMessage(null);
+      }, 3000);
+    } finally {
+      setIsSyncingData(false);
+    }
+  };
+
   const addToCart = (product: Product, quantityCartons: number) => {
     if (!product || !product.id) {
       console.error("addToCart: Invalid product object", product);
@@ -1491,6 +1534,31 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Elegant Toast for Instant Data Sync */}
+      <AnimatePresence>
+        {syncToastMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[130] max-w-md bg-white border border-slate-200/60 p-4 rounded-2xl shadow-2xl shadow-slate-200/60 flex items-center gap-3.5 backdrop-blur-md"
+            dir="rtl"
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSyncingData ? "bg-emerald-50 text-emerald-600" : "bg-emerald-500 text-white shadow-sm shadow-emerald-500/20"}`}>
+              {isSyncingData ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={18} />
+              )}
+            </div>
+            <div className="text-right">
+              <h5 className="font-black text-slate-900 text-xs">همگام‌سازی لحظه‌ای داده‌ها</h5>
+              <p className="text-[10px] text-slate-500 font-bold mt-0.5 leading-relaxed">{syncToastMessage}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* GitHub Hot-Reload & Cache-Buster Live Notification Bar */}
       <AnimatePresence>
         {newVersionAvailable && (
@@ -1587,6 +1655,8 @@ export default function App() {
         b2bConfig={b2bConfig}
         selectedCity={userCity}
         onCityChange={(city) => setUserCity(city)}
+        onManualSync={handleManualSync}
+        isSyncingData={isSyncingData}
       />
 
       {/* Main Container */}
@@ -1614,6 +1684,12 @@ export default function App() {
                   b2bConfig={b2bConfig}
                   setActiveTab={setActiveTab}
                   onAddToCart={addToCart}
+                  onViewDetails={(prod) => {
+                    setSelectedDetailProduct(prod);
+                    setIsDetailModalOpen(true);
+                  }}
+                  userBadge={userBadge}
+                  user={user}
                 />
                 <AboutUsSection articles={articles} theme={theme} />
                 <TrustSection theme={theme} />

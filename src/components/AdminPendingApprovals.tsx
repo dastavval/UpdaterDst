@@ -763,7 +763,7 @@ export default function AdminPendingApprovals({
 
             return (
               <div
-                key={item.id}
+                key={`pending-approval-card-${item.id || idx}-${idx}`}
                 className={`bg-white rounded-2xl border transition-all hover:shadow-md p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${
                   item.priority === 'critical'
                     ? 'border-rose-300 bg-rose-50/20'

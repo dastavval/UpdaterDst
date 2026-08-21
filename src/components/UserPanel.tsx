@@ -85,6 +85,18 @@ export default function UserPanel({
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState("");
   const [settlementSuccess, setSettlementSuccess] = useState<string | null>(null);
+
+  // Etebarito Credit Report State
+  const [etebaritoState, setEtebaritoState] = useState<any>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("dastavval_user_etebarito") || "null");
+    } catch {
+      return null;
+    }
+  });
+  const [etebaritoGradeInput, setEtebaritoGradeInput] = useState("A1");
+  const [etebaritoScoreInput, setEtebaritoScoreInput] = useState("750");
+  const [etebaritoMsg, setEtebaritoMsg] = useState<string | null>(null);
   const [payoutsHistory, setPayoutsHistory] = useState<any[]>(() => {
     try {
       return JSON.parse(localStorage.getItem("dastavval_marketer_payouts") || "[]");
@@ -142,6 +154,13 @@ export default function UserPanel({
 
   useEffect(() => {
     fetchOrders();
+    const handleSync = () => {
+      fetchOrders();
+    };
+    window.addEventListener("dastavval-manual-sync", handleSync);
+    return () => {
+      window.removeEventListener("dastavval-manual-sync", handleSync);
+    };
   }, []);
 
   // Filter Factory Orders (Strictly orders containing this factory's products)
@@ -931,23 +950,40 @@ export default function UserPanel({
           {/* TAB CONTENT: CREDIT & FINANCIALS */}
           {customerTab === 'credit' && (
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-2xl">
-                  💳
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-2xl">
+                    💳
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">اعتبار خرید و مدیریت رتبه اعتباری</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      استعلام رتبه اعتباری از سامانه اعتباریتو، بارگذاری گواهی مالی و درخواست سقف خرید اعتباری.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">اعتبار خرید و تسویه چکی دست‌اول</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    وضعیت سقف خرید اعتباری، چک‌های صیادی و تسهیلات خرید فصلی سوپرمارکت شما.
-                  </p>
-                </div>
+
+                <a
+                  href="https://etebarito.ir"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <span>ورود به سامانه اعتباریتو</span>
+                  <ExternalLink size={14} />
+                </a>
               </div>
 
+              {/* Dynamic Financial Overview */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-emerald-50/60 border border-emerald-200 p-5 rounded-3xl space-y-1">
                   <span className="text-xs font-bold text-emerald-800">سقف اعتبار خرید چکی:</span>
-                  <div className="text-xl font-black text-emerald-950">{toPersianNum("۵۰,۰۰۰,۰۰۰")} تومان</div>
-                  <span className="text-[10px] text-emerald-700 font-bold">مهلت تسویه: ۳۰ تا ۶۰ روزه</span>
+                  <div className="text-xl font-black text-emerald-950">
+                    {etebaritoState?.status === 'verified' ? toPersianNum("۵۰,۰۰۰,۰۰۰ تومان") : toPersianNum("نیازمند استعلام اعتباریتو")}
+                  </div>
+                  <span className="text-[10px] text-emerald-700 font-bold">
+                    {etebaritoState?.status === 'verified' ? "مهلت تسویه: ۳۰ تا ۶۰ روزه" : "پس از ثبت گواهی اعتباریتو فعال می‌شود"}
+                  </span>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 p-5 rounded-3xl space-y-1">
@@ -957,10 +993,141 @@ export default function UserPanel({
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 p-5 rounded-3xl space-y-1">
-                  <span className="text-xs font-bold text-slate-500">تعداد چک‌های پاس‌شده:</span>
-                  <div className="text-xl font-black text-slate-900">{toPersianNum("۴")} فقره</div>
-                  <span className="text-[10px] text-emerald-700 font-bold">وضعیت حساب: خوش‌حساب A</span>
+                  <span className="text-xs font-bold text-slate-500">رتبه اعتباری (اعتباریتو):</span>
+                  <div className="text-xl font-black text-indigo-900 flex items-center gap-2">
+                    {etebaritoState?.grade ? (
+                      <span className="bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-lg text-sm">
+                        رتبه {etebaritoState.grade}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-sm font-bold">ثبت‌نشده</span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-bold ${etebaritoState ? 'text-emerald-700' : 'text-amber-600'}`}>
+                    {etebaritoState ? 'گواهی بارگذاری شده است' : 'استعلام اولیه اعتباریتو الزامی است'}
+                  </span>
                 </div>
+              </div>
+
+              {/* Etebarito Inquiry & Report Upload Zone */}
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
+                      <Award size={16} className="text-indigo-600" />
+                      <span>استعلام و بارگذاری گواهی رتبه‌بندی اعتباریتو (Etebarito)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      برای فعال‌سازی تسویه چکی و سقف اعتباری، ابتدا با کلیک روی لینک زیر گزارش اعتبارسنجی خود را از سایت اعتباریتو دریافت کرده و فایل آن را در این قسمت آپلود نمایید.
+                    </p>
+                  </div>
+
+                  <a
+                    href="https://etebarito.ir"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
+                  >
+                    <span>دریافت کارنامه از اعتباریتو</span>
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+
+                {etebaritoMsg && (
+                  <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-black flex items-center gap-2">
+                    <CheckCircle size={16} className="text-emerald-600 shrink-0" />
+                    <span>{etebaritoMsg}</span>
+                  </div>
+                )}
+
+                {/* Upload Form */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end pt-1">
+                  <div>
+                    <label className="text-[11px] font-black text-slate-700 block mb-1">رتبه دریافتی از اعتباریتو:</label>
+                    <select
+                      value={etebaritoGradeInput}
+                      onChange={(e) => setEtebaritoGradeInput(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-indigo-600 outline-none"
+                    >
+                      <option value="A1">رتبه A1 (ممتاز بی‌خطر)</option>
+                      <option value="A2">رتبه A2 (بسیار خوش‌حساب)</option>
+                      <option value="B1">رتبه B1 (خوش‌حساب استاندارد)</option>
+                      <option value="B2">رتبه B2 (متوسط مثبت)</option>
+                      <option value="C1">رتبه C1 (نیازمند وثیقه اضافه)</option>
+                      <option value="C2">رتبه C2 (پرریسک)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-black text-slate-700 block mb-1">امتیاز اعتباری (از ۳۰۰ تا ۹۰۰):</label>
+                    <input
+                      type="number"
+                      value={etebaritoScoreInput}
+                      onChange={(e) => setEtebaritoScoreInput(e.target.value)}
+                      placeholder="مثلا 750"
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-indigo-600 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-black text-slate-700 block mb-1">آپلود PDF یا تصویر گزارش اعتباریتو:</label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            const certObj = {
+                              grade: etebaritoGradeInput,
+                              score: etebaritoScoreInput,
+                              certName: file.name,
+                              certUrl: evt.target?.result as string,
+                              uploadDate: new Date().toLocaleDateString('fa-IR'),
+                              status: 'verified'
+                            };
+                            localStorage.setItem("dastavval_user_etebarito", JSON.stringify(certObj));
+                            setEtebaritoState(certObj);
+                            setEtebaritoMsg("گزارش اعتباریتو با موفقیت آپلود و در سیستم ثبت شد.");
+                            setTimeout(() => setEtebaritoMsg(null), 5000);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                      />
+                      <div className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl p-2.5 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                        <Upload size={14} />
+                        <span>{etebaritoState?.certName ? `تغییر فایل (${etebaritoState.certName})` : "انتخاب فایل گزارش اعتباریتو"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {etebaritoState && (
+                  <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} className="text-indigo-600" />
+                      <span className="font-bold text-slate-800">گزارش فعلی: {etebaritoState.certName || "گواهی اعتباریتو"}</span>
+                      <span className="text-[10px] text-slate-400">({etebaritoState.uploadDate})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black rounded-md text-[10px]">
+                        ثبت‌شده
+                      </span>
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem("dastavval_user_etebarito");
+                          setEtebaritoState(null);
+                        }}
+                        className="text-rose-600 hover:text-rose-700 font-bold text-[10px] cursor-pointer"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

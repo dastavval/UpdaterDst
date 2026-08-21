@@ -58,27 +58,35 @@ button, input, select, textarea {
   font-family: var(--font-sans), sans-serif !important;
 }
 
-/* --- PREMIUM TYPOGRAPHIC DENSITY OVERRIDES --- */
+/* --- HIGH-LEGIBILITY & ACCESSIBLE PERSIAN TYPOGRAPHY --- */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 800 !important;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
   color: #0f172a;
 }
 
 p {
   line-height: 1.7;
-  color: #475569;
+  color: #334155;
 }
 
-.text-xs { font-size: 0.7rem !important; letter-spacing: 0.01em; }
-.text-sm { font-size: 0.775rem !important; line-height: 1.4; }
-.text-base { font-size: 0.85rem !important; line-height: 1.6; }
-.text-lg { font-size: 0.95rem !important; }
-.text-xl { font-size: 1.1rem !important; }
-.text-2xl { font-size: 1.3rem !important; }
-.text-3xl { font-size: 1.55rem !important; }
-.text-4xl { font-size: 1.85rem !important; }
+/* Ensure font sizes are clear, large, and comfortably legible */
+.text-xs { font-size: 0.75rem !important; line-height: 1.5; } /* 12px */
+.text-sm { font-size: 0.875rem !important; line-height: 1.5; } /* 14px */
+.text-base { font-size: 1rem !important; line-height: 1.6; } /* 16px */
+.text-lg { font-size: 1.125rem !important; line-height: 1.5; } /* 18px */
+.text-xl { font-size: 1.25rem !important; line-height: 1.4; } /* 20px */
+.text-2xl { font-size: 1.5rem !important; line-height: 1.35; } /* 24px */
+.text-3xl { font-size: 1.875rem !important; line-height: 1.3; } /* 30px */
+.text-4xl { font-size: 2.25rem !important; line-height: 1.25; } /* 36px */
+
+/* Clamp arbitrary tiny font classes to a crisp, readable minimum threshold */
+[class*="text-[8px]"],
+[class*="text-[9px]"],
+[class*="text-[10px]"] {
+  font-size: 0.725rem !important; /* ~11.6px minimum for comfortable reading */
+}
 
 /* Refined Spacing */
 .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.85rem !important; }

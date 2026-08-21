@@ -36,6 +36,12 @@
       "name": "شوینده و بهداشتی",
       "label": "شوینده و بهداشتی",
       "image": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600"
+    },
+    {
+      "id": "cat-6",
+      "name": "مواد اولیه کارخانجات",
+      "label": "مواد اولیه کارخانجات",
+      "image": "https://images.unsplash.com/photo-1615483609341-fa02d4534ac0?auto=format&fit=crop&q=80&w=600"
     }
   ],
   "brands": [

@@ -769,8 +769,13 @@ app.get("/api/v1/config", (req, res) => {
 
 // Smart Fetch with automatic DNS-failover and direct IP bypass for ParsPack/S3 CDNs
 async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<string, string> = {}, extraOptions: any = {}) {
+  let urlToFetch = targetUrl;
+  if (urlToFetch.includes("parspack.net") && urlToFetch.startsWith("https://")) {
+    urlToFetch = urlToFetch.replace(/^https:\/\//i, "http://");
+  }
+
   try {
-    return await fetch(targetUrl, {
+    const res = await fetch(urlToFetch, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, application/octet-stream, */*",
@@ -778,8 +783,11 @@ async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<st
       },
       ...extraOptions
     });
+    if (res.ok) return res;
+    // If status 404 or other HTTP error, return res so caller can inspect
+    return res;
   } catch (error: any) {
-    const isParsPack = targetUrl.includes(".parspack.net");
+    const isParsPack = urlToFetch.includes(".parspack.net") || urlToFetch.includes("parsstorage.com");
     const isDnsError = error.message?.includes("ENOTFOUND") || 
                        error.message?.includes("EAI_AGAIN") || 
                        error.message?.includes("fetch failed") || 
@@ -788,10 +796,10 @@ async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<st
 
     if (isParsPack || isDnsError) {
       try {
-        const parsedUrl = new URL(targetUrl);
+        const parsedUrl = new URL(urlToFetch.startsWith("http") ? urlToFetch : `http://${urlToFetch}`);
         const originalHostname = parsedUrl.hostname;
         
-        // ParsPack S3/CDN generally maps to 176.97.218.120.
+        // ParsPack S3/CDN primary IP address
         let ipAddress = "176.97.218.120"; 
         try {
           const lookupResult = await dns.promises.lookup(originalHostname);
@@ -804,9 +812,10 @@ async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<st
 
         // Rewrite URL to direct IP routing
         parsedUrl.hostname = ipAddress;
+        parsedUrl.protocol = "http:";
         const ipBypassUrl = parsedUrl.toString();
 
-        console.log(`[DNS Bypass] Routing request directly to IP to bypass DNS: ${ipBypassUrl} (Host: ${originalHostname})`);
+        console.log(`[DNS Bypass] Routing request directly to IP: ${ipBypassUrl} (Host: ${originalHostname})`);
 
         return await fetch(ipBypassUrl, {
           headers: {
@@ -1718,14 +1727,7 @@ app.get("/api/storage/file/*", async (req, res) => {
 // --- ADMIN API ---
 app.all("/api/admin/download-source", (req, res) => {
   try {
-    console.log("[ZIP Export] Triggering fresh compile (npm run build) to ensure the ZIP matches the live site exactly...");
-    try {
-      execSync("npm run build", { stdio: "inherit" });
-      console.log("[ZIP Export] Fresh compile completed successfully.");
-    } catch (buildError: any) {
-      console.error("[ZIP Export] Warning: npm run build failed, using pre-existing dist files:", buildError.message);
-    }
-
+    console.log("[ZIP Export] Packaging current codebase for download directly...");
     const zip = new AdmZip();
     const rootDir = process.cwd();
 

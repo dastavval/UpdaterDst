@@ -22,6 +22,8 @@ export interface Product {
   min_stock_alert?: number; // آستانه هشدار موجودی ایمن برای ادمین
   image_url: string;
   unit: string; // e.g., "بسته", "قوطی", "پاکت"
+  sales_unit_type?: 'carton' | 'count' | 'weight'; // نوع واحد فروش: کارتنی، عددی/خرد، یا وزنی/کیلویی
+  weight_per_carton_kg?: number; // وزن هر کارتن/کیسه به کیلوگرم
   sellerId: string;
   sellerName: string;
   production_lead_time_days: number; // Days to manufacture/supply if out of stock

@@ -39,6 +39,7 @@ import ProductCard from "./ProductCard";
 import MagazineSection from "./MagazineSection";
 import { ReferralRewardModal } from "./ReferralRewardModal";
 import EngagementHub from "./EngagementHub";
+import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 
 interface DynamicPresentationProps {
   products: Product[];
@@ -77,6 +78,7 @@ export default function DynamicPresentation({
   const [copiedCoupon, setCopiedCoupon] = useState(false);
   const [isReferralOpen, setIsReferralOpen] = useState(false);
   const [isCustomerJourneyOpen, setIsCustomerJourneyOpen] = useState(false);
+  const [showcaseTab, setShowcaseTab] = useState<'all' | 'products' | 'raw_materials'>('all');
 
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
@@ -167,6 +169,45 @@ export default function DynamicPresentation({
       ...Array.from(mergedCatMap.values())
     ];
   }, [products, b2bConfig?.categories]);
+
+  // Check if a product is a raw material based on category or keyword matching
+  const isRawMaterial = (p: Product) => {
+    const name = (p.name || "").toLowerCase();
+    const desc = (p.description || "").toLowerCase();
+    const cat = (p.category || "").toLowerCase();
+    return (
+      cat.includes("مواد اولیه") ||
+      cat.includes("raw") ||
+      name.includes("نشاسته") ||
+      name.includes("کنسانتره") ||
+      name.includes("گلوتن") ||
+      name.includes("پودر مالت") ||
+      name.includes("اسانس") ||
+      name.includes("سوربیتول") ||
+      name.includes("مواد اولیه") ||
+      desc.includes("ماده اولیه") ||
+      desc.includes("مواد اولیه")
+    );
+  };
+
+  // Compute products for the showcase section
+  const showcaseProducts = useMemo(() => {
+    // Newest/recent products: marked as 'جدید' or are part of the latest products
+    const recentItems = products.filter((p, index) => {
+      const hasNewBadge = p.badge && (p.badge.includes("جدید") || p.badge.toLowerCase().includes("new"));
+      const isRecentlyAdded = index >= Math.max(0, products.length - 8);
+      return hasNewBadge || isRecentlyAdded || isRawMaterial(p);
+    });
+
+    if (showcaseTab === 'all') {
+      return recentItems.slice(0, 8);
+    } else if (showcaseTab === 'products') {
+      return recentItems.filter(p => !isRawMaterial(p)).slice(0, 8);
+    } else if (showcaseTab === 'raw_materials') {
+      return products.filter(isRawMaterial).slice(0, 8);
+    }
+    return recentItems.slice(0, 8);
+  }, [products, showcaseTab]);
 
   // Filter products flexibly by category name or tags
   const isCategoryMatch = (p: Product, selectedCat: string) => {
@@ -388,6 +429,157 @@ export default function DynamicPresentation({
         onSelectAgency={() => setActiveTab?.('agency')}
         onSelectFactory={() => setActiveTab?.('factories')}
       />
+
+      {/* --- NEW PRODUCTS AND RAW MATERIALS SHOWCASE SECTION --- */}
+      <section className="bg-slate-50/60 rounded-[2rem] p-5 border border-slate-200/50 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
+          <div className="space-y-1">
+            <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+              <span className="text-xl">✨</span>
+              <span>معرفی جدیدترین محصولات و مواد اولیه کارخانجات</span>
+            </h2>
+            <p className="text-[10px] text-slate-500 font-bold">
+              رونمایی از آخرین دستاوردهای خطوط تولید و نهاده‌های پایه‌ای صنایع با نرخ استثنایی دست اول
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: 'all', label: 'همه اقلام جدید' },
+              { id: 'products', label: 'محصولات نهایی جدید' },
+              { id: 'raw_materials', label: 'تامین مواد اولیه' }
+            ].map((tab) => (
+              <button
+                key={`showcase-tab-${tab.id}`}
+                onClick={() => setShowcaseTab(tab.id as any)}
+                className={`px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+                  showcaseTab === tab.id
+                    ? 'bg-emerald-600 text-white shadow-material-sm scale-[1.02]'
+                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                }`}
+              >
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {showcaseProducts.length === 0 ? (
+          <div className="bg-white rounded-2xl p-10 text-center border border-slate-150/60 shadow-3xs">
+            <Package className="mx-auto text-slate-300 mb-3 animate-pulse" size={40} />
+            <h4 className="text-xs font-black text-slate-800">هیچ محصول یا ماده اولیه‌ای یافت نشد!</h4>
+            <p className="text-[10px] text-slate-400 font-bold mt-1">با ورود به پنل خود می‌توانید اولین معرفی کالا را ثبت کنید.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {showcaseProducts.map((product, idx) => {
+              const isRaw = isRawMaterial(product);
+              return (
+                <motion.div
+                  key={`showcase-card-${product.id}-${idx}`}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+                  className="bg-white rounded-2xl border border-slate-150/50 p-3.5 shadow-3xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-3 relative group"
+                >
+                  {/* Category & Badge */}
+                  <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-1">
+                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black text-white ${
+                      isRaw ? 'bg-amber-600 shadow-sm' : 'bg-rose-600 shadow-sm'
+                    }`}>
+                      {isRaw ? '🌾 ماده اولیه' : '✨ محصول جدید'}
+                    </span>
+                  </div>
+
+                  {/* Product Image */}
+                  <div className="w-full h-36 rounded-xl bg-slate-50/50 overflow-hidden relative flex items-center justify-center shrink-0">
+                    <img
+                      src={getDisplayImageUrl(product.image_url)}
+                      alt={product.name}
+                      referrerPolicy="no-referrer"
+                      className="max-h-full max-w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="space-y-1.5 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-1 text-slate-400 text-[9px] font-black">
+                        <Building2 size={11} className="text-slate-400 shrink-0" />
+                        <span className="truncate">{product.brand}</span>
+                      </div>
+                      <h3 className="text-xs font-black text-slate-800 line-clamp-2 mt-1 leading-relaxed">
+                        {product.name}
+                      </h3>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-50 space-y-1">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-400 font-bold">حداقل خرید عمده:</span>
+                        <span className="text-indigo-950 font-black bg-indigo-50/60 px-2 py-0.5 rounded border border-indigo-100/30">
+                          {toPersianNum(product.min_order_cartons)} کارتن
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-1">
+                        <span className="text-slate-400 text-[10px] font-bold">نرخ هر {cleanUnitName(product.unit)}:</span>
+                        <div className="text-right">
+                          <span className="text-xs font-mono font-black text-emerald-600">
+                            {toPersianNum(product.bulk_price.toLocaleString())}
+                          </span>
+                          <span className="text-[9px] font-black text-emerald-600 mr-0.5">تومان</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-1.5 pt-2.5 border-t border-slate-100 shrink-0 font-sans">
+                    <button
+                      onClick={() => onViewDetails?.(product)}
+                      className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-750 rounded-xl text-[10px] font-black transition-colors text-center cursor-pointer border border-slate-200"
+                    >
+                      جزئیات و استعلام
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (onAddToCart) {
+                          onAddToCart(product, product.min_order_cartons || 1);
+                        }
+                      }}
+                      className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black transition-all text-center cursor-pointer shadow-material-sm hover:scale-102 active:scale-98"
+                    >
+                      سفارش مستقیم
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Call to action for other factories */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-right">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl shrink-0">🏭</span>
+            <div>
+              <h4 className="text-xs font-black text-slate-850">کارخانه شما هم محصولات پایه‌ای یا مواد اولیه تولید می‌کند؟</h4>
+              <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+                تامین‌کنندگان و تولیدکنندگان مواد اولیه می‌توانند محصولات خود را به سبد محصولات صنایع غذایی و تولیدی کشور اضافه کنند.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setActiveTab?.('factories');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black rounded-xl transition-all shadow-md shadow-amber-600/15 shrink-0 cursor-pointer"
+          >
+            ثبت و معرفی محصول کارخانه شما
+          </button>
+        </div>
+      </section>
 
       {/* --- QUICK CATEGORY NAVIGATION TILES --- */}
       <section className="space-y-3">

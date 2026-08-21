@@ -1,5 +1,11 @@
 const MEMORY_DB: Record<string, any[]> = {};
 
+export function clearMockCache(): void {
+  for (const key in MEMORY_DB) {
+    delete MEMORY_DB[key];
+  }
+}
+
 function getCollectionKey(path: string): string {
   return `mock_db_${path.replace(/\//g, '_')}`;
 }

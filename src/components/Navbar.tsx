@@ -1,4 +1,4 @@
-import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft } from "lucide-react";
+import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
@@ -47,6 +47,8 @@ interface NavbarProps {
   b2bConfig?: any;
   selectedCity?: string;
   onCityChange?: (city: string) => void;
+  onManualSync?: () => void;
+  isSyncingData?: boolean;
 }
 
 const toPersianNum = (num: number | string) => {
@@ -96,6 +98,8 @@ export default function Navbar({
   b2bConfig,
   selectedCity: propSelectedCity,
   onCityChange,
+  onManualSync,
+  isSyncingData = false,
 }: NavbarProps) {
   const t = translations[language] || translations.fa;
   const isRtl = language === "fa" || language === "ar";
@@ -883,6 +887,40 @@ export default function Navbar({
                     تغییر شهر و استان فعالیت
                   </button>
                 </div>
+
+                {/* Instant Database & Invoice Sync Widget */}
+                {onManualSync && (
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200/60 shadow-3xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-800 font-black flex items-center gap-1.5">
+                        <RefreshCw 
+                          size={13} 
+                          className={`text-emerald-600 ${isSyncingData ? "animate-spin" : ""}`} 
+                        />
+                        <span>همگام‌سازی لحظه‌ای سامانه:</span>
+                      </span>
+                      <span className="bg-emerald-50 text-emerald-700 font-black text-[8px] px-1.5 py-0.5 rounded-full border border-emerald-200">
+                        سریع و زنده ⚡
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">
+                      بروزرسانی آنی تمامی محصولات، فاکتورها، سبد خرید و سفارشات مستقیماً از دیتابیس بدون نیاز به رفرش صفحه.
+                    </p>
+                    <button
+                      onClick={() => {
+                        onManualSync();
+                      }}
+                      disabled={isSyncingData}
+                      className="w-full text-center py-2 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-black rounded-xl transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <RefreshCw 
+                        size={12} 
+                        className={`text-emerald-600 ${isSyncingData ? "animate-spin" : ""}`} 
+                      />
+                      <span>{isSyncingData ? "در حال دریافت اطلاعات..." : "سینک فوری داده‌ها و فاکتورها"}</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Quick Menu List */}
                 <div className="space-y-2">
