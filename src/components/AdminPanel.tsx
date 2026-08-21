@@ -45,6 +45,7 @@ interface AdminPanelProps {
   onUpdateProduct: (id: string, updated: Partial<Product>, skipStateUpdate?: boolean) => Promise<void>;
   onDeleteProduct: (id: string, skipStateUpdate?: boolean) => Promise<void>;
   onBatchDeleteProducts?: (ids: string[]) => Promise<void>;
+  onBulkUpdateProducts?: (updatedProducts: Product[]) => Promise<void>;
   onRefreshProducts?: () => Promise<void>;
   articles?: any[];
   onUpdateArticles?: () => Promise<void>;
@@ -68,6 +69,7 @@ export default function AdminPanel({
   onUpdateProduct, 
   onDeleteProduct,
   onBatchDeleteProducts,
+  onBulkUpdateProducts,
   onRefreshProducts,
   articles = [],
   onUpdateArticles,
@@ -5742,7 +5744,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                                   <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 flex items-center justify-center">
                                     {p.image_url ? (
                                       <img 
-                                        src={p.image_url} 
+                                        src={getDisplayImageUrl(p.image_url)} 
                                         alt={p.name} 
                                         referrerPolicy="no-referrer" 
                                         className="w-full h-full object-cover" 
@@ -6007,7 +6009,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center">
                               {p.image_url ? (
                                 <img 
-                                  src={p.image_url} 
+                                  src={getDisplayImageUrl(p.image_url)} 
                                   alt={p.name} 
                                   referrerPolicy="no-referrer" 
                                   className="w-full h-full object-cover" 
@@ -7697,7 +7699,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       <div className="relative">
                         {p.image_url ? (
                           <img 
-                            src={p.image_url} 
+                            src={getDisplayImageUrl(p.image_url)} 
                             alt={p.name} 
                             className="w-20 h-20 rounded-2xl object-cover border border-slate-100 shadow-sm" 
                             referrerPolicy="no-referrer" 
@@ -7862,7 +7864,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         <td className="py-3 px-4">
                           {p.image_url ? (
                             <img 
-                              src={p.image_url} 
+                              src={getDisplayImageUrl(p.image_url)} 
                               alt={p.name} 
                               className="w-9 h-9 rounded-lg object-cover border border-slate-100 shadow-sm" 
                               referrerPolicy="no-referrer" 
@@ -8081,15 +8083,19 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       {activeSubTab === 'product_sync_status' && (
         <ProductSyncStatusView
           products={products}
-          onUpdateProducts={(updatedProds) => {
-            updatedProds.forEach(p => {
-              const existing = products.find(oldP => oldP.id === p.id || oldP.sku === p.sku);
-              if (existing) {
-                onUpdateProduct(p.id, p);
-              } else {
-                onAddProduct(p);
-              }
-            });
+          onUpdateProducts={async (updatedProds) => {
+            if (onBulkUpdateProducts) {
+              await onBulkUpdateProducts(updatedProds);
+            } else {
+              updatedProds.forEach(p => {
+                const existing = products.find(oldP => oldP.id === p.id || oldP.sku === p.sku);
+                if (existing) {
+                  onUpdateProduct(p.id, p);
+                } else {
+                  onAddProduct(p);
+                }
+              });
+            }
           }}
           b2bConfig={{ catalogPdfUrl }}
           onSaveB2bConfig={async (cfg) => {
@@ -12436,7 +12442,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {products.filter(p => p.brand === selectedFactoryForProducts.name || (p.sellerName && p.sellerName.includes(selectedFactoryForProducts.name))).map(p => (
                       <div key={p.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex items-center gap-3">
-                        <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-xl border shrink-0" referrerPolicy="no-referrer" />
+                        <img src={getDisplayImageUrl(p.image_url)} alt={p.name} className="w-12 h-12 object-cover rounded-xl border shrink-0" referrerPolicy="no-referrer" />
                         <div className="space-y-1">
                           <h4 className="text-xs font-black text-slate-800">{p.name}</h4>
                           <p className="text-[9px] text-slate-400 font-bold">بسته‌بندی: {toPersianNum(p.carton_pack_count || 24)} عددی</p>

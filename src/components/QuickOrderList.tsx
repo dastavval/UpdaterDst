@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, ChevronRight, Package, Search, Filter, X, Plus, Minus, PhoneCall } from 'lucide-react';
 import { Product } from '../types';
+import { getDisplayImageUrl } from '../lib/image-utils';
 
 interface QuickOrderListProps {
   products: Product[];
@@ -163,7 +164,7 @@ export default function QuickOrderList({
                       <div className="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden text-emerald-700">
                         {product.image_url ? (
                           <img 
-                            src={product.image_url} 
+                            src={getDisplayImageUrl(product.image_url)} 
                             alt={product.name} 
                             className="w-full h-full object-cover" 
                             onError={(e) => { e.currentTarget.style.display = "none"; }} 

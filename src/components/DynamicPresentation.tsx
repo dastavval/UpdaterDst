@@ -1391,9 +1391,6 @@ export default function DynamicPresentation({
         )}
       </AnimatePresence>
 
-      {/* --- AI DRIVEN B2B MAGAZINE & ANALYSIS SECTION --- */}
-      <MagazineSection articles={articles} />
-
       {/* --- ENGAGEMENT LOYALTY & OPERATIONS SUITE --- */}
       <EngagementHub
         products={products}

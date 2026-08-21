@@ -4,6 +4,7 @@ import { db } from "./lib/firebase";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
+import { getDisplayImageUrl } from "./lib/image-utils";
 import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
 import CatalogDownloadModal from "./components/CatalogDownloadModal";
@@ -626,6 +627,18 @@ export default function App() {
       }
     } catch (err) {
       console.error("Error batch deleting products from DB:", err);
+    }
+  };
+
+  const handleBulkUpdateProducts = async (updatedProductsList: Product[]) => {
+    setProducts(updatedProductsList);
+    try {
+      const { saveCollection } = await import('./lib/firebase-mock');
+      if (saveCollection) {
+        saveCollection("products", updatedProductsList);
+      }
+    } catch (err) {
+      console.error("Error in bulk updating products:", err);
     }
   };
 
@@ -2130,6 +2143,7 @@ export default function App() {
                       onUpdateProduct={handleUpdateProduct}
                       onDeleteProduct={handleDeleteProduct}
                       onBatchDeleteProducts={handleBatchDeleteProducts}
+                      onBulkUpdateProducts={handleBulkUpdateProducts}
                       onRefreshProducts={fetchProducts}
                       b2bConfig={b2bConfig}
                       onUpdateB2bConfig={handleUpdateB2bConfig}
@@ -2470,7 +2484,7 @@ export default function App() {
       {(activeTab === 'presentation' || activeTab === 'about') && (
         <>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-            <MagazineSection articles={articles} />
+            <MagazineSection articles={articles} userRole={userRole} />
           </div>
           {/* Moved ContactSection (Representatives) to be under MagazineSection as requested */}
           <ContactSection theme={theme} userBadge={userBadge} userCity={user?.city} />
@@ -2494,7 +2508,7 @@ export default function App() {
                     <div key={`comp-${p.id}-${idx}`} className="w-8 h-8 rounded-full border-2 border-indigo-900 bg-white p-1 flex items-center justify-center overflow-hidden">
                       {p.image_url ? (
                         <img 
-                          src={p.image_url} 
+                          src={getDisplayImageUrl(p.image_url)} 
                           alt="" 
                           className="w-full h-full object-contain" 
                           onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -3178,6 +3192,11 @@ export default function App() {
               <p className="text-slate-500 text-[11px] font-bold max-w-sm">
                 تأمین بی‌واسطه و توزیع مویرگی مستقیم از خطوط تولید کارخانجات تراز اول به مقصد انبارهای سراسر کشور.
               </p>
+            </div>
+
+            {/* Trust Badges Column */}
+            <div className="flex flex-col items-center justify-center">
+              <TrustBadges b2bConfig={b2bConfig} />
             </div>
 
             {/* Quick Contact & Socials */}

@@ -26,7 +26,7 @@ function loadCollection(path: string): any[] {
   return MEMORY_DB[path];
 }
 
-function saveCollection(path: string, items: any[]): void {
+export function saveCollection(path: string, items: any[]): void {
   MEMORY_DB[path] = items;
   if (typeof window !== "undefined") {
     try {

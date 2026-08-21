@@ -384,7 +384,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                        استعلام سریع و سفارش
                      </span>
                      <h4 className="text-xs md font-black text-slate-800 mt-1">بخش تامین و بازرگانی</h4>
-                     <p className="text-xs font-black text-emerald-600 tracking-wider mt-1 font-mono">۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
+                     <p className="text-xs font-black text-emerald-600 tracking-wider mt-1 font-mono" dir="ltr">۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
                   </div>
                 </div>
               </a>
@@ -405,7 +405,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                        پیگیری بار ۲۴ ساعته
                      </span>
                      <h4 className="text-xs md font-black text-slate-800 mt-1">پشتیبانی ارسال و ترابری بار</h4>
-                     <p className="text-xs font-black text-teal-600 tracking-wider mt-1 font-mono">۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
+                     <p className="text-xs font-black text-teal-600 tracking-wider mt-1 font-mono" dir="ltr">۰۹۹۹ ۹۱۲ ۳۰۰۱</p>
                   </div>
                 </div>
               </a>
@@ -617,7 +617,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                       const isAuthorized = userBadge === 'admin' || (userCity && rep.city.includes(userCity)) || (userCity && userCity.includes(rep.city));
                       return (
                         <>
-                          <span className={`text-[10px] font-black font-mono transition-all ${isAuthorized ? 'text-emerald-600' : 'text-slate-400 blur-[3px] select-none'}`}>
+                          <span className={`text-[10px] font-black font-mono transition-all ${isAuthorized ? 'text-emerald-600' : 'text-slate-400 blur-[3px] select-none'}`} dir="ltr">
                             {isAuthorized ? rep.phone : (rep.phone ? rep.phone.replace(/\d/g, "*") : "***********")}
                           </span>
                           {isAuthorized ? (

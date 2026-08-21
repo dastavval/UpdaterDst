@@ -31,6 +31,7 @@ import { collection, addDoc, serverTimestamp } from '../lib/firebase-mock';
 import { db } from '../lib/firebase';
 import { recordCRMOrder } from '../lib/crm-helper';
 import { CartItem, Product, User } from '../types';
+import { getDisplayImageUrl } from '../lib/image-utils';
 import ChequeCharterModal from './ChequeCharterModal';
 
 interface CheckoutWizardProps {
@@ -707,7 +708,7 @@ export default function CheckoutWizard({
                                   <div className="flex items-center gap-2.5 min-w-0">
                                     {suggested.image_url ? (
                                       <img 
-                                        src={suggested.image_url} 
+                                        src={getDisplayImageUrl(suggested.image_url)} 
                                         alt={suggested.name} 
                                         className="w-11 h-11 rounded-xl object-cover border border-slate-100 shrink-0 bg-white shadow-xs" 
                                         onError={(e) => { e.currentTarget.style.display = 'none'; }}

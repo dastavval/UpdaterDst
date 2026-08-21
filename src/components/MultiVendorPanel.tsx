@@ -3,6 +3,7 @@ import { collection, getDocs, addDoc, serverTimestamp, updateDoc, doc, query, wh
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/firebase-mock";
 import { db, auth } from "../lib/firebase";
 import { Product, Order, SupplyChainStage } from "../types";
+import { getDisplayImageUrl } from "../lib/image-utils";
 import { 
   Package, Plus, Sparkles, RefreshCw, Layers, Sliders, Truck, Check, 
   HelpCircle, FilePlus2, AlertCircle, Lock, LogIn, UserPlus, LogOut, 
@@ -943,7 +944,7 @@ export default function MultiVendorPanel({
                       <div className="flex items-center gap-3">
                         {prod.image_url ? (
                           <img 
-                            src={prod.image_url} 
+                            src={getDisplayImageUrl(prod.image_url)} 
                             alt="" 
                             className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0" 
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}

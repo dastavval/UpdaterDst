@@ -18,6 +18,7 @@ interface MagazineSectionProps {
   onOpenFactory?: (factoryId: string) => void;
   onSwitchTab?: (tab: string) => void;
   onRefreshArticles?: () => void;
+  userRole?: string;
 }
 
 export const MagazineSection: React.FC<MagazineSectionProps> = ({
@@ -28,7 +29,8 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
   onOpenProduct,
   onOpenFactory,
   onSwitchTab,
-  onRefreshArticles
+  onRefreshArticles,
+  userRole
 }) => {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -109,16 +111,18 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
-              <button
-                type="button"
-                onClick={handleGenerateBatch}
-                disabled={isGenerating}
-                className="text-xs font-black text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300/80 px-3 py-1.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                title="تولید خودکار روزانه مقالات سئو با هوش مصنوعی"
-              >
-                <Wand2 size={13} className={`text-purple-700 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>{isGenerating ? "در حال تولید..." : "تولید مقالات روزانه با AI"}</span>
-              </button>
+              {(userRole === 'admin' || userRole === 'manager') && (
+                <button
+                  type="button"
+                  onClick={handleGenerateBatch}
+                  disabled={isGenerating}
+                  className="text-xs font-black text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300/80 px-3 py-1.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="تولید خودکار روزانه مقالات سئو با هوش مصنوعی"
+                >
+                  <Wand2 size={13} className={`text-purple-700 ${isGenerating ? 'animate-spin' : ''}`} />
+                  <span>{isGenerating ? "در حال تولید..." : "تولید مقالات روزانه با AI"}</span>
+                </button>
+              )}
 
               <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200/80 px-3 py-1.5 rounded-xl shadow-2xs">
                 {displayArticles.length} خبر و تحلیل بازار

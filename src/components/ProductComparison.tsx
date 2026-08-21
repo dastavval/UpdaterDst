@@ -1,5 +1,6 @@
 import React from "react";
 import { Product } from "../types";
+import { getDisplayImageUrl } from "../lib/image-utils";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Scale, Check, Minus, Package } from "lucide-react";
 
@@ -68,7 +69,7 @@ export default function ProductComparison({ isOpen, onClose, products, theme }: 
                             {p.image_url ? (
                               <img 
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                                src={p.image_url} 
+                                src={getDisplayImageUrl(p.image_url)} 
                                 alt={p.name} 
                                 className="w-full h-full object-contain" 
                               />

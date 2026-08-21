@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
+import { getDisplayImageUrl } from "../lib/image-utils";
 
 interface AdminFactoryProductAuditProps {
   products: Product[];
@@ -418,7 +419,7 @@ export default function AdminFactoryProductAudit({
                   <div className="lg:col-span-5 flex items-center gap-3">
                     <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center p-1">
                       {prod.image_url ? (
-                        <img src={prod.image_url} alt={prod.name} className="w-full h-full object-contain" />
+                        <img src={getDisplayImageUrl(prod.image_url)} alt={prod.name} className="w-full h-full object-contain" />
                       ) : (
                         <Boxes className="text-slate-300" size={32} />
                       )}
