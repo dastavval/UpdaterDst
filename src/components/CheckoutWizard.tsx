@@ -126,9 +126,11 @@ export default function CheckoutWizard({
   const [paymentReceiptImage, setPaymentReceiptImage] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
 
-  // Cheque Details State
+  // Cheque & Split Cash/Cheque Settlement State
+  const [splitCashPercent, setSplitCashPercent] = useState<number>(50); // Default 50% Cash / 50% Cheque
   const [chequeSayadiNo, setChequeSayadiNo] = useState("");
   const [chequeBankName, setChequeBankName] = useState("بانک ملی");
+  const [chequeDays, setChequeDays] = useState<number>(60); // Default 60 days (2 months)
   const [chequeMonths, setChequeMonths] = useState<number>(2); // Default 2 months
   const [chequeDueDate, setChequeDueDate] = useState("");
   const [chequeImage, setChequeImage] = useState("");
@@ -209,13 +211,31 @@ export default function CheckoutWizard({
   const effectiveCashDiscountPercent = (paymentMethod === 'cash' && tierDiscountPercent === 0) ? cashDiscountPercent : 0;
   const cashDiscountAmount = Math.round(totalAmount * (effectiveCashDiscountPercent / 100));
 
-  // 4. Cheque Adjustments
-  const chequeMarkupPercent = paymentMethod === 'cheque' ? chequeMonths * chequeMarkupPerMonth : 0;
-  const chequeMarkupAmount = paymentMethod === 'cheque' ? Math.round(totalAmount * (chequeMarkupPercent / 100)) : 0;
-  
+  // 4. Cheque & Split Calculations (حداقل ۵۰٪ نقد + ۵۰٪ چک صیادی جهت کاهش ریسک و تضمین کارخانه)
+  const effectiveCashPercent = paymentMethod === 'cash' ? 100 : splitCashPercent;
+  const effectiveChequePercent = paymentMethod === 'cash' ? 0 : (100 - splitCashPercent);
+
   // Total discounts applied
   const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount;
-  const finalPayableAmount = Math.max(0, totalAmount - totalDiscounts + chequeMarkupAmount);
+  const basePayableAmount = Math.max(0, totalAmount - totalDiscounts);
+
+  // Split Breakdown
+  const cashPortionAmount = paymentMethod === 'cash' ? basePayableAmount : Math.round(basePayableAmount * (effectiveCashPercent / 100));
+  const chequeBasePortion = paymentMethod === 'cash' ? 0 : Math.round(basePayableAmount * (effectiveChequePercent / 100));
+  
+  const chequeMarkupPercent = paymentMethod === 'cheque' ? chequeMonths * chequeMarkupPerMonth : 0;
+  const chequeMarkupAmount = paymentMethod === 'cheque' ? Math.round(chequeBasePortion * (chequeMarkupPercent / 100)) : 0;
+  const chequePortionAmount = chequeBasePortion + chequeMarkupAmount;
+  
+  const finalPayableAmount = cashPortionAmount + chequePortionAmount;
+
+  // Exact Persian Due Date
+  const computedDueDate = new Date(Date.now() + chequeDays * 24 * 60 * 60 * 1000).toLocaleDateString('fa-IR');
+  const computedDueDateLong = new Date(Date.now() + chequeDays * 24 * 60 * 60 * 1000).toLocaleDateString('fa-IR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   const rawBankAcc = (invSettings.bankAccounts && invSettings.bankAccounts.length > 0)
     ? invSettings.bankAccounts[0]
@@ -260,12 +280,12 @@ export default function CheckoutWizard({
     setErrorMessage("");
     if (paymentMethod === 'cheque') {
       const allowedCredit = Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 250000000));
-      if (finalPayableAmount > allowedCredit) {
-        setErrorMessage(`مبلغ چک (${finalPayableAmount.toLocaleString()} تومان) بیشتر از سقف اعتبار مجاز شما (${allowedCredit.toLocaleString()} تومان) می‌باشد.`);
+      if (chequePortionAmount > allowedCredit) {
+        setErrorMessage(`مبلغ چک (${chequePortionAmount.toLocaleString()} تومان) بیشتر از سقف اعتبار چکی مجاز شما (${allowedCredit.toLocaleString()} تومان) می‌باشد.`);
         return;
       }
       if (!chequeSayadiNo.trim() && !chequeImage) {
-        setErrorMessage("لطفاً شماره صیادی یا تصویر چک را وارد/آپلود نمایید.");
+        setErrorMessage("لطفاً شماره صیادی ۱۶ رقمی یا تصویر چک صیادی را وارد/آپلود نمایید.");
         return;
       }
     }
@@ -301,16 +321,32 @@ export default function CheckoutWizard({
           cashPercent: effectiveCashDiscountPercent,
           chequeMarkup: chequeMarkupAmount,
           chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
+          chequeDays: paymentMethod === 'cheque' ? chequeDays : 0,
           chequeMarkupPercent
         },
         paymentMethod,
-        receiptUrl: paymentMethod === 'cash' ? (paymentReceiptImage || null) : null,
-        receiptNumber: paymentMethod === 'cash' ? (receiptNumber || null) : null,
+        settlementBreakdown: {
+          cashPercent: effectiveCashPercent,
+          chequePercent: effectiveChequePercent,
+          cashAmount: cashPortionAmount,
+          chequeAmount: chequePortionAmount,
+          chequeBaseAmount: chequeBasePortion,
+          chequeMarkupAmount,
+          chequeDays: paymentMethod === 'cheque' ? chequeDays : 0,
+          chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
+          chequeDueDate: paymentMethod === 'cheque' ? (chequeDueDate || computedDueDate) : null,
+          chequeDueDateLong: paymentMethod === 'cheque' ? computedDueDateLong : null
+        },
+        receiptUrl: paymentReceiptImage || null,
+        receiptNumber: receiptNumber || null,
         chequeDetails: paymentMethod === 'cheque' ? {
           sayadiNumber: chequeSayadiNo,
           bankName: chequeBankName,
           months: chequeMonths,
-          dueDate: chequeDueDate,
+          days: chequeDays,
+          amount: chequePortionAmount,
+          dueDate: chequeDueDate || computedDueDate,
+          dueDateLong: computedDueDateLong,
           chequeImageUrl: chequeImage || null
         } : null,
         shippingMethod,
@@ -423,9 +459,9 @@ export default function CheckoutWizard({
                 { id: 2, label: "۲. تحویل و آدرس" },
                 { id: 3, label: "۳. روش تسویه" },
                 { id: 4, label: "۴. تایید فاکتور" }
-              ].map((s) => (
+              ].map((s, sIdx) => (
                 <button
-                  key={s.id}
+                  key={`checkout-step-tab-${s.id}-${sIdx}`}
                   type="button"
                   onClick={() => {
                     if (s.id < step) setStep(s.id as any);
@@ -652,14 +688,14 @@ export default function CheckoutWizard({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {products
                             .slice(0, 4)
-                            .map(suggested => {
+                            .map((suggested, sIdx) => {
                               const inCartItem = cart.find(c => c.productId === suggested.id);
                               const isJustAdded = justAddedId === suggested.id;
                               const cartonPrice = suggested.bulk_price * suggested.carton_pack_count;
 
                               return (
                                 <div 
-                                  key={`sug-${suggested.id}`} 
+                                  key={`sug-${suggested.id || sIdx}-${sIdx}`} 
                                   className={`bg-white p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 shadow-xs ${
                                     isJustAdded 
                                       ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/40" 
@@ -876,9 +912,9 @@ export default function CheckoutWizard({
                       { id: 'khavar', name: 'کامیونت / خاور', icon: '🚚' },
                       { id: 'deka', name: 'اکسپرس (دکا)', icon: '📦' },
                       { id: 'personal', name: 'تحویل حضوری انبار', icon: '🏭' }
-                    ].map((m) => (
+                    ].map((m, mIdx) => (
                       <button
-                        key={m.id}
+                        key={`ship-method-opt-${m.id}-${mIdx}`}
                         type="button"
                         onClick={() => setShippingMethod(m.id)}
                         className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
@@ -899,10 +935,15 @@ export default function CheckoutWizard({
             {/* STEP 3: PAYMENT & DOCUMENTS (Clean White Form) */}
             {step === 3 && (
               <div className="space-y-5">
-                <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                  <CreditCard size={16} className="text-emerald-600" />
-                  انتخاب روش تسویه و مدارک پرداخت
-                </h3>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    <CreditCard size={16} className="text-emerald-600" />
+                    انتخاب روش تسویه و مدارک پرداخت
+                  </h3>
+                  <span className="text-[11px] font-black text-slate-500">
+                    مبلغ قابل تسویه: <strong className="font-mono text-slate-900">{basePayableAmount.toLocaleString()} تومان</strong>
+                  </span>
+                </div>
 
                 {/* Method selector tabs */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -916,7 +957,7 @@ export default function CheckoutWizard({
                     }`}
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-black text-slate-900">پرداخت نقدی (پیش‌فاکتور)</span>
+                      <span className="text-xs font-black text-slate-900">پرداخت ۱۰۰٪ نقدی (پیش‌فاکتور)</span>
                       <DollarSign size={18} className="text-emerald-600" />
                     </div>
                     <span className="text-[10px] text-emerald-700 font-black bg-emerald-100/70 px-2 py-0.5 rounded-md inline-block w-max">
@@ -934,11 +975,11 @@ export default function CheckoutWizard({
                     }`}
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-black text-slate-900">پرداخت چکی (اقساط صیادی)</span>
+                      <span className="text-xs font-black text-slate-900">تسویه چکی (۵۰٪ نقد + ۵۰٪ چک صیادی)</span>
                       <Receipt size={18} className="text-indigo-600" />
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded-md inline-block w-max">
-                      خرید چکی (بدون تخفیف پلکانی)
+                    <span className="text-[10px] text-indigo-700 font-black bg-indigo-100/70 px-2 py-0.5 rounded-md inline-block w-max">
+                      🛡️ مدل امن کارخانه (اعتبارسنجی اولیه)
                     </span>
                   </button>
                 </div>
@@ -948,11 +989,15 @@ export default function CheckoutWizard({
                   <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
                     <div className="text-xs font-black text-slate-800 flex items-center gap-2">
                       <Building size={16} className="text-emerald-600" />
-                      اطلاعات حساب رسمی جهت واریز وجه
+                      اطلاعات حساب رسمی جهت واریز ۱۰۰٪ مبلغ فاکتور
                     </div>
 
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs font-bold">
-                      <div className="flex justify-between text-slate-600">
+                    <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200 space-y-2 text-xs font-bold">
+                      <div className="flex justify-between text-slate-700">
+                        <span>مبلغ قابل واریز نقدی:</span>
+                        <span className="font-mono text-emerald-800 font-black text-sm">{cashPortionAmount.toLocaleString()} تومان</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600 border-t border-emerald-100 pt-2">
                         <span>نام بانک و صاحب حساب:</span>
                         <span className="text-slate-900 font-black">{bankAccount.bankName} - {bankAccount.ownerName}</span>
                       </div>
@@ -967,7 +1012,7 @@ export default function CheckoutWizard({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-black text-slate-700 mb-1.5">آپلود تصویر فیش واریزی (اختیاری)</label>
+                      <label className="block text-[11px] font-black text-slate-700 mb-1.5">آپلود تصویر فیش واریزی نقدی (اختیاری)</label>
                       <div className="flex items-center gap-3">
                         <input
                           type="file"
@@ -988,7 +1033,7 @@ export default function CheckoutWizard({
                           className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-emerald-700 transition-colors shadow-sm"
                         >
                           <Upload size={14} />
-                          <span>{paymentReceiptImage ? "تغییر تصویر فیش" : "انتخاب و آپلود فیش"}</span>
+                          <span>{paymentReceiptImage ? "تغییر تصویر فیش" : "انتخاب و آپلود فیش واریزی"}</span>
                         </label>
                         {paymentReceiptImage && (
                           <span className="text-xs text-emerald-600 font-black flex items-center gap-1">
@@ -1000,52 +1045,234 @@ export default function CheckoutWizard({
                   </div>
                 )}
 
-                {/* Cheque Options Details */}
+                {/* Cheque & Split Cash/Cheque Details */}
                 {paymentMethod === 'cheque' && (
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl">
-                      <div>
-                        <span className="text-xs font-black text-indigo-950 block">اساس‌نامه خرید چکی و اعتبار پلکانی:</span>
-                        <span className="text-[11px] text-slate-600 font-bold">سقف اعتبار اولیه ۱۰۰ م تومان (۵۰ م نقد + ۵۰ م چک) با ارتقای مرحله‌ای تا ۱ میلیارد تومان</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowCharterModal(true)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1 self-start sm:self-center"
-                      >
-                        <span>📜 مطالعه اساس‌نامه چکی</span>
-                      </button>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-black text-slate-800">تعیین مدت زمان چک (ماه):</span>
-                      <span className="text-[10px] font-black text-indigo-600">
-                        افزایش {chequeMarkupPerMonth}٪ به ازای هر ماه
-                      </span>
-                    </div>
-
-                    {/* Month selector pills */}
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {[1, 2, 3, 4, 5, 6].map((m, idx) => (
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-indigo-200 space-y-4 shadow-xs">
+                    
+                    {/* Policy & Risk Explanation Banner */}
+                    <div className="p-3.5 bg-linear-to-r from-indigo-50/90 via-blue-50/60 to-indigo-50/90 border border-indigo-200 rounded-xl space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-base mt-0.5">🛡️</span>
+                          <div>
+                            <span className="text-xs font-black text-indigo-950 block">سیاست اعتبارسنجی کارخانه و کاهش ریسک معوقات</span>
+                            <p className="text-[11px] text-slate-700 font-bold leading-relaxed mt-0.5">
+                              جهت تضمین تامین مواد اولیه و حداقل‌سازی ریسک عدم وصول، خرید چکی به صورت ترکیبی (حداقل ۵۰٪ نقد + الباقی چک صیادی بنفش) انجام می‌شود. پس از پاس‌شدن به‌موقع نخستین چک، سقف اعتبار و درصد چکی شما در سفارشات بعدی افزایش می‌یابد.
+                            </p>
+                          </div>
+                        </div>
                         <button
-                          key={`chk-month-opt-${m}-${idx}`}
                           type="button"
-                          onClick={() => setChequeMonths(m)}
-                          className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                            chequeMonths === m
-                              ? "bg-indigo-600 text-white shadow-md"
-                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
-                          }`}
+                          onClick={() => setShowCharterModal(true)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1 self-start sm:self-center"
                         >
-                          {m} ماهه
-                          <span className="block text-[8px] opacity-80">+{m * chequeMarkupPerMonth}٪</span>
+                          <span>📜 اساس‌نامه چکی</span>
                         </button>
-                      ))}
+                      </div>
                     </div>
 
+                    {/* Split Ratio Selector */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-black text-slate-800">
+                          نسبت واریز نقد و چک صیادی (حداقل ۵۰٪ نقد الزامی است):
+                        </label>
+                        <span className="text-[11px] font-black text-indigo-700 font-mono">
+                          {splitCashPercent}٪ نقد / {100 - splitCashPercent}٪ چک
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { cash: 50, label: "۵۰٪ نقد / ۵۰٪ چک (استاندارد)" },
+                          { cash: 60, label: "۶۰٪ نقد / ۴۰٪ چک" },
+                          { cash: 70, label: "۷۰٪ نقد / ۳۰٪ چک" },
+                          { cash: 80, label: "۸۰٪ نقد / ۲۰٪ چک" }
+                        ].map((opt, optIdx) => (
+                          <button
+                            key={`split-opt-${opt.cash}-${optIdx}`}
+                            type="button"
+                            onClick={() => setSplitCashPercent(opt.cash)}
+                            className={`p-2.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
+                              splitCashPercent === opt.cash
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-500/20"
+                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cheque Duration & Maturity Selection */}
+                    <div className="space-y-2 pt-1 border-t border-slate-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-black text-slate-800">مدت زمان و سررسید چک صیادی:</span>
+                        <span className="text-[10px] font-black text-indigo-600">
+                          کارمزد {chequeMarkupPerMonth}٪ در ماه (فقط روی بخش چکی)
+                        </span>
+                      </div>
+
+                      {/* Duration selector buttons */}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {[
+                          { days: 30, months: 1, label: "۳۰ روزه (۱ ماه)" },
+                          { days: 45, months: 1.5, label: "۴۵ روزه (۱.۵ ماه)" },
+                          { days: 60, months: 2, label: "۶۰ روزه (۲ ماه)" },
+                          { days: 90, months: 3, label: "۹۰ روزه (۳ ماه)" },
+                          { days: 120, months: 4, label: "۱۲۰ روزه (۴ ماه)" }
+                        ].map((dur, durIdx) => (
+                          <button
+                            key={`dur-opt-${dur.days}-${durIdx}`}
+                            type="button"
+                            onClick={() => {
+                              setChequeDays(dur.days);
+                              setChequeMonths(dur.months);
+                            }}
+                            className={`py-2 px-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                              chequeDays === dur.days
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            {dur.label}
+                            <span className="block text-[8px] opacity-80 mt-0.5">
+                              {dur.months * chequeMarkupPerMonth > 0 ? `+${dur.months * chequeMarkupPerMonth}٪ کارمزد` : "بدون کارمزد"}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Computed Maturity Date Banner */}
+                      <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={16} className="text-indigo-700" />
+                          <span className="text-xs font-black text-indigo-950">تاریخ دقیق سررسید مندرج در چک:</span>
+                        </div>
+                        <span className="font-mono font-black text-indigo-900 text-xs bg-white px-3 py-1 rounded-lg border border-indigo-200 shadow-2xs">
+                          {computedDueDateLong} ({computedDueDate})
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* DUAL BREAKDOWN FINANCIAL CARDS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      
+                      {/* 1. Cash Deposit Card */}
+                      <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                            <DollarSign size={15} className="text-emerald-700" />
+                            ۱. مبلغ واریز نقدی (پیش‌پرداخت {effectiveCashPercent}٪)
+                          </span>
+                          <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                            واریز به حساب
+                          </span>
+                        </div>
+
+                        <div className="bg-white p-3 rounded-xl border border-emerald-200/70 text-right space-y-1">
+                          <span className="text-[10px] text-slate-500 font-bold block">مبلغ نقدی قابل پرداخت:</span>
+                          <span className="text-base sm:text-lg font-mono font-black text-emerald-700 block">
+                            {cashPortionAmount.toLocaleString()} تومان
+                          </span>
+                        </div>
+
+                        <div className="text-[10px] text-slate-600 font-bold space-y-1 bg-white/80 p-2.5 rounded-xl border border-emerald-100">
+                          <div>بانک: <strong className="text-slate-800">{bankAccount.bankName}</strong></div>
+                          <div>شبا: <strong className="font-mono text-emerald-800" dir="ltr">{bankAccount.shabaNumber || bankAccount.sheba}</strong></div>
+                          <div>کارت: <strong className="font-mono text-slate-800" dir="ltr">{bankAccount.cardNumber}</strong></div>
+                        </div>
+
+                        <div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="cash-receipt-split-input"
+                            className="hidden"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const r = new FileReader();
+                                r.onloadend = () => setPaymentReceiptImage(r.result as string);
+                                r.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="cash-receipt-split-input"
+                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                          >
+                            <Upload size={13} />
+                            <span>{paymentReceiptImage ? "تغییر تصویر فیش نقدی" : "آپلود فیش واریز پیش‌پرداخت"}</span>
+                          </label>
+                          {paymentReceiptImage && (
+                            <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-1.5 justify-center">
+                              <CheckCircle2 size={13} /> فیش واریزی پیش‌پرداخت دریافت شد
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. Cheque Card */}
+                      <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                            <Receipt size={15} className="text-indigo-700" />
+                            ۲. مبلغ چک صیادی ({effectiveChequePercent}٪ فاکتور)
+                          </span>
+                          <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">
+                            چک صیادی بنفش
+                          </span>
+                        </div>
+
+                        <div className="bg-white p-3 rounded-xl border border-indigo-200/70 text-right space-y-1">
+                          <span className="text-[10px] text-slate-500 font-bold block">مبلغ مندرج روی چک صیادی:</span>
+                          <span className="text-base sm:text-lg font-mono font-black text-indigo-700 block">
+                            {chequePortionAmount.toLocaleString()} تومان
+                          </span>
+                        </div>
+
+                        <div className="text-[10px] text-slate-600 font-bold space-y-1 bg-white/80 p-2.5 rounded-xl border border-indigo-100">
+                          <div>سررسید: <strong className="text-indigo-900 font-mono">{chequeDays} روزه ({computedDueDate})</strong></div>
+                          <div>وضعیت کارمزد: <strong className="text-slate-800">+{chequeMarkupAmount.toLocaleString()} تومان ({chequeMonths * chequeMarkupPerMonth}٪)</strong></div>
+                        </div>
+
+                        <div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="cheque-image-split-input"
+                            className="hidden"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const r = new FileReader();
+                                r.onloadend = () => setChequeImage(r.result as string);
+                                r.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="cheque-image-split-input"
+                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                          >
+                            <Upload size={13} />
+                            <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی"}</span>
+                          </label>
+                          {chequeImage && (
+                            <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-1.5 justify-center">
+                              <CheckCircle2 size={13} /> تصویر روی چک صیادی دریافت شد
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cheque Info Inputs */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div>
-                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره صیادی ۱۶ رقمی چک</label>
+                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره صیادی ۱۶ رقمی چک *</label>
                         <input
                           type="text"
                           value={chequeSayadiNo}
@@ -1064,38 +1291,6 @@ export default function CheckoutWizard({
                           placeholder="مثال: بانک صادرات"
                           className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs"
                         />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-black text-slate-700 mb-1.5">آپلود تصویر روی چک صیادی</label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          id="cheque-image-input"
-                          className="hidden"
-                          onChange={e => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const r = new FileReader();
-                              r.onloadend = () => setChequeImage(r.result as string);
-                              r.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor="cheque-image-input"
-                          className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-indigo-700 transition-colors shadow-sm"
-                        >
-                          <Upload size={14} />
-                          <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی"}</span>
-                        </label>
-                        {chequeImage && (
-                          <span className="text-xs text-emerald-600 font-black flex items-center gap-1">
-                            <CheckCircle2 size={15} /> تصویر چک بارگذاری شد
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -1139,7 +1334,7 @@ export default function CheckoutWizard({
                   </div>
                 </div>
 
-                {/* Breakdown Summary Table */}
+                {/* Settlement & Financial Breakdown Summary Table */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 text-xs font-bold shadow-xs">
                   <div className="flex justify-between text-slate-600 border-b border-slate-100 pb-2">
                     <span>مجموع قیمت ناخالص کالاها ({totalCartons} کارتن - {estimatedWeightKg} ک‌گ):</span>
@@ -1172,7 +1367,7 @@ export default function CheckoutWizard({
 
                   {paymentMethod === 'cheque' && chequeMarkupAmount > 0 && (
                     <div className="flex justify-between items-center text-indigo-700 bg-indigo-50/70 px-2.5 py-1.5 rounded-xl border border-indigo-200/80">
-                      <span className="font-black">کارمزد تسویه چکی ({chequeMonths} ماهه - +{chequeMarkupPercent}٪):</span>
+                      <span className="font-black">کارمزد تسویه چکی ({chequeDays} روزه - +{chequeMarkupPercent}٪):</span>
                       <span className="font-mono font-black">+{chequeMarkupAmount.toLocaleString()} تومان</span>
                     </div>
                   )}
@@ -1184,13 +1379,54 @@ export default function CheckoutWizard({
                     </div>
                   )}
 
+                  {/* Dual Settlement Breakdown in Summary */}
+                  {paymentMethod === 'cheque' && (
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                      <div className="text-[11px] font-black text-slate-800 pb-1 border-b border-slate-200 flex justify-between">
+                        <span>تفکیک و جزئیات تسویه چکی کارخانه:</span>
+                        <span className="text-indigo-700 font-mono font-black">{splitCashPercent}٪ نقد + {100 - splitCashPercent}٪ چک</span>
+                      </div>
+
+                      <div className="flex justify-between text-emerald-800 font-bold">
+                        <span className="flex items-center gap-1">
+                          <DollarSign size={14} className="text-emerald-600" />
+                          مبلغ واریز نقدی (پیش‌پرداخت {effectiveCashPercent}٪):
+                        </span>
+                        <span className="font-mono font-black">{cashPortionAmount.toLocaleString()} تومان</span>
+                      </div>
+
+                      <div className="flex justify-between text-indigo-900 font-bold">
+                        <span className="flex items-center gap-1">
+                          <Receipt size={14} className="text-indigo-600" />
+                          مبلغ مندرج در چک صیادی ({effectiveChequePercent}٪):
+                        </span>
+                        <span className="font-mono font-black">{chequePortionAmount.toLocaleString()} تومان</span>
+                      </div>
+
+                      <div className="flex justify-between text-slate-600 font-bold pt-1 border-t border-slate-200/60 text-[11px]">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={13} className="text-slate-500" />
+                          سررسید چک صیادی:
+                        </span>
+                        <span className="font-mono font-black text-slate-900">{chequeDays} روزه ({computedDueDateLong})</span>
+                      </div>
+
+                      {chequeSayadiNo && (
+                        <div className="flex justify-between text-slate-600 font-bold text-[11px]">
+                          <span>شماره صیادی ۱۶ رقمی:</span>
+                          <span className="font-mono font-black text-slate-800" dir="ltr">{chequeSayadiNo}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-slate-600 border-b border-slate-100 pb-2">
                     <span>تحویل‌گیرنده و آدرس:</span>
                     <span className="text-slate-900 font-black truncate max-w-xs">{buyerName} ({buyerPhone})</span>
                   </div>
 
                   <div className="flex justify-between items-center text-sm font-black pt-1">
-                    <span className="text-slate-900">مبلغ خالص نهایی فاکتور:</span>
+                    <span className="text-slate-900">مجموع کل صورتحساب فاکتور:</span>
                     <span className="text-lg font-black text-emerald-600 font-mono">
                       {finalPayableAmount.toLocaleString()} تومان
                     </span>

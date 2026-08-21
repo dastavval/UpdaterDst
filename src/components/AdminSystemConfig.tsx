@@ -46,7 +46,9 @@ import {
   Webhook,
   DollarSign,
   Percent,
-  TrendingDown
+  TrendingDown,
+  Trash2,
+  History as HistoryIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -229,6 +231,137 @@ export default function AdminSystemConfig({
   const [serverBackups, setServerBackups] = useState<any[]>([]);
   const [isFetchingBackups, setIsFetchingBackups] = useState(false);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+
+  // --- 7.1 AUTOMATED DATABASE BACKUP & LOG PURGE STATES ---
+  const [dbStats, setDbStats] = useState<any>(null);
+  const [localServerBackups, setLocalServerBackups] = useState<any[]>([]);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(true);
+  const [backupFrequencyHours, setBackupFrequencyHours] = useState<number>(24);
+  const [maxBackupsToKeep, setMaxBackupsToKeep] = useState<number>(10);
+  const [autoPurgeLogsEnabled, setAutoPurgeLogsEnabled] = useState<boolean>(true);
+  const [purgeLogsOlderThanDays, setPurgeLogsOlderThanDays] = useState<number>(30);
+  const [isPurgingLogs, setIsPurgingLogs] = useState<boolean>(false);
+  const [isTriggeringBackup, setIsTriggeringBackup] = useState<boolean>(false);
+  const [isSavingDbMaintenanceConfig, setIsSavingDbMaintenanceConfig] = useState<boolean>(false);
+
+  const fetchDbMaintenanceStatus = async () => {
+    try {
+      const res = await fetch("/api/db/maintenance/status");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setDbStats(data.stats);
+          setLocalServerBackups(data.backupsList || []);
+          setAutoBackupEnabled(data.autoBackupEnabled !== false);
+          setBackupFrequencyHours(data.backupFrequencyHours || 24);
+          setMaxBackupsToKeep(data.maxBackupsToKeep || 10);
+          setAutoPurgeLogsEnabled(data.autoPurgeLogsEnabled !== false);
+          setPurgeLogsOlderThanDays(data.purgeLogsOlderThanDays || 30);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch DB maintenance status:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "backup") {
+      fetchDbMaintenanceStatus();
+    }
+  }, [activeTab]);
+
+  const handleTriggerManualBackup = async () => {
+    setIsTriggeringBackup(true);
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/db/maintenance/backup", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMsg("پشتیبان‌گیری اتوماتیک دیتابیس با موفقیت انجام شد.");
+        fetchDbMaintenanceStatus();
+      } else {
+        setErrorMsg(data.error || "خطا در ایجاد پشتیبان دیتابیس");
+      }
+    } catch (err: any) {
+      setErrorMsg("خطا در برقراری ارتباط با سرور: " + err.message);
+    } finally {
+      setIsTriggeringBackup(false);
+    }
+  };
+
+  const handleDeleteBackupFile = async (filename: string) => {
+    if (!confirm(`آیا از حذف فایل پشتیبان ${filename} اطمینان دارید؟`)) return;
+    try {
+      const res = await fetch("/api/db/maintenance/backups-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMsg(`فایل پشتیبان ${filename} حذف شد.`);
+        fetchDbMaintenanceStatus();
+      } else {
+        setErrorMsg(data.error || "خطا در حذف فایل پشتیبان");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    }
+  };
+
+  const handlePurgeLogsAndOptimize = async () => {
+    setIsPurgingLogs(true);
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/db/maintenance/purge-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ daysToKeep: purgeLogsOlderThanDays })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMsg(data.result?.message || "پاکسازی و بهینه‌سازی دیتابیس انجام شد.");
+        fetchDbMaintenanceStatus();
+      } else {
+        setErrorMsg(data.error || "خطا در پاکسازی دیتابیس");
+      }
+    } catch (err: any) {
+      setErrorMsg("خطا در پاکسازی: " + err.message);
+    } finally {
+      setIsPurgingLogs(false);
+    }
+  };
+
+  const handleSaveDbMaintenanceConfig = async () => {
+    setIsSavingDbMaintenanceConfig(true);
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/db/maintenance/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          autoBackupEnabled,
+          backupFrequencyHours,
+          maxBackupsToKeep,
+          autoPurgeLogsEnabled,
+          purgeLogsOlderThanDays
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMsg("تنظیمات خودکار پشتیبان‌گیری و پاکسازی لاگ‌ها با موفقیت ذخیره شد.");
+      } else {
+        setErrorMsg(data.error || "خطا در ذخیره تنظیمات");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setIsSavingDbMaintenanceConfig(false);
+    }
+  };
   
   // --- 8. FINANCIAL & COMMISSION SETTINGS ---
   const [commissionRate, setCommissionRate] = useState<number>((b2bConfig as any).commissionRate || 5);
@@ -3445,6 +3578,247 @@ export default function AdminSystemConfig({
                 <Upload size={18} />
                 انتخاب فایل JSON بکاپ و بازیابی اطلاعات
               </label>
+            </div>
+          </div>
+
+          {/* AUTOMATED DATABASE MAINTENANCE & LOG PURGE SYSTEM */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-2xl space-y-6 border border-slate-700/80">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-700/80 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-lg">
+                  <Database size={26} />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-white flex items-center gap-2">
+                    سامانه خودکار پشتیبان‌گیری و پاکسازی لاگ‌های دیتابیس
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] border border-emerald-500/30 font-bold">
+                      پایش زنده سلامت دیتابیس
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-300 font-bold mt-1">
+                    جلوگیری خودکار از پر شدن حافظه، پاکسازی دیتابیس و اجرای پشتیبان‌گیری دوره‌ای
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleTriggerManualBackup}
+                  disabled={isTriggeringBackup}
+                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  {isTriggeringBackup ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>پشتیبان‌گیری فوری از دیتابیس</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePurgeLogsAndOptimize}
+                  disabled={isPurgingLogs}
+                  className="px-4 py-2.5 bg-rose-500 hover:bg-rose-400 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  {isPurgingLogs ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  <span>پاکسازی و بهینه‌سازی دیتابیس</span>
+                </button>
+              </div>
+            </div>
+
+            {/* DB Health Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 block">حجم محصولات</span>
+                <span className="text-sm font-black text-amber-400 block" dir="ltr">
+                  {toPersianNum(( (dbStats?.productsSize || 0) / 1024 ).toFixed(1))} KB
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 block">حجم سفارشات</span>
+                <span className="text-sm font-black text-emerald-400 block" dir="ltr">
+                  {toPersianNum(( (dbStats?.ordersSize || 0) / 1024 ).toFixed(1))} KB
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 block">حجم مقالات</span>
+                <span className="text-sm font-black text-indigo-400 block" dir="ltr">
+                  {toPersianNum(( (dbStats?.articlesSize || 0) / 1024 ).toFixed(1))} KB
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 block">کل حجم دیتابیس</span>
+                <span className="text-sm font-black text-cyan-400 block" dir="ltr">
+                  {dbStats?.totalDbSizeFormatted ? toPersianNum(dbStats.totalDbSizeFormatted) : "0 KB"}
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 block">تعداد پشتیبان‌ها</span>
+                <span className="text-sm font-black text-teal-300 block">
+                  {toPersianNum(dbStats?.backupsCount || localServerBackups.length)} نسخه
+                </span>
+              </div>
+
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 block">حجم کل پشتیبان‌ها</span>
+                <span className="text-sm font-black text-purple-300 block" dir="ltr">
+                  {toPersianNum(( (dbStats?.backupsTotalSize || 0) / 1024 ).toFixed(1))} KB
+                </span>
+              </div>
+            </div>
+
+            {/* Auto Schedule Configuration Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-800/50 p-5 rounded-2xl border border-slate-700/70">
+              {/* Auto Backup Config */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-200 flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoBackupEnabled}
+                      onChange={(e) => setAutoBackupEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 bg-slate-700 border-slate-600"
+                    />
+                    <span>پشتیبان‌گیری خودکار دوره‌ای</span>
+                  </label>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${autoBackupEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-400'}`}>
+                    {autoBackupEnabled ? "فعال" : "غیرفعال"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">دوره زمانی پشتیبان‌گیری:</label>
+                    <select
+                      value={backupFrequencyHours}
+                      onChange={(e) => setBackupFrequencyHours(Number(e.target.value))}
+                      disabled={!autoBackupEnabled}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-emerald-500 disabled:opacity-50"
+                    >
+                      <option value={6}>هر ۶ ساعت یکبار</option>
+                      <option value={12}>هر ۱۲ ساعت یکبار</option>
+                      <option value={24}>هر ۲۴ ساعت (روزانه)</option>
+                      <option value={48}>هر ۴۸ ساعت (دو روز یکبار)</option>
+                      <option value={168}>هر هفته یکبار</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">حداکثر نسخه‌های نگهداری:</label>
+                    <input
+                      type="number"
+                      min={3}
+                      max={50}
+                      value={maxBackupsToKeep}
+                      onChange={(e) => setMaxBackupsToKeep(Number(e.target.value))}
+                      disabled={!autoBackupEnabled}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-emerald-500 disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Auto Log Purge Config */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-200 flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoPurgeLogsEnabled}
+                      onChange={(e) => setAutoPurgeLogsEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded text-rose-500 focus:ring-rose-500 bg-slate-700 border-slate-600"
+                    />
+                    <span>پاکسازی خودکار لاگ‌های قدیمی</span>
+                  </label>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${autoPurgeLogsEnabled ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-700 text-slate-400'}`}>
+                    {autoPurgeLogsEnabled ? "فعال" : "غیرفعال"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">نگهداری لاگ‌ها حداکثر تا:</label>
+                    <select
+                      value={purgeLogsOlderThanDays}
+                      onChange={(e) => setPurgeLogsOlderThanDays(Number(e.target.value))}
+                      disabled={!autoPurgeLogsEnabled}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-rose-500 disabled:opacity-50"
+                    >
+                      <option value={7}>قدیمی‌تر از ۷ روز</option>
+                      <option value={14}>قدیمی‌تر از ۱۴ روز</option>
+                      <option value={30}>قدیمی‌تر از ۳۰ روز</option>
+                      <option value={60}>قدیمی‌تر از ۶۰ روز</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={handleSaveDbMaintenanceConfig}
+                      disabled={isSavingDbMaintenanceConfig}
+                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    >
+                      {isSavingDbMaintenanceConfig ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                      <span>ذخیره تنظیمات زمانبندی</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Local Server Backups List Table */}
+            <div className="bg-slate-900/90 rounded-2xl overflow-hidden border border-slate-800">
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                <h5 className="text-[11px] font-black text-slate-200 flex items-center gap-2">
+                  <HistoryIcon size={14} className="text-emerald-400" />
+                  نسخه‌های پشتیبان خودکار موجود در سرور ({toPersianNum(localServerBackups.length)} فایل)
+                </h5>
+                <button
+                  type="button"
+                  onClick={fetchDbMaintenanceStatus}
+                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw size={10} />
+                  بروزرسانی
+                </button>
+              </div>
+
+              <div className="max-h-52 overflow-y-auto divide-y divide-slate-800/60">
+                {localServerBackups.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500 italic">
+                    هنوز نسخه پشتیبان خودکاری ایجاد نشده است. روی «پشتیبان‌گیری فوری» کلیک کنید.
+                  </div>
+                ) : (
+                  localServerBackups.map((bk, idx) => (
+                    <div key={`loc-bk-${idx}`} className="p-3.5 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                          <Database size={15} />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-mono font-bold text-slate-200" dir="ltr">{bk.filename}</p>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                            تاریخ: {bk.mtime} | حجم: {toPersianNum(bk.sizeKb)} KB
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBackupFile(bk.filename)}
+                          className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors border border-rose-500/20 cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                          <span>حذف</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 

@@ -6,7 +6,58 @@
 
 require_once __DIR__ . '/config.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+
+// ==========================================
+// PHP API RATE LIMITER (ANTI-BRUTE-FORCE)
+// ==========================================
+function enforce_php_rate_limit($action_name, $max_attempts = 10, $window_seconds = 900) {
+    $now = time();
+    $key = 'rate_limit_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $action_name);
+    $data = $_SESSION[$key] ?? ['count' => 0, 'start_time' => $now, 'lock_until' => 0];
+
+    if ($data['lock_until'] > $now) {
+        $remaining = $data['lock_until'] - $now;
+        $mins = ceil($remaining / 60);
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'status' => 'rate_limited',
+            'message' => "تعداد تلاش‌های بیش از حد مجاز است. دسترسی تا $mins دقیقه دیگر محدود گردیده است."
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    if (($now - $data['start_time']) > $window_seconds) {
+        $data = ['count' => 0, 'start_time' => $now, 'lock_until' => 0];
+    }
+
+    $data['count']++;
+    if ($data['count'] > $max_attempts) {
+        $data['lock_until'] = $now + $window_seconds;
+    }
+
+    $_SESSION[$key] = $data;
+
+    if ($data['lock_until'] > $now) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'status' => 'rate_limited',
+            'message' => "تعداد تلاش‌های ناموفق بیش از حد مجاز ثبت شد. جهت امنیت، سیستم به مدت ۱۵ دقیقه قفل گردید."
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+}
+
 $action = isset($_GET['action']) ? $_GET['action'] : '';
+
+// اعمال Rate Limiter روی اکشن‌های حساس
+if (strpos($action, 'admin/') === 0 || $action === 'create_order') {
+    enforce_php_rate_limit($action, 10, 900);
+}
 
 switch ($action) {
     // ۱. دریافت لیست محصولات
@@ -77,6 +128,30 @@ switch ($action) {
         break;
 
     // ۵.۱ تست اتصال گیت‌هاب (GitHub Test Connection)
+    case 'admin/db-maintenance':
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $tables = ['orders', 'products', 'factories', 'b2b_config', 'callbacks'];
+            $optimizedCount = 0;
+            foreach ($tables as $tbl) {
+                try {
+                    $pdo->exec("OPTIMIZE TABLE `$tbl`");
+                    $optimizedCount++;
+                } catch (Exception $ex) {}
+            }
+            // پاکسازی جلسات و لاگ‌های منقضی شده
+            if (isset($_SESSION['installer_login_attempts'])) {
+                unset($_SESSION['installer_login_attempts']);
+            }
+            echo json_encode([
+                'status' => 'success',
+                'message' => "بهینه‌سازی $optimizedCount جدول دیتابیس MySQL و پاکسازی لاگ‌های موقت با موفقیت انجام شد."
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        break;
+
     case 'admin/github-test':
         header('Content-Type: application/json; charset=utf-8');
         $input = json_decode(file_get_contents('php://input'), true);

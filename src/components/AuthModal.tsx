@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   X, Lock, Mail, User, Building, Phone, ArrowLeft, CheckCircle2, 
   ShieldAlert, Factory, Store, Megaphone, ShieldCheck, Sparkles, MapPin, 
-  CreditCard, Briefcase, ChevronRight
+  CreditCard, Briefcase, ChevronRight, Clock, ShieldX
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../lib/firebase";
@@ -10,6 +10,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfi
 import { doc, setDoc, serverTimestamp } from "../lib/firebase-mock";
 import { generateUserCode } from "../lib/id-utils";
 import { addLeadFromRegistration } from "../lib/leads-store";
+import { checkLoginRateLimit, recordFailedLoginAttempt, resetLoginAttempts, RateLimitStatus } from "../lib/rate-limiter";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -55,6 +56,37 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitStatus>({
+    isLocked: false,
+    attemptsCount: 0,
+    remainingAttempts: 5,
+    remainingSeconds: 0,
+    remainingMinutesFormatted: "۰:۰۰"
+  });
+
+  // Check rate limit on email change or authMode change
+  useEffect(() => {
+    let timer: any;
+    if (authMode === 'login') {
+      const targetId = email.trim() || "default_user";
+      const status = checkLoginRateLimit(targetId);
+      setRateLimitInfo(status);
+
+      if (status.isLocked) {
+        timer = setInterval(() => {
+          const updated = checkLoginRateLimit(targetId);
+          setRateLimitInfo(updated);
+          if (!updated.isLocked) {
+            clearInterval(timer);
+          }
+        }, 1000);
+      }
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [email, authMode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -64,15 +96,21 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     let trimmedEmail = email.toLowerCase().trim();
     const cleanPassword = password.trim();
 
-    // If shorthand login like "09..." is entered
-    if (trimmedEmail && !trimmedEmail.includes("@") && trimmedEmail.length < 11 && !trimmedEmail.startsWith("09")) {
-      // Keep some flexibility
-    }
-
     try {
       if (authMode === 'login') {
+        const targetId = trimmedEmail || "default_user";
+        const currentLimit = checkLoginRateLimit(targetId);
+
+        if (currentLimit.isLocked) {
+          setError(`🚨 تعداد تلاش‌های ورود بیش از حد مجاز (۵ بار) است. به منظور حفاظت امنیتی از حساب، امکان ورود تا ${currentLimit.remainingMinutesFormatted} دقیقه دیگر قفل می‌باشد.`);
+          setLoading(false);
+          setRateLimitInfo(currentLimit);
+          return;
+        }
+
         // Hardcoded Admin Check for development/demo purposes
         if ((trimmedEmail === '09914762406' || trimmedEmail === 'admin@dastaval.ir') && cleanPassword === '@Ali3360') {
+          resetLoginAttempts(targetId);
           setSuccess("ورود به پنل مدیریت کل با موفقیت انجام شد.");
           setTimeout(() => {
             onAuthSuccess({
@@ -110,6 +148,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             return;
           }
           if (localUser.password === cleanPassword) {
+            resetLoginAttempts(targetId);
             setSuccess(`ورود با نقش ${
               localUser.role === 'factory' ? "کارخانه تولیدی" :
               localUser.role === 'agent' ? "بازاریاب و نماینده" : "خریدار عمده"
@@ -134,7 +173,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             }, 1000);
             return;
           } else {
-            setError("رمز عبور وارد شده اشتباه است. لطفاً مجدداً بررسی کنید.");
+            const updated = recordFailedLoginAttempt(targetId);
+            setRateLimitInfo(updated);
+            if (updated.isLocked) {
+              setError(`🔒 ۵ بار تلاش ناموفق ورود ثبت شد! جهت امنیت حساب، امکان ورود تا ${updated.remainingMinutesFormatted} دقیقه قفل گردید.`);
+            } else {
+              setError(`رمز عبور وارد شده اشتباه است. (${updated.remainingAttempts} تلاش مجاز باقی مانده است)`);
+            }
             setLoading(false);
             return;
           }
@@ -144,6 +189,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         try {
           const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
           const firebaseUser = userCredential.user;
+          resetLoginAttempts(targetId);
           
           setSuccess("ورود با موفقیت انجام شد.");
           setTimeout(() => {
@@ -158,7 +204,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
           }, 1000);
         } catch (firebaseErr: any) {
           console.warn("Firebase Auth login failed:", firebaseErr);
-          setError(firebaseErr.message || "اطلاعات ورود نامعتبر است یا حساب کاربری یافت نشد.");
+          const updated = recordFailedLoginAttempt(targetId);
+          setRateLimitInfo(updated);
+          if (updated.isLocked) {
+            setError(`🔒 ۵ بار تلاش ناموفق ورود ثبت شد! جهت امنیت حساب، امکان ورود تا ${updated.remainingMinutesFormatted} دقیقه قفل گردید.`);
+          } else {
+            setError(`اطلاعات ورود نامعتبر است یا حساب کاربری یافت نشد. (${updated.remainingAttempts} تلاش مجاز باقی مانده است)`);
+          }
           setLoading(false);
           return;
         }
@@ -337,6 +389,36 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         </div>
 
         <div className="overflow-y-auto p-5 sm:p-6 space-y-4 flex-1">
+          {rateLimitInfo.isLocked && (
+            <div className="bg-amber-50 text-amber-900 p-4 rounded-2xl text-xs font-black flex items-center justify-between border border-amber-300 shadow-sm animate-pulse">
+              <div className="flex items-center gap-3">
+                <ShieldX size={20} className="shrink-0 text-amber-700" />
+                <div>
+                  <h5 className="font-extrabold text-amber-950">قفل موقت به دلیل تلاش‌های ناموفق مکرر</h5>
+                  <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                    جهت حفاظت از امنیت حساب، امکان ثبت ورود موقتاً غیرفعال گردیده است.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-amber-200/80 text-amber-950 px-3 py-1.5 rounded-xl font-mono text-xs font-black flex items-center gap-1.5 shrink-0 border border-amber-400/50">
+                <Clock size={14} />
+                <span>{rateLimitInfo.remainingMinutesFormatted}</span>
+              </div>
+            </div>
+          )}
+
+          {!rateLimitInfo.isLocked && rateLimitInfo.attemptsCount > 0 && rateLimitInfo.attemptsCount < 5 && authMode === 'login' && (
+            <div className="bg-blue-50 text-blue-900 p-2.5 rounded-xl text-[11px] font-bold flex items-center justify-between border border-blue-200">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-blue-600" />
+                <span>سامانه ضد حملات Brute-Force فعال است.</span>
+              </span>
+              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-lg text-[10px] font-black">
+                {rateLimitInfo.remainingAttempts} تلاش مجاز باقی‌مانده
+              </span>
+            </div>
+          )}
+
           {error && (
             <div className="bg-rose-50 text-rose-700 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2.5 border border-rose-200">
               <ShieldAlert size={16} className="shrink-0 text-rose-600" />
@@ -755,7 +837,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (authMode === 'login' && rateLimitInfo.isLocked)}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl text-xs transition-all shadow-md shadow-emerald-600/20 cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}

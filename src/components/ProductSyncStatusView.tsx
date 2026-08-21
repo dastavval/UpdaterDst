@@ -62,6 +62,30 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
   const [syncSummary, setSyncSummary] = useState<{ updated: number; added: number; unchanged: number } | null>(null);
   const [showJsonModal, setShowJsonModal] = useState(false);
 
+  // Network & Server Diagnostics State
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagResult, setDiagResult] = useState<any>(null);
+  const [showDiagModal, setShowDiagModal] = useState(false);
+
+  const runNetworkDiagnostics = async (urlToCheck?: string) => {
+    const target = (urlToCheck || jsonUrl).trim();
+    setDiagLoading(true);
+    setDiagResult(null);
+    setShowDiagModal(true);
+    try {
+      const res = await fetch(`/api/diagnostics/catalog-sync?url=${encodeURIComponent(target)}`);
+      const data = await res.json();
+      setDiagResult(data);
+    } catch (err: any) {
+      setDiagResult({
+        error: "ارتباط با سرور نودجی‌اس یا مسیر تست عیب‌یابی برقرار نشد: " + err.message,
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
   // PDF Catalog Upload State
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [pdfUploadSuccess, setPdfUploadSuccess] = useState<string | null>(null);
@@ -89,48 +113,116 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
     setUrlFetchMsg(null);
     setSyncLogs([]);
     const logs: string[] = [];
+    const clientHost = typeof window !== 'undefined' ? window.location.host : 'unknown';
+    const clientProto = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    
+    logs.push(`🌐 دامنه مبدا درخواست: ${clientProto}//${clientHost}`);
     logs.push(`🚀 شروع دریافت اطلاعات و همگام‌سازی محصولات از لینک باکت:\n${targetUrl}`);
 
     try {
       let rawData: any = null;
+      let usedMethod: 'proxy' | 'direct' = 'proxy';
+      let proxyStatusCode: number | null = null;
+      let targetStatusCode: string | null = null;
+      let targetContentType: string | null = null;
+      let proxyDuration: string | null = null;
 
-      // Attempt 1: Fetch via backend proxy endpoint (bypasses CORS)
+      // Attempt 1: Fetch via backend proxy endpoint (bypasses CORS & mixed-content on HTTPS domains)
       try {
+        logs.push(`📡 ارسال درخواست به اندپوینت پروکسی سرور (/api/proxy-fetch)...`);
+        const startTime = Date.now();
         const res = await fetch("/api/proxy-fetch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: targetUrl })
         });
+        
+        proxyStatusCode = res.status;
+        targetStatusCode = res.headers.get("X-Target-Status");
+        targetContentType = res.headers.get("X-Target-Content-Type");
+        proxyDuration = res.headers.get("X-Proxy-Duration-Ms") || String(Date.now() - startTime);
+
+        logs.push(`📊 وضعیت پاسخ پروکسی: HTTP ${res.status} ${res.statusText} (${proxyDuration}ms) | وضعیت سرور باکت: ${targetStatusCode || res.status} | نوع محتوا: ${targetContentType || 'نامشخص'}`);
+
         if (res.ok) {
           rawData = await res.json();
-          logs.push("✅ ارتباط موفق با پروکسی سرور برقرار شد.");
+          logs.push("✅ ارتباط موفق با پروکسی سرور برقرار شد و محتوای پاسخ دریافت گردید.");
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData.error || errData.error_fa || `پروکسی با وضعیت ${res.status} پاسخ داد.`;
+          logs.push(`⚠️ هشدار پروکسی: ${errMsg}`);
+          if (errData.rawBodyPreview) {
+            logs.push(`📄 پیش‌نمایش پاسخ سرور مبدا: ${errData.rawBodyPreview.slice(0, 150)}...`);
+          }
         }
       } catch (proxyErr: any) {
-        logs.push(`⚠️ خطا در پروکسی، تلاش برای دریافت مستقیم: ${proxyErr.message}`);
+        logs.push(`⚠️ خطا در اتصال به پروکسی داخلی: ${proxyErr.message}`);
       }
 
-      // Attempt 2: Direct fetch fallback
+      // Attempt 2: Direct fetch fallback (works if user is on HTTP or CORS permits)
       if (!rawData) {
-        logs.push("در حال دریافت مستقیم از CDN باکت پارس‌پک...");
-        const directRes = await fetch(targetUrl);
-        if (directRes.ok) {
-          rawData = await directRes.json();
-        } else {
-          throw new Error(`پاسخ ناموفق با کد وضعیت ${directRes.status}`);
+        if (clientProto === 'https:' && targetUrl.startsWith('http://')) {
+          logs.push("⚠️ توجه: با توجه به اینکه دامنه شما HTTPS است، درخواست مستقیم HTTP توسط مرورگر (Mixed Content) مسدود می‌شود. لطفاً از پروکسی سرور نودجی‌اس استفاده کنید.");
+        }
+        logs.push("در حال تلاش برای دریافت مستقیم از باکت...");
+        try {
+          const directRes = await fetch(targetUrl);
+          logs.push(`📊 کد وضعیت دریافت مستقیم: HTTP ${directRes.status} ${directRes.statusText}`);
+          if (directRes.ok) {
+            rawData = await directRes.json();
+            usedMethod = 'direct';
+            logs.push("✅ فایل به صورت مستقیم از باکت دانلود شد.");
+          } else {
+            throw new Error(`پاسخ سرور باکت با کد وضعیت ${directRes.status}`);
+          }
+        } catch (dirErr: any) {
+          logs.push(`❌ دریافت مستقیم نیز ناموفق بود: ${dirErr.message}`);
         }
       }
 
       if (!rawData) {
-        throw new Error("امکان خواندن فایل JSON از لینک فوق وجود ندارد. از صحت آدرس مطمئن شوید.");
+        throw new Error(`امکان خواندن فایل JSON از لینک فوق وجود ندارد. وضعیت پروکسی: ${proxyStatusCode || 'نامشخص'}, وضعیت باکت: ${targetStatusCode || 'نامشخص'}. دکمه «تست و عیب‌یابی شبکه» را بزنید.`);
       }
 
-      const incomingProducts = Array.isArray(rawData) ? rawData : (rawData.products || rawData.items || []);
+      // Handle raw string or JSON wrap
+      if (typeof rawData === 'string') {
+        try {
+          rawData = JSON.parse(rawData.replace(/^\uFEFF/, '').trim());
+        } catch (e) {
+          logs.push("⚠️ متن دریافتی به عنوان رشته دریافت شد اما فرمت JSON ندارد.");
+        }
+      }
+
+      // Inspect received object keys for debugging
+      if (typeof rawData === 'object' && rawData !== null && !Array.isArray(rawData)) {
+        const keys = Object.keys(rawData);
+        logs.push(`🔍 ساختار کلیدهای شیء دریافتی: [${keys.join(", ")}]`);
+        if (rawData.error) {
+          logs.push(`❌ خطای گزارش‌شده داخل پاسخ: ${rawData.error}`);
+        }
+      }
+
+      // Resilient extraction of products array
+      let incomingProducts: any[] = [];
+      if (Array.isArray(rawData)) {
+        incomingProducts = rawData;
+      } else if (rawData && typeof rawData === 'object') {
+        if (Array.isArray(rawData.products)) incomingProducts = rawData.products;
+        else if (Array.isArray(rawData.items)) incomingProducts = rawData.items;
+        else if (Array.isArray(rawData.data)) incomingProducts = rawData.data;
+        else if (rawData.data && Array.isArray(rawData.data.products)) incomingProducts = rawData.data.products;
+        else if (Array.isArray(rawData.catalog)) incomingProducts = rawData.catalog;
+        else if (Array.isArray(rawData.result)) incomingProducts = rawData.result;
+        else if (Array.isArray(rawData.goods)) incomingProducts = rawData.goods;
+        else if (Array.isArray(rawData.rows)) incomingProducts = rawData.rows;
+      }
 
       if (!incomingProducts || incomingProducts.length === 0) {
-        throw new Error("فایل JSON دریافت شد اما هیچ آرایه‌ای از محصولات داخل آن وجود ندارد.");
+        const keysFound = (rawData && typeof rawData === 'object') ? Object.keys(rawData).join(", ") : typeof rawData;
+        throw new Error(`فایل JSON دریافت شد اما هیچ آرایه‌ای از محصولات داخل آن وجود ندارد. (کلیدهای شناسایی‌شده در پاسخ: ${keysFound})`);
       }
 
-      logs.push(`📦 تعداد ${incomingProducts.length} محصول در فایل JSON شناسایی شد.`);
+      logs.push(`📦 تعداد ${incomingProducts.length} محصول معتبر در فایل JSON شناسایی شد.`);
 
       let updatedCount = 0;
       let addedCount = 0;
@@ -570,6 +662,16 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               لینک پیش‌فرض پارس‌پک
             </button>
 
+            <button
+              onClick={() => runNetworkDiagnostics()}
+              disabled={diagLoading}
+              className="px-3.5 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-md shadow-cyan-600/20"
+              title="تست کامل وضعیت شبکه، هدرهای پاسخ و کد وضعیت ارتباطی سرور با پارس‌پک"
+            >
+              <Zap size={14} className={diagLoading ? "animate-spin" : ""} />
+              <span>{diagLoading ? "در حال عیب‌یابی..." : "عیب‌یابی شبکه و سرور"}</span>
+            </button>
+
             <a
               href={jsonUrl}
               target="_blank"
@@ -580,6 +682,87 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               <span>مشاهده مستقیم</span>
             </a>
           </div>
+
+          {/* Network Diagnostics Results Modal/Card */}
+          {showDiagModal && (
+            <div className="p-4 bg-slate-900 text-white rounded-2xl border border-slate-700 shadow-xl space-y-3 font-sans">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Zap size={18} className="text-cyan-400" />
+                  <span className="text-xs font-black text-cyan-400">گزارش عیب‌یابی شبکه و هدرهای سرور (Network & Headers Diagnostic)</span>
+                </div>
+                <button
+                  onClick={() => setShowDiagModal(false)}
+                  className="text-slate-400 hover:text-white text-xs px-2 py-1 bg-slate-800 rounded-lg cursor-pointer"
+                >
+                  بستن
+                </button>
+              </div>
+
+              {diagLoading ? (
+                <div className="py-6 flex flex-col items-center justify-center gap-2 text-slate-400 text-xs">
+                  <RefreshCw size={24} className="animate-spin text-cyan-400" />
+                  <span>در حال ارسال پکت‌های تست، بررسی DNS، هدرهای پاسخ و ساختار JSON...</span>
+                </div>
+              ) : diagResult ? (
+                <div className="space-y-3 text-xs">
+                  {diagResult.error ? (
+                    <div className="p-3 bg-rose-950/80 border border-rose-800 text-rose-300 rounded-xl">
+                      {diagResult.error}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+                          <span className="text-[10px] text-slate-400 block font-bold">میزبان کلاینت (Host)</span>
+                          <span className="text-xs font-mono font-bold text-amber-300">{diagResult.clientHost || window.location.host}</span>
+                        </div>
+                        <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+                          <span className="text-[10px] text-slate-400 block font-bold">وضعیت DNS پارس‌پک</span>
+                          <span className={`text-xs font-bold ${diagResult.dnsLookup?.status === 'SUCCESS' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {diagResult.dnsLookup?.status === 'SUCCESS' ? `✅ متصل (${diagResult.dnsLookup?.addresses?.[0]?.address || 'IP OK'})` : '❌ خطا در DNS'}
+                          </span>
+                        </div>
+                        <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+                          <span className="text-[10px] text-slate-400 block font-bold">تعداد محصولات شناسایی‌شده</span>
+                          <span className="text-xs font-bold text-cyan-300 font-mono">
+                            {diagResult.httpDirectTest?.productCount || 0} عدد کالا
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* HTTP Status & Headers Table */}
+                      {diagResult.httpDirectTest && (
+                        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                          <div className="flex justify-between items-center font-mono text-[11px]">
+                            <span className="text-slate-400">کد وضعیت پاسخ سرور (HTTP Status):</span>
+                            <span className={`px-2 py-0.5 rounded font-black ${diagResult.httpDirectTest.status === 200 ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-950 text-rose-300 border border-rose-800'}`}>
+                              HTTP {diagResult.httpDirectTest.status} {diagResult.httpDirectTest.statusText} ({diagResult.httpDirectTest.durationMs}ms)
+                            </span>
+                          </div>
+                          
+                          <div className="text-[11px] font-mono space-y-1 pt-1 border-t border-slate-900 dir-ltr text-left text-slate-300 max-h-32 overflow-y-auto">
+                            <div><strong className="text-cyan-400">Content-Type:</strong> {diagResult.httpDirectTest.headers?.['content-type'] || 'نامشخص'}</div>
+                            <div><strong className="text-cyan-400">Content-Length:</strong> {diagResult.httpDirectTest.headers?.['content-length'] || 'نامشخص'} بایت</div>
+                            <div><strong className="text-cyan-400">Server:</strong> {diagResult.httpDirectTest.headers?.['server'] || 'نامشخص'}</div>
+                            <div><strong className="text-cyan-400">Access-Control-Allow-Origin:</strong> {diagResult.httpDirectTest.headers?.['access-control-allow-origin'] || 'ندارد'}</div>
+                            <div><strong className="text-cyan-400">Top Level Keys:</strong> [{diagResult.httpDirectTest.topLevelKeys?.join(", ")}]</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Diagnostic Status Message */}
+                      {diagResult.jsonValidation && (
+                        <div className={`p-3 rounded-xl text-xs font-bold border ${diagResult.jsonValidation.status === 'VALID_CATALOG' ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' : 'bg-amber-950/60 border-amber-700 text-amber-300'}`}>
+                          {diagResult.jsonValidation.message}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {urlFetchMsg && (
             <div className={`p-3.5 rounded-2xl text-xs font-black flex items-center gap-2.5 ${

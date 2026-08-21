@@ -1880,9 +1880,29 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         throw new Error("امکان خواندن فایل JSON از لینک فوق وجود ندارد. از صحت آدرس مطمئن شوید.");
       }
 
-      const incomingProducts = Array.isArray(rawData) ? rawData : (rawData.products || rawData.items || []);
+      if (typeof rawData === 'string') {
+        try {
+          rawData = JSON.parse(rawData.replace(/^\uFEFF/, '').trim());
+        } catch (e) {}
+      }
+
+      let incomingProducts: any[] = [];
+      if (Array.isArray(rawData)) {
+        incomingProducts = rawData;
+      } else if (rawData && typeof rawData === 'object') {
+        if (Array.isArray(rawData.products)) incomingProducts = rawData.products;
+        else if (Array.isArray(rawData.items)) incomingProducts = rawData.items;
+        else if (Array.isArray(rawData.data)) incomingProducts = rawData.data;
+        else if (rawData.data && Array.isArray(rawData.data.products)) incomingProducts = rawData.data.products;
+        else if (Array.isArray(rawData.catalog)) incomingProducts = rawData.catalog;
+        else if (Array.isArray(rawData.result)) incomingProducts = rawData.result;
+        else if (Array.isArray(rawData.goods)) incomingProducts = rawData.goods;
+        else if (Array.isArray(rawData.rows)) incomingProducts = rawData.rows;
+      }
+
       if (!incomingProducts || incomingProducts.length === 0) {
-        throw new Error("هیچ آرایه‌ای از محصولات در فایل JSON یافت نشد.");
+        const keysFound = (rawData && typeof rawData === 'object') ? Object.keys(rawData).join(", ") : typeof rawData;
+        throw new Error(`هیچ آرایه‌ای از محصولات در فایل JSON یافت نشد. (کلیدهای شناسایی شده: ${keysFound})`);
       }
 
       let updatedCount = 0;
@@ -12825,7 +12845,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     <span className="block text-[10px] text-slate-400 font-black">کالاهای موجود در پیش‌نویس فاکتور:</span>
                     <div className="space-y-1.5 max-h-36 overflow-y-auto">
                       {directInvoiceItems.map((item, idx) => (
-                        <div key={`admin-panel-draft-item-${item.id || idx}-${idx}`} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 font-sans">
+                        <div key={`admin-panel-draft-item-${(item as any).id || (item as any).product?.id || idx}-${idx}`} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 font-sans">
                           <button 
                             type="button"
                             onClick={() => setDirectInvoiceItems(prev => prev.filter((_, i) => i !== idx))}
@@ -12951,7 +12971,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   <label className="block text-[10px] font-black text-slate-400 mb-3 mr-2">ویرایش اقلام و تعداد فاکتور عمده:</label>
                   <div className="space-y-3">
                     {editOrderItems.map((item, idx) => (
-                      <div key={`admin-panel-edit-order-${item.id || idx}-${idx}`} className="flex gap-3 items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                      <div key={`admin-panel-edit-order-${(item as any).id || (item as any).productId || idx}-${idx}`} className="flex gap-3 items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                         <div className="flex-1 text-[11px] font-black text-slate-700">{item.name}</div>
                         <div className="flex items-center gap-2">
                           <input 

@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import http from "http";
 import https from "https";
+import dns from "dns";
 import AdmZip from "adm-zip";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -24,6 +25,69 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// ==========================================
+// RATE LIMITING & ANTI-BRUTE-FORCE SYSTEM
+// ==========================================
+interface RateLimitRecord {
+  count: number;
+  resetTime: number;
+}
+const rateLimitStore = new Map<string, RateLimitRecord>();
+
+// Periodic cleanup of expired rate limit keys
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (record.resetTime <= now) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 10 * 60 * 1000);
+
+/**
+ * Express middleware for rate limiting sensitive endpoints
+ */
+function createRateLimiter(windowMs: number = 15 * 60 * 1000, maxAttempts: number = 10, customMsg?: string) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || req.socket.remoteAddress || "unknown_ip";
+    const routeKey = `${req.path}:${clientIp}`;
+    const now = Date.now();
+
+    let record = rateLimitStore.get(routeKey);
+    if (!record || now > record.resetTime) {
+      record = { count: 0, resetTime: now + windowMs };
+    }
+
+    record.count += 1;
+    rateLimitStore.set(routeKey, record);
+
+    if (record.count > maxAttempts) {
+      const remainingSecs = Math.ceil((record.resetTime - now) / 1000);
+      const remainingMins = Math.ceil(remainingSecs / 60);
+      res.setHeader("Retry-After", String(remainingSecs));
+      return res.status(429).json({
+        success: false,
+        status: "rate_limited",
+        error: customMsg || `تعداد درخواست‌های بیش از حد مجاز ثبت شد. جهت امنیت سیستم، IP شما تا ${remainingMins} دقیقه دیگر قفل است.`,
+        retryAfterSeconds: remainingSecs
+      });
+    }
+
+    next();
+  };
+}
+
+const sensitiveActionLimiter = createRateLimiter(15 * 60 * 1000, 10, "تلاش‌های مکرر و ناموفق شناسایی شد. دسترسی شما تا ۱۵ دقیقه مسدود گردید.");
+
+// Apply rate limiting middleware to configuration updates and GitHub updater endpoints
+app.use("/api/b2b/config", (req, res, next) => {
+  if (req.method === "POST") return sensitiveActionLimiter(req, res, next);
+  next();
+});
+
+app.use("/api/git/update", sensitiveActionLimiter);
+app.use("/api/git/test-connection", sensitiveActionLimiter);
 
 // Ensure public uploads directory exists and mount static route
 const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
@@ -56,6 +120,68 @@ if (fs.existsSync(CONFIG_FILE)) {
 }
 
 const B2B_CONFIG_FILE = path.join(process.cwd(), "b2b-config.json");
+const DATA_DIR = path.join(process.cwd(), "data");
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {}
+}
+
+const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
+const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+
+function loadConfig(): any {
+  return b2bConfig;
+}
+
+function saveConfig(cfg: any) {
+  b2bConfig = { ...b2bConfig, ...cfg };
+  try {
+    fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Failed to save b2b-config.json:", e);
+  }
+}
+
+function loadProducts(): any[] {
+  try {
+    if (fs.existsSync(PRODUCTS_FILE)) {
+      return JSON.parse(fs.readFileSync(PRODUCTS_FILE, "utf-8"));
+    }
+  } catch (e) {
+    console.error("Error loading products.json:", e);
+  }
+  return [];
+}
+
+function saveProducts(products: any[]) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Error saving products.json:", e);
+  }
+}
+
+function loadOrders(): any[] {
+  try {
+    if (fs.existsSync(ORDERS_FILE)) {
+      return JSON.parse(fs.readFileSync(ORDERS_FILE, "utf-8"));
+    }
+  } catch (e) {
+    console.error("Error loading orders.json:", e);
+  }
+  return [];
+}
+
+function saveOrders(orders: any[]) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Error saving orders.json:", e);
+  }
+}
 const DEFAULT_B2B_CONFIG = {
   githubRepoUrl: "https://github.com/dastavval/UpdaterDst.git",
   githubBranch: "main",
@@ -350,7 +476,29 @@ function generateDynamicSitemapXml(baseUrl: string = "https://dastavval.com"): s
     }
   }
 
-  const allUrls = [...coreUrls, ...categoryUrls, ...productUrls, ...factoryUrls];
+  // 5. Dynamic AI Articles & Magazine
+  const articleUrls: Array<{ loc: string; priority: string; changefreq: string }> = [];
+  try {
+    const articlesPath = path.join(process.cwd(), "articles.json");
+    if (fs.existsSync(articlesPath)) {
+      const articles = JSON.parse(fs.readFileSync(articlesPath, "utf-8"));
+      if (Array.isArray(articles)) {
+        for (const art of articles) {
+          if (art.id) {
+            articleUrls.push({
+              loc: `${baseUrl}/?article=${art.id}`,
+              priority: "0.85",
+              changefreq: "weekly"
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Could not load articles for sitemap:", e);
+  }
+
+  const allUrls = [...coreUrls, ...categoryUrls, ...productUrls, ...factoryUrls, ...articleUrls];
 
   const xmlEntries = allUrls.map(item => `  <url>
     <loc>${item.loc}</loc>
@@ -367,6 +515,35 @@ function generateDynamicSitemapXml(baseUrl: string = "https://dastavval.com"): s
 ${xmlEntries}
 </urlset>`;
 }
+
+// Serve dynamic robots.txt for Googlebot, Torobbot, and Search Crawlers
+app.get("/robots.txt", (req, res) => {
+  const host = req.get("host") || "dastavval.com";
+  const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
+  const robotsTxt = `# robots.txt for DastAvval B2B Platform
+User-agent: *
+Allow: /
+Allow: /api/torob/
+Disallow: /admin
+Disallow: /api/admin/
+Disallow: /api/git/
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: TorobBot
+Allow: /
+Allow: /api/torob/
+
+Sitemap: ${protocol}://${host}/sitemap.xml
+`;
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(robotsTxt);
+});
 
 // Serve dynamic, real-time sitemap.xml on /sitemap.xml
 app.get("/sitemap.xml", (req, res) => {
@@ -489,6 +666,93 @@ app.get("/api/torob/products", async (req, res) => {
   }
 });
 
+// Torob RSS / XML Feed for Partner Integrations
+app.get("/api/torob/feed.xml", async (req, res) => {
+  try {
+    const host = req.get("host") || "dastavval.com";
+    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    const baseUrl = `${protocol}://${host}`;
+
+    const localProductsPath = path.join(process.cwd(), "local-products.json");
+    let productsList: any[] = [];
+    if (fs.existsSync(localProductsPath)) {
+      productsList = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
+    }
+
+    const sanitizePrice = (priceStr: any) => {
+      if (!priceStr) return 0;
+      if (typeof priceStr === 'number') return priceStr;
+      const englishDigits = String(priceStr).replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776));
+      const match = englishDigits.replace(/,/g, '').match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
+    const itemsXml = productsList.filter((p: any) => !p.disabled).map((prod: any) => {
+      const id = String(prod.id || prod.productCode || prod.code);
+      const title = prod.name || "";
+      const brand = prod.brand || prod.factoryName || "";
+      const price = sanitizePrice(prod.bulk_price || prod.price);
+      const oldPrice = sanitizePrice(prod.consumer_price || prod.marketPrice);
+      const image = prod.image_url || prod.imageUrl || `${baseUrl}/assets/logo.svg`;
+      const url = `${baseUrl}/?product=${id}`;
+
+      return `    <item>
+      <id>${id}</id>
+      <title><![CDATA[${title}]]></title>
+      <subtitle><![CDATA[${brand}]]></subtitle>
+      <page_url>${url}</page_url>
+      <price>${price}</price>
+      ${oldPrice > price ? `<old_price>${oldPrice}</old_price>` : ''}
+      <availability>instock</availability>
+      <image_link><![CDATA[${image}]]></image_link>
+      <category><![CDATA[${prod.category || 'مواد غذایی'}]]></category>
+    </item>`;
+    }).join("\n");
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:torob="http://torob.com/rss/specs">
+  <channel>
+    <title>فید محصولات سامانه ملی دست اول</title>
+    <link>${baseUrl}</link>
+    <description>خرید مستقیم از کارخانجات صنایع غذایی ایران با قیمت کف بازار</description>
+    <language>fa</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+${itemsXml}
+  </channel>
+</rss>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.send(xml);
+  } catch (error: any) {
+    res.status(500).send(`<error>${error.message}</error>`);
+  }
+});
+
+// Single product instant check for Torob Crawlers
+app.get("/api/torob/product-check", (req, res) => {
+  try {
+    const id = req.query.id as string;
+    const localProductsPath = path.join(process.cwd(), "local-products.json");
+    let productsList: any[] = [];
+    if (fs.existsSync(localProductsPath)) {
+      productsList = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
+    }
+    const found = productsList.find((p: any) => String(p.id) === id || String(p.code) === id);
+    if (!found) {
+      return res.status(404).json({ exists: false, availability: "outofstock" });
+    }
+    res.json({
+      exists: true,
+      id: found.id,
+      name: found.name,
+      price: found.bulk_price || found.price,
+      availability: found.disabled ? "outofstock" : "instock"
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/v1/categories", (req, res) => {
   res.json({ success: true, categories: b2bConfig.categories || [] });
 });
@@ -503,13 +767,14 @@ app.get("/api/v1/config", (req, res) => {
   });
 });
 
-// Proxy fetch to bypass CORS for WooCommerce and WordPress integrations
-app.post("/api/proxy-fetch", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "URL is required" });
+// Enhanced Proxy fetch to bypass CORS, protocol mismatches (HTTP on ParsPack S3 vs HTTPS on domains), and inspect status/headers
+const handleProxyFetchRequest = async (req: express.Request, res: express.Response) => {
+  const urlParam = req.body?.url || req.query?.url;
+  if (!urlParam) return res.status(400).json({ error: "URL parameter is required", error_fa: "پارامتر URL الزامی است" });
 
+  const startTime = Date.now();
   // Clean up and sanitize URL string from accidental spaces or typos
-  let targetUrl = String(url).trim().replace(/\s+/g, '');
+  let targetUrl = String(urlParam).trim().replace(/\s+/g, '');
   
   // ParsPack S3 storage origins use HTTP on bucket subdomains
   if (targetUrl.includes('.parspack.net') && targetUrl.startsWith('https://')) {
@@ -522,38 +787,246 @@ app.post("/api/proxy-fetch", async (req, res) => {
   // Remove redundant path slashes e.g. domain.com//wp-json -> domain.com/wp-json
   targetUrl = targetUrl.replace(/([^:]\/)\/+/g, "$1");
 
+  const clientInfo = {
+    host: req.headers.host || "unknown",
+    origin: req.headers.origin || "unknown",
+    referer: req.headers.referer || "unknown",
+    userAgent: req.headers["user-agent"] || "unknown",
+    ip: req.ip || req.socket.remoteAddress
+  };
+
+  console.log(`[Proxy Fetch] [${new Date().toISOString()}] Request from Host: ${clientInfo.host} -> Target: ${targetUrl}`);
+
   try {
-    console.log(`[Proxy Fetch] Requesting: ${targetUrl}`);
-    let response;
+    let response: any;
+    let attemptedFallback = false;
+    let fallbackError: string | null = null;
+
     try {
       response = await fetch(targetUrl, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/plain, application/octet-stream, */*"
         }
       });
     } catch (netErr: any) {
       if (targetUrl.startsWith('https://')) {
+        attemptedFallback = true;
         const httpUrl = targetUrl.replace('https://', 'http://');
-        console.log(`[Proxy Fetch] HTTPS failed, trying HTTP fallback: ${httpUrl}`);
-        response = await fetch(httpUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-          }
-        });
+        console.log(`[Proxy Fetch] HTTPS failed (${netErr.message}), trying HTTP fallback: ${httpUrl}`);
+        try {
+          response = await fetch(httpUrl, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Accept": "application/json, text/plain, application/octet-stream, */*"
+            }
+          });
+          targetUrl = httpUrl;
+        } catch (httpErr: any) {
+          fallbackError = httpErr.message;
+          throw netErr;
+        }
       } else {
         throw netErr;
       }
     }
 
+    const durationMs = Date.now() - startTime;
+    const targetStatus = response.status;
+    const targetStatusText = response.statusText;
+    const targetHeaders: Record<string, string> = {};
+    response.headers.forEach((val: string, key: string) => {
+      targetHeaders[key.toLowerCase()] = val;
+    });
+
+    console.log(`[Proxy Fetch] Response from ${targetUrl}: Status ${targetStatus} ${targetStatusText} (in ${durationMs}ms), Content-Type: ${targetHeaders['content-type'] || 'unknown'}, Length: ${targetHeaders['content-length'] || 'unknown'}`);
+
+    // Read full raw body text to support BOM removal and octet-stream json parsing
+    const rawText = await response.text();
+    const cleanText = rawText.replace(/^\uFEFF/, '').trim(); // Remove UTF-8 Byte Order Mark if present
+
     if (!response.ok) {
-      throw new Error(`Target server responded with status ${response.status}`);
+      console.error(`[Proxy Fetch] Upstream server returned HTTP ${targetStatus}: ${cleanText.slice(0, 300)}`);
+      res.setHeader("X-Target-Status", String(targetStatus));
+      res.setHeader("X-Target-Content-Type", targetHeaders['content-type'] || "unknown");
+      res.setHeader("X-Proxy-Duration-Ms", String(durationMs));
+      return res.status(502).json({
+        error: `سرور مبدا با کد وضعیت ${targetStatus} پاسخ داد (${targetStatusText || 'Error'}).`,
+        targetUrl,
+        targetStatus,
+        targetHeaders,
+        durationMs,
+        clientHost: clientInfo.host,
+        rawBodyPreview: cleanText.slice(0, 500)
+      });
     }
-    const data = await response.json();
-    res.json(data);
+
+    // Attempt to parse JSON
+    let parsedData: any = null;
+    try {
+      parsedData = JSON.parse(cleanText);
+    } catch (jsonErr: any) {
+      console.error(`[Proxy Fetch] JSON parse failed: ${jsonErr.message}. First 200 chars: ${cleanText.slice(0, 200)}`);
+      res.setHeader("X-Target-Status", String(targetStatus));
+      res.setHeader("X-Target-Content-Type", targetHeaders['content-type'] || "unknown");
+      res.setHeader("X-Proxy-Duration-Ms", String(durationMs));
+      return res.status(502).json({
+        error: `پاسخ دریافت شده از سرور مبدا ساختار معتبر JSON ندارد (${jsonErr.message}).`,
+        targetUrl,
+        targetStatus,
+        targetHeaders,
+        durationMs,
+        clientHost: clientInfo.host,
+        rawBodyPreview: cleanText.slice(0, 500)
+      });
+    }
+
+    // Set informative proxy diagnostic headers on response
+    res.setHeader("X-Target-Status", String(targetStatus));
+    res.setHeader("X-Target-Content-Type", targetHeaders['content-type'] || "unknown");
+    res.setHeader("X-Target-Content-Length", targetHeaders['content-length'] || String(cleanText.length));
+    res.setHeader("X-Target-Server", targetHeaders['server'] || "unknown");
+    res.setHeader("X-Proxy-Duration-Ms", String(durationMs));
+    res.setHeader("X-Proxy-Client-Host", clientInfo.host);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+
+    // Send parsed JSON data back to client
+    res.json(parsedData);
   } catch (error: any) {
-    console.error("[Proxy Fetch] Error:", error.message);
-    res.status(500).json({ error: "خطا در برقراری ارتباط با سایت مبدا. بررسی کنید آدرس وارد شده صحیح باشد و مسدود نباشد. " + error.message });
+    const durationMs = Date.now() - startTime;
+    console.error("[Proxy Fetch] Network/Fetch Error:", error.message);
+    res.status(500).json({
+      error: `خطا در برقراری ارتباط با سایت مبدا (${error.message}). بررسی کنید آدرس وارد شده صحیح باشد و مسدود نباشد.`,
+      targetUrl,
+      durationMs,
+      clientHost: clientInfo.host,
+      networkError: error.message
+    });
   }
+};
+
+app.post("/api/proxy-fetch", handleProxyFetchRequest);
+app.get("/api/proxy-fetch", handleProxyFetchRequest);
+
+// Comprehensive Network & Storage Diagnostics API
+app.get("/api/diagnostics/catalog-sync", async (req, res) => {
+  const targetUrl = (req.query.url as string) || "http://c102393.parspack.net/c102393/catalog.json";
+  const results: any = {
+    timestamp: new Date().toISOString(),
+    testedUrl: targetUrl,
+    clientHost: req.headers.host,
+    clientOrigin: req.headers.origin,
+    clientIp: req.ip || req.socket.remoteAddress,
+    dnsLookup: null,
+    httpDirectTest: null,
+    httpsTest: null,
+    jsonValidation: null,
+    recommendations: []
+  };
+
+  // 1. DNS Resolution Test
+  try {
+    const parsedUrl = new URL(targetUrl.startsWith("http") ? targetUrl : `http://${targetUrl}`);
+    const hostname = parsedUrl.hostname;
+    const lookupResult = await dns.promises.lookup(hostname, { all: true });
+    results.dnsLookup = {
+      hostname,
+      status: "SUCCESS",
+      addresses: lookupResult
+    };
+  } catch (dnsErr: any) {
+    results.dnsLookup = {
+      status: "FAILED",
+      error: dnsErr.message
+    };
+    results.recommendations.push("دی‌ان‌اس دامنه پارس‌پک قابل حل نیست. اینترنت سرور یا فایل hosts را بررسی کنید.");
+  }
+
+  // 2. Direct HTTP Fetch Test
+  try {
+    const httpTarget = targetUrl.replace(/^https:\/\//i, "http://");
+    const tStart = Date.now();
+    const httpRes = await fetch(httpTarget, {
+      headers: {
+        "User-Agent": "DastAvval-Diagnostics/1.0",
+        "Accept": "application/json, text/plain, */*"
+      }
+    });
+    const tDuration = Date.now() - tStart;
+    const headersMap: Record<string, string> = {};
+    httpRes.headers.forEach((v, k) => { headersMap[k.toLowerCase()] = v; });
+
+    const rawText = await httpRes.text();
+    const cleanText = rawText.replace(/^\uFEFF/, '').trim();
+
+    let jsonParsed = false;
+    let productCount = 0;
+    let topLevelKeys: string[] = [];
+
+    try {
+      const parsed = JSON.parse(cleanText);
+      jsonParsed = true;
+      if (typeof parsed === "object" && parsed !== null) {
+        topLevelKeys = Object.keys(parsed);
+        const prodArr = Array.isArray(parsed) ? parsed : (parsed.products || parsed.items || parsed.data || []);
+        productCount = Array.isArray(prodArr) ? prodArr.length : 0;
+      }
+    } catch (e) {}
+
+    results.httpDirectTest = {
+      url: httpTarget,
+      status: httpRes.status,
+      statusText: httpRes.statusText,
+      durationMs: tDuration,
+      headers: headersMap,
+      bodyLength: rawText.length,
+      isJson: jsonParsed,
+      topLevelKeys,
+      productCount,
+      bodyPreview: cleanText.slice(0, 300)
+    };
+
+    if (httpRes.status === 200 && jsonParsed && productCount > 0) {
+      results.jsonValidation = {
+        status: "VALID_CATALOG",
+        message: `فایل کاتالوگ با موفقیت دریافت شد و شامل ${productCount} محصول است.`
+      };
+    } else if (httpRes.status === 200 && jsonParsed && productCount === 0) {
+      results.jsonValidation = {
+        status: "EMPTY_OR_UNEXPECTED_STRUCTURE",
+        message: `فایل JSON خوانده شد اما کلید products در آن یافت نشد. کلیدهای موجود: ${topLevelKeys.join(", ")}`
+      };
+    }
+  } catch (httpErr: any) {
+    results.httpDirectTest = {
+      status: "FAILED",
+      error: httpErr.message
+    };
+  }
+
+  // 3. HTTPS Attempt Test (to verify if ParsPack has SSL on bucket domain)
+  try {
+    const httpsTarget = targetUrl.replace(/^http:\/\//i, "https://");
+    const tStart = Date.now();
+    const httpsRes = await fetch(httpsTarget, {
+      signal: AbortSignal.timeout(4000)
+    });
+    results.httpsTest = {
+      url: httpsTarget,
+      status: httpsRes.status,
+      durationMs: Date.now() - tStart,
+      sslWorking: true
+    };
+  } catch (httpsErr: any) {
+    results.httpsTest = {
+      url: targetUrl.replace(/^http:\/\//i, "https://"),
+      sslWorking: false,
+      error: httpsErr.message,
+      note: "پارس‌پک روی ساب‌دامین‌های باکت (مانند c102393.parspack.net) از پورت 443 و SSL پشتیبانی نمی‌کند؛ بنابراین درخواست باید حتماً از طریق پروکسی نودجی‌اس یا با پروتکل HTTP ارسال شود."
+    };
+  }
+
+  res.json(results);
 });
 
 // Proxy image requests to bypass CORS, mixed content, and SSL port 443 timeouts on ParsPack S3
@@ -2130,6 +2603,642 @@ app.get("/api/ai/daily-presentation", async (req, res) => {
   saveDailyCache(fallbackData);
   res.json(fallbackData);
 });
+
+// ==========================================
+// --- ARTICLES & GAPGPT AI MAGAZINE ENGINE ---
+// ==========================================
+const ARTICLES_FILE = path.join(process.cwd(), "articles.json");
+
+function loadArticles(): any[] {
+  try {
+    if (fs.existsSync(ARTICLES_FILE)) {
+      const raw = fs.readFileSync(ARTICLES_FILE, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error("Error reading articles.json:", e);
+  }
+  return [];
+}
+
+function saveArticles(articles: any[]) {
+  try {
+    fs.writeFileSync(ARTICLES_FILE, JSON.stringify(articles, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Error saving articles.json:", e);
+  }
+}
+
+// ==========================================
+// AUTOMATED DATABASE BACKUP & LOG PURGE SYSTEM
+// ==========================================
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+if (!fs.existsSync(BACKUP_DIR)) {
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  } catch (e) {
+    console.error("Could not create backups directory:", e);
+  }
+}
+
+// Helper: Calculate directory or file size
+function getFileSizeSafe(filePath: string): number {
+  try {
+    if (fs.existsSync(filePath)) {
+      return fs.statSync(filePath).size;
+    }
+  } catch {}
+  return 0;
+}
+
+// Helper: Get DB storage statistics
+function getDbStorageStats() {
+  const stats = {
+    productsSize: getFileSizeSafe(PRODUCTS_FILE),
+    ordersSize: getFileSizeSafe(ORDERS_FILE),
+    articlesSize: getFileSizeSafe(ARTICLES_FILE),
+    configFileSize: getFileSizeSafe(CONFIG_FILE),
+    crmSize: getFileSizeSafe(path.join(DATA_DIR, "crm_customers.json")),
+    backupsCount: 0,
+    backupsTotalSize: 0,
+    tempUploadsSize: 0,
+    rateLimitRecordsCount: rateLimitStore.size,
+    totalDbSizeFormatted: "0 KB"
+  };
+
+  try {
+    if (fs.existsSync(BACKUP_DIR)) {
+      const files = fs.readdirSync(BACKUP_DIR);
+      stats.backupsCount = files.length;
+      for (const file of files) {
+        stats.backupsTotalSize += getFileSizeSafe(path.join(BACKUP_DIR, file));
+      }
+    }
+  } catch {}
+
+  const totalBytes = stats.productsSize + stats.ordersSize + stats.articlesSize + stats.configFileSize + stats.crmSize;
+  stats.totalDbSizeFormatted = (totalBytes / 1024).toFixed(1) + " KB";
+  return stats;
+}
+
+// Helper: Perform automated DB backup
+function performAutomatedBackup(reason: string = "manual") {
+  try {
+    const products = loadProducts();
+    const orders = loadOrders();
+    const articles = loadArticles();
+    const config = loadConfig();
+    let crmCustomers: any[] = [];
+    const crmPath = path.join(DATA_DIR, "crm_customers.json");
+    if (fs.existsSync(crmPath)) {
+      try {
+        crmCustomers = JSON.parse(fs.readFileSync(crmPath, "utf-8"));
+      } catch {}
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `backup_auto_${timestamp}.json`;
+    const backupPath = path.join(BACKUP_DIR, filename);
+
+    const payload = {
+      meta: {
+        created_at: new Date().toISOString(),
+        reason,
+        app_version: "v4.1.0-Release",
+        products_count: products.length,
+        orders_count: orders.length,
+        articles_count: articles.length
+      },
+      products,
+      orders,
+      articles,
+      b2bConfig: config,
+      crmCustomers
+    };
+
+    fs.writeFileSync(backupPath, JSON.stringify(payload, null, 2), "utf-8");
+
+    // Enforce retention limit (max backups to keep)
+    const maxToKeep = Number(config.maxBackupsToKeep) || 10;
+    if (fs.existsSync(BACKUP_DIR)) {
+      const files = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.endsWith(".json"))
+        .sort((a, b) => fs.statSync(path.join(BACKUP_DIR, b)).mtimeMs - fs.statSync(path.join(BACKUP_DIR, a)).mtimeMs);
+
+      if (files.length > maxToKeep) {
+        const toDelete = files.slice(maxToKeep);
+        for (const df of toDelete) {
+          try {
+            fs.unlinkSync(path.join(BACKUP_DIR, df));
+          } catch {}
+        }
+      }
+    }
+
+    return {
+      success: true,
+      filename,
+      size: fs.statSync(backupPath).size,
+      created_at: new Date().toLocaleString("fa-IR")
+    };
+  } catch (err: any) {
+    console.error("Backup creation error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+// Helper: Purge old logs and optimize DB
+function performDatabasePurgeAndOptimize(daysToKeep: number = 30) {
+  let freedBytes = 0;
+  let itemsCleared = 0;
+
+  // 1. Clear expired rate limiter records
+  const initialRateLimits = rateLimitStore.size;
+  rateLimitStore.clear();
+  itemsCleared += initialRateLimits;
+
+  // 2. Compact JSON files
+  try {
+    const products = loadProducts();
+    saveProducts(products); // re-save minified or clean
+    const articles = loadArticles();
+    saveArticles(articles);
+    const orders = loadOrders();
+    saveOrders(orders);
+  } catch {}
+
+  // 3. Clean temporary files in uploads temp directory if exists
+  const tempDir = path.join(UPLOADS_DIR, "temp");
+  if (fs.existsSync(tempDir)) {
+    try {
+      const tempFiles = fs.readdirSync(tempDir);
+      for (const file of tempFiles) {
+        const fp = path.join(tempDir, file);
+        const sz = getFileSizeSafe(fp);
+        fs.unlinkSync(fp);
+        freedBytes += sz;
+        itemsCleared++;
+      }
+    } catch {}
+  }
+
+  // 4. Clean old automated backups if exceeding retention
+  if (fs.existsSync(BACKUP_DIR)) {
+    try {
+      const cutoffMs = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
+      const files = fs.readdirSync(BACKUP_DIR);
+      for (const file of files) {
+        const fp = path.join(BACKUP_DIR, file);
+        const stat = fs.statSync(fp);
+        if (stat.mtimeMs < cutoffMs) {
+          freedBytes += stat.size;
+          fs.unlinkSync(fp);
+          itemsCleared++;
+        }
+      }
+    } catch {}
+  }
+
+  const freedKb = (freedBytes / 1024).toFixed(1);
+  return {
+    success: true,
+    freedKb,
+    itemsCleared,
+    message: `پاکسازی دیتابیس با موفقیت انجام شد. مقدار ${freedKb} کیلوبایت فضا آزاد گردید و ${itemsCleared} آیتم قدیمی پاکسازی شد.`
+  };
+}
+
+// GET DB Maintenance Stats
+app.get("/api/db/maintenance/status", (req, res) => {
+  const stats = getDbStorageStats();
+  const config = loadConfig();
+
+  // List existing backup files
+  let backupsList: any[] = [];
+  try {
+    if (fs.existsSync(BACKUP_DIR)) {
+      backupsList = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.endsWith(".json"))
+        .map(f => {
+          const fp = path.join(BACKUP_DIR, f);
+          const stat = fs.statSync(fp);
+          return {
+            filename: f,
+            sizeKb: (stat.size / 1024).toFixed(1),
+            mtime: new Date(stat.mtimeMs).toLocaleString("fa-IR"),
+            mtimeMs: stat.mtimeMs
+          };
+        })
+        .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    }
+  } catch {}
+
+  res.json({
+    success: true,
+    stats,
+    backupsList,
+    autoBackupEnabled: config.autoBackupEnabled !== false,
+    backupFrequencyHours: config.backupFrequencyHours || 24,
+    maxBackupsToKeep: config.maxBackupsToKeep || 10,
+    autoPurgeLogsEnabled: config.autoPurgeLogsEnabled !== false,
+    purgeLogsOlderThanDays: config.purgeLogsOlderThanDays || 30
+  });
+});
+
+// POST Trigger Manual Backup
+app.post("/api/db/maintenance/backup", (req, res) => {
+  const result = performAutomatedBackup("manual_admin_trigger");
+  if (result.success) {
+    res.json({ success: true, result, message: "پشتیبان‌گیری از دیتابیس با موفقیت انجام شد." });
+  } else {
+    res.status(500).json({ success: false, error: result.error });
+  }
+});
+
+// POST Delete specific backup file
+app.post("/api/db/maintenance/backups-delete", (req, res) => {
+  try {
+    const { filename } = req.body;
+    if (!filename || filename.includes("..") || filename.includes("/")) {
+      return res.status(400).json({ error: "نام فایل نامعتبر است" });
+    }
+
+    const fp = path.join(BACKUP_DIR, filename);
+    if (fs.existsSync(fp)) {
+      fs.unlinkSync(fp);
+      res.json({ success: true, message: `فایل پشتیبان ${filename} حذف گردید.` });
+    } else {
+      res.status(404).json({ error: "فایل پشتیبان یافت نشد" });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST Trigger Log Purge & Vacuum
+app.post("/api/db/maintenance/purge-logs", (req, res) => {
+  try {
+    const days = Number(req.body.daysToKeep) || 30;
+    const result = performDatabasePurgeAndOptimize(days);
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST Save Auto Maintenance Settings
+app.post("/api/db/maintenance/config", (req, res) => {
+  try {
+    const {
+      autoBackupEnabled,
+      backupFrequencyHours,
+      maxBackupsToKeep,
+      autoPurgeLogsEnabled,
+      purgeLogsOlderThanDays
+    } = req.body;
+
+    const config = loadConfig();
+    config.autoBackupEnabled = autoBackupEnabled;
+    config.backupFrequencyHours = Number(backupFrequencyHours) || 24;
+    config.maxBackupsToKeep = Number(maxBackupsToKeep) || 10;
+    config.autoPurgeLogsEnabled = autoPurgeLogsEnabled;
+    config.purgeLogsOlderThanDays = Number(purgeLogsOlderThanDays) || 30;
+
+    saveConfig(config);
+    res.json({ success: true, message: "تنظیمات پشتیبان‌گیری و پاکسازی خودکار ذخیره گردید." });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Background Auto Maintenance Scheduler
+let lastAutoBackupTime = 0;
+function checkAndRunAutoMaintenance() {
+  const config = loadConfig();
+  const now = Date.now();
+
+  if (config.autoBackupEnabled !== false) {
+    const freqMs = (Number(config.backupFrequencyHours) || 24) * 60 * 60 * 1000;
+    if (now - lastAutoBackupTime > freqMs) {
+      lastAutoBackupTime = now;
+      console.log("[DB Maintenance Scheduler] Running scheduled automated backup...");
+      performAutomatedBackup("cron_scheduler");
+    }
+  }
+
+  if (config.autoPurgeLogsEnabled !== false) {
+    const days = Number(config.purgeLogsOlderThanDays) || 30;
+    performDatabasePurgeAndOptimize(days);
+  }
+}
+
+// Run maintenance scheduler every 12 hours
+setInterval(checkAndRunAutoMaintenance, 12 * 60 * 60 * 1000);
+setTimeout(checkAndRunAutoMaintenance, 20000); // Also run 20s after server startup
+
+// Get all articles
+app.get("/api/articles", (req, res) => {
+  const articles = loadArticles();
+  res.json({ success: true, count: articles.length, articles });
+});
+
+// Create or update an article
+app.post("/api/articles", (req, res) => {
+  try {
+    const article = req.body;
+    if (!article.title) {
+      return res.status(400).json({ error: "Title is required", error_fa: "عنوان مقاله الزامی است" });
+    }
+
+    const articles = loadArticles();
+    const id = article.id || `art-${Date.now()}`;
+    const todayShamsi = new Date().toLocaleDateString('fa-IR');
+
+    const newArticle = {
+      id,
+      title: article.title,
+      slug: article.slug || `article-${Date.now()}`,
+      summary: article.summary || "",
+      content: article.content || "",
+      category: article.category || "اخبار و تحلیل بازار",
+      imageUrl: article.imageUrl || "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000",
+      source: article.source || "تحریریه دست‌اول",
+      date: article.date || todayShamsi,
+      readTime: article.readTime || "۴ دقیقه",
+      tags: article.tags || ["خرید عمده", "صنایع غذایی", "دست اول"],
+      linkedProducts: article.linkedProducts || [],
+      linkedFactories: article.linkedFactories || [],
+      isAiGenerated: article.isAiGenerated || false,
+      aiProvider: article.aiProvider || "gapgpt",
+      faqs: article.faqs || []
+    };
+
+    const existingIdx = articles.findIndex((a: any) => a.id === id);
+    if (existingIdx >= 0) {
+      articles[existingIdx] = { ...articles[existingIdx], ...newArticle };
+    } else {
+      articles.unshift(newArticle);
+    }
+
+    saveArticles(articles);
+    res.json({ success: true, article: newArticle, count: articles.length });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Delete an article
+app.delete("/api/articles/:id", (req, res) => {
+  try {
+    const id = req.params.id;
+    let articles = loadArticles();
+    articles = articles.filter((a: any) => a.id !== id);
+    saveArticles(articles);
+    res.json({ success: true, count: articles.length });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Bulk sync articles
+app.post("/api/articles/sync", (req, res) => {
+  try {
+    const { articles } = req.body;
+    if (Array.isArray(articles)) {
+      saveArticles(articles);
+      res.json({ success: true, count: articles.length });
+    } else {
+      res.status(400).json({ error: "articles must be an array" });
+    }
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Helper: AI Article Generation Core
+async function generateSingleArticleWithAI(options: {
+  topicType?: 'product' | 'factory' | 'billboard' | 'wholesale' | 'custom';
+  targetId?: string;
+  targetName?: string;
+  customPrompt?: string;
+  category?: string;
+}): Promise<any> {
+  const localProductsPath = path.join(process.cwd(), "local-products.json");
+  let productsList: any[] = [];
+  if (fs.existsSync(localProductsPath)) {
+    productsList = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
+  }
+  const factories = b2bConfig.factories || [];
+
+  // Pick target product and factory for internal linking
+  let selectedProduct = productsList.length > 0 
+    ? (options.targetId ? productsList.find((p: any) => p.id === options.targetId) || productsList[0] : productsList[Math.floor(Math.random() * productsList.length)])
+    : { id: "PRD-1001", name: "چیپس سیب‌زمینی چی‌توز", brand: "چی‌توز", category: "تنقلات و شکلات", bulk_price: 380000 };
+
+  let selectedFactory = factories.length > 0 
+    ? (options.targetId ? factories.find((f: any) => f.id === options.targetId) || factories[0] : factories[Math.floor(Math.random() * factories.length)])
+    : { id: "fac-1", name: "صنایع غذایی به‌آرا (چی‌توز)", city: "مشهد", category: "تنقلات و شکلات" };
+
+  const prompt = `You are a world-class Iranian B2B commerce copywriter and SEO journalist writing for DastAvval (دست اول), the national food industry wholesale platform.
+Write a comprehensive, highly informative, authoritative SEO article in fluent, professional Persian (فارسی روان و بنکداری اصولی).
+
+Context Data:
+- Platform: سامانه ملی دست اول (خرید عمده مستقیم از خطوط تولید، تالار کف بازار، پرداخت امانی امن)
+- Target Topic Focus: ${options.topicType || 'wholesale'} (${options.targetName || options.customPrompt || 'خرید عمده و تحلیل خطوط تولید'})
+- Available Product for Internal Linking: ID: "${selectedProduct.id || 'PRD-1001'}", Name: "${selectedProduct.name}", Brand: "${selectedProduct.brand || 'معتبر'}", Price: "${selectedProduct.bulk_price || 450000} تومان"
+- Available Factory for Internal Linking: ID: "${selectedFactory.id || 'fac-1'}", Name: "${selectedFactory.name}", City: "${selectedFactory.city || 'تهران'}"
+
+CRITICAL Internal Linking Rule:
+Inside the article content, you MUST embed 2-4 contextual links using this EXACT bracket syntax:
+- For products: [[product:${selectedProduct.id || 'PRD-1001'}|${selectedProduct.name}]]
+- For factories: [[factory:${selectedFactory.id || 'fac-1'}|${selectedFactory.name}]]
+- For Kaf Bazaar floor ads: [[billboard:تالار کف بازار]]
+- For categories: [[category:تنقلات و شکلات|تنقلات و شکلات]] or [[tab:order|سفارش آنلاین]]
+
+Output format MUST be valid JSON only (no markdown code blocks, just raw json):
+{
+  "title": "یک عنوان بسیار جذاب، سئو شده و حرفه‌ای به فارسی با کلمات کلیدی بالا",
+  "slug": "english-seo-friendly-slug",
+  "summary": "خلاصه جذاب و کاربردی ۲ الی ۳ خطی برای پیش‌نمایش در گوگل و شبکه‌های اجتماعی",
+  "content": "متن کامل مقاله به زبان فارسی در قالب مارک‌داون شامل تیترهای H3 (###)، تحلیل حاشیه سود بنکداری، مزایای خرید مستقیم، و لینک‌های تعاملی براکتی",
+  "category": "${options.category || 'راهنمای خرید عمده'}",
+  "imageUrl": "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000",
+  "readTime": "۴ دقیقه",
+  "tags": ["خرید عمده", "قیمت کارخانه", "بنکداری", "دست اول"],
+  "linkedProducts": ["${selectedProduct.id || 'PRD-1001'}"],
+  "linkedFactories": ["${selectedFactory.id || 'fac-1'}"],
+  "faqs": [
+    {
+      "question": "سوال پرتکرار مشتری درباره خرید عمده؟",
+      "answer": "پاسخ دقیق و راهنمای خرید مستقیم از کارخانه."
+    }
+  ]
+}`;
+
+  const system = "You are a professional B2B Industrial Copywriter and SEO specialist. Always output strictly valid JSON matching the requested schema.";
+
+  const fallbackArticle = {
+    title: `راهنمای جامع خرید عمده و استعلام قیمت مستقیم ${selectedProduct.name}`,
+    slug: `wholesale-guide-${selectedProduct.id || 'product'}`,
+    summary: `بررسی سودآوری و نحوه خرید مستقیم ${selectedProduct.name} از مجموعه [[factory:${selectedFactory.id || 'fac-1'}|${selectedFactory.name}]] با ضمانت پرداخت امانی در سامانه دست اول.`,
+    content: `خرید مستقیم محصولات پرفروش مانند [[product:${selectedProduct.id || 'PRD-1001'}|${selectedProduct.name}]] مستقیماً از خط تولید [[factory:${selectedFactory.id || 'fac-1'}|${selectedFactory.name}]] این امکان را به بنکداران و فروشگاه‌ها می‌دهد که بالاترین حاشیه سود را کسب کنند.\n\n### مزایای استعلام مستقیم از درب کارخانه\n- حذف کامل واسطه‌ها و دریافت نرخ مصوب تناژ\n- صدور بارنامه رسمی و بیمه سلامت بار\n- امکان بررسی فرصت‌های حراج در [[billboard:تالار کف بازار]]\n\nبرای ثبت سفارش کارتنی، به بخش [[tab:order|سفارش آنلاین محصولات]] مراجعه فرمایید.`,
+    category: options.category || "راهنمای خرید عمده",
+    imageUrl: selectedProduct.image_url || "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000",
+    readTime: "۴ دقیقه",
+    tags: [selectedProduct.name, "خرید عمده", selectedFactory.name, "کف بازار"],
+    linkedProducts: [selectedProduct.id || "PRD-1001"],
+    linkedFactories: [selectedFactory.id || "fac-1"],
+    faqs: [
+      {
+        "question": `حداقل تیراژ خرید ${selectedProduct.name} چقدر است؟`,
+        "answer": "سفارش مستقیم با بارنامه اختصاصی معمولاً از ۵۰ کارتن به بالا امکان‌پذیر است."
+      }
+    ]
+  };
+
+  try {
+    const rawResult = await callAISafe(prompt, system, JSON.stringify(fallbackArticle));
+    let parsed: any;
+    try {
+      const cleaned = rawResult.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = fallbackArticle;
+    }
+
+    const todayShamsi = new Date().toLocaleDateString('fa-IR');
+    return {
+      id: `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: parsed.title || fallbackArticle.title,
+      slug: parsed.slug || fallbackArticle.slug,
+      summary: parsed.summary || fallbackArticle.summary,
+      content: parsed.content || fallbackArticle.content,
+      category: parsed.category || fallbackArticle.category,
+      imageUrl: parsed.imageUrl || fallbackArticle.imageUrl,
+      source: "تحریریه هوش مصنوعی دست‌اول (GapGPT)",
+      date: todayShamsi,
+      readTime: parsed.readTime || "۴ دقیقه",
+      tags: Array.isArray(parsed.tags) ? parsed.tags : fallbackArticle.tags,
+      linkedProducts: Array.isArray(parsed.linkedProducts) ? parsed.linkedProducts : [selectedProduct.id],
+      linkedFactories: Array.isArray(parsed.linkedFactories) ? parsed.linkedFactories : [selectedFactory.id],
+      isAiGenerated: true,
+      aiProvider: aiConfig.provider || "gapgpt",
+      faqs: Array.isArray(parsed.faqs) ? parsed.faqs : fallbackArticle.faqs
+    };
+  } catch (err) {
+    console.error("AI Generation error:", err);
+    return {
+      id: `art-${Date.now()}`,
+      ...fallbackArticle,
+      source: "تحریریه دست‌اول",
+      date: new Date().toLocaleDateString('fa-IR'),
+      isAiGenerated: true,
+      aiProvider: "gapgpt"
+    };
+  }
+}
+
+// Endpoint: Generate Single Article with GapGPT / Gemini
+app.post("/api/ai/generate-article", async (req, res) => {
+  try {
+    const { topicType, targetId, targetName, customPrompt, category } = req.body;
+    const article = await generateSingleArticleWithAI({ topicType, targetId, targetName, customPrompt, category });
+    
+    // Save into articles.json
+    const articles = loadArticles();
+    articles.unshift(article);
+    saveArticles(articles);
+
+    res.json({
+      success: true,
+      message: "مقاله سئو با هوش مصنوعی GapGPT و لینک‌های داخلی با موفقیت تولید و منتشر شد.",
+      article,
+      totalArticles: articles.length
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint: Generate Daily Batch of 3-4 Articles
+app.post("/api/ai/generate-daily-batch", async (req, res) => {
+  try {
+    const count = Math.min(Math.max(parseInt(req.body.count || "3", 10), 1), 5);
+    const topics: Array<{ type: any; category: string; prompt: string }> = [
+      { type: 'product', category: 'راهنمای خرید عمده', prompt: 'بررسی مقایسه‌ای و تحلیل حاشیه سود خرید عمده محصولات پرفروش' },
+      { type: 'factory', category: 'تحلیل خط تولید', prompt: 'گزارش ظرفیت تولید کارخانجات، استانداردهای بهداشتی و اعطای عاملیت فروش' },
+      { type: 'billboard', category: 'تحلیل کف بازار', prompt: 'تحلیل فرصت‌های سودآور حراج مازاد خطوط تولید در تالار کف بازار' },
+      { type: 'wholesale', category: 'تامین مواد اولیه', prompt: 'راهنمای بنکداری نوین، مدیریت سرمایه در گردش و خرید با چک صیادی' }
+    ];
+
+    const newArticles: any[] = [];
+    const articles = loadArticles();
+
+    for (let i = 0; i < count; i++) {
+      const t = topics[i % topics.length];
+      const generated = await generateSingleArticleWithAI({
+        topicType: t.type,
+        category: t.category,
+        customPrompt: t.prompt
+      });
+      newArticles.push(generated);
+      articles.unshift(generated);
+    }
+
+    saveArticles(articles);
+
+    res.json({
+      success: true,
+      message: `${count} مقاله تخصصی سئو با موفقیت با هوش مصنوعی GapGPT تولید و به مجله افزوده شد.`,
+      generatedCount: newArticles.length,
+      articles: newArticles,
+      totalCount: articles.length
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Background Auto-Scheduler: Checks daily to generate 3-4 articles
+let lastAutoGenerateDate = "";
+function checkAndAutoGenerateArticles() {
+  const today = new Date().toISOString().split("T")[0];
+  if (lastAutoGenerateDate === today) return;
+
+  const articles = loadArticles();
+  const todayShamsi = new Date().toLocaleDateString('fa-IR');
+  const todayArticles = articles.filter((a: any) => a.date === todayShamsi);
+
+  // If fewer than 3 articles exist for today, generate batch
+  if (todayArticles.length < 3) {
+    console.log(`[AI Magazine Scheduler] Generating daily 3-4 articles with GapGPT for ${today}...`);
+    lastAutoGenerateDate = today;
+    
+    (async () => {
+      try {
+        const batchTopics: Array<{ type: any; category: string; prompt: string }> = [
+          { type: 'product', category: 'راهنمای خرید عمده', prompt: 'راهنمای خرید مستقیم و استعلام قیمت روز از خطوط تولید' },
+          { type: 'factory', category: 'تحلیل خط تولید', prompt: 'معرفی کارخانجات برتر صنایع غذایی و شرایط همکاری تجاری' },
+          { type: 'billboard', category: 'تحلیل کف بازار', prompt: 'فرصت‌های شگفت‌انگیز کف بازار و خرید زیر قیمت تولید' }
+        ];
+
+        for (const t of batchTopics) {
+          const art = await generateSingleArticleWithAI({ topicType: t.type, category: t.category, customPrompt: t.prompt });
+          const current = loadArticles();
+          current.unshift(art);
+          saveArticles(current);
+        }
+        console.log("[AI Magazine Scheduler] Daily articles auto-generated successfully.");
+      } catch (err) {
+        console.error("[AI Magazine Scheduler] Error generating daily articles:", err);
+      }
+    })();
+  }
+}
+
+// Trigger check every 6 hours
+setInterval(checkAndAutoGenerateArticles, 6 * 60 * 60 * 1000);
+setTimeout(checkAndAutoGenerateArticles, 10000); // Also check 10s after server startup
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

@@ -323,8 +323,8 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
         )}
 
         <div className="space-y-3">
-          {addresses.map(addr => (
-            <div key={addr.id} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-start gap-4">
+          {addresses.map((addr, aIdx) => (
+            <div key={`portal-addr-${addr.id || aIdx}-${aIdx}`} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-start gap-4">
               <div className="space-y-1 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -422,8 +422,8 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
                 onChange={(e) => handleSelectFactoryChange(e.target.value)}
                 className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-bold text-slate-700 outline-none cursor-pointer"
               >
-                {factoriesList.map((f: any) => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
+                {factoriesList.map((f: any, fIdx: number) => (
+                  <option key={`portal-fac-opt-${f.id || fIdx}-${fIdx}`} value={f.id}>{f.name}</option>
                 ))}
               </select>
             )}
@@ -700,11 +700,11 @@ export function SupportTicketSystem() {
         </div>
 
         <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
-          {tickets.map(tck => {
+          {tickets.map((tck, tIdx) => {
             const isActive = activeTicket?.id === tck.id;
             return (
               <div 
-                key={tck.id}
+                key={`portal-ticket-${tck.id || tIdx}-${tIdx}`}
                 onClick={() => { setActiveTicket(tck); setShowCreate(false); }}
                 className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-right space-y-2 ${
                   isActive 
@@ -878,9 +878,9 @@ export function SystemNotifications() {
       </div>
 
       <div className="space-y-4 max-w-4xl">
-        {notifications.map(ntf => (
+        {notifications.map((ntf, nIdx) => (
           <div 
-            key={ntf.id}
+            key={`portal-ntf-${ntf.id || nIdx}-${nIdx}`}
             className={`p-4 rounded-2xl border transition-all flex items-start gap-4 ${
               ntf.read 
                 ? 'bg-slate-50 border-slate-100' 

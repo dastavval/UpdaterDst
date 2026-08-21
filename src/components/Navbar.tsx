@@ -1280,7 +1280,7 @@ export default function Navbar({
                 ) : (
                   channelPosts.map((post, idx) => (
                     <div 
-                      key={post.id} 
+                      key={`channel-post-${post.id || idx}-${idx}`} 
                       className={`bg-white border p-5 shadow-2xs hover:shadow-xs transition-all space-y-3 relative overflow-hidden text-right ${
                         post.pinned
                           ? "border-amber-400 bg-amber-50/10 ring-2 ring-amber-400/20 rounded-3xl"
@@ -1395,11 +1395,11 @@ export default function Navbar({
                 {/* Right Column: Provinces List */}
                 <div className="w-1/3 bg-slate-50/50 border-l border-slate-100 overflow-y-auto p-3 space-y-1">
                   <div className="text-[10px] text-slate-400 font-black px-2 pb-2 uppercase tracking-wide">استان‌ها</div>
-                  {PROVINCE_CITIES_MAP.map((item) => {
+                  {PROVINCE_CITIES_MAP.map((item, pIdx) => {
                     const isSelected = activeProvince === item.province;
                     return (
                       <button
-                        key={item.province}
+                        key={`prov-opt-${item.province}-${pIdx}`}
                         onClick={() => setActiveProvince(item.province)}
                         className={`w-full text-right px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between ${
                           isSelected

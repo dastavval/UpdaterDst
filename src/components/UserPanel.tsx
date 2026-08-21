@@ -645,8 +645,8 @@ export default function UserPanel({
                   {payoutsHistory.length === 0 ? (
                     <p className="text-xs text-slate-400 font-bold py-2">هنوز درخواست تسویه‌ای ثبت نشده است.</p>
                   ) : (
-                    payoutsHistory.map((p: any) => (
-                      <div key={p.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl text-xs">
+                    payoutsHistory.map((p: any, pIdx: number) => (
+                      <div key={`payout-hist-${p.id || pIdx}-${pIdx}`} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl text-xs">
                         <div>
                           <span className="font-black text-slate-900">{toPersianNum(p.amount?.toLocaleString('fa-IR'))} تومان</span>
                           <span className="text-[10px] text-slate-400 font-bold block">{p.date} - شبا: {p.iban}</span>
@@ -842,8 +842,8 @@ export default function UserPanel({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {customerOrders.map((order) => (
-                    <div key={order.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                  {customerOrders.map((order, oIdx) => (
+                    <div key={`cust-order-${order.id || oIdx}-${oIdx}`} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                         <div>
                           <div className="flex items-center gap-2.5">
@@ -906,8 +906,8 @@ export default function UserPanel({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.slice(0, 6).map((p) => (
-                  <div key={p.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col justify-between gap-3">
+                {products.slice(0, 6).map((p, pIdx) => (
+                  <div key={`quick-order-p-${p.id || pIdx}-${pIdx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col justify-between gap-3">
                     <div className="space-y-1.5">
                       <span className="text-[10px] font-black text-slate-400">{p.brand}</span>
                       <h4 className="text-xs font-black text-slate-900 line-clamp-1">{p.name}</h4>

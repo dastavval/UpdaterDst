@@ -433,7 +433,7 @@ export default function App() {
     return () => window.removeEventListener("open-cart", handleOpenCart);
   }, []);
 
-  // Read URL query parameter for direct factory links
+  // Read URL query parameter for direct factory or article links
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -441,6 +441,10 @@ export default function App() {
       if (factoryParam) {
         setInitialFactoryIdParam(factoryParam);
         setActiveTab('factories');
+      }
+      const articleParam = params.get('article');
+      if (articleParam) {
+        setActiveTab('news');
       }
     }
   }, []);
@@ -464,6 +468,20 @@ export default function App() {
 
   const fetchArticles = async () => {
     try {
+      const res = await fetch("/api/articles");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          localStorage.setItem("dastavval_news_articles", JSON.stringify(data));
+          setArticles(data);
+          return;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("API articles fetch failed, trying Firestore:", apiErr);
+    }
+
+    try {
       const q = query(collection(db, "news"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
       let items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -481,7 +499,7 @@ export default function App() {
     if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           setArticles(parsed);
           return;
         }

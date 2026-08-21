@@ -10,6 +10,7 @@ import type { Product, User } from "../types";
 import { getDisplayImageUrl } from "../lib/image-utils";
 import ProductReviews from "./ProductReviews";
 import StarRating from "./StarRating";
+import { ExpandableText } from "./ExpandableText";
 import { HealthAppleLogo, HealthBadgesStrip, HealthCertModal } from "./HealthAppleBadge";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
@@ -372,9 +373,9 @@ export default function ProductDetailModal({
                       onRate={() => setActiveView('reviews')}
                     />
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium bg-white p-3 rounded-2xl border border-slate-50">
-                    {product.description}
-                  </p>
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-2xs">
+                    <ExpandableText text={product.description || ""} maxChars={120} scrollableIfLong={true} />
+                  </div>
                 </div>
 
                 {/* B2B Pricing Metrics Block */}
@@ -487,9 +488,9 @@ export default function ProductDetailModal({
 
                 {/* Progress Indicators */}
                 <div className="flex items-center gap-1.5">
-                  {[1, 2, 3, 4].map((s) => (
+                  {[1, 2, 3, 4].map((s, sIdx) => (
                     <div 
-                      key={`modal-step-indicator-${s}`}
+                      key={`modal-step-indicator-${s}-${sIdx}`}
                       className={`h-1.5 rounded-full transition-all duration-300 ${
                         s === step 
                           ? "w-6 bg-emerald-600" 
@@ -582,9 +583,9 @@ export default function ProductDetailModal({
                         { id: 'carton', label: "کارتن عمده" },
                         { id: 'pack', label: `پاکت (${product.unit})` },
                         { id: 'kg', label: "کیلوگرم (وزنی)" }
-                      ].map((u) => (
+                      ].map((u, uIdx) => (
                         <button
-                          key={u.id}
+                          key={`unit-chip-${u.id}-${uIdx}`}
                           onClick={() => setUnitType(u.id as any)}
                           className={`py-2 px-1 text-center rounded-xl text-[10px] font-black border transition-all cursor-pointer ${
                             unitType === u.id 
@@ -779,9 +780,9 @@ export default function ProductDetailModal({
                           { id: "road_truck", label: "کامیون تک/ده‌چرخ", desc: "ظرفیت ۱,۰۰۰ الی ۱,۵۰۰ کارتن" },
                           { id: "heavy_trailer", label: "تریلر چادری", desc: "ظرفیت ۲,۰۰۰ الی ۲,۵۰۰ کارتن" },
                           { id: "local_cargo", label: "ایسوزو/خاور مسقف", desc: "ظرفیت ۳۰۰ الی ۶۰۰ کارتن" }
-                        ].map((t) => (
+                        ].map((t, tIdx) => (
                           <div 
-                            key={t.id}
+                            key={`transport-type-${t.id}-${tIdx}`}
                             onClick={() => setTransportType(t.id)}
                             className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
                               transportType === t.id 

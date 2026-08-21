@@ -1021,9 +1021,45 @@ export default function WholesaleInvoiceView({
               </div>
 
               <div className="text-[8px] text-slate-600 space-y-0.5 pt-0.5">
-                <div>• نحوه تسویه: <span className="font-bold text-slate-800">تسویه نقدی پای بارنامه یا واریز به حساب امانی سامانه</span></div>
+                <div>• نحوه تسویه: <span className="font-bold text-slate-800">
+                  {order?.paymentMethod === 'cheque' 
+                    ? `تسویه ترکیبی چکی (${order?.settlementBreakdown?.cashPercent || 50}٪ نقد + ${order?.settlementBreakdown?.chequePercent || 50}٪ چک صیادی بنفش)`
+                    : "تسویه ۱۰۰٪ نقدی (پیش‌فاکتور)"}
+                </span></div>
                 <div>• ضمانت کیفیت: <span className="font-bold text-slate-800">تضمین ۱۰۰٪ اصالت و تاریخ تولید به روز</span></div>
               </div>
+
+              {/* Cheque & Mixed Settlement Details Box */}
+              {order?.paymentMethod === 'cheque' && (
+                <div className="mt-1.5 p-2 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-1 text-[8px]">
+                  <div className="flex justify-between items-center text-indigo-950 font-black border-b border-indigo-200/60 pb-0.5">
+                    <span>تفکیک پرداخت نقد و چک صیادی:</span>
+                    <span className="font-mono">{toPersianNum(order?.settlementBreakdown?.chequeDays || order?.chequeDetails?.days || 60)} روزه</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-800 font-bold">
+                    <span>۱. واریز نقدی الزامی ({toPersianNum(order?.settlementBreakdown?.cashPercent || 50)}٪):</span>
+                    <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.cashAmount || Math.round(grandTotal * 0.5)).toLocaleString())} تومان</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-900 font-bold">
+                    <span>۲. مبلغ چک صیادی ({toPersianNum(order?.settlementBreakdown?.chequePercent || 50)}٪):</span>
+                    <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.chequeAmount || Math.round(grandTotal * 0.5)).toLocaleString())} تومان</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 font-bold pt-0.5 border-t border-indigo-100 text-[7.5px]">
+                    <span>سررسید چک صیادی:</span>
+                    <span className="font-mono font-black text-slate-900">
+                      {order?.settlementBreakdown?.chequeDueDateLong || order?.chequeDetails?.dueDateLong || order?.chequeDetails?.dueDate || 'طبق قرارداد'}
+                    </span>
+                  </div>
+                  {(order?.chequeDetails?.sayadiNumber || order?.chequeDetails?.sayadNumber) && (
+                    <div className="flex justify-between text-slate-600 font-bold text-[7.5px]">
+                      <span>شناسه صیادی:</span>
+                      <span className="font-mono font-black text-slate-800" dir="ltr">
+                        {toPersianNum(order.chequeDetails?.sayadiNumber || order.chequeDetails?.sayadNumber || '')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Totals Summary */}

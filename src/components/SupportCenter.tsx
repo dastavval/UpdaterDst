@@ -370,7 +370,7 @@ export default function SupportCenter({ theme = 'light' }: { theme?: 'light' | '
             const isOpen = openFaqIndex === index;
             return (
               <div 
-                key={`sup-faq-item-${faq.id || index}-${index}`}
+                key={`sup-faq-item-${(faq as any).id || faq.question || index}-${index}`}
                 className="border border-slate-100 rounded-2xl overflow-hidden transition-all duration-350 bg-slate-50/50"
               >
                 <button

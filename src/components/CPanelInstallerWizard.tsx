@@ -136,13 +136,13 @@ export default function CPanelInstallerWizard({
 
             <div className="flex items-center gap-2">
               <a
-                href="./install.php"
+                href="./installer.php"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black rounded-xl border border-purple-400/40 flex items-center gap-1.5 shadow-md transition-all"
               >
                 <Sparkles size={15} />
-                <span>اجرای دستیار آنلاین install.php</span>
+                <span>دستیار امنیتی و بازسازی installer.php</span>
               </a>
               <button
                 onClick={onClose}

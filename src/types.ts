@@ -259,10 +259,27 @@ export interface Order {
   chequeDetails?: {
     bankName?: string;
     sayadNumber?: string;
+    sayadiNumber?: string;
     chequeNumber?: string;
     chequeDate?: string;
     months?: number;
+    days?: number;
     amount?: number;
+    dueDate?: string;
+    dueDateLong?: string;
+    chequeImageUrl?: string | null;
+  };
+  settlementBreakdown?: {
+    cashPercent?: number;
+    chequePercent?: number;
+    cashAmount?: number;
+    chequeAmount?: number;
+    chequeBaseAmount?: number;
+    chequeMarkupAmount?: number;
+    chequeDays?: number;
+    chequeMonths?: number;
+    chequeDueDate?: string | null;
+    chequeDueDateLong?: string | null;
   };
   chequeMonths?: number;
   discountBreakdown?: {

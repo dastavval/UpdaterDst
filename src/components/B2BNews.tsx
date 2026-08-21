@@ -3,10 +3,11 @@ import {
   FileText, Calendar, Share2, Award, ChevronLeft, ArrowRight, TrendingUp, 
   Sparkles, Building2, Zap, PhoneCall, CheckCircle2, ShieldCheck, 
   ArrowLeft, BadgePercent, Volume2, Newspaper, ShoppingBag, Landmark,
-  GraduationCap, HelpCircle, Lock, BookOpen, Compass
+  GraduationCap, HelpCircle, Lock, BookOpen, Compass, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { TermsAndRulesSection } from "./InfoSections";
+import { ArticleDetailModal } from "./ArticleDetailModal";
 
 interface NewsItem {
   id: string;
@@ -48,9 +49,28 @@ export default function B2BNews({
     }
   }, [initialSubTab]);
   const [completedLessons, setCompletedLessons] = useState<number[]>([0]);
-  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [selectedNews, setSelectedNews] = useState<any | null>(null);
   const [activeFactory, setActiveFactory] = useState<string>("all");
   const [newsFilter, setNewsFilter] = useState<string>("همه");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateAIArticles = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/articles/generate-daily-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error("Failed to generate AI articles:", e);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Merge dynamic articles with static NEWS_DATA, ensuring unique IDs
   const ALL_NEWS = Array.from(
@@ -349,7 +369,26 @@ export default function B2BNews({
             </h3>
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1">
+          <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-1">
+            <button
+              onClick={handleGenerateAIArticles}
+              disabled={isGenerating}
+              className="px-3.5 py-1.5 rounded-xl text-[10px] font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm flex items-center gap-1.5 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+              title="تولید خودکار ۳ الی ۴ مقاله تخصصی توسط GapGPT"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>در حال نگارش هوشمند...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={12} className="text-amber-300" />
+                  <span>تولید مقالات روزانه با AI</span>
+                </>
+              )}
+            </button>
+
             {["همه", "تنظیم بازار", "خط تولید", "توزیع", "گزارش مالی"].map((cat, idx) => (
               <button
                 key={`b2b-news-cat-${cat}-${idx}`}
@@ -555,87 +594,20 @@ export default function B2BNews({
         </div>
       )}
 
-      {/* --- DETAIL MODAL FOR NEWS --- */}
-      <AnimatePresence>
-        {selectedNews && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedNews(null)}
-              className="fixed inset-0 bg-slate-50/75 backdrop-blur-md z-[100]"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-x-4 bottom-4 top-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-full max-w-2xl bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 z-[110] shadow-2xl overflow-y-auto max-h-[90vh] text-right"
-              dir="rtl"
-            >
-              <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
-                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black px-3 py-1 rounded-full">
-                  {selectedNews.category}
-                </span>
-                <button 
-                  onClick={() => setSelectedNews(null)}
-                  className="flex items-center gap-1 text-xs font-black text-slate-400 hover bg-slate-50 hover px-3 py-1.5 rounded-xl transition-all"
-                >
-                  <ArrowRight size={14} />
-                  بازگشت
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="h-64 rounded-2xl overflow-hidden border border-slate-100 bg-slate-100">
-                  <img 
-                    src={selectedNews.imageUrl} 
-                    alt="" 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center text-xs text-slate-400 font-bold">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={12} />
-                    منتشر شده در: {selectedNews.date}
-                  </span>
-                  <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-lg">
-                    منبع خبر: {selectedNews.source}
-                  </span>
-                </div>
-
-                <h3 className="text-lg sm font-black text-slate-900 leading-tight">
-                  {selectedNews.title}
-                </h3>
-
-                <p className="text-xs sm text-slate-600 leading-relaxed font-bold bg-slate-50 p-4 rounded-2xl border-r-4 border-emerald-500">
-                  {selectedNews.summary}
-                </p>
-
-                <p className="text-xs sm text-slate-500 leading-loose text-justify font-medium pt-2">
-                  {selectedNews.content}
-                </p>
-              </div>
-
-              <div className="border-t border-slate-100 pt-6 mt-6 flex justify-between items-center">
-                <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl">
-                  <Award size={14} />
-                  تایید شده توسط کارگروه نظارت دست اول
-                </div>
-                <button 
-                  onClick={() => handleShare(selectedNews)}
-                  className="p-2.5 bg-slate-100 hover text-slate-500 hover rounded-full transition-all cursor-pointer"
-                  title="اشتراک‌گذاری"
-                >
-                  <Share2 size={16} />
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* --- DETAIL MODAL FOR NEWS & ARTICLES --- */}
+      <ArticleDetailModal
+        article={selectedNews}
+        onClose={() => setSelectedNews(null)}
+        factories={ALL_FACTORIES}
+        onOpenFactory={(facId) => {
+          setSelectedNews(null);
+          window.dispatchEvent(new CustomEvent("view-factory", { detail: { factoryId: facId } }));
+        }}
+        onSwitchTab={(tab) => {
+          setSelectedNews(null);
+          window.dispatchEvent(new CustomEvent("switch-tab", { detail: tab }));
+        }}
+      />
     </div>
   );
 }

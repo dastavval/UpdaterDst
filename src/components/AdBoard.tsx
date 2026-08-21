@@ -952,9 +952,9 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
               { value: "under_market", label: "📉 کف قیمت بازار", count: allOpportunities.filter(a => a.category === 'under_market').length },
               { value: "liquid", label: "🔥 حراج مازاد خط", count: allOpportunities.filter(a => a.category === 'liquid').length },
               { value: "direct_supply", label: "📦 تامین مستقیم کارخانه", count: allOpportunities.filter(a => a.category === 'direct_supply').length },
-            ].map((filter) => (
+            ].map((filter, fIdx) => (
               <button
-                key={filter.value}
+                key={`ad-filter-${filter.value}-${fIdx}`}
                 onClick={() => setActiveCategoryFilter(filter.value as any)}
                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 border ${
                   activeCategoryFilter === filter.value
@@ -1051,8 +1051,8 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
               </p>
             ) : (
               <div className="space-y-3">
-                {pendingAds.map((pAd) => (
-                  <div key={pAd.id} className="bg-white border border-amber-200 rounded-xl p-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
+                {pendingAds.map((pAd, pIdx) => (
+                  <div key={`pending-ad-row-${pAd.id || pIdx}-${pIdx}`} className="bg-white border border-amber-200 rounded-xl p-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
                     <div className="space-y-1 max-w-3xl">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-md">
@@ -1115,9 +1115,9 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            {products.filter(p => p.isKafBazaar).map(p => (
+            {products.filter(p => p.isKafBazaar).map((p, pIdx) => (
               <div 
-                key={`kafbazaar-prod-${p.id}`}
+                key={`kafbazaar-prod-${p.id || pIdx}-${pIdx}`}
                 onClick={() => onSelectProduct && onSelectProduct(p)}
                 className="bg-white border border-slate-200/90 rounded-3xl p-3.5 shadow-2xs hover:shadow-material-md hover:border-emerald-300 transition-all relative flex flex-col justify-between cursor-pointer group"
               >

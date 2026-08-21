@@ -707,9 +707,9 @@ export default function FactoryDedicatedPage({
                   { id: 'warehouse', label: 'انبار و بارگیری' },
                   { id: 'lab', label: 'آزمایشگاه کیفیت' },
                   { id: 'exterior', label: 'محوطه کارخانه' }
-                ].map((cat) => (
+                ].map((cat, cIdx) => (
                   <button
-                    key={cat.id}
+                    key={`gal-cat-filter-${cat.id}-${cIdx}`}
                     onClick={() => setSelectedGalleryCategory(cat.id)}
                     className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                       selectedGalleryCategory === cat.id
@@ -776,8 +776,8 @@ export default function FactoryDedicatedPage({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {factoryProducts.map((product) => (
-                    <div key={product.id} className="bg-white rounded-3xl p-4 border border-slate-200 flex gap-4 hover:border-emerald-300 transition-all shadow-sm">
+                  {factoryProducts.map((product, pIdx) => (
+                    <div key={`fact-prod-item-${product.id || pIdx}-${pIdx}`} className="bg-white rounded-3xl p-4 border border-slate-200 flex gap-4 hover:border-emerald-300 transition-all shadow-sm">
                       <div className="w-24 h-24 rounded-2xl bg-slate-50 border border-slate-100 p-1 shrink-0 overflow-hidden">
                         <img src={getDisplayImageUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover rounded-xl" />
                       </div>
@@ -939,8 +939,8 @@ export default function FactoryDedicatedPage({
 
               {/* Reviews List */}
               <div className="space-y-3">
-                {localReviews.map((rev) => (
-                  <div key={rev.id} className="bg-white rounded-3xl p-5 border border-slate-200 space-y-2 shadow-sm">
+                {localReviews.map((rev, rIdx) => (
+                  <div key={`fact-rev-item-${rev.id || rIdx}-${rIdx}`} className="bg-white rounded-3xl p-5 border border-slate-200 space-y-2 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-xs text-slate-900">{rev.userName}</span>
@@ -948,7 +948,7 @@ export default function FactoryDedicatedPage({
                       </div>
                       <div className="flex items-center gap-1 text-amber-400">
                         {[...Array(rev.rating)].map((_, i) => (
-                          <Star key={`fact-dedicated-review-star-${i}`} size={13} className="fill-amber-400" />
+                          <Star key={`fact-rev-${rev.id || rIdx}-star-${i}`} size={13} className="fill-amber-400" />
                         ))}
                       </div>
                     </div>
