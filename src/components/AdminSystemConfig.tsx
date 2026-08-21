@@ -364,12 +364,24 @@ export default function AdminSystemConfig({
   };
   
   // --- 8. FINANCIAL & COMMISSION SETTINGS ---
-  const [commissionRate, setCommissionRate] = useState<number>((b2bConfig as any).commissionRate || 5);
-  const [customerMarkupPercent, setCustomerMarkupPercent] = useState<number>((b2bConfig as any).customerMarkupPercent || 10);
-  const [consumerPriceFactor, setConsumerPriceFactor] = useState<number>((b2bConfig as any).consumerPriceFactor || 1.3);
-  const [marketerCommissionPercent, setMarketerCommissionPercent] = useState<number>((b2bConfig as any).marketerCommissionPercent || 5);
-  const [repRegionalProfitSharePercent, setRepRegionalProfitSharePercent] = useState<number>((b2bConfig as any).repRegionalProfitSharePercent || 50);
-  const [repFloorSalesThreshold, setRepFloorSalesThreshold] = useState<number>((b2bConfig as any).repFloorSalesThreshold || 300000000);
+  const [commissionRate, setCommissionRate] = useState<number>(10);
+  const [customerMarkupPercent, setCustomerMarkupPercent] = useState<number>(10);
+  const [consumerPriceFactor, setConsumerPriceFactor] = useState<number>(1.3);
+  const [marketerCommissionPercent, setMarketerCommissionPercent] = useState<number>(5);
+  const [repRegionalProfitSharePercent, setRepRegionalProfitSharePercent] = useState<number>(50);
+  const [repFloorSalesThreshold, setRepFloorSalesThreshold] = useState<number>(300000000);
+
+  // Sync state with b2bConfig props
+  useEffect(() => {
+    if (b2bConfig) {
+      setCommissionRate((b2bConfig as any).commissionRate || 10);
+      setCustomerMarkupPercent((b2bConfig as any).customerMarkupPercent || 10);
+      setConsumerPriceFactor((b2bConfig as any).consumerPriceFactor || 1.3);
+      setMarketerCommissionPercent((b2bConfig as any).marketerCommissionPercent || 5);
+      setRepRegionalProfitSharePercent((b2bConfig as any).repRegionalProfitSharePercent || 50);
+      setRepFloorSalesThreshold((b2bConfig as any).repFloorSalesThreshold || 300000000);
+    }
+  }, [b2bConfig]);
 
   const fetchBackups = async () => {
     setIsFetchingBackups(true);
@@ -2196,7 +2208,7 @@ export default function AdminSystemConfig({
 
                     <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                       <div className="flex justify-between items-center">
-                        <label className="text-[11px] font-black text-slate-700">درصد حاشیه سود بنکداری در نمایش کاتالوگ:</label>
+                        <label className="text-[11px] font-black text-slate-700">درصد حاشیه سود خریدار (مارک‌آپ مشتری):</label>
                         <span className="text-xs font-black text-indigo-600">{toPersianNum(customerMarkupPercent)}٪</span>
                       </div>
                       <input
@@ -2208,7 +2220,7 @@ export default function AdminSystemConfig({
                         onChange={(e) => setCustomerMarkupPercent(Number(e.target.value))}
                         className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
                       />
-                      <p className="text-[9px] text-slate-400 font-bold leading-relaxed">این عدد صرفاً جهت نمایش "سود تخمینی شما" در نمای کاتالوگ و جلب رضایت مشتریان استفاده می‌شود.</p>
+                      <p className="text-[9px] text-slate-400 font-bold leading-relaxed">این عدد مابه‌التفاوت قیمت نماینده و قیمت مشتری عادی را تعیین می‌کند. قیمت مشتری = قیمت نماینده + این درصد.</p>
                     </div>
                   </div>
                 </div>

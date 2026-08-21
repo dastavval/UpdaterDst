@@ -266,65 +266,71 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         const existingIdx = currentProductsCopy.findIndex(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
 
         // Price Mapping:
-        // factoryPrice / wholesalePrice = قیمت خرید دست اول از کارخانه (مثلاً 750,000 تومان)
-        // sellPrice / marketPrice = قیمت فروش عمده دست اول به خریدار (مثلاً 780,000 تومان)
-        // consumerPrice = قیمت درج‌شده روی جلد مصرف‌کننده (مثلاً 1,000,000 تومان)
-        const factoryBuyPrice = Number(incItem.factoryPrice || incItem.wholesalePrice || incItem.price || 0);
-        const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
-        const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || 0);
+        // factoryBuyPrice = قیمت خرید اولیه از کارخانه (مبنای محاسبات داخلی)
+        // dastAvvalSellPrice = قیمت کاتالوگ / نرخ کف نمایندگی (bulk_price)
+        // consumerRetailPrice = قیمت درج شده روی کالا برای مصرف‌کننده
+        const factoryBuyPrice = Number(incItem.factoryPrice || incItem.factory_price || incItem.buy_price || incItem.wholesalePrice || incItem.price || 0);
+        const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || incItem.base_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
+        const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || incItem.market_price || 0);
 
-        const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image;
+        const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image || incItem.pic || incItem.photo || incItem.picture || incItem.thumb || incItem.thumbnail || incItem.src;
         const processedImage = getDisplayImageUrl(rawImageUrl);
 
-        const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || 1);
-        const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || 10);
-        const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || 1) || 1;
+        const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || incItem.pack_size || 1);
+        const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || incItem.inventory || 10);
+        const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || incItem.moq || 1) || 1;
         const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
-        const brandName = incItem.location || incItem.factoryName || incItem.brand || "انبار دست اول";
+        const brandName = incItem.location || incItem.factoryName || incItem.factory_name || incItem.brand || incItem.manufacturer || "انبار دست اول";
+
+        // Calculate marked-up price for customers (default 10% more than bulk_price)
+        const customerMarkup = b2bConfig?.customerMarkupPercent || 10;
+        const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
 
         if (existingIdx >= 0) {
           // Update existing product
           currentProductsCopy[existingIdx] = {
             ...currentProductsCopy[existingIdx],
-            name: incItem.name || currentProductsCopy[existingIdx].name,
-            price: factoryBuyPrice || currentProductsCopy[existingIdx].price,
+            name: incItem.name || incItem.title || currentProductsCopy[existingIdx].name,
+            price: customerPrice || currentProductsCopy[existingIdx].price,
             bulk_price: dastAvvalSellPrice || currentProductsCopy[existingIdx].bulk_price,
             consumer_price: consumerRetailPrice || currentProductsCopy[existingIdx].consumer_price,
+            purchase_price: factoryBuyPrice || currentProductsCopy[existingIdx].purchase_price,
             carton_pack_count: itemsPerCarton || currentProductsCopy[existingIdx].carton_pack_count,
             stock_quantity_cartons: stockCartons,
             min_order_cartons: minOrderCartons,
             min_stock_alert: safetyThreshold,
-            unit: incItem.unit || currentProductsCopy[existingIdx].unit || "عدد",
+            unit: incItem.unit || incItem.measure || currentProductsCopy[existingIdx].unit || "عدد",
             image_url: processedImage || currentProductsCopy[existingIdx].image_url,
-            category: incItem.category || currentProductsCopy[existingIdx].category,
+            category: incItem.category || incItem.group || incItem.cat || currentProductsCopy[existingIdx].category,
             brand: brandName || currentProductsCopy[existingIdx].brand,
             sellerName: brandName || currentProductsCopy[existingIdx].sellerName,
-            description: incItem.description || currentProductsCopy[existingIdx].description,
+            description: incItem.description || incItem.info || incItem.body || currentProductsCopy[existingIdx].description,
             updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
           };
           updatedCount++;
-          logs.push(`✅ بروزرسانی قیمت و مشخصات [${sku}]: ${incItem.name}`);
+          logs.push(`✅ بروزرسانی [${sku}]: ${incItem.name || 'کالا'} | نرخ کف: ${dastAvvalSellPrice.toLocaleString()} | نرخ مشتری: ${customerPrice.toLocaleString()}`);
         } else {
           // Add new product
           const newProd: Product = {
             id: sku,
             sku: sku,
-            name: incItem.name || "محصول جدید کاتالوگ",
+            name: incItem.name || incItem.title || "محصول جدید کاتالوگ",
             brand: brandName,
-            category: incItem.category || "صنایع عمومی",
-            price: factoryBuyPrice || 750000,
-            bulk_price: dastAvvalSellPrice || 780000,
-            consumer_price: consumerRetailPrice || 1000000,
+            category: incItem.category || incItem.group || "صنایع عمومی",
+            price: customerPrice || 1100000,
+            bulk_price: dastAvvalSellPrice || 1000000,
+            consumer_price: consumerRetailPrice || 1300000,
+            purchase_price: factoryBuyPrice,
             carton_pack_count: itemsPerCarton,
             min_order_cartons: minOrderCartons,
             stock_quantity_cartons: stockCartons,
             min_stock_alert: safetyThreshold,
-            unit: incItem.unit || "عدد",
-            sellerId: "factory-android",
+            unit: incItem.unit || incItem.measure || "عدد",
+            sellerId: "factory-json",
             sellerName: brandName,
             production_lead_time_days: 1,
             image_url: processedImage,
-            description: incItem.description || "واردشده مستقیم از لینک JSON باکت پارس‌پک",
+            description: incItem.description || incItem.info || "واردشده مستقیم از لینک JSON باکت پارس‌پک",
             updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
           };
           currentProductsCopy.unshift(newProd);
@@ -498,65 +504,70 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
       const currentProductsCopy = [...products];
 
       incomingProducts.forEach((incItem: any, idx: number) => {
-        const sku = incItem.sku || String(incItem.id) || `PRD-${idx + 1}`;
+        const sku = incItem.sku || incItem.code || incItem.productCode || String(incItem.id) || `PRD-${idx + 1}`;
         const existingIdx = currentProductsCopy.findIndex(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
 
-        const factoryBuyPrice = Number(incItem.factoryPrice || incItem.wholesalePrice || incItem.price || 0);
-        const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
-        const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || 0);
+        const factoryBuyPrice = Number(incItem.factoryPrice || incItem.factory_price || incItem.buy_price || incItem.purchase_price || incItem.wholesalePrice || incItem.price || 0);
+        const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || incItem.base_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
+        const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || incItem.market_price || 0);
 
-        const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image;
+        const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image || incItem.pic || incItem.photo || incItem.picture || incItem.thumb || incItem.thumbnail || incItem.src;
         const processedImage = getDisplayImageUrl(rawImageUrl);
 
-        const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || 1);
-        const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || 10);
-        const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || 1) || 1;
+        const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || incItem.pack_size || 1);
+        const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || incItem.inventory || 10);
+        const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || incItem.moq || 1) || 1;
         const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
-        const brandName = incItem.location || incItem.factoryName || incItem.brand || "انبار دست اول";
+        const brandName = incItem.location || incItem.factoryName || incItem.factory_name || incItem.brand || incItem.manufacturer || "انبار دست اول";
+
+        const customerMarkup = b2bConfig?.customerMarkupPercent || 10;
+        const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
 
         if (existingIdx >= 0) {
           // Update existing
           currentProductsCopy[existingIdx] = {
             ...currentProductsCopy[existingIdx],
-            name: incItem.name || currentProductsCopy[existingIdx].name,
-            price: factoryBuyPrice || currentProductsCopy[existingIdx].price,
+            name: incItem.name || incItem.title || currentProductsCopy[existingIdx].name,
+            price: customerPrice || currentProductsCopy[existingIdx].price,
             bulk_price: dastAvvalSellPrice || currentProductsCopy[existingIdx].bulk_price,
             consumer_price: consumerRetailPrice || currentProductsCopy[existingIdx].consumer_price,
+            purchase_price: factoryBuyPrice || currentProductsCopy[existingIdx].purchase_price,
             carton_pack_count: itemsPerCarton || currentProductsCopy[existingIdx].carton_pack_count,
             stock_quantity_cartons: stockCartons,
             min_order_cartons: minOrderCartons,
             min_stock_alert: safetyThreshold,
-            unit: incItem.unit || currentProductsCopy[existingIdx].unit || "عدد",
+            unit: incItem.unit || incItem.measure || currentProductsCopy[existingIdx].unit || "عدد",
             image_url: processedImage || currentProductsCopy[existingIdx].image_url,
-            category: incItem.category || currentProductsCopy[existingIdx].category,
+            category: incItem.category || incItem.group || incItem.cat || currentProductsCopy[existingIdx].category,
             brand: brandName || currentProductsCopy[existingIdx].brand,
             sellerName: brandName || currentProductsCopy[existingIdx].sellerName,
-            description: incItem.description || currentProductsCopy[existingIdx].description,
+            description: incItem.description || incItem.info || incItem.body || currentProductsCopy[existingIdx].description,
             updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
           };
           updatedCount++;
-          logs.push(`✅ بروزرسانی محصول [${sku}]: ${incItem.name}`);
+          logs.push(`✅ بروزرسانی [${sku}]: ${incItem.name || 'کالا'}`);
         } else {
           // Add new
           const newProd: Product = {
             id: sku,
             sku: sku,
-            name: incItem.name || "محصول جدید اندروید",
+            name: incItem.name || incItem.title || "محصول جدید اندروید",
             brand: brandName,
-            category: incItem.category || "صنایع عمومی",
-            price: factoryBuyPrice || 750000,
-            bulk_price: dastAvvalSellPrice || 780000,
-            consumer_price: consumerRetailPrice || 1000000,
+            category: incItem.category || incItem.group || "صنایع عمومی",
+            price: customerPrice || 1100000,
+            bulk_price: dastAvvalSellPrice || 1000000,
+            consumer_price: consumerRetailPrice || 1300000,
+            purchase_price: factoryBuyPrice,
             carton_pack_count: itemsPerCarton,
             min_order_cartons: minOrderCartons,
             stock_quantity_cartons: stockCartons,
             min_stock_alert: safetyThreshold,
-            unit: incItem.unit || "عدد",
+            unit: incItem.unit || incItem.measure || "عدد",
             sellerId: "factory-android",
             sellerName: brandName,
             production_lead_time_days: 1,
             image_url: processedImage,
-            description: incItem.description || "واردشده از اپلیکیشن اندروید کاتالوگ‌ساز",
+            description: incItem.description || incItem.info || "واردشده از اپلیکیشن اندروید کاتالوگ‌ساز",
             updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
           };
           currentProductsCopy.unshift(newProd);
@@ -588,28 +599,33 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
     const currentProductsCopy = mode === 'replace' ? [] : [...products];
     
     newItems.forEach((incItem: any, idx: number) => {
-      const sku = incItem.sku || String(incItem.id) || `PRD-${idx + 1}`;
+      const sku = incItem.sku || incItem.code || incItem.productCode || String(incItem.id) || `PRD-${idx + 1}`;
       const existingIdx = currentProductsCopy.findIndex(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
       
-      const processedImage = getDisplayImageUrl(incItem.imageUrl);
+      const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image || incItem.pic || incItem.photo || incItem.picture || incItem.thumb || incItem.thumbnail || incItem.src;
+      const processedImage = getDisplayImageUrl(rawImageUrl || incItem.imageUrl);
       
+      const dastAvvalSellPrice = incItem.sellPrice || incItem.bulk_price || incItem.base_price || incItem.wholesalePrice || incItem.factoryPrice || 780000;
+      const customerMarkup = b2bConfig?.customerMarkupPercent || 10;
+      const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
+
       if (existingIdx >= 0) {
         currentProductsCopy[existingIdx] = {
           ...currentProductsCopy[existingIdx],
-          name: incItem.name || currentProductsCopy[existingIdx].name,
-          price: incItem.factoryPrice || currentProductsCopy[existingIdx].price,
-          bulk_price: incItem.sellPrice || currentProductsCopy[existingIdx].bulk_price,
-          consumer_price: incItem.consumerPrice || currentProductsCopy[existingIdx].consumer_price,
-          carton_pack_count: incItem.cartonPackCount || currentProductsCopy[existingIdx].carton_pack_count,
-          stock_quantity_cartons: incItem.stockCartons,
-          min_order_cartons: incItem.minOrderCartons,
-          min_stock_alert: incItem.minStockAlert,
-          unit: incItem.unit || currentProductsCopy[existingIdx].unit || "عدد",
+          name: incItem.name || incItem.title || currentProductsCopy[existingIdx].name,
+          price: customerPrice || currentProductsCopy[existingIdx].price,
+          bulk_price: dastAvvalSellPrice || currentProductsCopy[existingIdx].bulk_price,
+          consumer_price: incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || incItem.market_price || currentProductsCopy[existingIdx].consumer_price,
+          carton_pack_count: incItem.cartonPackCount || incItem.pack_count || incItem.pack_size || currentProductsCopy[existingIdx].carton_pack_count,
+          stock_quantity_cartons: incItem.stockCartons || incItem.inventory || 10,
+          min_order_cartons: incItem.minOrderCartons || incItem.moq || 1,
+          min_stock_alert: incItem.minStockAlert || 5,
+          unit: incItem.unit || incItem.measure || currentProductsCopy[existingIdx].unit || "عدد",
           image_url: processedImage || currentProductsCopy[existingIdx].image_url,
-          category: incItem.category || currentProductsCopy[existingIdx].category,
-          brand: incItem.brand || currentProductsCopy[existingIdx].brand,
-          sellerName: incItem.brand || currentProductsCopy[existingIdx].sellerName,
-          description: incItem.description || currentProductsCopy[existingIdx].description,
+          category: incItem.category || incItem.group || incItem.cat || currentProductsCopy[existingIdx].category,
+          brand: incItem.brand || incItem.manufacturer || currentProductsCopy[existingIdx].brand,
+          sellerName: incItem.brand || incItem.manufacturer || currentProductsCopy[existingIdx].sellerName,
+          description: incItem.description || incItem.info || incItem.body || currentProductsCopy[existingIdx].description,
           updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
         };
         updatedCount++;
@@ -617,22 +633,22 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         const newProd: Product = {
           id: String(sku),
           sku: sku,
-          name: incItem.name || "محصول کاتالوگ",
-          brand: incItem.brand || "انبار دست اول",
-          category: incItem.category || "محصولات غذایی",
-          price: incItem.factoryPrice || 750000,
-          bulk_price: incItem.sellPrice || 780000,
-          consumer_price: incItem.consumerPrice || 1000000,
-          carton_pack_count: incItem.cartonPackCount || 1,
-          min_order_cartons: incItem.minOrderCartons || 1,
-          stock_quantity_cartons: incItem.stockCartons || 10,
+          name: incItem.name || incItem.title || "محصول کاتالوگ",
+          brand: incItem.brand || incItem.manufacturer || "انبار دست اول",
+          category: incItem.category || incItem.group || "محصولات غذایی",
+          price: customerPrice || 1100000,
+          bulk_price: dastAvvalSellPrice || 1000000,
+          consumer_price: incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || 1300000,
+          carton_pack_count: incItem.cartonPackCount || incItem.pack_count || 1,
+          min_order_cartons: incItem.minOrderCartons || incItem.moq || 1,
+          stock_quantity_cartons: incItem.stockCartons || incItem.inventory || 10,
           min_stock_alert: incItem.minStockAlert || 5,
-          unit: incItem.unit || "عدد",
+          unit: incItem.unit || incItem.measure || "عدد",
           sellerId: "factory-json",
           sellerName: incItem.brand || "انبار دست اول",
           production_lead_time_days: 1,
           image_url: processedImage,
-          description: incItem.description || "واردشده از موتور هوشمند کاتالوگ‌ساز",
+          description: incItem.description || incItem.info || "واردشده از موتور هوشمند کاتالوگ‌ساز",
           updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
         };
         currentProductsCopy.unshift(newProd);

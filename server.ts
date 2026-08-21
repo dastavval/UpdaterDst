@@ -1095,6 +1095,12 @@ app.get("/api/proxy-image", async (req, res) => {
   }
 
   let targetUrl = String(imageUrl).trim();
+  
+  // Handle protocol-relative URLs
+  if (targetUrl.startsWith("//")) {
+    targetUrl = "http:" + targetUrl;
+  }
+
   // Force HTTP for parspack.net bucket domains to bypass SSL port 443 timeout
   if (targetUrl.includes(".parspack.net") && targetUrl.startsWith("https://")) {
     targetUrl = targetUrl.replace("https://", "http://");
@@ -1104,9 +1110,15 @@ app.get("/api/proxy-image", async (req, res) => {
   }
 
   try {
-    const response = await smartFetchWithDnsBypass(targetUrl);
+    const fs = await import("fs");
+    fs.appendFileSync("proxy_debug.log", `[${new Date().toISOString()}] Image Proxy Request: ${targetUrl}\n`);
+    
+    const response = await smartFetchWithDnsBypass(targetUrl, {
+      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+    });
 
     if (!response.ok) {
+      fs.appendFileSync("proxy_debug.log", `[${new Date().toISOString()}] Image Proxy Failed: Status ${response.status} ${response.statusText} for ${targetUrl}\n`);
       return res.status(response.status).send(`Failed to fetch target image: ${response.statusText}`);
     }
 

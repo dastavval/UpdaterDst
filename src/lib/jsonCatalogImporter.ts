@@ -3,6 +3,8 @@
  * موتور پیشرفته و ۵ لایه دریافت و استخراج هوشمند فایل‌های JSON کاتالوگ محصولات
  */
 
+import { getDisplayImageUrl } from "./image-utils";
+
 export interface ParsedProductItem {
   id?: string | number;
   sku?: string;
@@ -260,8 +262,8 @@ export function extractProductsFromRawData(rawData: any): any[] {
 
   // ۲. بررسی کلیدهای متداول اصلی
   const priorityKeys = [
-    'products', 'items', 'data', 'catalog', 'result',
-    'goods', 'rows', 'list', 'payload', 'records', 'inventory'
+    'products', 'items', 'data', 'catalog', 'result', 'results',
+    'goods', 'rows', 'list', 'payload', 'records', 'inventory', 'articles'
   ];
 
   for (const k of priorityKeys) {
@@ -328,20 +330,22 @@ export function extractProductsFromRawData(rawData: any): any[] {
  */
 export function normalizeProductItems(rawProducts: any[]): ParsedProductItem[] {
   return rawProducts.map((incItem, idx) => {
-    const factoryBuyPrice = Number(incItem.factoryPrice || incItem.wholesalePrice || incItem.price || 0);
-    const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
-    const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || 0);
+    const factoryBuyPrice = Number(incItem.factoryPrice || incItem.factory_price || incItem.buy_price || incItem.purchase_price || incItem.wholesalePrice || incItem.price || 0);
+    const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || incItem.base_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
+    const consumerRetailPrice = Number(incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || incItem.market_price || 0);
 
-    const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || 1);
-    const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || 10);
-    const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || 1) || 1;
+    const itemsPerCarton = Number(incItem.itemsPerUnit || incItem.carton_pack_count || incItem.pack_count || incItem.pack_size || 1);
+    const stockCartons = Number(incItem.stock !== undefined ? incItem.stock : incItem.stock_quantity_cartons || incItem.inventory || 10);
+    const minOrderCartons = Number(incItem.min_order_cartons || incItem.minOrder || incItem.moq || 1) || 1;
     const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
-    const brandName = incItem.location || incItem.factoryName || incItem.brand || "انبار دست اول";
+    const brandName = incItem.location || incItem.factoryName || incItem.factory_name || incItem.brand || incItem.manufacturer || "انبار دست اول";
+
+    const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image || incItem.pic || incItem.photo || incItem.picture || incItem.thumb || incItem.thumbnail || incItem.src;
 
     return {
-      id: incItem.id || `INC-${idx + 1}`,
-      sku: incItem.sku || String(incItem.id) || `PRD-${idx + 1}`,
-      name: incItem.name || incItem.title || `محصول ${idx + 1}`,
+      id: incItem.id || incItem._id || incItem.pk || `INC-${idx + 1}`,
+      sku: incItem.sku || incItem.code || incItem.productCode || String(incItem.id) || `PRD-${idx + 1}`,
+      name: incItem.name || incItem.title || incItem.subject || `محصول ${idx + 1}`,
       factoryPrice: factoryBuyPrice,
       sellPrice: dastAvvalSellPrice,
       consumerPrice: consumerRetailPrice,
@@ -349,11 +353,11 @@ export function normalizeProductItems(rawProducts: any[]): ParsedProductItem[] {
       stockCartons,
       minOrderCartons,
       minStockAlert: safetyThreshold,
-      unit: incItem.unit || "عدد",
-      imageUrl: incItem.imageUrl || incItem.image_url || incItem.image || "",
-      category: incItem.category || "محصولات غذایی",
+      unit: incItem.unit || incItem.measure || "عدد",
+      imageUrl: getDisplayImageUrl(rawImageUrl),
+      category: incItem.category || incItem.group || incItem.cat || "محصولات غذایی",
       brand: brandName,
-      description: incItem.description || "",
+      description: incItem.description || incItem.info || incItem.body || "",
       rawItem: incItem
     };
   });
