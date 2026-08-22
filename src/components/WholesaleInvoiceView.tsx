@@ -24,7 +24,7 @@ interface WholesaleInvoiceViewProps {
 
 const toPersianNum = (num: number | string | undefined | null) => {
   if (num === undefined || num === null || num === "") return "۰";
-  const stringVal = String(num);
+  const stringVal = typeof num === 'number' ? num.toLocaleString() : String(num);
   const persian: Record<string, string> = {
     "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴", "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹"
   };
@@ -404,7 +404,7 @@ export default function WholesaleInvoiceView({
 تعداد کل اقلام: ${toPersianNum(totalQuantity)} واحد
 هزینه باربری: ۰ تومان (پس‌کرایه به عهده خریدار در مقصد)
 ----------------------------------------
-مبلغ کل فاکتور: ${toPersianNum(grandTotal.toLocaleString())} تومان
+مبلغ کل فاکتور: ${toPersianNum(grandTotal)} تومان
 (${grandTotalInWords} تومان)`;
     
     navigator.clipboard.writeText(text);
@@ -833,7 +833,7 @@ export default function WholesaleInvoiceView({
                           {toPersianNum(packCount)} عدد
                         </td>
                         <td className="p-1.5 text-center font-mono font-black text-indigo-900 text-xs">
-                          {toPersianNum(totalUnits.toLocaleString('fa-IR'))} واحد
+                          {toPersianNum(totalUnits)} واحد
                         </td>
                       </tr>
                     );
@@ -851,7 +851,7 @@ export default function WholesaleInvoiceView({
                     </td>
                     <td className="p-1.5 text-center border-l border-slate-200 text-slate-400">-</td>
                     <td className="p-1.5 text-center font-mono font-black text-indigo-950 text-xs">
-                      {toPersianNum(items.reduce((s, it) => s + (Number(it.quantityCartons || 1) * Number(it.unitsPerCarton || 24)), 0).toLocaleString('fa-IR'))} واحد
+                      {toPersianNum(items.reduce((s, it) => s + (Number(it.quantityCartons || 1) * Number(it.unitsPerCarton || 24)), 0))} واحد
                     </td>
                   </tr>
                 )}
@@ -934,11 +934,11 @@ export default function WholesaleInvoiceView({
                           className="w-18 bg-slate-50 border border-slate-300 rounded px-1 text-[9px] font-mono text-center"
                         />
                       ) : (
-                        toPersianNum(item.pricePerCarton.toLocaleString())
+                        toPersianNum(item.pricePerCarton)
                       )}
                     </td>
                     <td className="p-1.5 text-left font-mono font-bold text-slate-900">
-                      {toPersianNum(item.netTotal.toLocaleString())}
+                      {toPersianNum(item.netTotal)}
                     </td>
                     {isEditing && (
                       <td className="p-1 text-center print:hidden">
@@ -964,7 +964,7 @@ export default function WholesaleInvoiceView({
                   </td>
                   <td className="p-1.5 text-center border-l border-slate-200 text-slate-400">-</td>
                   <td className="p-1.5 text-left font-mono font-black text-slate-950 text-[10px] sm:text-[10.5px]">
-                    {toPersianNum(grandTotal.toLocaleString())}
+                    {toPersianNum(grandTotal)}
                   </td>
                   {isEditing && <td className="print:hidden"></td>}
                 </tr>
@@ -1038,11 +1038,11 @@ export default function WholesaleInvoiceView({
                   </div>
                   <div className="flex justify-between text-emerald-800 font-bold">
                     <span>۱. واریز نقدی الزامی ({toPersianNum(order?.settlementBreakdown?.cashPercent || 50)}٪):</span>
-                    <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.cashAmount || Math.round(grandTotal * 0.5)).toLocaleString())} تومان</span>
+                    <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.cashAmount || Math.round(grandTotal * 0.5)))} تومان</span>
                   </div>
                   <div className="flex justify-between text-indigo-900 font-bold">
                     <span>۲. مبلغ چک صیادی ({toPersianNum(order?.settlementBreakdown?.chequePercent || 50)}٪):</span>
-                    <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.chequeAmount || Math.round(grandTotal * 0.5)).toLocaleString())} تومان</span>
+                    <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.chequeAmount || Math.round(grandTotal * 0.5)))} تومان</span>
                   </div>
                   <div className="flex justify-between text-slate-600 font-bold pt-0.5 border-t border-indigo-100 text-[7.5px]">
                     <span>سررسید چک صیادی:</span>
@@ -1072,34 +1072,34 @@ export default function WholesaleInvoiceView({
               <div className="space-y-1 text-slate-800 pt-0.5">
                 <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium">جمع کل ناخالص اقلام:</span>
-                  <span className="font-mono font-bold text-slate-800">{toPersianNum(totalGross.toLocaleString())} تومان</span>
+                  <span className="font-mono font-bold text-slate-800">{toPersianNum(totalGross)} تومان</span>
                 </div>
 
                 {tierDiscountInfo.amount > 0 && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-amber-700 font-bold">
                     <span>تخفیف پلکانی تیراژ ({toPersianNum(tierDiscountInfo.percent)}٪):</span>
-                    <span className="font-mono">-{toPersianNum(tierDiscountInfo.amount.toLocaleString())} تومان</span>
+                    <span className="font-mono">-{toPersianNum(tierDiscountInfo.amount)} تومان</span>
                   </div>
                 )}
 
                 {cashDiscountInfo.amount > 0 && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-emerald-700 font-bold">
                     <span>تخفیف تسویه نقدی ({toPersianNum(cashDiscountInfo.percent)}٪):</span>
-                    <span className="font-mono">-{toPersianNum(cashDiscountInfo.amount.toLocaleString())} تومان</span>
+                    <span className="font-mono">-{toPersianNum(cashDiscountInfo.amount)} تومان</span>
                   </div>
                 )}
 
                 {badgeDiscountAmount > 0 && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-purple-700 font-bold">
                     <span>تخفیف رتبه همکاری:</span>
-                    <span className="font-mono">-{toPersianNum(badgeDiscountAmount.toLocaleString())} تومان</span>
+                    <span className="font-mono">-{toPersianNum(badgeDiscountAmount)} تومان</span>
                   </div>
                 )}
 
                 {chequeMarkupAmount > 0 && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-indigo-700 font-bold">
                     <span>کارمزد تسویه چکی:</span>
-                    <span className="font-mono">+{toPersianNum(chequeMarkupAmount.toLocaleString())} تومان</span>
+                    <span className="font-mono">+{toPersianNum(chequeMarkupAmount)} تومان</span>
                   </div>
                 )}
 
@@ -1111,7 +1111,7 @@ export default function WholesaleInvoiceView({
                 <div className="flex justify-between items-center pt-1 text-[9.5px] sm:text-[10px] font-black bg-slate-50 p-1.5 border border-slate-200 a4-header-bg mt-1 rounded-lg">
                   <span>مبلغ خالص نهایی فاکتور:</span>
                   <span className="font-mono text-slate-900 font-black text-xs">
-                    {toPersianNum(grandTotal.toLocaleString())} تومان
+                    {toPersianNum(grandTotal)} تومان
                   </span>
                 </div>
 

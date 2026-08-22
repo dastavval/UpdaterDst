@@ -10,11 +10,12 @@ import {
 } from '../lib/jsonCatalogImporter';
 const toPersianNum = (num: number | string | undefined | null): string => {
   if (num === undefined || num === null) return "";
+  const stringVal = typeof num === 'number' ? num.toLocaleString() : String(num);
   const persianDigits: Record<string, string> = {
     "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴",
     "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹"
   };
-  return num.toString().replace(/[0-9]/g, (w) => persianDigits[w] || w);
+  return stringVal.replace(/[0-9]/g, (w) => persianDigits[w] || w);
 };
 
 interface SmartJsonCatalogModalProps {
@@ -457,8 +458,8 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                           <span className="font-bold text-slate-900">{p.name}</span>
                         </td>
                         <td className="p-3 text-slate-600">{p.category} • {p.brand}</td>
-                        <td className="p-3 font-mono font-bold text-slate-700">{toPersianNum(p.factoryPrice.toLocaleString())} تومان</td>
-                        <td className="p-3 font-mono font-bold text-emerald-700">{toPersianNum(p.sellPrice.toLocaleString())} تومان</td>
+                        <td className="p-3 font-mono font-bold text-slate-700">{toPersianNum(p.factoryPrice)} تومان</td>
+                        <td className="p-3 font-mono font-bold text-emerald-700">{toPersianNum(p.sellPrice)} تومان</td>
                         <td className="p-3 font-mono font-bold text-indigo-700">{toPersianNum(p.stockCartons)} کارتن</td>
                       </tr>
                     ))}

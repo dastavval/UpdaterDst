@@ -1011,6 +1011,78 @@ const handleProxyFetchRequest = async (req: express.Request, res: express.Respon
 app.post("/api/proxy-fetch", handleProxyFetchRequest);
 app.get("/api/proxy-fetch", handleProxyFetchRequest);
 
+// Endpoint to manually sync ParsPack catalog to local server storage
+app.post("/api/admin/sync-catalog", async (req, res) => {
+  const targetUrl = (req.body?.url as string) || "http://c102393.parspack.net/c102393/catalog.json";
+  try {
+    console.log(`[Manual Sync] Fetching catalog from: ${targetUrl}`);
+    const response = await fetch(targetUrl);
+    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    
+    const rawText = await response.text();
+    const cleanText = rawText.replace(/^\uFEFF/, '').trim();
+    const parsed = JSON.parse(cleanText);
+    
+    let productsList = [];
+    if (Array.isArray(parsed)) {
+      productsList = parsed;
+    } else if (parsed.products && Array.isArray(parsed.products)) {
+      productsList = parsed.products;
+    } else if (parsed.items && Array.isArray(parsed.items)) {
+      productsList = parsed.items;
+    }
+    
+    if (productsList.length > 0) {
+      // Map new field names and ensure unique IDs
+      const seenIds = new Set<string>();
+      const mappedProducts = productsList.map((p: any, idx: number) => {
+        let rawId = String(p.id || p.sku || "").trim();
+        let finalId = rawId || `prd-gen-${Date.now()}-${idx}`;
+        
+        // If ID is already seen, append index to make it unique
+        if (seenIds.has(finalId)) {
+          finalId = `${finalId}-${idx}`;
+        }
+        seenIds.add(finalId);
+
+        // Ensure image_url is proxied
+        let rawImageUrl = p.imageUrl || p.image_url || "";
+        let proxiedImageUrl = rawImageUrl;
+        if (rawImageUrl && !rawImageUrl.startsWith("/api/proxy-image")) {
+          proxiedImageUrl = `/api/proxy-image?url=${encodeURIComponent(rawImageUrl)}`;
+        }
+
+        return {
+          ...p,
+          id: finalId,
+          sku: String(p.sku || p.id || finalId),
+          name: p.name || "محصول بدون نام",
+          brand: p.brand || p.location || p.factory_name || "تولیدکننده",
+          price: Number(p.price || p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
+          bulk_price: Number(p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
+          consumer_price: Number(p.consumer_price || p.consumerPrice || 0),
+          purchase_price: Number(p.purchase_price || p.factoryPrice || 0),
+          carton_pack_count: Number(p.carton_pack_count || p.itemsPerUnit || 24),
+          min_order_cartons: Number(p.min_order_cartons || p.minOrderCartons || 1),
+          image_url: proxiedImageUrl,
+          // Keep new fields as well for compatibility
+          imageUrl: proxiedImageUrl,
+          wholesalePrice: Number(p.wholesalePrice || p.bulk_price || 0)
+        };
+      });
+
+      saveProducts(mappedProducts);
+      console.log(`[Manual Sync] Success: ${mappedProducts.length} products saved and mapped.`);
+      return res.json({ success: true, count: mappedProducts.length, message: "کاتالوگ با موفقیت همگام‌سازی، تبدیل و ذخیره شد." });
+    } else {
+      return res.status(400).json({ success: false, error: "ساختار فایل جیسون نامعتبر است یا محصولی یافت نشد." });
+    }
+  } catch (error: any) {
+    console.error("[Manual Sync] Error:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Comprehensive Network & Storage Diagnostics API
 app.get("/api/diagnostics/catalog-sync", async (req, res) => {
   const targetUrl = (req.query.url as string) || "http://c102393.parspack.net/c102393/catalog.json";
@@ -3407,6 +3479,73 @@ function checkAndAutoGenerateArticles() {
 // Trigger check every 6 hours
 setInterval(checkAndAutoGenerateArticles, 6 * 60 * 60 * 1000);
 setTimeout(checkAndAutoGenerateArticles, 10000); // Also check 10s after server startup
+
+// Background Auto-Sync: Periodic catalog synchronization from ParsPack
+async function autoSyncCatalog() {
+  const targetUrl = "http://c102393.parspack.net/c102393/catalog.json";
+  try {
+    console.log(`[Auto-Sync] Background sync starting for: ${targetUrl}`);
+    const response = await fetch(targetUrl);
+    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    
+    const rawText = await response.text();
+    const cleanText = rawText.replace(/^\uFEFF/, '').trim();
+    const parsed = JSON.parse(cleanText);
+    
+    let productsList = [];
+    if (Array.isArray(parsed)) {
+      productsList = parsed;
+    } else if (parsed.products && Array.isArray(parsed.products)) {
+      productsList = parsed.products;
+    }
+    
+    if (productsList.length > 0) {
+      // Map new field names and ensure unique IDs
+      const seenIds = new Set<string>();
+      const mappedProducts = productsList.map((p: any, idx: number) => {
+        let rawId = String(p.id || p.sku || "").trim();
+        let finalId = rawId || `prd-gen-${Date.now()}-${idx}`;
+        
+        // If ID is already seen, append index to make it unique
+        if (seenIds.has(finalId)) {
+          finalId = `${finalId}-${idx}`;
+        }
+        seenIds.add(finalId);
+
+        let rawImageUrl = p.imageUrl || p.image_url || "";
+        let proxiedImageUrl = rawImageUrl;
+        if (rawImageUrl && !rawImageUrl.startsWith("/api/proxy-image")) {
+          proxiedImageUrl = `/api/proxy-image?url=${encodeURIComponent(rawImageUrl)}`;
+        }
+
+        return {
+          ...p,
+          id: finalId,
+          sku: String(p.sku || p.id || finalId),
+          name: p.name || "محصول بدون نام",
+          brand: p.brand || p.location || p.factory_name || "تولیدکننده",
+          price: Number(p.price || p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
+          bulk_price: Number(p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
+          consumer_price: Number(p.consumer_price || p.consumerPrice || 0),
+          purchase_price: Number(p.purchase_price || p.factoryPrice || 0),
+          carton_pack_count: Number(p.carton_pack_count || p.itemsPerUnit || 24),
+          min_order_cartons: Number(p.min_order_cartons || p.minOrderCartons || 1),
+          image_url: proxiedImageUrl,
+          imageUrl: proxiedImageUrl
+        };
+      });
+
+      saveProducts(mappedProducts);
+      console.log(`[Auto-Sync] Success: ${mappedProducts.length} products updated and mapped.`);
+    }
+  } catch (error: any) {
+    console.error("[Auto-Sync] Failed:", error.message);
+  }
+}
+
+// Initial sync and periodic interval
+setTimeout(autoSyncCatalog, 5000); // Wait 5s after startup
+setInterval(autoSyncCatalog, 6 * 60 * 60 * 1000); // Every 6 hours
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

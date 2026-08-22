@@ -984,6 +984,7 @@ export default function App() {
 
   const fetchProducts = async () => {
     try {
+      setLoading(true);
       // First try to load from IndexedDB for instant display
       const cached = await getCachedProducts();
       if (cached && cached.length > 0) {
@@ -991,22 +992,57 @@ export default function App() {
         setLoading(false);
       }
 
+      // Try fetching from the data layer (which proxies to Firestore or local API)
       const q = query(collection(db, "products"));
       const querySnapshot = await getDocs(q);
-      const fetchedProducts = querySnapshot.docs.map(doc => ({
+      let fetchedProducts = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Product[];
       
-      setProducts(fetchedProducts);
-      
-      // Update cache in background
+      // CRITICAL FALLBACK & AUTO-SYNC: 
+      // If after all attempts we have no products, trigger a server-side sync automatically
+      if (fetchedProducts.length === 0) {
+        console.log("No products found anywhere. Triggering auto-sync...");
+        try {
+          const syncRes = await fetch("/api/admin/sync-catalog", { method: "POST" });
+          if (syncRes.ok) {
+            const syncJson = await syncRes.json();
+            if (syncJson.success) {
+              // Now fetch the newly synced products
+              const finalFetch = await fetch("/api/b2b/products");
+              if (finalFetch.ok) {
+                const finalJson = await finalFetch.json();
+                if (finalJson.success && finalJson.products) {
+                  fetchedProducts = finalJson.products;
+                }
+              }
+            }
+          }
+        } catch (syncErr) {
+          console.error("Auto-sync trigger failed:", syncErr);
+        }
+      }
+
       if (fetchedProducts.length > 0) {
+        setProducts(fetchedProducts);
+        // Update cache in background
         await cacheProducts(fetchedProducts);
       }
     } catch (error) {
-      console.error("Error fetching products from Firestore:", error);
-      // Fallback is handled by the initial cached state
+      console.error("Error fetching products:", error);
+      // Even on error, try to at least show something from the local API
+      try {
+        const response = await fetch("/api/b2b/products");
+        if (response.ok) {
+          const jsonRes = await response.json();
+          if (jsonRes.success && jsonRes.products) {
+            setProducts(jsonRes.products);
+          }
+        }
+      } catch (e) {
+        console.error("Total failure fetching products:", e);
+      }
     } finally {
       setLoading(false);
     }
@@ -1023,7 +1059,14 @@ export default function App() {
       const { clearLocalCache } = await import('./lib/data-layer');
       clearLocalCache();
       
-      // 2. Clear IndexedDB cache for products to force fresh fetch
+      // 2. Trigger server-side catalog sync from ParsPack
+      try {
+        await fetch("/api/admin/sync-catalog", { method: "POST" });
+      } catch (err) {
+        console.warn("Server-side sync issue:", err);
+      }
+      
+      // 3. Clear IndexedDB cache for products to force fresh fetch
       try {
         const { cacheProducts } = await import('./lib/db');
         await cacheProducts([]); // clear cache to force bypass

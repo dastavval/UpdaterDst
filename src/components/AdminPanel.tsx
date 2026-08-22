@@ -7797,9 +7797,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   هیچ کالایی یافت نشد.
                 </div>
               ) : (
-                products.map((p) => (
+                products.map((p, idx) => (
                   <div 
-                    key={`products-card-${p.id}`}
+                    key={`products-card-${p.id}-${idx}`}
                     className={`bg-white border rounded-3xl p-5 shadow-sm transition-all ${
                       selectedProductIds.includes(p.id) ? "border-emerald-500 bg-emerald-50/10" : "border-slate-100"
                     } ${p.disabled ? "opacity-60 grayscale" : ""}`}
@@ -7955,9 +7955,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       </td>
                     </tr>
                   ) : (
-                    products.map((p) => (
+                    products.map((p, idx) => (
                       <tr 
-                        key={`products-admin-${p.id}`} 
+                        key={`products-admin-${p.id}-${idx}`} 
                         className={`border-b border-slate-50 hover text-xs font-bold transition-colors ${
                           selectedProductIds.includes(p.id) ? "bg-blue-50/30" : ""
                         } ${p.disabled ? "opacity-60 bg-slate-50/50" : "text-slate-800"}`}

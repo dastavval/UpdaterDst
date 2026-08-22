@@ -239,16 +239,18 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
   };
 
   // Common Persian number formatter
-  const toPersianNum = (num: number | string) => {
+  const toPersianNum = (num: number | string | undefined | null) => {
     if (num === undefined || num === null) return "";
+    const s = String(num);
     const persian: Record<string, string> = {
       "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴", "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹"
     };
-    return num.toString().replace(/[0-9]/g, (w) => persian[w]);
+    return s.replace(/[0-9]/g, (w) => persian[w]);
   };
 
-  const formatPrice = (price: number) => {
-    return toPersianNum(price.toLocaleString()) + " ریال";
+  const formatPrice = (price: any) => {
+    if (price === undefined || price === null || isNaN(Number(price))) return "۰ ریال";
+    return toPersianNum(Number(price).toLocaleString()) + " ریال";
   };
 
   // ----------------------------------------------------
@@ -262,7 +264,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
     const ratio = stock / moq;
     
     // Proximity factor (determined deterministically by product ID to avoid random jumps)
-    const charCodeSum = p.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const charCodeSum = String(p.id || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const monthsRemaining = 4 + (charCodeSum % 10); // Between 4 to 13 months
     
     // Stagnancy Index calculation (1 to 10 scale)
@@ -642,7 +644,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
               {/* Stagnancy Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {stagnancyProducts.slice(0, 4).map(({ product, metrics }, stagIdx) => (
-                  <div key={`stag-prod-${product.id || 'p'}-${stagIdx}`} className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                  <div key={`stag-hub-prod-${product.id || 'p'}-${stagIdx}-${metrics.stagnancyIndex}`} className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:scale-150 transition-transform" />
                     
                     <div>
@@ -905,7 +907,7 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                         <div className="mt-3.5 space-y-2">
                           <span className="text-[9px] text-slate-400 font-black block">پیشنهادات دریافت شده نمایندگان کارخانجات:</span>
                           {t.bids.map((bid, bIdx) => (
-                            <div key={`tender-bid-${t.id || 'rfq'}-${bIdx}`} className="bg-white border border-slate-200 rounded-lg p-2 flex justify-between items-center text-[10px]">
+                            <div key={`tender-bid-log-${t.id || 'rfq'}-${bid.factory}-${bIdx}`} className="bg-white border border-slate-200 rounded-lg p-2 flex justify-between items-center text-[10px]">
                               <div>
                                 <span className="font-black text-slate-800 block">{bid.factory}</span>
                                 <span className="text-slate-400 font-bold text-[8px]">زمان تحویل: {bid.delay}</span>

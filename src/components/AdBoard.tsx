@@ -418,8 +418,8 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         badgeText: p.isLiquid ? "🔥 حراج مازاد خط تولید" : "📉 کف قیمت بازار",
         category: (p.isLiquid ? "liquid" : "under_market") as any,
         quantity: `${p.stock_quantity_cartons || 500} کارتن`,
-        wholesalePrice: `${p.bulk_price?.toLocaleString()} تومان`,
-        marketPrice: `${(p.consumer_price || (p.bulk_price * 1.25))?.toLocaleString()} تومان`,
+        wholesalePrice: `${(p.bulk_price || 0).toLocaleString()} تومان`,
+        marketPrice: `${(p.consumer_price || (p.bulk_price * 1.25) || 0).toLocaleString()} تومان`,
         buyerProfit: `${Math.round((((p.consumer_price || (p.bulk_price * 1.25)) - p.bulk_price) / (p.consumer_price || (p.bulk_price * 1.25))) * 100)}٪ سود`,
         isSponsored: true,
         date: "۱۴۰۵/۰۵/۲۲",
@@ -1111,11 +1111,11 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     <div className="text-right">
                       {p.consumer_price ? (
                         <p className="text-[9px] text-slate-400 font-bold line-through">
-                          {p.consumer_price.toLocaleString()} تومان
+                          {(p.consumer_price || 0).toLocaleString()} تومان
                         </p>
                       ) : null}
                       <p className="text-xs font-black text-emerald-700">
-                        {p.bulk_price.toLocaleString()} <span className="text-[9px]">تومان</span>
+                        {(p.bulk_price || 0).toLocaleString()} <span className="text-[9px]">تومان</span>
                       </p>
                     </div>
                     <span className="text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-black border border-emerald-100">

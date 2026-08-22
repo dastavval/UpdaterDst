@@ -76,9 +76,9 @@ interface RepresentativeManagementPortalProps {
 
 const toPersianNum = (num: number | string | undefined | null) => {
   if (num === undefined || num === null || num === "") return "۰";
-  const s = String(num);
+  const s = typeof num === 'number' ? num.toLocaleString('fa-IR') : String(num);
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
-  return s.replace(/\d/g, (d) => persianDigits[parseInt(d, 10)]);
+  return s.replace(/\d/g, (d) => persianDigits[parseInt(d, 10)] || d);
 };
 
 export interface TierInfo {
@@ -451,7 +451,7 @@ export default function RepresentativeManagementPortal({
     saveRegionalLeads(updated);
     const newComms = addRepCommission(commission, `پورسانت انحصار منطقه از سفارش مستقیم ${lead.storeName}`, leadId);
     setRepCommissions(newComms);
-    setLeadActionFeedback(`سفارش جهت ارسال مستقیم به خط تولید کارخانه ارجاع شد. مبلغ ${toPersianNum(commission.toLocaleString('fa-IR'))} تومان پورسانت انحصار به حساب شما واریز گردید.`);
+    setLeadActionFeedback(`سفارش جهت ارسال مستقیم به خط تولید کارخانه ارجاع شد. مبلغ ${toPersianNum(commission)} تومان پورسانت انحصار به حساب شما واریز گردید.`);
     setTimeout(() => setLeadActionFeedback(null), 4500);
   };
 
@@ -683,7 +683,7 @@ export default function RepresentativeManagementPortal({
                   <span>خرید نقدی مستقیم از کارخانجات (در هر ماه):</span>
                 </span>
                 <span className="font-mono font-black text-amber-700">
-                  {toPersianNum(simulatedSales.toLocaleString('fa-IR'))} / ۳۰۰,۰۰۰,۰۰۰ تومان
+                  {toPersianNum(simulatedSales)} / ۳۰۰,۰۰۰,۰۰۰ تومان
                 </span>
               </div>
               <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -812,7 +812,7 @@ export default function RepresentativeManagementPortal({
               </span>
             </div>
             <div className="text-base sm:text-xl font-black text-slate-900 font-mono">
-              {toPersianNum(simulatedSales.toLocaleString('fa-IR'))} <span className="text-xs font-normal text-slate-500">تومان</span>
+              {toPersianNum(simulatedSales)} <span className="text-xs font-normal text-slate-500">تومان</span>
             </div>
             <div className="text-[10px] text-slate-500 font-medium">
               {isCashSalesTargetAchieved 
@@ -836,7 +836,7 @@ export default function RepresentativeManagementPortal({
               </span>
             </div>
             <div className="text-base sm:text-xl font-black text-emerald-800 font-mono">
-              {toPersianNum(netRepresentativeProfit.toLocaleString('fa-IR'))} <span className="text-xs font-normal text-slate-500">تومان</span>
+              {toPersianNum(netRepresentativeProfit)} <span className="text-xs font-normal text-slate-500">تومان</span>
             </div>
             <div className="text-[10px] text-emerald-700 font-bold">
               {isRepresentativeActive ? "تخفیف مستقیم اعمال‌شده در فاکتورها" : "پس از احراز ۳۰۰M خرید در هر ماه فعال می‌شود"}
@@ -926,7 +926,7 @@ export default function RepresentativeManagementPortal({
                     simulatedSales === realCashOrdersSum ? "bg-indigo-600 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
                   }`}
                 >
-                  فروش واقعی نقدی ({toPersianNum(realCashOrdersSum.toLocaleString('fa-IR'))} تومان)
+                  فروش واقعی نقدی ({toPersianNum(realCashOrdersSum)} تومان)
                 </button>
                 <button
                   type="button"
@@ -1227,7 +1227,7 @@ export default function RepresentativeManagementPortal({
             <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 text-left">
               <span className="text-[10px] text-purple-700 font-bold block">موجودی پورسانت انحصار قابل برداشت:</span>
               <div className="text-base font-mono font-black text-purple-950">
-                +{toPersianNum(repCommissions.totalCommission.toLocaleString('fa-IR'))} <span className="text-[10px] font-normal text-purple-700">تومان</span>
+                +{toPersianNum(repCommissions.totalCommission)} <span className="text-[10px] font-normal text-purple-700">تومان</span>
               </div>
             </div>
           </div>
@@ -1339,11 +1339,11 @@ export default function RepresentativeManagementPortal({
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px] block">ارزش کل فاکتور:</span>
-                      <strong className="text-indigo-700 font-mono font-black">{toPersianNum(lead.totalEstimatedAmount.toLocaleString('fa-IR'))} تومان</strong>
+                      <strong className="text-indigo-700 font-mono font-black">{toPersianNum(lead.totalEstimatedAmount)} تومان</strong>
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px] block">پورسانت انحصار شما (۲.۵٪):</span>
-                      <strong className="text-emerald-700 font-mono font-black">+{toPersianNum(overrideCommission.toLocaleString('fa-IR'))} تومان</strong>
+                      <strong className="text-emerald-700 font-mono font-black">+{toPersianNum(overrideCommission)} تومان</strong>
                     </div>
                   </div>
 
@@ -1371,7 +1371,7 @@ export default function RepresentativeManagementPortal({
                           title="ارسال از انبار خودم و دریافت سود کامل عاملیت"
                         >
                           <ShoppingBag size={14} />
-                          <span>تأمین از انبار من (+{toPersianNum(repProfitEstimate.toLocaleString('fa-IR'))} ت سود)</span>
+                          <span>تأمین از انبار من (+{toPersianNum(repProfitEstimate)} ت سود)</span>
                         </button>
 
                         {/* Option 2: Factory Fulfills with Commission */}
@@ -1382,7 +1382,7 @@ export default function RepresentativeManagementPortal({
                           title="ارجاع به خط تولید کارخانه و دریافت فوری ۲.۵٪ پورسانت انحصار منطقه"
                         >
                           <Truck size={14} />
-                          <span>ارسال مستقیم کارخانه (+{toPersianNum(overrideCommission.toLocaleString('fa-IR'))} ت پورسانت)</span>
+                          <span>ارسال مستقیم کارخانه (+{toPersianNum(overrideCommission)} ت پورسانت)</span>
                         </button>
                       </div>
                     )}
@@ -1401,7 +1401,7 @@ export default function RepresentativeManagementPortal({
 
             <button
               type="button"
-              onClick={() => alert(`درخواست تسویه حساب به مبلغ ${toPersianNum(repCommissions.totalCommission.toLocaleString('fa-IR'))} تومان به واحد مالی کارخانجات ارسال شد و تا ۲۴ ساعت آینده به شبای شما واریز خواهد گردید.`)}
+              onClick={() => alert(`درخواست تسویه حساب به مبلغ ${toPersianNum(repCommissions.totalCommission)} تومان به واحد مالی کارخانجات ارسال شد و تا ۲۴ ساعت آینده به شبای شما واریز خواهد گردید.`)}
               className="px-4 py-2 bg-indigo-600 hover:bg-black text-white font-black rounded-xl transition-all cursor-pointer shadow-xs shrink-0"
             >
               درخواست تسویه پورسانت به حساب بانکی
@@ -1520,7 +1520,7 @@ export default function RepresentativeManagementPortal({
                       <span className="text-[9px] font-black text-indigo-700 block">{p.brand || "تولید مستقیم"}</span>
                       <h4 className="text-xs font-black text-slate-900 line-clamp-1">{p.name}</h4>
                       <div className="text-[11px] font-mono text-amber-800 font-black">
-                        {toPersianNum(repCartonPrice.toLocaleString('fa-IR'))} ت <span className="text-[9px] text-slate-500 font-normal">/ کارتن</span>
+                        {toPersianNum(repCartonPrice)} ت <span className="text-[9px] text-slate-500 font-normal">/ کارتن</span>
                       </div>
                     </div>
 
@@ -1687,13 +1687,13 @@ export default function RepresentativeManagementPortal({
                             {toPersianNum(unitsInCarton)} عدد
                           </td>
                           <td className="py-3 px-4 font-mono text-slate-500 line-through">
-                            {toPersianNum(cartonPrice.toLocaleString('fa-IR'))} ت
+                            {toPersianNum(cartonPrice)} ت
                           </td>
                           <td className="py-3 px-4 font-mono font-black text-indigo-700">
-                            {toPersianNum(repCartonPrice.toLocaleString('fa-IR'))} تومان
+                            {toPersianNum(repCartonPrice)} تومان
                           </td>
                           <td className="py-3 px-4 font-mono font-black text-emerald-600">
-                            +{toPersianNum(repProfitPerCarton.toLocaleString('fa-IR'))} ت
+                            +{toPersianNum(repProfitPerCarton)} ت
                           </td>
                           <td className="py-3 px-4 text-center">
                             <div className="inline-flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -1790,15 +1790,15 @@ export default function RepresentativeManagementPortal({
                       </div>
                       <div className="flex justify-between items-center text-slate-600 font-medium">
                         <span>قیمت پایه کارخانه:</span>
-                        <span className="font-mono text-slate-500 line-through">{toPersianNum(cartonPrice.toLocaleString('fa-IR'))} ت</span>
+                        <span className="font-mono text-slate-500 line-through">{toPersianNum(cartonPrice)} ت</span>
                       </div>
                       <div className="flex justify-between items-center text-indigo-900 font-black border-t border-slate-200/60 pt-1.5">
                         <span>قیمت با تخفیف نماینده:</span>
-                        <strong className="text-indigo-600 font-mono text-sm">{toPersianNum(repCartonPrice.toLocaleString('fa-IR'))} تومان</strong>
+                        <strong className="text-indigo-600 font-mono text-sm">{toPersianNum(repCartonPrice)} تومان</strong>
                       </div>
                       <div className="flex justify-between items-center text-emerald-800 font-bold bg-emerald-50/80 px-2 py-1 rounded-xl border border-emerald-100">
                         <span>سود ناخالص در هر کارتن:</span>
-                        <strong className="font-mono text-emerald-700 font-black">+{toPersianNum(repProfitPerCarton.toLocaleString('fa-IR'))} ت</strong>
+                        <strong className="font-mono text-emerald-700 font-black">+{toPersianNum(repProfitPerCarton)} ت</strong>
                       </div>
                     </div>
 
@@ -1830,7 +1830,7 @@ export default function RepresentativeManagementPortal({
                       {/* Summary and Profit for selected quantity */}
                       <div className="flex items-center justify-between text-[11px] font-bold px-1 text-slate-600">
                         <span>فاکتور ({toPersianNum(currentQty * unitsInCarton)} عدد):</span>
-                        <span className="font-mono text-slate-900 font-black">{toPersianNum(totalPrice.toLocaleString('fa-IR'))} تومان</span>
+                        <span className="font-mono text-slate-900 font-black">{toPersianNum(totalPrice)} تومان</span>
                       </div>
 
                       <button
@@ -1882,7 +1882,7 @@ export default function RepresentativeManagementPortal({
             </div>
 
             <span className="text-xs font-black bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200">
-              کل خرید نقدی محقق: {toPersianNum(realCashOrdersSum.toLocaleString('fa-IR'))} تومان
+              کل خرید نقدی محقق: {toPersianNum(realCashOrdersSum)} تومان
             </span>
           </div>
 
@@ -1938,7 +1938,7 @@ export default function RepresentativeManagementPortal({
                           {toPersianNum(ord.items?.length || 1)} قلم کالا
                         </td>
                         <td className="py-3.5 px-4 font-mono font-black text-indigo-700">
-                          {toPersianNum((ord.totalAmount || 0).toLocaleString('fa-IR'))} تومان
+                          {toPersianNum((ord.totalAmount || 0))} تومان
                         </td>
                         <td className="py-3.5 px-4">
                           <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${statusConfig.color}`}>
@@ -2199,7 +2199,7 @@ export default function RepresentativeManagementPortal({
                   />
                   {gAmount && (
                     <div className="text-[10px] text-emerald-700 font-bold text-left">
-                      معادل: {toPersianNum((Number(gAmount) / 10).toLocaleString('fa-IR'))} تومان
+                      معادل: {toPersianNum((Number(gAmount) / 10))} تومان
                     </div>
                   )}
                 </div>
@@ -2377,7 +2377,7 @@ export default function RepresentativeManagementPortal({
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px] font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-150 text-right" dir="rtl">
                             <div className="space-y-0.5">
                               <span className="text-slate-400 block">مبلغ ضمانت:</span>
-                              <strong className="font-mono text-slate-900 font-black">{toPersianNum(guar.amount.toLocaleString('fa-IR'))} تومان</strong>
+                              <strong className="font-mono text-slate-900 font-black">{toPersianNum(guar.amount)} تومان</strong>
                             </div>
 
                             <div className="space-y-0.5">
@@ -2561,7 +2561,7 @@ export default function RepresentativeManagementPortal({
                 <div className="text-slate-900">مجموعه متقاضی: <strong>{companyName}</strong></div>
                 <div className="text-slate-600">منطقه درخواستی انحصار: <strong>{province} - {city}</strong></div>
                 <div className="text-amber-800">
-                  مجموع خرید نقدی ثبت‌شده: <strong>{toPersianNum(simulatedSales.toLocaleString('fa-IR'))} تومان</strong>
+                  مجموع خرید نقدی ثبت‌شده: <strong>{toPersianNum(simulatedSales)} تومان</strong>
                 </div>
               </div>
 
@@ -2623,7 +2623,7 @@ export default function RepresentativeManagementPortal({
               <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 text-xs space-y-1 text-amber-950">
                 <div className="font-bold">متقاضی: <strong>{companyName}</strong></div>
                 <div>سطح درخواستی: <strong>{activeTier.title} (سطح {toPersianNum(activeTier.levelNumber)})</strong></div>
-                <div>فروش تاییدشده: <strong>{toPersianNum(simulatedSales.toLocaleString('fa-IR'))} تومان</strong></div>
+                <div>فروش تاییدشده: <strong>{toPersianNum(simulatedSales)} تومان</strong></div>
               </div>
 
               <div className="space-y-1">
