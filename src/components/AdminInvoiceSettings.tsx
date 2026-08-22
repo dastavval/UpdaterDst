@@ -46,17 +46,26 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   const [bankAccounts, setBankAccounts] = useState<any[]>(currentInv.bankAccounts || []);
 
   const [quantityDiscountTiers, setQuantityDiscountTiers] = useState<any[]>(() => {
-    if (b2bConfig?.quantityDiscountTiers && Array.isArray(b2bConfig.quantityDiscountTiers)) {
+    if (b2bConfig?.quantityDiscountTiers && Array.isArray(b2bConfig.quantityDiscountTiers) && b2bConfig.quantityDiscountTiers.length > 0) {
       return b2bConfig.quantityDiscountTiers;
     }
-    return [];
+    return [
+      { threshold: 10, discountPercent: 3 },
+      { threshold: 25, discountPercent: 6 },
+      { threshold: 50, discountPercent: 10 }
+    ];
   });
 
   const [volumeDiscountTiers, setVolumeDiscountTiers] = useState<any[]>(() => {
-    if (b2bConfig?.volumeDiscountTiers && Array.isArray(b2bConfig.volumeDiscountTiers)) {
+    if (b2bConfig?.volumeDiscountTiers && Array.isArray(b2bConfig.volumeDiscountTiers) && b2bConfig.volumeDiscountTiers.length > 0) {
       return b2bConfig.volumeDiscountTiers;
     }
-    return [];
+    return [
+      { threshold: 10000000, discountPercent: 2 },
+      { threshold: 50000000, discountPercent: 5 },
+      { threshold: 150000000, discountPercent: 8 },
+      { threshold: 500000000, discountPercent: 12 }
+    ];
   });
 
   const [isSaving, setIsSaving] = useState(false);

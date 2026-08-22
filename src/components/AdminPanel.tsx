@@ -19,6 +19,7 @@ import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
+import { getApiUrl } from "../utils/api-utils";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
 import { 
@@ -1288,6 +1289,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const [isNatural, setIsNatural] = useState(false);
   const [isOrganic, setIsOrganic] = useState(false);
   const [healthCertCode, setHealthCertCode] = useState("");
+  const [chequeAllowed, setChequeAllowed] = useState(true);
 
   const handleResetForm = () => {
     setIsEditing(null);
@@ -1306,6 +1308,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setIsNatural(true);
     setIsOrganic(false);
     setHealthCertCode("۱۶/۱۲۴۵۸");
+    setChequeAllowed(true);
     setPackDescription("");
     setShippingOrigin("");
     setCartonPackCount(24);
@@ -1447,6 +1450,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setIsNatural(p.isNatural !== false);
     setIsOrganic(!!p.isOrganic);
     setHealthCertCode(p.healthCertCode || "۱۶/۱۲۴۵۸");
+    setChequeAllowed(p.chequeAllowed !== false);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1731,7 +1735,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       hasHealthApple,
       isNatural,
       isOrganic,
-      healthCertCode
+      healthCertCode,
+      chequeAllowed: !!chequeAllowed
     };
 
     try {
@@ -7592,15 +7597,30 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     </div>
                   </div>
 
-                  <div className="space-y-1 flex items-center gap-3 pt-2">
-                    <input
-                      type="checkbox"
-                      id="isFavorite"
-                      checked={isFavorite}
-                      onChange={e => setIsFavorite(e.target.checked)}
-                      className="w-5 h-5 rounded-lg border-slate-200 text-emerald-600 focus"
-                    />
-                    <label htmlFor="isFavorite" className="text-xs font-black text-slate-700 cursor-pointer select-none">افزودن به لیست علاقه‌مندی‌های پیش‌فرض</label>
+                  <div className="space-y-1 flex flex-col gap-3 pt-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="isFavorite"
+                        checked={isFavorite}
+                        onChange={e => setIsFavorite(e.target.checked)}
+                        className="w-5 h-5 rounded-lg border-slate-200 text-emerald-600 focus"
+                      />
+                      <label htmlFor="isFavorite" className="text-xs font-black text-slate-700 cursor-pointer select-none">افزودن به لیست علاقه‌مندی‌های پیش‌فرض</label>
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100 w-max">
+                      <input
+                        type="checkbox"
+                        id="chequeAllowedForm"
+                        checked={chequeAllowed}
+                        onChange={e => setChequeAllowed(e.target.checked)}
+                        className="w-5 h-5 rounded-lg border-indigo-200 text-indigo-600 focus"
+                      />
+                      <label htmlFor="chequeAllowedForm" className="text-xs font-black text-indigo-950 cursor-pointer select-none">
+                        ⚙️ فعال‌سازی فروش چکی برای این محصول (۵۰٪ نقد + ۵۰٪ چک صیادی)
+                      </label>
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -7921,6 +7941,18 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                           {p.disabled ? "🚫 غیرفعال" : "✅ فعال"}
                         </button>
 
+                        <button 
+                          onClick={() => onUpdateProduct(p.id, { chequeAllowed: p.chequeAllowed !== false ? false : true })}
+                          className={`px-2 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
+                            p.chequeAllowed !== false 
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
+                              : "bg-slate-50 text-slate-400 border-slate-100"
+                          }`}
+                          title="تغییر وضعیت امکان تسویه چکی"
+                        >
+                          {p.chequeAllowed !== false ? "✍️ چکی: بله" : "🚫 چکی: خیر"}
+                        </button>
+
                         <div className="flex items-center bg-slate-50 rounded-xl border border-slate-100 p-0.5">
                           <button 
                             onClick={() => onUpdateProduct(p.id, { bulk_price: Math.max(0, Math.round(p.bulk_price * 0.95)) })}
@@ -8239,7 +8271,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           onSaveB2bConfig={async (cfg) => {
             if (cfg.catalogPdfUrl) setCatalogPdfUrl(cfg.catalogPdfUrl);
             try {
-              await fetch("/api/admin/b2b-config", {
+              await fetch(getApiUrl("/api/admin/b2b-config"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...b2bConfig, catalogPdfUrl: cfg.catalogPdfUrl })

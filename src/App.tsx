@@ -48,6 +48,7 @@ const DealershipRequestView = React.lazy(() => import("./components/DealershipRe
 const B2BProfitSimulator = React.lazy(() => import("./components/B2BProfitSimulator").then(m => ({ default: m.B2BProfitSimulator })));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
+import { getApiUrl } from "./utils/api-utils";
 import { recordCRMOrder } from "./lib/crm-helper";
 import { registerRegionalOrderFromCheckout } from "./lib/leads-store";
 import { getProductRolePricing, toPersianDigits } from "./lib/pricing";
@@ -226,7 +227,18 @@ export default function App() {
       minOrderCartons: 3,
       topAnnouncement: "",
       showTopAnnouncement: false,
-      lastGithubUpdate: null
+      lastGithubUpdate: null,
+      quantityDiscountTiers: [
+        { threshold: 10, discountPercent: 3 },
+        { threshold: 25, discountPercent: 6 },
+        { threshold: 50, discountPercent: 10 }
+      ],
+      volumeDiscountTiers: [
+        { threshold: 10000000, discountPercent: 2 },
+        { threshold: 50000000, discountPercent: 5 },
+        { threshold: 150000000, discountPercent: 8 },
+        { threshold: 500000000, discountPercent: 12 }
+      ]
     };
   });
 
@@ -644,7 +656,7 @@ export default function App() {
 
   const fetchB2bConfig = async () => {
     try {
-      const res = await fetch("/api/b2b/config");
+      const res = await fetch(getApiUrl("/api/b2b/config"));
       const contentType = res.headers.get("content-type");
       if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
@@ -684,7 +696,7 @@ export default function App() {
     } catch (e) {}
 
     try {
-      const res = await fetch("/api/b2b/config", {
+      const res = await fetch(getApiUrl("/api/b2b/config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedConfig)
@@ -1006,12 +1018,12 @@ export default function App() {
       if (fetchedProducts.length === 0) {
         console.log("No products found anywhere. Triggering auto-sync...");
         try {
-          const syncRes = await fetch("/api/admin/sync-catalog", { method: "POST" });
+          const syncRes = await fetch(getApiUrl("/api/admin/sync-catalog"), { method: "POST" });
           if (syncRes.ok) {
             const syncJson = await syncRes.json();
             if (syncJson.success) {
               // Now fetch the newly synced products
-              const finalFetch = await fetch("/api/b2b/products");
+              const finalFetch = await fetch(getApiUrl("/api/b2b/products"));
               if (finalFetch.ok) {
                 const finalJson = await finalFetch.json();
                 if (finalJson.success && finalJson.products) {
@@ -1034,7 +1046,7 @@ export default function App() {
       console.error("Error fetching products:", error);
       // Even on error, try to at least show something from the local API
       try {
-        const response = await fetch("/api/b2b/products");
+        const response = await fetch(getApiUrl("/api/b2b/products"));
         if (response.ok) {
           const jsonRes = await response.json();
           if (jsonRes.success && jsonRes.products) {
@@ -1062,7 +1074,7 @@ export default function App() {
       
       // 2. Trigger server-side catalog sync from ParsPack
       try {
-        await fetch("/api/admin/sync-catalog", { method: "POST" });
+        await fetch(getApiUrl("/api/admin/sync-catalog"), { method: "POST" });
       } catch (err) {
         console.warn("Server-side sync issue:", err);
       }
@@ -1371,7 +1383,8 @@ export default function App() {
 
   const filteredProducts = products.filter(product => {
     // Hide disabled products on public pages
-    if (product.disabled) return false;
+    const isProdDisabled = product.disabled === true || String(product.disabled) === 'true' || String(product.disabled) === '1' || String(product.disabled) === 'yes';
+    if (isProdDisabled) return false;
 
     // Hide unapproved factory products from public showcase until approved
     if (product.approvalStatus === 'pending' || product.isApproved === false) {

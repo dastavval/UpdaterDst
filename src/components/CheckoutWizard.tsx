@@ -124,7 +124,22 @@ export default function CheckoutWizard({
   }, [buyerName, buyerPhone, buyerCompany, buyerAddress]);
 
   // Payment Method State
+  const cartProducts = cart.map(item => {
+    return products.find(p => p.id === item.productId || p.productCode === item.productId);
+  });
+  const hasNonChequeProducts = cartProducts.some(p => p && p.chequeAllowed === false);
+  const nonChequeProductsNames = cartProducts
+    .filter(p => p && p.chequeAllowed === false)
+    .map(p => p!.name);
+
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'cheque'>('cash');
+
+  useEffect(() => {
+    if (hasNonChequeProducts && paymentMethod === 'cheque') {
+      setPaymentMethod('cash');
+    }
+  }, [hasNonChequeProducts, paymentMethod]);
+
   const [paymentReceiptImage, setPaymentReceiptImage] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
 
@@ -976,22 +991,47 @@ export default function CheckoutWizard({
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('cheque')}
-                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
-                      paymentMethod === 'cheque'
-                        ? "border-indigo-500 bg-indigo-50/60 shadow-md ring-2 ring-indigo-500/20"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                    disabled={hasNonChequeProducts}
+                    onClick={() => {
+                      if (!hasNonChequeProducts) {
+                        setPaymentMethod('cheque');
+                      }
+                    }}
+                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between ${
+                      hasNonChequeProducts 
+                        ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+                        : paymentMethod === 'cheque'
+                          ? "border-indigo-500 bg-indigo-50/60 shadow-md ring-2 ring-indigo-500/20 cursor-pointer"
+                          : "border-slate-200 bg-white hover:border-slate-300 cursor-pointer"
                     }`}
                   >
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex justify-between items-center mb-2 w-full">
                       <span className="text-xs font-black text-slate-900">تسویه چکی (۵۰٪ نقد + ۵۰٪ چک صیادی)</span>
-                      <Receipt size={18} className="text-indigo-600" />
+                      <Receipt size={18} className={`${hasNonChequeProducts ? "text-slate-400" : "text-indigo-600"}`} />
                     </div>
-                    <span className="text-[10px] text-indigo-700 font-black bg-indigo-100/70 px-2 py-0.5 rounded-md inline-block w-max">
-                      🛡️ مدل امن کارخانه (اعتبارسنجی اولیه)
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block w-max ${
+                      hasNonChequeProducts 
+                        ? "text-rose-700 bg-rose-50"
+                        : "text-indigo-700 bg-indigo-100/70"
+                    }`}>
+                      {hasNonChequeProducts ? "🚫 غیرفعال: شامل اقلام غیرچکی" : "🛡️ مدل امن کارخانه (اعتبارسنجی اولیه)"}
                     </span>
                   </button>
                 </div>
+
+                {hasNonChequeProducts && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-950 space-y-1">
+                    <p className="font-black">⚠️ امکان تسویه چکی برای این سفارش وجود ندارد:</p>
+                    <p className="text-[11px] text-rose-800 leading-relaxed font-semibold">
+                      محصولات زیر امکان فروش اعتباری/چکی ندارند و نقدی دست اول هستند:
+                    </p>
+                    <ul className="list-disc list-inside text-[10px] text-rose-700 font-mono mt-1 space-y-0.5">
+                      {nonChequeProductsNames.map((name, idx) => (
+                        <li key={`non-cheque-item-${idx}`}>{name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {/* Cash Options Details */}
                 {paymentMethod === 'cash' && (

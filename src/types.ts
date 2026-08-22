@@ -35,6 +35,7 @@ export interface Product {
   isSponsored?: boolean;
   boostScore?: number;
   disabled?: boolean; // New: to disable product from being listed
+  chequeAllowed?: boolean; // New: whether cheque payment is allowed
   isKafBazaar?: boolean; // New: to show product in Kaf-e-Bazaar under-market section
   commissionPercent?: number; // New: custom commission rate for DastAvval
   cartAddCount?: number; // New: number of times added to cart in last 48h

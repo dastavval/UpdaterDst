@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
+import { getApiUrl } from "../utils/api-utils";
 import { 
   X, 
   Printer, 
@@ -63,7 +64,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user }
 
   // Fetch latest config on mount
   useEffect(() => {
-    fetch("/api/admin/b2b-config")
+    fetch(getApiUrl("/api/admin/b2b-config"))
       .then(res => res.json())
       .then(data => {
         if (data && data.catalogPdfUrl) {

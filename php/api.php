@@ -86,7 +86,7 @@ switch ($action) {
                 // پاکسازی محصولات قبلی جهت همگام‌سازی تمیز کاتالوگ
                 $pdo->exec("DELETE FROM products");
                 
-                $stmt = $pdo->prepare("INSERT INTO products (product_code, name, brand, category, description, bulk_price, market_price, carton_pack_count, min_order_cartons, image_url, is_special, stock_cartons) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO products (product_code, name, brand, category, description, bulk_price, market_price, carton_pack_count, min_order_cartons, image_url, is_special, stock_cartons, cheque_allowed, disabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 foreach ($input as $p) {
                     $code = $p['productCode'] ?? $p['sku'] ?? $p['id'] ?? ('PRD-' . rand(10000, 99999));
                     $name = $p['name'] ?? 'بدون نام';
@@ -100,8 +100,10 @@ switch ($action) {
                     $image = $p['image_url'] ?? $p['imageUrl'] ?? '';
                     $special = (isset($p['isFeatured']) && $p['isFeatured']) ? 1 : 0;
                     $stock = (int)($p['stock_quantity_cartons'] ?? $p['stock_cartons'] ?? 100);
+                    $cheque_allowed = (isset($p['chequeAllowed']) && $p['chequeAllowed'] === false) ? 0 : 1;
+                    $disabled = (isset($p['disabled']) && $p['disabled'] === true) ? 1 : 0;
                     
-                    $stmt->execute([$code, $name, $brand, $category, $desc, $bulk_price, $market_price, $carton, $min_order, $image, $special, $stock]);
+                    $stmt->execute([$code, $name, $brand, $category, $desc, $bulk_price, $market_price, $carton, $min_order, $image, $special, $stock, $cheque_allowed, $disabled]);
                 }
                 $pdo->commit();
                 echo json_encode(['status' => 'success', 'count' => count($input), 'message' => 'تمام کالاها با موفقیت درون دیتابیس MySQL هاست ذخیره شدند.'], JSON_UNESCAPED_UNICODE);
@@ -134,6 +136,8 @@ switch ($action) {
                         'imageUrl' => $row['image_url'] ?? '',
                         'stock_quantity_cartons' => (int)($row['stock_cartons'] ?? 100),
                         'isFeatured' => (bool)$row['is_special'],
+                        'chequeAllowed' => isset($row['cheque_allowed']) ? (bool)$row['cheque_allowed'] : true,
+                        'disabled' => isset($row['disabled']) ? (bool)$row['disabled'] : false,
                         'unit' => 'بسته',
                         'sellerName' => 'تامین کننده مرکزی',
                         'production_lead_time_days' => 2
@@ -232,10 +236,10 @@ switch ($action) {
                 if ($row) {
                     echo $row['setting_value'];
                 } else {
-                    echo json_encode([], JSON_UNESCAPED_UNICODE);
+                    echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
                 }
             } catch (PDOException $e) {
-                echo json_encode([], JSON_UNESCAPED_UNICODE);
+                echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
             }
         }
         exit();
