@@ -816,15 +816,17 @@ async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<st
         const parsedUrl = new URL(urlToFetch.startsWith("http") ? urlToFetch : `http://${urlToFetch}`);
         const originalHostname = parsedUrl.hostname;
         
-        // ParsPack S3/CDN primary IP address
-        let ipAddress = "176.97.218.120"; 
+        // ParsPack S3/CDN primary IP addresses
+        const ipFallbacks = ["176.97.218.120", "176.97.218.121", "176.97.218.122"]; 
+        let ipAddress = ipFallbacks[0];
+        
         try {
           const lookupResult = await dns.promises.lookup(originalHostname);
           if (lookupResult && lookupResult.address) {
             ipAddress = lookupResult.address;
           }
         } catch (dnsErr: any) {
-          console.log(`[DNS Bypass] Dynamic DNS lookup failed for ${originalHostname}: ${dnsErr.message}. Using default IP fallback: ${ipAddress}`);
+          console.log(`[DNS Bypass] Dynamic DNS lookup failed for ${originalHostname}. Using default IP fallback: ${ipAddress}`);
         }
 
         // Rewrite URL to direct IP routing
@@ -834,12 +836,24 @@ async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<st
 
         console.log(`[DNS Bypass] Routing request directly to IP: ${ipBypassUrl} (Host: ${originalHostname})`);
 
-        return await fetch(ipBypassUrl, {
+        const ipRes = await fetch(ipBypassUrl, {
           headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, application/octet-stream, */*",
             ...baseHeaders,
             "Host": originalHostname // Required for ParsPack CDN vhost routing
+          },
+          ...extraOptions
+        });
+
+        if (ipRes.ok) return ipRes;
+        
+        // If IP bypass failed, try one more time with standard fetch but forced HTTP
+        const finalTryUrl = targetUrl.replace(/^https:\/\//i, "http://");
+        return await fetch(finalTryUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            ...baseHeaders
           },
           ...extraOptions
         });
@@ -851,6 +865,20 @@ async function smartFetchWithDnsBypass(targetUrl: string, baseHeaders: Record<st
     throw error;
   }
 }
+
+// Debug endpoint to view proxy logs remotely
+app.get("/api/debug/proxy-logs", (req, res) => {
+  try {
+    if (fs.existsSync("proxy_debug.log")) {
+      const logs = fs.readFileSync("proxy_debug.log", "utf-8");
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      return res.send(logs);
+    }
+    res.send("No proxy logs found yet.");
+  } catch (e: any) {
+    res.status(500).send("Error reading logs: " + e.message);
+  }
+});
 
 // Enhanced Proxy fetch to bypass CORS, protocol mismatches (HTTP on ParsPack S3 vs HTTPS on domains), and inspect status/headers
 const handleProxyFetchRequest = async (req: express.Request, res: express.Response) => {
@@ -1136,8 +1164,7 @@ app.get("/api/proxy-image", async (req, res) => {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await smartFetchWithDnsBypass(targetUrl, {
-      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-      "Referer": new URL(targetUrl).origin
+      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
     }, { signal: controller.signal });
 
     clearTimeout(timeoutId);
@@ -1166,8 +1193,13 @@ app.get("/api/proxy-image", async (req, res) => {
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const successMsg = `[${new Date().toISOString()}] Image Proxy Success: ${targetUrl} (${buffer.length} bytes)\n`;
+    fs.appendFileSync("proxy_debug.log", successMsg);
     return res.send(buffer);
   } catch (err: any) {
+    const errorMsg = `[${new Date().toISOString()}] Image Proxy ERROR: ${err.message} for ${targetUrl}\n`;
+    const fs = await import("fs");
+    fs.appendFileSync("proxy_debug.log", errorMsg);
     console.error("[Proxy Image Error]:", err.message);
     return res.status(500).send("Error fetching image via proxy");
   }
