@@ -1171,22 +1171,26 @@ export default function FactoriesView({
       {/* SUB-TAB 2: RAW MATERIALS CATALOG (مواد اولیه و ملزومات تولید) */}
       {activeSubTab === 'raw_materials' && (
         <div className="space-y-6">
-          {/* Top Info Banner & Request Custom Raw Material CTA */}
-          <div className="bg-gradient-to-r from-emerald-900 via-slate-900 to-emerald-950 rounded-[2.5rem] p-6 text-white border border-emerald-500/30 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 rounded-full text-[11px] font-black text-emerald-300">
-                <Boxes size={14} />
+          {/* Top Info Banner & Request Custom Raw Material CTA (White Theme) */}
+          <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
+            {/* Subtle Ambient Glow accents */}
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-2 max-w-2xl relative z-10">
+              <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full text-[11px] font-black text-emerald-700">
+                <Boxes size={14} className="text-emerald-600" />
                 <span>تامین مستقیم مواد اولیه کارخانجات تولیدی</span>
               </div>
-              <h2 className="text-xl font-black text-white">
+              <h2 className="text-xl font-black text-slate-900">
                 سامانه تامین شکر، آرد، روغن، کاکائو، سلفون و ملزومات خطوط تولید
               </h2>
-              <p className="text-xs text-slate-300 font-medium leading-relaxed">
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
                 کارخانجات می‌توانند مواد اولیه مورد نیاز خطوط تولید خود را مستقیماً از تامین‌کنندگان معتبر استعلام و سفارش دهند.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0 relative z-10">
               <button
                 onClick={() => {
                   setTargetRawMaterial(null);
@@ -1352,22 +1356,26 @@ export default function FactoriesView({
       {/* SUB-TAB 3: INDUSTRIAL SERVICES (خدمات صنعتی و بازرگانی کارخانجات) */}
       {activeSubTab === 'services' && (
         <div className="space-y-6">
-          {/* Top Info Banner & CTA */}
-          <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-indigo-950 rounded-[2.5rem] p-6 text-white border border-teal-500/30 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 bg-teal-500/20 border border-teal-400/30 px-3 py-1 rounded-full text-[11px] font-black text-teal-300">
-                <Briefcase size={14} />
+          {/* Top Info Banner & CTA (White Theme) */}
+          <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
+            {/* Subtle Ambient Glow accents */}
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-2 max-w-2xl relative z-10">
+              <div className="inline-flex items-center gap-2 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full text-[11px] font-black text-teal-700">
+                <Briefcase size={14} className="text-teal-600" />
                 <span>سامانه خدمات صنعتی، طراحی، ترخیص و حسابداری کارخانجات</span>
               </div>
-              <h2 className="text-xl font-black text-white">
+              <h2 className="text-xl font-black text-slate-900">
                 زنجیره خدمات تخصصی خطوط تولید و بازرگانی صنایع کشور
               </h2>
-              <p className="text-xs text-slate-300 font-medium leading-relaxed">
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
                 انجام خدمات طراحی قالب و بسته‌بندی، ترخیص گمرکی، تبلیغات B2B و حسابداری صنعتی با نظارت مستقیم و تسویه امن دست‌اول.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0 relative z-10">
               <button
                 onClick={() => {
                   setTargetService(null);

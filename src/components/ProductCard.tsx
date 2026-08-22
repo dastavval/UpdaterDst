@@ -23,6 +23,18 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
   const [cartons, setCartons] = useState(minCartonsLimit);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const handleImageError = () => {
+    if (retryCount < 2) {
+      setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        setImageError(false);
+      }, 1000);
+    } else {
+      setImageError(true);
+    }
+  };
   const [hasPriceAlert, setHasPriceAlert] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [targetPriceInput, setTargetPriceInput] = useState("");
@@ -142,298 +154,170 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
         delay: (index % 4) * 0.05, 
         ease: [0.21, 0.47, 0.32, 0.98] 
       }}
-      className="bg-white rounded-[2rem] border border-slate-200/70 shadow-sm hover:shadow-2xl hover:shadow-emerald-500/10 hover:border-emerald-500/40 transition-all duration-500 group flex flex-col relative h-full overflow-hidden"
+      className="bg-white rounded-[1.75rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 hover:border-emerald-500/30 transition-all duration-500 group flex flex-col relative h-full overflow-hidden"
     >
       {/* Top Accent Line for Featured */}
       {product.isFeatured && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-emerald-600 via-teal-500 to-amber-400 z-10" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-emerald-600 to-amber-400 z-10" />
       )}
 
       {/* Product Image Section */}
       <div 
         onClick={() => onViewDetails?.(product)}
-        className="relative aspect-square w-full overflow-hidden bg-white cursor-pointer border-b border-slate-100 flex items-center justify-center group/img"
+        className="relative aspect-square w-full overflow-hidden bg-white cursor-pointer border-b border-slate-50 flex items-center justify-center group/img"
       >
         {/* Subtle Backdrop Glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.03)_0%,transparent_70%)] opacity-0 group-hover/img:opacity-100 transition-opacity duration-700" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.02)_0%,transparent_70%)] opacity-0 group-hover/img:opacity-100 transition-opacity duration-700" />
 
         {/* High Margin Floating Indicator */}
         {((product.consumer_price || product.price) - product.bulk_price) > 5000 && (
-           <div className="absolute top-3 right-3 z-[15]">
+           <div className="absolute top-2.5 right-2.5 z-[15]">
              <motion.div 
-               animate={{ scale: [1, 1.05, 1], opacity: [0.95, 1, 0.95] }}
-               transition={{ repeat: Infinity, duration: 3 }}
-               className="bg-emerald-600/95 backdrop-blur-md text-white px-3 py-1 rounded-xl text-[10px] font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 border border-white/20"
+               animate={{ y: [0, -2, 0] }}
+               transition={{ repeat: Infinity, duration: 4 }}
+               className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-black flex items-center gap-1 shadow-lg shadow-emerald-600/10"
              >
-               <TrendingUp size={12} className="animate-bounce" />
-               سود ویژه بنکداری
+               <TrendingUp size={10} />
+               سود ویژه
              </motion.div>
            </div>
         )}
 
         {imageError || !product.image_url ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-slate-300">
-            <Package size={42} className="stroke-[1.25]" />
-            <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">DIRECT SUPPLY</span>
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-slate-200">
+            <Package size={36} className="stroke-[1.25]" />
+            <span className="text-[8px] font-black tracking-widest text-slate-300 uppercase">NO IMAGE</span>
           </div>
         ) : (
           <>
             {!imageLoaded && (
-              <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-[1] overflow-hidden">
-                <div className="w-full h-full bg-linear-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-shimmer" />
+              <div className="absolute inset-0 bg-slate-50 flex items-center justify-center z-[1]">
+                <div className="w-12 h-12 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
               </div>
             )}
             <img 
+              key={`${product.id}-img-${retryCount}`}
               src={getDisplayImageUrl(product.image_url)} 
               alt={product.name}
               onLoad={() => setImageLoaded(true)}
-              className={`w-full h-full object-contain p-1 transition-all duration-500 ease-out group-hover/img:scale-105 ${
-                imageLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-md scale-95'
+              className={`w-full h-full object-contain p-2.5 transition-all duration-700 ease-out group-hover/img:scale-105 ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
               referrerPolicy="no-referrer"
-              onError={() => { 
-                setImageLoaded(true);
-                setImageError(true);
-              }}
+              onError={handleImageError}
             />
           </>
         )}
         
-        {/* Quick View Trigger Overlay */}
-        <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/img:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-[2px]">
-          <div className="bg-white text-slate-950 px-6 py-2.5 rounded-2xl text-[11px] font-black shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover/img:translate-y-0 transition-all duration-500 border border-slate-100 scale-90 group-hover/img:scale-100">
-            <Eye size={14} className="text-emerald-600" />
-            تحلیل حاشیه سود
-          </div>
-        </div>
-
         {/* Action Icons Bar */}
-        <div className="absolute bottom-3 right-3 flex flex-col gap-2 transform translate-x-12 group-hover/img:translate-x-0 transition-transform duration-500">
+        <div className="absolute bottom-2.5 right-2.5 flex flex-col gap-2 transform translate-x-12 group-hover/img:translate-x-0 transition-transform duration-500">
           <button
             onClick={handleTogglePriceAlert}
-            className={`p-2.5 rounded-xl transition-all shadow-xl cursor-pointer flex items-center justify-center ${
+            className={`w-8 h-8 rounded-lg transition-all shadow-lg cursor-pointer flex items-center justify-center ${
               hasPriceAlert
-                ? "bg-amber-500 text-slate-950 ring-2 ring-amber-300"
-                : "bg-white text-slate-600 hover:bg-emerald-600 hover:text-white border border-slate-100"
+                ? "bg-amber-500 text-slate-900"
+                : "bg-white/90 backdrop-blur-md text-slate-600 hover:bg-emerald-600 hover:text-white border border-slate-100"
             }`}
           >
-            <Bell size={14} className={hasPriceAlert ? "fill-slate-950" : ""} />
+            <Bell size={13} className={hasPriceAlert ? "fill-slate-900" : ""} />
           </button>
         </div>
       </div>
 
       {/* Info Section */}
-      <div className="p-4 flex flex-col gap-3 text-right flex-1" dir="rtl">
+      <div className="p-3.5 flex flex-col gap-2.5 text-right flex-1" dir="rtl">
         <div className="space-y-1">
-          <div className="flex justify-between items-center text-[10px] font-bold">
-            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-black">
+          <div className="flex justify-between items-center text-[9px] font-black">
+            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
               {product.category}
             </span>
-            <span className="text-slate-400 font-bold">{product.brand}</span>
           </div>
 
           <h3 
             onClick={() => onViewDetails?.(product)}
-            className="text-xs sm:text-sm font-black text-slate-900 leading-snug line-clamp-2 group-hover:text-emerald-700 transition-colors cursor-pointer"
+            className="text-[11px] sm:text-xs font-black text-slate-800 leading-relaxed line-clamp-2 min-h-[2.4rem] group-hover:text-emerald-700 transition-colors cursor-pointer"
           >
             {product.name}
           </h3>
-
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-            <Factory size={11} className="text-emerald-600 shrink-0" />
-            <span className="truncate">تامین: {product.factory_name || product.brand}</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] font-black text-emerald-600">
+              {toPersianNum(profitPercent)}٪ حاشیه سود بنکداری
+            </span>
           </div>
         </div>
 
-        {/* Multi-Tier Role Pricing Architecture */}
-        <div className="mt-auto space-y-2">
-          <div className="bg-slate-50/95 p-3 rounded-2xl border border-slate-200/80 space-y-2">
-            {/* Role Header Badge */}
-            <div className="flex justify-between items-center text-[10px]">
-              <span className={`px-2 py-0.5 rounded-md font-bold text-[9.5px] border ${pricing.badgeColor}`}>
-                {pricing.badgeLabel}
-              </span>
-              <span className="text-slate-400 font-bold text-[9px]">{pricing.roleTitleFa}</span>
-            </div>
-
-            {/* Wholesale Unit Price Display */}
-            <div className="flex justify-between items-center pt-0.5">
-              <span className="text-[10px] font-black text-slate-600">{pricing.priceTagLabel}:</span>
-              <div className="flex flex-col items-end">
-                {pricing.isRepresentative && pricing.displayConsumerPrice > discountedBulkPrice && (
-                  <span className="text-[9px] text-slate-400 line-through font-mono opacity-60">
-                    {toPersianNum(pricing.floorFactoryUnitPrice * 1.10)}
-                  </span>
-                )}
-                <span className="font-mono text-emerald-800 font-black text-xs sm:text-sm">
+        {/* Pricing Architecture - Streamlined */}
+        <div className="mt-auto space-y-2.5">
+          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100/80 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-400">نرخ عمده:</span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono text-emerald-800 font-black text-sm">
                   {toPersianNum(discountedBulkPrice.toLocaleString())}
-                  <span className="text-[9px] font-bold text-slate-400 mr-1">تومان</span>
                 </span>
+                <span className="text-[8px] font-bold text-slate-400">تومان</span>
               </div>
             </div>
 
-            {/* Micro Tier Upsell & Margin Hint */}
-            <div className="text-[9px] leading-tight text-slate-500 font-medium bg-white/90 p-1.5 rounded-lg border border-slate-200/50">
-              {pricing.isRepresentative ? (
-                <span className="text-emerald-700 font-bold flex items-center gap-1">
-                  <Award size={11} className="text-emerald-600 shrink-0" />
-                  <span>نرخ کف کارخانه برای عاملیت فعال است (۱۰٪ ارزان‌تر)</span>
-                </span>
-              ) : pricing.isMarketer ? (
-                <span className="text-purple-700 font-bold flex items-center gap-1">
-                  <Percent size={11} className="text-purple-600 shrink-0" />
-                  <span>پورسانت واریزی: +{toPersianNum(pricing.marketerCommissionPerCarton.toLocaleString())} تومان در هر کارتن</span>
-                </span>
-              ) : (
-                <span className="text-slate-600 flex items-center gap-1">
-                  <Tag size={10} className="text-indigo-500 shrink-0" />
-                  <span>تضمین اصالت بار مستقیم از خط تولید کارخانه</span>
-                </span>
-              )}
-            </div>
-
-            {/* Collapsible Pricing & Margin Detail Button */}
-            <button
-              type="button"
-              onClick={() => setShowPriceDetails(!showPriceDetails)}
-              className="w-full flex items-center justify-between text-[9px] font-black text-slate-500 hover:text-emerald-700 transition-colors bg-white/80 p-1.5 rounded-lg border border-slate-200/50 cursor-pointer"
-            >
-              <span className="flex items-center gap-1">📊 آنالیز سود و نرخ مصرف‌کننده</span>
-              <span className="text-[8px] font-bold text-slate-400">
-                {showPriceDetails ? "بستن ↑" : "جزئیات ↓"}
-              </span>
-            </button>
-
-            {/* Collapsible pricing detail block */}
-            <AnimatePresence initial={false}>
-              {showPriceDetails && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden space-y-2 pt-2 border-t border-slate-200/60 text-[10px] flex flex-col"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-[8.5px] font-bold text-slate-400">نرخ مصوب مصرف‌کننده:</span>
-                    <span className="font-black text-slate-700 font-mono">
-                      {toPersianNum(displayConsumerPrice.toLocaleString())} ت
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[8.5px] font-bold text-slate-500">کارتن مشتری/بنکدار ({toPersianNum(pricing.customerMarkupPercent)}٪ مارک‌آپ):</span>
-                    <span className="font-black text-indigo-700 font-mono">
-                      {toPersianNum((Math.round(pricing.floorFactoryUnitPrice * (1 + pricing.customerMarkupPercent / 100)) * product.carton_pack_count).toLocaleString())} ت
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[8.5px] font-bold text-emerald-600">کارتن نماینده استانی (کف قیمت):</span>
-                    <span className="font-black text-emerald-700 font-mono">
-                      {toPersianNum((pricing.floorFactoryUnitPrice * product.carton_pack_count).toLocaleString())} ت
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[8.5px] font-bold text-emerald-600">سود هر کارتن ({toPersianNum(profitPercent)}٪):</span>
-                    <span className="font-black text-emerald-700 font-mono">
-                      +{toPersianNum(profitPerCarton.toLocaleString())} ت
-                    </span>
-                  </div>
-                  {pricing.isRepresentative ? (
-                    <div className="flex justify-between items-center bg-emerald-50/70 p-1 rounded-md text-[8.5px] font-bold text-emerald-800">
-                      <span>مزیت انحصاری عاملیت:</span>
-                      <span>+{toPersianNum(pricing.repSavingsPerCarton.toLocaleString())} تومان در هر کارتن</span>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between items-center bg-indigo-50 p-1 rounded-md text-[8px] font-bold text-indigo-800">
-                      <span>با دریافت عاملیت رسمی:</span>
-                      <span>کارتنی +{toPersianNum((Math.round(pricing.floorFactoryUnitPrice * pricing.customerMarkupPercent / 100) * product.carton_pack_count).toLocaleString())} تومان سود خالص بیشتر!</span>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Packing & Total */}
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
-                <Package size={13} />
-              </div>
+            <div className="flex justify-between items-center pt-1 border-t border-slate-200/50">
               <div className="flex flex-col">
-                <span className="text-[8px] font-bold text-slate-400 uppercase">بسته‌بندی</span>
-                <span className="text-[10px] font-black text-slate-800">
-                  {toPersianNum(product.carton_pack_count)} {cleanUnitName(product.unit)} در کارتن
+                <span className="text-[8px] font-bold text-slate-400">بسته‌بندی</span>
+                <span className="text-[9px] font-black text-slate-600">
+                  {toPersianNum(product.carton_pack_count)} {cleanUnitName(product.unit)}
+                </span>
+              </div>
+              <div className="text-left">
+                <span className="text-[8px] font-bold text-slate-400 block">فاکتور کارتن</span>
+                <span className="text-[10px] font-black text-indigo-900 font-mono">
+                  {toPersianNum(pricePerCarton.toLocaleString())} <span className="text-[7px]">ت</span>
                 </span>
               </div>
             </div>
-            <div className="text-left">
-              <span className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">
-                قیمت هر کارتن
-              </span>
-              <span className="text-[11px] font-black text-indigo-900 font-mono">
-                {toPersianNum(pricePerCarton.toLocaleString())} ت
-              </span>
-            </div>
           </div>
 
-          {/* Quantity Controls & Call-to-Action */}
-          <div className="space-y-1.5 pt-0.5">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-slate-50 p-0.5 rounded-xl border border-slate-200/80 shrink-0">
-                <button 
-                  onClick={handleDecrement} 
-                  className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all cursor-pointer disabled:opacity-30" 
-                  disabled={cartons <= minCartonsLimit}
-                  title="کاهش تعداد کارتن"
-                >
-                  <Minus size={13} />
-                </button>
-                <span className="w-7 text-center text-xs font-black font-mono text-slate-900">{toPersianNum(cartons)}</span>
-                <button 
-                  onClick={handleIncrement} 
-                  className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-emerald-600 rounded-lg transition-all cursor-pointer"
-                  title="افزایش تعداد کارتن"
-                >
-                  <Plus size={13} />
-                </button>
-              </div>
-
+          {/* Quantity & CTA */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5">
               <button 
-                onClick={handleAddWithFeedback}
-                className={`flex-1 h-9 rounded-xl font-black text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-2xs hover:shadow-xs hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
-                  isAddedFeedback
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-700/15"
-                }`}
+                onClick={handleDecrement} 
+                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-20" 
+                disabled={cartons <= minCartonsLimit}
               >
-                {isAddedFeedback ? (
-                  <>
-                    <CheckCircle2 size={15} />
-                    <span>اضافه شد ({toPersianNum(cartons)} کارتن)</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart size={15} />
-                    <span>ثبت در سبد ({toPersianNum(cartons)} کارتن)</span>
-                  </>
-                )}
+                <Minus size={12} />
+              </button>
+              <span className="w-6 text-center text-[11px] font-black font-mono text-slate-700">{toPersianNum(cartons)}</span>
+              <button 
+                onClick={handleIncrement} 
+                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
+              >
+                <Plus size={12} />
               </button>
             </div>
 
-            {/* Minimum Order & Factory Direct Badge */}
-            <div className="flex items-center justify-between pt-0.5 px-0.5 text-[9px] text-slate-400 font-bold">
-              <span className="flex items-center gap-1 text-emerald-700 font-black">
-                <ShieldCheck size={11} className="text-emerald-600" />
-                تضمین بار تازه خط تولید
-              </span>
-              <span className="text-slate-500 font-black bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60">
-                حداقل سفارش: {toPersianNum(minCartonsLimit)} کارتن
-              </span>
-            </div>
+            <button 
+              onClick={handleAddWithFeedback}
+              className={`flex-1 h-9 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+                isAddedFeedback
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-lg shadow-emerald-700/15"
+              }`}
+            >
+              {isAddedFeedback ? (
+                <>
+                  <CheckCircle2 size={14} />
+                  <span>اضافه شد</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={14} />
+                  <span>سبد خرید</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
+
 
       {/* Success Toast Banner */}
       <AnimatePresence>

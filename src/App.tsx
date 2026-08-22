@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense } from "react";
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc } from "./lib/firebase-mock";
-import { db } from "./lib/firebase";
+import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc, db, auth } from "./lib/data-layer";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
@@ -615,7 +614,7 @@ export default function App() {
   const handleBatchDeleteProducts = async (ids: string[]) => {
     setProducts(prev => prev.filter(p => !ids.includes(p.id)));
     try {
-      const { batchDelete } = await import('./lib/firebase-mock');
+      const { batchDelete } = await import('./lib/data-layer');
       if (batchDelete) {
         await batchDelete("products", ids);
       } else {
@@ -633,7 +632,7 @@ export default function App() {
   const handleBulkUpdateProducts = async (updatedProductsList: Product[]) => {
     setProducts(updatedProductsList);
     try {
-      const { saveCollection } = await import('./lib/firebase-mock');
+      const { saveCollection } = await import('./lib/data-layer');
       if (saveCollection) {
         saveCollection("products", updatedProductsList);
       }
@@ -932,7 +931,7 @@ export default function App() {
     
     // Check Firestore Connection Status
     try {
-      const { getDocFromServer, doc: fireDoc } = await import('./lib/firebase-mock');
+      const { getDocFromServer, doc: fireDoc } = await import('./lib/data-layer');
       await getDocFromServer(fireDoc(db, '_connection_test_', 'ping'));
       setFirestoreStatus('online');
     } catch (e) {
@@ -1020,9 +1019,9 @@ export default function App() {
     setIsSyncingData(true);
     setSyncToastMessage("در حال همگام‌سازی لحظه‌ای تمام داده‌های سامانه و فاکتورها...");
     try {
-      // 1. Clear firebase mock internal memory database cache
-      const { clearMockCache } = await import('./lib/firebase-mock');
-      clearMockCache();
+      // 1. Clear local internal memory database cache
+      const { clearLocalCache } = await import('./lib/data-layer');
+      clearLocalCache();
       
       // 2. Clear IndexedDB cache for products to force fresh fetch
       try {

@@ -30,6 +30,7 @@ import {
   Download,
   Copy,
   Check,
+  Plus,
   Globe,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -40,6 +41,7 @@ import MagazineSection from "./MagazineSection";
 import { ReferralRewardModal } from "./ReferralRewardModal";
 import EngagementHub from "./EngagementHub";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
+import { getProductRolePricing } from "../lib/pricing";
 
 interface DynamicPresentationProps {
   products: Product[];
@@ -165,7 +167,7 @@ export default function DynamicPresentation({
 
   const categoriesList = useMemo(() => {
     return [
-      { id: "همه", label: "همه اقلام", icon: "📦" },
+      { id: "همه", label: "همه اقلام", icon: "📦", image: "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=85&w=800" },
       ...Array.from(mergedCatMap.values())
     ];
   }, [products, b2bConfig?.categories]);
@@ -319,6 +321,70 @@ export default function DynamicPresentation({
 
   const activeColors = colorConfig[primaryColor] || colorConfig.emerald;
 
+  const CompactShowcaseCard = ({ product, idx, onViewDetails, onAddToCart, toPersianNum }: any) => {
+    const isRaw = (product.category || "").includes("مواد اولیه") || (product.name || "").includes("نشاسته");
+    
+    // Use the central pricing utility for consistent role-based prices
+    const rolePricing = getProductRolePricing(product, user, userBadge as any);
+    const displayPrice = rolePricing.unitWholesalePrice;
+    const profitMargin = rolePricing.profitMarginPercent;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.4, delay: idx * 0.05 }}
+        className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all group flex items-center gap-4 cursor-pointer relative"
+        onClick={() => onViewDetails?.(product)}
+      >
+        <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-slate-50 border border-slate-100/50">
+          <img
+            key={`${product.id}-img-${product.image_url}`}
+            src={getDisplayImageUrl(product.image_url)}
+            alt={product.name}
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-700"
+          />
+          <div className="absolute top-1.5 right-1.5">
+            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black text-white shadow-sm ${isRaw ? 'bg-amber-600' : 'bg-emerald-600'}`}>
+              {isRaw ? 'مواد اولیه' : 'جدید'}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-1 h-full">
+          <div className="space-y-1.5">
+            <h4 className="text-xs sm:text-sm font-black text-slate-800 line-clamp-2 leading-tight">
+              {product.name}
+            </h4>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-[10px] font-black text-emerald-600">
+                {toPersianNum(profitMargin)}٪ حاشیه سود
+              </span>
+            </div>
+          </div>
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-mono font-black text-emerald-800">
+                {toPersianNum(displayPrice.toLocaleString())}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">ت</span>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Adding to cart will naturally use the role pricing logic in App.tsx
+                onAddToCart?.(product, product.min_order_cartons || 1);
+              }}
+              className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center hover:bg-emerald-700 transition-all shadow-md active:scale-90"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   const baseReps = (b2bConfig as any)?.baseRepsCount || 100;
   const baseProducts = ((b2bConfig as any)?.baseProductsCount || 100) + (products?.length || 0);
 
@@ -431,31 +497,33 @@ export default function DynamicPresentation({
       />
 
       {/* --- NEW PRODUCTS AND RAW MATERIALS SHOWCASE SECTION --- */}
-      <section className="bg-slate-50/60 rounded-[2rem] p-5 border border-slate-200/50 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200/60">
+      <section className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100/80">
           <div className="space-y-1">
-            <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
-              <span className="text-xl">✨</span>
-              <span>معرفی جدیدترین محصولات و مواد اولیه کارخانجات</span>
+            <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2.5">
+              <div className="w-10 h-10 bg-linear-to-tr from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+                <Sparkles size={20} />
+              </div>
+              <span>جدیدترین محصولات و تامین مواد اولیه</span>
             </h2>
-            <p className="text-[10px] text-slate-500 font-bold">
-              رونمایی از آخرین دستاوردهای خطوط تولید و نهاده‌های پایه‌ای صنایع با نرخ استثنایی دست اول
+            <p className="text-[11px] text-slate-400 font-bold pr-12">
+              رونمایی از آخرین خروجی‌های خط تولید با نرخ مصوب و بدون واسطه
             </p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-2xl border border-slate-200/60">
             {[
-              { id: 'all', label: 'همه اقلام جدید' },
-              { id: 'products', label: 'محصولات نهایی جدید' },
-              { id: 'raw_materials', label: 'تامین مواد اولیه' }
+              { id: 'all', label: 'همه اقلام' },
+              { id: 'products', label: 'محصولات' },
+              { id: 'raw_materials', label: 'مواد اولیه' }
             ].map((tab) => (
               <button
                 key={`showcase-tab-${tab.id}`}
                 onClick={() => setShowcaseTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all cursor-pointer whitespace-nowrap ${
                   showcaseTab === tab.id
-                    ? 'bg-emerald-600 text-white shadow-material-sm scale-[1.02]'
-                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                    ? 'bg-white text-emerald-700 shadow-md border border-slate-200/50 scale-[1.05]'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 <span>{tab.label}</span>
@@ -465,107 +533,50 @@ export default function DynamicPresentation({
         </div>
 
         {showcaseProducts.length === 0 ? (
-          <div className="bg-white rounded-2xl p-10 text-center border border-slate-150/60 shadow-3xs">
-            <Package className="mx-auto text-slate-300 mb-3 animate-pulse" size={40} />
-            <h4 className="text-xs font-black text-slate-800">هیچ محصول یا ماده اولیه‌ای یافت نشد!</h4>
-            <p className="text-[10px] text-slate-400 font-bold mt-1">با ورود به پنل خود می‌توانید اولین معرفی کالا را ثبت کنید.</p>
+          <div className="bg-slate-50/50 rounded-3xl p-12 text-center border border-dashed border-slate-200">
+            <Package className="mx-auto text-slate-300 mb-4 opacity-50" size={48} />
+            <h4 className="text-sm font-black text-slate-800">کالایی در این بخش ثبت نشده است</h4>
+            <p className="text-[11px] text-slate-400 font-bold mt-2">به زودی محصولات جدید کارخانجات در این بخش رونمایی خواهد شد.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {showcaseProducts.map((product, idx) => {
-              const isRaw = isRawMaterial(product);
-              return (
-                <motion.div
-                  key={`showcase-card-${product.id}-${idx}`}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="bg-white rounded-2xl border border-slate-150/50 p-3.5 shadow-3xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-3 relative group"
-                >
-                  {/* Category & Badge */}
-                  <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-1">
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black text-white ${
-                      isRaw ? 'bg-amber-600 shadow-sm' : 'bg-rose-600 shadow-sm'
-                    }`}>
-                      {isRaw ? '🌾 ماده اولیه' : '✨ محصول جدید'}
-                    </span>
-                  </div>
-
-                  {/* Product Image */}
-                  <div className="w-full h-36 rounded-xl bg-slate-50/50 overflow-hidden relative flex items-center justify-center shrink-0">
-                    <img
-                      src={getDisplayImageUrl(product.image_url)}
-                      alt={product.name}
-                      referrerPolicy="no-referrer"
-                      className="max-h-full max-w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="space-y-1.5 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-1 text-slate-400 text-[9px] font-black">
-                        <Building2 size={11} className="text-slate-400 shrink-0" />
-                        <span className="truncate">{product.brand}</span>
-                      </div>
-                      <h3 className="text-xs font-black text-slate-800 line-clamp-2 mt-1 leading-relaxed">
-                        {product.name}
-                      </h3>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-50 space-y-1">
-                      <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold">حداقل خرید عمده:</span>
-                        <span className="text-indigo-950 font-black bg-indigo-50/60 px-2 py-0.5 rounded border border-indigo-100/30">
-                          {toPersianNum(product.min_order_cartons)} کارتن
-                        </span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center pt-1">
-                        <span className="text-slate-400 text-[10px] font-bold">نرخ هر {cleanUnitName(product.unit)}:</span>
-                        <div className="text-right">
-                          <span className="text-xs font-mono font-black text-emerald-600">
-                            {toPersianNum(product.bulk_price.toLocaleString())}
-                          </span>
-                          <span className="text-[9px] font-black text-emerald-600 mr-0.5">تومان</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-1.5 pt-2.5 border-t border-slate-100 shrink-0 font-sans">
-                    <button
-                      onClick={() => onViewDetails?.(product)}
-                      className="py-2 bg-slate-50 hover:bg-slate-100 text-slate-750 rounded-xl text-[10px] font-black transition-colors text-center cursor-pointer border border-slate-200"
-                    >
-                      جزئیات و استعلام
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (onAddToCart) {
-                          onAddToCart(product, product.min_order_cartons || 1);
-                        }
-                      }}
-                      className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black transition-all text-center cursor-pointer shadow-material-sm hover:scale-102 active:scale-98"
-                    >
-                      سفارش مستقیم
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {showcaseProducts.map((product, idx) => (
+              <CompactShowcaseCard 
+                key={`showcase-grid-${product.id}-${idx}`} 
+                product={product} 
+                idx={idx} 
+                onViewDetails={onViewDetails} 
+                onAddToCart={onAddToCart}
+                toPersianNum={toPersianNum}
+              />
+            ))}
           </div>
         )}
 
-        {/* Call to action for other factories */}
-        <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-right">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl shrink-0">🏭</span>
-            <div>
-              <h4 className="text-xs font-black text-slate-850">کارخانه شما هم محصولات پایه‌ای یا مواد اولیه تولید می‌کند؟</h4>
-              <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-                تامین‌کنندگان و تولیدکنندگان مواد اولیه می‌توانند محصولات خود را به سبد محصولات صنایع غذایی و تولیدی کشور اضافه کنند.
+        <div className="mt-4">
+          <button 
+            onClick={() => setActiveTab?.('order')}
+            className="w-full py-3.5 bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 group cursor-pointer shadow-sm"
+          >
+            <span>ورود به سامانه خرید عمده و استعلام قیمت</span>
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          </button>
+        </div>
+
+        {/* Improved Call to action banner - Made White and Beautiful */}
+        <motion.div 
+          whileHover={{ y: -2 }}
+          className="bg-white rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 text-right border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group mt-4"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-1000" />
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-emerald-100">
+              🏭
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm sm:text-base font-black text-slate-900">کارخانه شما هم تولیدکننده است؟</h4>
+              <p className="text-[11px] text-slate-500 font-bold max-w-lg">
+                محصولات خود را مستقیماً به سبد خرید بنکداران سراسر کشور اضافه کنید و شبکه فروش خود را هوشمند کنید.
               </p>
             </div>
           </div>
@@ -574,127 +585,92 @@ export default function DynamicPresentation({
               setActiveTab?.('factories');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black rounded-xl transition-all shadow-md shadow-amber-600/15 shrink-0 cursor-pointer"
+            className="px-8 py-3 bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all shadow-lg shadow-emerald-700/20 hover:bg-emerald-800 active:scale-95 shrink-0 cursor-pointer relative z-10"
           >
-            ثبت و معرفی محصول کارخانه شما
+            مشاوره و ثبت کارخانه
           </button>
-        </div>
+        </motion.div>
       </section>
 
-      {/* --- QUICK CATEGORY NAVIGATION TILES --- */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-          <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
-              <Grid size={16} />
+      {/* --- QUICK CATEGORY NAVIGATION - CREATIVE & FLUID --- */}
+      <section className="space-y-6 pt-4">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+              <Grid size={20} />
             </div>
-            <span>دسته بندی محصولات</span>
-          </h2>
+            <div>
+              <h2 className="text-base font-black text-slate-900">دسته‌بندی‌های کالا</h2>
+              <p className="text-[10px] text-slate-400 font-bold">دسترسی هوشمند به گروه‌های کالایی</p>
+            </div>
+          </div>
           <button 
             onClick={() => setActiveTab?.('order')}
-            className="text-[11px] font-black text-emerald-800 hover:text-emerald-900 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/60"
+            className="text-[11px] font-black text-emerald-700 hover:scale-105 transition-transform flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100"
           >
-            <span>مشاهده همه</span>
-            <ArrowLeft size={13} />
+            <span>کاتالوگ کامل</span>
+            <ChevronLeft size={14} />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {categoriesList.map((cat, catIdx) => {
-            const itemCount = cat.id === "همه" 
-              ? products.length 
-              : products.filter(p => isCategoryMatch(p, cat.id)).length;
-            const isSelected = selectedCategory === cat.id;
+        <div className="relative group">
+          <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 scroll-smooth no-scrollbar scroll-snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {categoriesList.map((cat, catIdx) => {
+              const itemCount = cat.id === "همه" 
+                ? products.length 
+                : products.filter(p => isCategoryMatch(p, cat.id)).length;
+              const isSelected = selectedCategory === cat.id;
 
-            return (
-              <button
-                key={`cat-tile-${cat.id}-${catIdx}`}
-                onClick={() => {
-                  const targetCat = cat.id === "همه" ? "همه" : cat.id;
-                  setSelectedCategory(targetCat);
-                  if (setActiveCategory) setActiveCategory(targetCat);
-                }}
-                className={`group relative rounded-2xl overflow-hidden border transition-all cursor-pointer ${
-                  cat.id === "همه"
-                    ? isSelected
-                      ? "bg-white text-slate-900 border-2 border-emerald-600 ring-2 ring-emerald-400/30 shadow-md p-4 flex flex-col items-center justify-center text-center space-y-2"
-                      : "bg-white text-slate-900 border border-slate-200 hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5 p-4 flex flex-col items-center justify-center text-center space-y-2 shadow-xs"
-                    : isSelected
-                      ? "bg-gradient-to-b from-emerald-800 via-emerald-700 to-teal-800 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-xl shadow-emerald-900/20 scale-[1.02] p-3 text-right flex flex-col justify-between space-y-2.5"
-                      : "bg-white text-slate-800 border-slate-200 hover:bg-white hover:border-emerald-400/60 hover:shadow-lg hover:-translate-y-1 p-3 text-right flex flex-col justify-between space-y-2.5"
-                }`}
-              >
-                {cat.id === "همه" ? (
-                  <>
-                    <span className="text-3xl sm:text-4xl transform group-hover:scale-110 transition-transform">
-                      {cat.icon || "📦"}
-                    </span>
-                    <div className="space-y-0.5">
-                      <h3 className="text-xs sm:text-sm font-black text-slate-900">
-                        {cat.label}
-                      </h3>
-                      <p className="text-[10px] font-bold text-slate-600">
-                        {toPersianNum(itemCount)} کالا
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="relative w-full h-28 sm:h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
-                      {(cat as any).image ? (
-                        <>
-                          <img 
-                            src={(cat as any).image} 
-                            alt={cat.label} 
-                            onError={(e) => {
-                              e.currentTarget.src = getCategoryImage(cat.label);
-                            }}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                          />
-                          <div className={`absolute inset-0 ${isSelected ? "bg-emerald-950/30" : "bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent"}`} />
-                          <span className="absolute top-2 right-2 bg-white/95 backdrop-blur-md text-slate-900 w-8 h-8 rounded-xl text-sm flex items-center justify-center font-black shadow-md border border-white/50 z-10">
-                            {cat.icon || "🏷️"}
-                          </span>
-                        </>
-                      ) : (
-                        <div className={`w-full h-full flex flex-col items-center justify-center p-3 relative transition-all duration-300 ${
-                          isSelected 
-                            ? "bg-gradient-to-br from-emerald-50 to-teal-100 text-emerald-900 border border-emerald-300" 
-                            : "bg-white text-slate-800 border border-slate-200 group-hover:bg-slate-50"
-                        }`}>
-                          <span className="text-3xl sm:text-4xl transform group-hover:scale-120 group-hover:rotate-6 transition-all duration-300 drop-shadow-xs">
-                            {cat.icon || "🔖"}
-                          </span>
-                          <span className="text-[10px] font-black tracking-wider uppercase mt-1 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 shadow-xs">
-                            تامین کارخانه
-                          </span>
-                        </div>
-                      )}
+              return (
+                <motion.button
+                  key={`cat-scroll-${cat.id}-${catIdx}`}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    const targetCat = cat.id === "همه" ? "همه" : cat.id;
+                    setSelectedCategory(targetCat);
+                    if (setActiveCategory) setActiveCategory(targetCat);
+                  }}
+                  className={`flex flex-col items-center gap-3 p-3 rounded-2xl min-w-[130px] h-[140px] transition-all cursor-pointer border snap-start relative overflow-hidden group/cat shadow-sm ${
+                    isSelected
+                      ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                      : "bg-white border-slate-100 hover:border-emerald-300"
+                  }`}
+                >
+                  {/* Background Image with Overlay */}
+                  <div className="absolute inset-0 z-0">
+                    <img 
+                      src={cat.image || getCategoryImage(cat.id)} 
+                      alt={cat.label}
+                      className="w-full h-full object-cover opacity-15 group-hover/cat:scale-110 transition-transform duration-700"
+                    />
+                    <div className={`absolute inset-0 ${isSelected ? 'bg-emerald-700/80' : 'bg-slate-50/60 group-hover/cat:bg-white/40'}`} />
+                  </div>
 
-                      <span className={`absolute bottom-2 left-2 px-2.5 py-1 rounded-lg text-[9px] font-black shadow-xs ${
-                        isSelected ? "bg-amber-400 text-slate-900" : "bg-white/95 text-slate-800 border border-slate-200/80"
-                      }`}>
-                        {toPersianNum(itemCount)} کالا
-                      </span>
+                  <div className={`relative z-10 w-14 h-14 rounded-xl flex items-center justify-center text-2xl transition-all shadow-sm ${
+                    isSelected ? "bg-white/20 text-white" : "bg-white text-slate-700 border border-slate-100"
+                  }`}>
+                    {cat.icon || "📦"}
+                  </div>
+                  <div className="relative z-10 text-center space-y-1 mt-auto">
+                    <h3 className={`text-[11px] font-black whitespace-nowrap ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                      {cat.label}
+                    </h3>
+                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-block backdrop-blur-sm ${
+                      isSelected ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-600"
+                    }`}>
+                      {toPersianNum(itemCount)} کالا
                     </div>
-
-                    <div>
-                      <h3 className={`text-xs sm:text-sm font-black line-clamp-1 ${isSelected ? "text-amber-300" : "text-slate-900 group-hover:text-emerald-700"}`}>
-                        {cat.label}
-                      </h3>
-                      <p className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>
-                        نمایش محصولات
-                      </p>
-                    </div>
-                  </>
-                )}
-              </button>
-            );
-          })}
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
       {/* --- SMART B2B SEARCH & FEATURED PRODUCTS --- */}
+
       <section className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/70 pb-4">
           <div className="flex items-center gap-2">
@@ -769,61 +745,6 @@ export default function DynamicPresentation({
             <span>مشاهده لیست کامل محصولات در کاتالوگ عمده</span>
             <ArrowLeft size={15} />
           </button>
-        </div>
-      </section>
-
-      {/* --- MARKET HIGH-DEMAND GOODS (Trending based on Cart Additions) --- */}
-      <section className="space-y-4 pt-2">
-        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0 border border-red-100 shadow-sm">
-              <TrendingUp size={18} className="text-red-600" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                <span>کالاهای پرتقاضای بازار</span>
-                <div className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full animate-pulse">HOT</div>
-              </h2>
-              <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-                بیشترین دفعات افزودن به سبد خرید در ۴۸ ساعت گذشته
-              </p>
-            </div>
-          </div>
-          <button 
-            onClick={() => setActiveTab?.('order')}
-            className="text-[10px] sm:text-[11px] font-black text-slate-600 hover:text-emerald-700 transition-colors flex items-center gap-1 cursor-pointer bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-xs"
-          >
-            <span>همه کالاهای ترند</span>
-            <ArrowLeft size={13} />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {products
-            .filter(p => (p.cartAddCount || 0) > 0)
-            .sort((a, b) => (b.cartAddCount || 0) - (a.cartAddCount || 0))
-            .slice(0, 4)
-            .map((p, idx) => (
-              <div key={`trending-${p.id}-${idx}`} className="relative group">
-                <ProductCard
-                  index={idx}
-                  product={p}
-                  onViewDetails={onViewDetails}
-                  onAddToCart={(prod, qty) => {
-                    if (onAddToCart) onAddToCart(prod, qty);
-                  }}
-                />
-                {/* Demand Badge Overlay */}
-                <div className="absolute top-3 left-3 z-10">
-                  <div className="bg-white/95 backdrop-blur-md border border-red-100 px-2 py-1 rounded-lg shadow-sm flex items-center gap-1">
-                    <Zap size={10} className="text-red-600 fill-red-600" />
-                    <span className="text-[9px] font-black text-slate-900">
-                      {toPersianNum(p.cartAddCount || 0)}+ تقاضا
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
         </div>
       </section>
 

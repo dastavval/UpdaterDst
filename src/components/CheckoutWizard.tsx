@@ -25,10 +25,11 @@ import {
   AlertCircle,
   Package,
   Sparkles,
+  Zap,
   ArrowRight
 } from 'lucide-react';
-import { collection, addDoc, serverTimestamp } from '../lib/firebase-mock';
-import { db } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp } from '../lib/data-layer';
+import { db } from '../lib/data-layer';
 import { recordCRMOrder } from '../lib/crm-helper';
 import { CartItem, Product, User } from '../types';
 import { getDisplayImageUrl } from '../lib/image-utils';
@@ -139,6 +140,13 @@ export default function CheckoutWizard({
   // Processing state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const isDeliveryInfoComplete = buyerName && buyerPhone && buyerAddress;
+
+  const handleQuickCheckout = async () => {
+    if (!isDeliveryInfoComplete) return;
+    setStep(3); // Go straight to payment
+  };
 
   // Helper to resolve REAL product image safely
   const getProductImage = (item: CartItem) => {
@@ -1460,14 +1468,26 @@ export default function CheckoutWizard({
             )}
 
             {step === 1 && (
-              <button
-                type="button"
-                onClick={handleNextFromStep1}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-              >
-                <span>ادامه: مشخصات تحویل</span>
-                <ChevronLeft size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                {isDeliveryInfoComplete && (
+                  <button
+                    type="button"
+                    onClick={handleQuickCheckout}
+                    className="px-4 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-xl text-[10px] sm:text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                  >
+                    <Zap size={14} className="fill-amber-700" />
+                    <span>خرید سریع (تایید آدرس ذخیره شده)</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleNextFromStep1}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                >
+                  <span>ادامه: مشخصات تحویل</span>
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
             )}
 
             {step === 2 && (

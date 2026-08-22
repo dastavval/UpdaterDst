@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, addDoc, serverTimestamp, updateDoc, doc, query, where, orderBy, setDoc } from "../lib/firebase-mock";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/firebase-mock";
-import { db, auth } from "../lib/firebase";
+import { collection, getDocs, addDoc, serverTimestamp, updateDoc, doc, query, where, orderBy, setDoc } from "../lib/data-layer";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/data-layer";
+import { db, auth } from "../lib/data-layer";
 import { Product, Order, SupplyChainStage } from "../types";
 import { getDisplayImageUrl } from "../lib/image-utils";
 import { 

@@ -4,8 +4,8 @@ import {
   Headphones, Smartphone, Phone, Send, MessageSquare, HelpCircle, 
   ChevronDown, CheckCircle2, AlertCircle, Mail, MapPin, Clock, ArrowRight 
 } from "lucide-react";
-import { db } from "../lib/firebase";
-import { collection, addDoc } from "../lib/firebase-mock";
+import { db } from "../lib/data-layer";
+import { collection, addDoc } from "../lib/data-layer";
 
 interface FAQItem {
   question: string;

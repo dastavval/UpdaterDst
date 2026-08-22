@@ -1,5 +1,5 @@
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from "./firebase-mock";
-import { db } from "./firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from "./data-layer";
+import { db } from "./data-layer";
 
 export interface CRMCustomer {
   id: string;

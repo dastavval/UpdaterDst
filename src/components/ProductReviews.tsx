@@ -9,9 +9,10 @@ import {
   orderBy, 
   onSnapshot, 
   addDoc, 
-  serverTimestamp 
-} from '../lib/firebase-mock';
-import { db, auth } from '../lib/firebase';
+  serverTimestamp,
+  db,
+  auth
+} from '../lib/data-layer';
 
 interface ProductReviewsProps {
   productId: string;

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { uploadToParsPackStorage } from "../utils/storage";
-import { getAdFallbackImage } from "./AdBoard";
+import { getAdFallbackImage, AdItem } from "../utils/ad-utils";
 
 interface AddAdButtonProps {
   variant?: "desktop" | "mobile-fab" | "inline";

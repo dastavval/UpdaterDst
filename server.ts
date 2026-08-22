@@ -129,6 +129,7 @@ if (!fs.existsSync(DATA_DIR)) {
 
 const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 function loadConfig(): any {
   return b2bConfig;
@@ -181,6 +182,22 @@ function saveOrders(orders: any[]) {
   } catch (e) {
     console.error("Error saving orders.json:", e);
   }
+}
+
+function loadUsers(): Record<string, any> {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      return JSON.parse(fs.readFileSync(USERS_FILE, "utf-8"));
+    }
+  } catch (e) {}
+  return {};
+}
+
+function saveUsers(users: Record<string, any>) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+  } catch (e) {}
 }
 const DEFAULT_B2B_CONFIG = {
   githubRepoUrl: "https://github.com/dastavval/UpdaterDst.git",
@@ -1111,15 +1128,26 @@ app.get("/api/proxy-image", async (req, res) => {
 
   try {
     const fs = await import("fs");
-    fs.appendFileSync("proxy_debug.log", `[${new Date().toISOString()}] Image Proxy Request: ${targetUrl}\n`);
+    const logMsg = `[${new Date().toISOString()}] Image Proxy Request: ${targetUrl}\n`;
+    fs.appendFileSync("proxy_debug.log", logMsg);
     
+    // Set a timeout for the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const response = await smartFetchWithDnsBypass(targetUrl, {
-      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
-    });
+      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      "Referer": new URL(targetUrl).origin
+    }, { signal: controller.signal });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      fs.appendFileSync("proxy_debug.log", `[${new Date().toISOString()}] Image Proxy Failed: Status ${response.status} ${response.statusText} for ${targetUrl}\n`);
-      return res.status(response.status).send(`Failed to fetch target image: ${response.statusText}`);
+      const failMsg = `[${new Date().toISOString()}] Image Proxy Failed: Status ${response.status} ${response.statusText} for ${targetUrl}\n`;
+      fs.appendFileSync("proxy_debug.log", failMsg);
+      // Fallback: instead of error, we can try to return a transparent pixel or a generic placeholder
+      // For now, let's return a 404 so the client knows it failed
+      return res.status(404).send("Image not found on remote server");
     }
 
     const contentType = response.headers.get("content-type") || "image/jpeg";
@@ -2549,6 +2577,55 @@ setInterval(async () => {
     // Background polling silent error handling
   }
 }, 10 * 60 * 1000);
+
+// Persistent B2B Data API - Robust saving with basic locking
+let isSavingProducts = false;
+let productSaveQueue: any[] = [];
+
+async function processProductQueue() {
+  if (isSavingProducts || productSaveQueue.length === 0) return;
+  isSavingProducts = true;
+  const nextItems = productSaveQueue.shift();
+  try {
+    saveProducts(nextItems);
+    console.log(`[Persistence] Successfully saved ${nextItems.length} products to disk.`);
+  } catch (err) {
+    console.error("[Persistence] Failed to save products:", err);
+  } finally {
+    isSavingProducts = false;
+    if (productSaveQueue.length > 0) processProductQueue();
+  }
+}
+
+app.get("/api/b2b/products", (req, res) => {
+  res.json(loadProducts());
+});
+
+app.post("/api/b2b/products", (req, res) => {
+  if (!Array.isArray(req.body)) return res.status(400).json({ error: "Expected an array of products" });
+  productSaveQueue.push(req.body);
+  processProductQueue();
+  res.json({ success: true, count: req.body.length, status: "queued" });
+});
+
+app.get("/api/b2b/orders", (req, res) => {
+  res.json(loadOrders());
+});
+
+app.post("/api/b2b/orders", (req, res) => {
+  if (!Array.isArray(req.body)) return res.status(400).json({ error: "Expected an array of orders" });
+  saveOrders(req.body);
+  res.json({ success: true, count: req.body.length });
+});
+
+app.get("/api/b2b/users", (req, res) => {
+  res.json(loadUsers());
+});
+
+app.post("/api/b2b/users", (req, res) => {
+  saveUsers(req.body);
+  res.json({ success: true });
+});
 
 app.get("/api/b2b/config", (req, res) => res.json(b2bConfig));
 

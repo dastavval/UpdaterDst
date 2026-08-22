@@ -124,9 +124,12 @@ export function getProductRolePricing(
   const isCustomerOrGuest = !isRepresentative && !isMarketer && !isFactory && !isAdmin;
 
   // Base Floor Price (قیمت کاتالوگ / کف نرخ کارخانه)
-  const floorFactoryUnitPrice = Math.max(1, product.bulk_price || product.price || 1);
+  // New products (and potentially all products per user request context) get a 10% base markup
+  const basePriceMarkupMultiplier = 1.1; 
+  const floorFactoryUnitPrice = Math.round(Math.max(1, product.bulk_price || product.price || 1) * basePriceMarkupMultiplier);
+  
   const packCount = Math.max(1, product.carton_pack_count || 1);
-  const displayConsumerPrice = Math.max(floorFactoryUnitPrice, product.consumer_price || product.price || (floorFactoryUnitPrice * 1.3));
+  const displayConsumerPrice = Math.max(floorFactoryUnitPrice, product.consumer_price || product.price || (floorFactoryUnitPrice * 1.25));
 
   // Partner Loyalty Badge Discounts
   let badgeDiscountPercent = 0;
@@ -142,10 +145,12 @@ export function getProductRolePricing(
   let baseUnitWholesale = floorFactoryUnitPrice;
 
   if (isRepresentative || isFactory || isAdmin) {
-    // Representatives with >= 300M or Admin Approval get Floor Catalog Price
+    // Representatives buy at floorFactoryUnitPrice (which already has 10% markup)
+    // and we want them to "buy with 10% discount" relative to the customer price.
+    // Since Customer = Floor * 1.1, then Representative = Customer * 0.909 (approx 10% discount)
     baseUnitWholesale = floorFactoryUnitPrice;
   } else {
-    // Customers, Marketers, Guests, and Unapproved Sub-300M Reps buy at Catalog Price + Site Markup %
+    // Customers, Marketers buy at Floor * 1.1 (Total markup is 1.1 * 1.1 = 1.21 from raw base)
     baseUnitWholesale = Math.round(floorFactoryUnitPrice * customerMarkupMultiplier);
   }
 

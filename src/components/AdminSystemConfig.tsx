@@ -52,8 +52,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
-import { db } from "../lib/firebase";
-import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from "../lib/firebase-mock";
+import { db } from "../lib/data-layer";
+import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from "../lib/data-layer";
 
 interface AdminSystemConfigProps {
   b2bConfig: B2BConfig;

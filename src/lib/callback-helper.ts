@@ -1,5 +1,5 @@
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "./firebase-mock";
-import { db } from "./firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "./data-layer";
+import { db } from "./data-layer";
 
 export interface CallbackRequest {
   id: string;

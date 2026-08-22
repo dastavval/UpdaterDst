@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { motion, AnimatePresence } from "motion/react";
-import { db } from "../lib/firebase";
-import { collection, addDoc } from "../lib/firebase-mock";
+import { db } from "../lib/data-layer";
+import { collection, addDoc } from "../lib/data-layer";
 import SpecialPriceBagIcon from "./SpecialPriceBagIcon";
 import { Product } from "../types";
 import { getDisplayImageUrl } from "../lib/image-utils";
+import { AdItem, getAdFallbackImage } from "../utils/ad-utils";
 import AddAdButton from "./AddAdButton";
-import { 
-  Plus, 
+import {
   Sparkles, 
+  Plus,
   Building2, 
   Phone, 
   Calendar, 
@@ -46,30 +47,6 @@ import {
   Flame,
   RefreshCw
 } from "lucide-react";
-
-export interface AdItem {
-  id: string;
-  title: string;
-  description: string;
-  factoryName: string;
-  contactPerson: string;
-  contactPhone: string; // Admin eyes only - proxied securely
-  badgeText: string;
-  category: "under_market" | "liquid" | "direct_supply";
-  quantity: string;
-  wholesalePrice: string; // قیمت عمده پیشنهادی
-  marketPrice: string;    // قیمت مصرف کننده یا بازار آزاد
-  buyerProfit: string;    // سود تخمینی خریدار (اختلاف قیمت)
-  isSponsored?: boolean;
-  date: string;
-  imageUrl?: string;
-  imageUrls?: string[];   // Support multiple image uploads
-  status: "approved" | "pending" | "rejected";
-  rejectionReason?: string;
-  specialRequest?: boolean;
-  specialRequestMessage?: string;
-  isHotFireDeal?: boolean;
-}
 
 const initialAds: AdItem[] = [
   {
@@ -168,26 +145,6 @@ const initialAds: AdItem[] = [
     isHotFireDeal: true
   }
 ];
-
-export const getAdFallbackImage = (title: string, category: string): string => {
-  const norm = title.toLowerCase();
-  if (norm.includes("روغن")) {
-    return "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600";
-  }
-  if (norm.includes("شکر") || norm.includes("قند")) {
-    return "https://images.unsplash.com/photo-1587735243615-c03f25aaff15?auto=format&fit=crop&q=80&w=600";
-  }
-  if (norm.includes("نشاسته") || norm.includes("آرد") || norm.includes("گلوتن")) {
-    return "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=600";
-  }
-  if (norm.includes("رب") || norm.includes("گوجه")) {
-    return "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=600";
-  }
-  if (norm.includes("نوشمک") || norm.includes("یخی") || norm.includes("شربت")) {
-    return "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=600";
-  }
-  return "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=600";
-};
 
 interface AdBoardProps {
   onTriggerPayment?: (paymentInfo: {
@@ -2082,5 +2039,5 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         </motion.div>
       </div>
     );
-  }
+}
 }

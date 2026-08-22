@@ -63,9 +63,9 @@ export const UserGatewayHub: React.FC<UserGatewayHubProps> = ({
             </button>
             <button
               onClick={onOpenBillboard}
-              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-black text-xs transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 md:flex-none h-10 px-3 sm:px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[10px] sm:text-xs transition-all shadow-md flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-95 whitespace-nowrap border border-amber-400"
             >
-              <TrendingDown size={15} />
+              <TrendingDown size={14} className="shrink-0" />
               <span>تالار کف بازار</span>
             </button>
           </div>

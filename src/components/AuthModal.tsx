@@ -5,9 +5,9 @@ import {
   CreditCard, Briefcase, ChevronRight, Clock, ShieldX
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, db } from "../lib/firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "../lib/firebase-mock";
-import { doc, setDoc, serverTimestamp } from "../lib/firebase-mock";
+import { auth, db } from "../lib/data-layer";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "../lib/data-layer";
+import { doc, setDoc, serverTimestamp } from "../lib/data-layer";
 import { generateUserCode } from "../lib/id-utils";
 import { addLeadFromRegistration } from "../lib/leads-store";
 import { checkLoginRateLimit, recordFailedLoginAttempt, resetLoginAttempts, RateLimitStatus } from "../lib/rate-limiter";

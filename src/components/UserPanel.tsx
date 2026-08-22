@@ -9,8 +9,8 @@ import {
   ShieldAlert, Layers, Box, CheckCircle, ExternalLink, Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, serverTimestamp } from "../lib/firebase-mock";
-import { db } from "../lib/firebase";
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, serverTimestamp } from "../lib/data-layer";
+import { db } from "../lib/data-layer";
 import { Product, Order } from "../types";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";

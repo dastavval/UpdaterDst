@@ -34,9 +34,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product, Order, SupplyChainStage } from "../types";
-import { db, auth } from "../lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, doc, query, where, serverTimestamp, setDoc } from "../lib/firebase-mock";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/firebase-mock";
+import { db, auth } from "../lib/data-layer";
+import { collection, getDocs, addDoc, updateDoc, doc, query, where, serverTimestamp, setDoc } from "../lib/data-layer";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/data-layer";
 
 interface FactoryDashboardProps {
   currentSellerId: string;

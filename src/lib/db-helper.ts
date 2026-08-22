@@ -1,5 +1,4 @@
-import { collection, getDocs, addDoc, serverTimestamp } from "./firebase-mock";
-import { db } from "./firebase";
+import { collection, getDocs, addDoc, serverTimestamp, db } from "./data-layer";
 import { Product, NewsArticle, FactoryProfile } from "../types";
 
 export const INITIAL_NEWS: NewsArticle[] = [];

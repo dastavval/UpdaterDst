@@ -516,10 +516,10 @@ export default function Navbar({
                 onClick={() => {
                   setActiveTab?.('billboard');
                 }}
-                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 group overflow-hidden border ${
+                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-200 cursor-pointer flex items-center gap-2 group overflow-hidden border whitespace-nowrap ${
                   activeTab === 'billboard'
-                    ? "bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-md shadow-amber-500/30 border-amber-400 scale-[1.05] ring-2 ring-amber-400/20"
-                    : "bg-amber-50/70 text-amber-950 border-amber-200/80 hover:bg-amber-100 hover:border-amber-300 shadow-2xs"
+                    ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 border-amber-500 ring-1 ring-amber-500/30"
+                    : "bg-amber-50/70 text-amber-950 border-amber-200/80 hover:bg-amber-100 hover:border-amber-300"
                 }`}
               >
                 {/* Micro pulsating light to make it look extra alive & special */}
@@ -748,21 +748,16 @@ export default function Navbar({
                   onClick={() => handleNavClick(item.id)}
                   className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer group"
                 >
-                  <div className={`relative z-10 flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-xl transition-all border ${
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all border whitespace-nowrap ${
                     isActive 
-                      ? "bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20 scale-105 border-amber-400" 
-                      : "bg-amber-50/50 text-amber-900 border-amber-100/60"
+                      ? "bg-amber-400 text-slate-950 font-black shadow-sm border-amber-500" 
+                      : "bg-amber-50/40 text-amber-900 border-amber-100/40"
                   }`}>
                     <span className="relative flex items-center justify-center">
-                      <SpecialPriceBagIcon size={20} animated={true} plain={true} className="text-slate-950" />
-                      <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-600"></span>
-                      </span>
+                      <SpecialPriceBagIcon size={18} animated={true} plain={true} className="text-slate-950" />
                     </span>
-                    <span className="text-[9px] font-black tracking-tight flex items-center gap-0.5">
-                      <span>کف بازار</span>
-                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping inline-block" />}
+                    <span className="text-[8px] font-black tracking-tighter">
+                      کف بازار
                     </span>
                   </div>
                 </button>

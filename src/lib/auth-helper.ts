@@ -1,5 +1,5 @@
-import { auth } from "./firebase";
-import { signOut, updatePassword, updateProfile } from "./firebase-mock";
+import { auth } from "./data-layer";
+import { signOut, updatePassword, updateProfile } from "./data-layer";
 
 export const logoutUser = async () => {
   await signOut(auth);

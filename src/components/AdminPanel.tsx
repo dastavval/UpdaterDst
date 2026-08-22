@@ -6,8 +6,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { Product, B2BConfig, OrderItem, SlideItem, BrandItem } from "../types";
 import { fetchCRMCustomers, CRMCustomer, updateCRMCustomer, deleteCRMCustomer, addCRMCustomer } from "../lib/crm-helper";
 import { fetchCallbackRequests, updateCallbackStatus, deleteCallbackRequest } from "../lib/callback-helper";
-import { db } from "../lib/firebase";
-import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc, serverTimestamp, where } from "../lib/firebase-mock";
+import { db } from "../lib/data-layer";
+import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc, serverTimestamp, where } from "../lib/data-layer";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import CatalogPrintView from "./CatalogPrintView";
@@ -1844,7 +1844,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     if (!editingOrder) return;
     setLoading(true);
     try {
-      const { doc: orderDoc, updateDoc: orderUpdate } = await import("../lib/firebase-mock");
+      const { doc: orderDoc, updateDoc: orderUpdate } = await import("../lib/data-layer");
       const orderRef = orderDoc(db, "orders", editingOrder.id);
       await orderUpdate(orderRef, {
         buyerName: editBuyerName,
