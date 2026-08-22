@@ -13,7 +13,7 @@ export function getDisplayImageUrl(rawUrl?: string): string {
   if (!url) return FALLBACK_IMAGE;
   
   // Already proxied
-  if (url.startsWith("/api/proxy-image")) return url;
+  if (url.startsWith("/api/proxy-image") || url.startsWith("/php/api.php?action=proxy-image")) return url;
   
   // Relative path or local asset
   if (url.startsWith("/") && !url.startsWith("//")) return url;
@@ -36,9 +36,14 @@ export function getDisplayImageUrl(rawUrl?: string): string {
   const isS3 = url.includes("s3.");
   const isHttp = url.startsWith("http://");
 
+  // Determine proxy URL path based on hosting environment
+  const isDevelopment = typeof window !== 'undefined' && 
+    (window.location.port === '3000' || window.location.hostname.includes('run.app') || window.location.hostname === 'localhost');
+  const proxyPath = isDevelopment ? `/api/proxy-image?url=` : `/php/api.php?action=proxy-image&url=`;
+
   // Proxy most external images, especially if they are HTTP or from known troublesome domains
   if (isParsPack || isS3 || isHttp || url.includes("storage") || !url.includes("unsplash.com")) {
-    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    return `${proxyPath}${encodeURIComponent(url)}`;
   }
   
   return url;

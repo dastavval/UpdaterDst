@@ -71,6 +71,209 @@ switch ($action) {
         }
         break;
 
+    // ۱.۵. هندلر کامل محصولات B2B برای دریافت و ذخیره در MySQL
+    case 'b2b/products':
+        header('Content-Type: application/json; charset=utf-8');
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                echo json_encode(['status' => 'error', 'message' => 'دیتا معتبر ارسال نشده است.'], JSON_UNESCAPED_UNICODE);
+                exit();
+            }
+            try {
+                $pdo->beginTransaction();
+                // پاکسازی محصولات قبلی جهت همگام‌سازی تمیز کاتالوگ
+                $pdo->exec("DELETE FROM products");
+                
+                $stmt = $pdo->prepare("INSERT INTO products (product_code, name, brand, category, description, bulk_price, market_price, carton_pack_count, min_order_cartons, image_url, is_special, stock_cartons) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                foreach ($input as $p) {
+                    $code = $p['productCode'] ?? $p['sku'] ?? $p['id'] ?? ('PRD-' . rand(10000, 99999));
+                    $name = $p['name'] ?? 'بدون نام';
+                    $brand = $p['brand'] ?? 'متفرقه';
+                    $category = $p['category'] ?? 'تنقلات و شکلات';
+                    $desc = $p['description'] ?? '';
+                    $bulk_price = (float)($p['bulk_price'] ?? $p['price'] ?? 0);
+                    $market_price = (float)($p['consumer_price'] ?? $p['market_price'] ?? 0);
+                    $carton = (int)($p['carton_pack_count'] ?? 24);
+                    $min_order = (int)($p['min_order_cartons'] ?? 1);
+                    $image = $p['image_url'] ?? $p['imageUrl'] ?? '';
+                    $special = (isset($p['isFeatured']) && $p['isFeatured']) ? 1 : 0;
+                    $stock = (int)($p['stock_quantity_cartons'] ?? $p['stock_cartons'] ?? 100);
+                    
+                    $stmt->execute([$code, $name, $brand, $category, $desc, $bulk_price, $market_price, $carton, $min_order, $image, $special, $stock]);
+                }
+                $pdo->commit();
+                echo json_encode(['status' => 'success', 'count' => count($input), 'message' => 'تمام کالاها با موفقیت درون دیتابیس MySQL هاست ذخیره شدند.'], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                echo json_encode(['status' => 'error', 'message' => 'خطا در ثبت محصولات: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            }
+        } else {
+            try {
+                $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC");
+                $dbProducts = $stmt->fetchAll();
+                $products = [];
+                foreach ($dbProducts as $row) {
+                    $products[] = [
+                        'id' => $row['product_code'],
+                        'productCode' => $row['product_code'],
+                        'sku' => $row['product_code'],
+                        'name' => $row['name'],
+                        'brand' => $row['brand'],
+                        'category' => $row['category'],
+                        'description' => $row['description'] ?? '',
+                        'price' => (float)$row['bulk_price'],
+                        'bulk_price' => (float)$row['bulk_price'],
+                        'consumer_price' => (float)($row['market_price'] ?? 0),
+                        'carton_pack_count' => (int)($row['carton_pack_count'] ?? 24),
+                        'min_order_cartons' => (int)($row['min_order_cartons'] ?? 1),
+                        'image_url' => $row['image_url'] ?? '',
+                        'imageUrl' => $row['image_url'] ?? '',
+                        'stock_quantity_cartons' => (int)($row['stock_cartons'] ?? 100),
+                        'isFeatured' => (bool)$row['is_special'],
+                        'unit' => 'بسته',
+                        'sellerName' => 'تامین کننده مرکزی',
+                        'production_lead_time_days' => 2
+                    ];
+                }
+                echo json_encode($products, JSON_UNESCAPED_UNICODE);
+            } catch (PDOException $e) {
+                echo json_encode([], JSON_UNESCAPED_UNICODE);
+            }
+        }
+        exit();
+
+    // ۱.۶. دریافت و ذخیره سفارشات B2B در MySQL
+    case 'b2b/orders':
+        header('Content-Type: application/json; charset=utf-8');
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                echo json_encode(['status' => 'error', 'message' => 'دیتا نامعتبر'], JSON_UNESCAPED_UNICODE);
+                exit();
+            }
+            try {
+                $pdo->beginTransaction();
+                $pdo->exec("DELETE FROM orders");
+                $stmt = $pdo->prepare("INSERT INTO orders (tracking_number, buyer_name, buyer_phone, buyer_company, buyer_address, total_amount, status, items_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                foreach ($input as $o) {
+                    $tracking = $o['tracking_number'] ?? $o['id'] ?? ('DST-' . rand(100000, 999999));
+                    $name = $o['buyer_name'] ?? 'خریدار';
+                    $phone = $o['buyer_phone'] ?? '';
+                    $company = $o['buyer_company'] ?? '';
+                    $address = $o['buyer_address'] ?? '';
+                    $amount = (float)($o['total_amount'] ?? 0);
+                    $status = $o['status'] ?? 'pending';
+                    $items = json_encode($o['items'] ?? [], JSON_UNESCAPED_UNICODE);
+                    
+                    $stmt->execute([$tracking, $name, $phone, $company, $address, $amount, $status, $items]);
+                }
+                $pdo->commit();
+                echo json_encode(['status' => 'success', 'count' => count($input)], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            }
+        } else {
+            try {
+                $stmt = $pdo->query("SELECT * FROM orders ORDER BY id DESC");
+                $dbOrders = $stmt->fetchAll();
+                $orders = [];
+                foreach ($dbOrders as $row) {
+                    $orders[] = [
+                        'id' => $row['tracking_number'],
+                        'tracking_number' => $row['tracking_number'],
+                        'buyer_name' => $row['buyer_name'],
+                        'buyer_phone' => $row['buyer_phone'],
+                        'buyer_company' => $row['buyer_company'] ?? '',
+                        'buyer_address' => $row['buyer_address'] ?? '',
+                        'total_amount' => (float)$row['total_amount'],
+                        'status' => $row['status'] ?? 'pending',
+                        'items' => json_decode($row['items_json'], true) ?: [],
+                        'created_at' => $row['created_at'],
+                    ];
+                }
+                echo json_encode($orders, JSON_UNESCAPED_UNICODE);
+            } catch (PDOException $e) {
+                echo json_encode([], JSON_UNESCAPED_UNICODE);
+            }
+        }
+        exit();
+
+    // ۱.۷. دریافت و ذخیره تنظیمات B2B در MySQL
+    case 'b2b/config':
+        header('Content-Type: application/json; charset=utf-8');
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if ($input) {
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_config', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $json = json_encode($input, JSON_UNESCAPED_UNICODE);
+                    $stmt->execute([$json, $json]);
+                    echo json_encode(['status' => 'success', 'config' => $input], JSON_UNESCAPED_UNICODE);
+                } catch (Exception $e) {
+                    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                }
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'دیتا نامعتبر'], JSON_UNESCAPED_UNICODE);
+            }
+        } else {
+            try {
+                $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_config'");
+                $stmt->execute();
+                $row = $stmt->fetch();
+                if ($row) {
+                    echo $row['setting_value'];
+                } else {
+                    echo json_encode([], JSON_UNESCAPED_UNICODE);
+                }
+            } catch (PDOException $e) {
+                echo json_encode([], JSON_UNESCAPED_UNICODE);
+            }
+        }
+        exit();
+
+    // ۱.۸. دریافت و ذخیره کاربران B2B در MySQL
+    case 'b2b/users':
+        header('Content-Type: application/json; charset=utf-8');
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if ($input) {
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_users', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $json = json_encode($input, JSON_UNESCAPED_UNICODE);
+                    $stmt->execute([$json, $json]);
+                    echo json_encode(['status' => 'success'], JSON_UNESCAPED_UNICODE);
+                } catch (Exception $e) {
+                    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                }
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'دیتا نامعتبر'], JSON_UNESCAPED_UNICODE);
+            }
+        } else {
+            try {
+                $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_users'");
+                $stmt->execute();
+                $row = $stmt->fetch();
+                if ($row) {
+                    echo $row['setting_value'];
+                } else {
+                    echo json_encode([], JSON_UNESCAPED_UNICODE);
+                }
+            } catch (PDOException $e) {
+                echo json_encode([], JSON_UNESCAPED_UNICODE);
+            }
+        }
+        exit();
+
     // پروکسی هوشمند برای دریافت فایل‌های JSON کاتالوگ و بای‌پاس CORS روی cPanel/LAMP
     case 'proxy-fetch':
     case 'proxy_fetch':

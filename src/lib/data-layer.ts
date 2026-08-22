@@ -33,6 +33,22 @@ function loadCollection(path: string): any[] {
   return MEMORY_DB[path];
 }
 
+function getB2BApiPath(path: string): string | null {
+  const isDevelopment = typeof window !== "undefined" && 
+    (window.location.port === '3000' || window.location.hostname.includes('run.app') || window.location.hostname === 'localhost');
+  
+  if (path === "products") {
+    return isDevelopment ? "/api/b2b/products" : "/php/api.php?action=b2b/products";
+  }
+  if (path === "orders") {
+    return isDevelopment ? "/api/b2b/orders" : "/php/api.php?action=b2b/orders";
+  }
+  if (path === "users") {
+    return isDevelopment ? "/api/b2b/users" : "/php/api.php?action=b2b/users";
+  }
+  return null;
+}
+
 export function saveCollection(path: string, items: any[]): void {
   MEMORY_DB[path] = items;
   if (typeof window !== "undefined") {
@@ -40,9 +56,7 @@ export function saveCollection(path: string, items: any[]): void {
       localStorage.setItem(getCollectionKey(path), JSON.stringify(items));
       
       // Sync with server in background
-      const apiPath = path === "products" ? "/api/b2b/products" : 
-                      path === "orders" ? "/api/b2b/orders" : 
-                      path === "users" ? "/api/b2b/users" : null;
+      const apiPath = getB2BApiPath(path);
       
       if (apiPath) {
         fetch(apiPath, {
@@ -67,9 +81,7 @@ export const doc = (dbOrColl: any, pathOrId?: string, maybeId?: string) => {
 
 export const getDocs = async (collOrQuery: any) => {
   const path = collOrQuery?.path || collOrQuery?.collectionPath || "products";
-  const apiPath = path === "products" ? "/api/b2b/products" : 
-                  path === "orders" ? "/api/b2b/orders" : 
-                  path === "users" ? "/api/b2b/users" : null;
+  const apiPath = getB2BApiPath(path);
   
   let items = loadCollection(path);
   
@@ -189,7 +201,8 @@ export const signInWithEmailAndPassword = async (...args: any[]) => {
   // Check server for users (or use localStorage fallback)
   let localUsers: Record<string, any> = {};
   try {
-    const res = await fetch("/api/b2b/users");
+    const apiPath = getB2BApiPath("users") || "/api/b2b/users";
+    const res = await fetch(apiPath);
     if (res.ok) {
       localUsers = await res.json();
     } else if (typeof window !== "undefined") {
