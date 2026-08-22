@@ -9,6 +9,7 @@ import { getDisplayImageUrl } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
 import { AdItem, getAdFallbackImage } from "../utils/ad-utils";
 import AddAdButton from "./AddAdButton";
+import { getProductRolePricing } from "../lib/pricing";
 import {
   Sparkles, 
   Plus,
@@ -46,106 +47,11 @@ import {
   LayoutGrid,
   List,
   Flame,
-  RefreshCw
+  RefreshCw,
+  Percent
 } from "lucide-react";
 
-const initialAds: AdItem[] = [
-  {
-    id: "ad-init-1",
-    title: "شکر سفید تصفیه شده عمده - میبد یزد (حراج فوری مازاد خط)",
-    description: "محموله شکر سفید چغندری تصفیه شده قطار ممتاز با گواهی استاندارد کشور. بارگیری مستقیم از کارخانه میبد یزد. تسویه نقدی روی باسکول از طریق واسط معامله امن دست اول با فاکتور رسمی صنف بنکداری کشور.",
-    factoryName: "صنایع قند و شکر میبد",
-    contactPerson: "پشتیبانی واحد عرضه بار",
-    contactPhone: "09120000000",
-    badgeText: "🔥 حراج مازاد خط",
-    category: "liquid",
-    quantity: "۱۲۰ تن",
-    wholesalePrice: "۳۶,۸۰۰ تومان",
-    marketPrice: "۴۲,۵۰۰ تومان",
-    buyerProfit: "۱۵٪ سود نقدی تضمینی",
-    date: "۱۴۰۵/۰۵/۲۰",
-    imageUrl: "https://images.unsplash.com/photo-1587735243615-c03f25aaff15?auto=format&fit=crop&q=80&w=600",
-    imageUrls: ["https://images.unsplash.com/photo-1587735243615-c03f25aaff15?auto=format&fit=crop&q=80&w=600"],
-    status: "approved",
-    isHotFireDeal: true
-  },
-  {
-    id: "ad-init-2",
-    title: "روغن خوراکی نیمه‌جامد ۵ لیتری - آفتابگردان زرین",
-    description: "بار مازاد سهمیه ماهانه بنکداری پخش سراسری، پلمپ کارخانه‌ای کارتن دار معتبر با مهلت انقضا بیش از ۱۰ ماه کامل. تحویل فوری انبار تهران و کرج به نرخ تولید اصلی کارخانه بدون واسطه اضافی.",
-    factoryName: "صنایع غذایی بهشهر (زرین)",
-    contactPerson: "دفتر بازرگانی همکار",
-    contactPhone: "09120000000",
-    badgeText: "📉 زیر قیمت بازار",
-    category: "under_market",
-    quantity: "۲,۴۰۰ حلب",
-    wholesalePrice: "۲۸۵,۰۰۰ تومان",
-    marketPrice: "۳۴۰,۰۰۰ تومان",
-    buyerProfit: "۱۹٪ حاشیه سود نقدی",
-    date: "۱۴۰۵/۰۵/۱۹",
-    imageUrl: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600",
-    imageUrls: ["https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600"],
-    status: "approved",
-    isHotFireDeal: false
-  },
-  {
-    id: "ad-init-3",
-    title: "رب گوجه فرنگی ۸۰۰ گرمی کلیددار - قوطی ممتاز بریکس ۲۷",
-    description: "تولید روز کارخانه با بریکس استاندارد و بدون مواد نگهدارنده. شرینک شده ۱۲ عددی آماده ارسال به سراسر کشور به صورت بارگیری مستقیم از درب کارخانه شیراز. ایده آل برای توزیع عمده استانی.",
-    factoryName: "کشت و صنعت رب بهارستان",
-    contactPerson: "سرپرست فروش مستقیم",
-    contactPhone: "09120000000",
-    badgeText: "📉 کف قیمت بازار",
-    category: "under_market",
-    quantity: "۱۸,۰۰۰ قوطی",
-    wholesalePrice: "۳۹,۵۰۰ تومان",
-    marketPrice: "۵۲,۰۰0 تومان",
-    buyerProfit: "۳۱٪ حاشیه سود عالی",
-    date: "۱۴۰۵/۰۵/۱۸",
-    imageUrl: "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=600",
-    imageUrls: ["https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=600"],
-    status: "approved",
-    isHotFireDeal: false
-  },
-  {
-    id: "ad-init-4",
-    title: "آرد گندم نول ممتاز دو صفر - کیسه ۴۰ کیلویی سفید",
-    description: "آرد نول گلوتن بالا مناسب برای صنف قنادی، نان حجیم و ماکارونی کارگاهی با پخت بسیار سفید و بافت کاملاً یکدست. تحویل مستقیم از سیلوی گندم البرز بدون پورسانت‌های متداول دلالان بازار.",
-    factoryName: "آرد البرز طلایی",
-    contactPerson: "کارگزاری پخش آرد",
-    contactPhone: "09120000000",
-    badgeText: "📦 تامین مستقیم",
-    category: "direct_supply",
-    quantity: "۴۵ تن",
-    wholesalePrice: "۱۸,۴۰۰ تومان",
-    marketPrice: "۲۱,۹۰۰ تومان",
-    buyerProfit: "۱۹٪ سود تامین کارگاهی",
-    date: "۱۴۰۵/۰۵/۱۷",
-    imageUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=600",
-    imageUrls: ["https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=600"],
-    status: "approved",
-    isHotFireDeal: false
-  },
-  {
-    id: "ad-init-5",
-    title: "نوشمک و یخی میوه‌ای تابستانه - شرینک ۶۰ عددی رنگی",
-    description: "مازاد تولید شیفت روز گرم تابستانه، دارای انواع طعم‌های ترکیبی طبیعی استاندارد بهداشتی با پروانه سلامت کامل. مناسب شرکت‌های پخش مویرگی مواد غذایی و بستنی به سراسر کشور با سوددهی استثنایی.",
-    factoryName: "صنایع بهداشتی یخمک آریا",
-    contactPerson: "مدیر بازرگانی کارخانه",
-    contactPhone: "09120000000",
-    badgeText: "🔥 حراج مازاد خط",
-    category: "liquid",
-    quantity: "۸۰۰ کارتن",
-    wholesalePrice: "۴۲,۰۰۰ تومان",
-    marketPrice: "۶۵,۰۰۰ تومان",
-    buyerProfit: "۵۴٪ حاشیه سود توزیع",
-    date: "۱۴۰۵/۰۵/۱۶",
-    imageUrl: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=600",
-    imageUrls: ["https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=600"],
-    status: "approved",
-    isHotFireDeal: true
-  }
-];
+const initialAds: AdItem[] = [];
 
 interface AdBoardProps {
   onTriggerPayment?: (paymentInfo: {
@@ -162,7 +68,7 @@ interface AdBoardProps {
 }
 
 export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateToBillboard, onNavigateHome, user, products, onSelectProduct }: AdBoardProps) {
-  const [ads, setAds] = useState<AdItem[]>(initialAds);
+  const [ads, setAds] = useState<AdItem[]>([]);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [selectedAdDetail, setSelectedAdDetail] = useState<AdItem | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -207,19 +113,17 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     if (savedAds) {
       try {
         const parsed = JSON.parse(savedAds);
-        const cleaned = parsed.filter((item: any) => item.category !== ("service" as any) && item.category !== ("raw_material" as any));
-        const merged = [...cleaned];
-        initialAds.forEach(initAd => {
-          if (!merged.some(item => item.id === initAd.id)) {
-            merged.unshift(initAd);
-          }
-        });
-        setAds(merged);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((item: any) => !item.id.startsWith("ad-init-") && item.category !== ("service" as any) && item.category !== ("raw_material" as any));
+          setAds(cleaned);
+        } else {
+          setAds([]);
+        }
       } catch (e) {
-        setAds(initialAds);
+        setAds([]);
       }
     } else {
-      setAds(initialAds);
+      setAds([]);
     }
   };
 
@@ -404,31 +308,47 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     saveAdsToStorage(initialAds);
   };
 
-  // Filtering Logic
+  // Filtering Logic: Only include ads and products that are EXPLICITLY marked as isKafBazaar or isLiquid
   const allOpportunities = [
-    ...ads,
-    ...(!isMini ? [] : (products || [])
-      .filter(p => p.isKafBazaar && !p.disabled)
-      .map((p: any) => ({
-        id: `kaf-${p.id}`,
-        title: p.name,
-        description: p.description || `فروش ویژه با کف قیمت بازار مستقیم از کارخانه ${p.brand || p.factory_name || p.sellerName || "کارخانه همکار"}. بسته‌بندی ${p.carton_pack_count || p.unitsPerCarton || 24} عددی در هر کارتن. حداقل سفارش ${p.min_order_cartons || p.minOrderCartons || 3} کارتن.`,
-        factoryName: p.brand || p.factory_name || p.sellerName || "کارخانه همکار",
-        contactPerson: "پشتیبانی پلتفرم (معامله امن)",
-        contactPhone: "",
-        badgeText: p.isLiquid ? "🔥 حراج مازاد خط تولید" : "📉 کف قیمت بازار",
-        category: (p.isLiquid ? "liquid" : "under_market") as any,
-        quantity: `${p.stock_quantity_cartons || 500} کارتن`,
-        wholesalePrice: `${(p.bulk_price || 0).toLocaleString()} تومان`,
-        marketPrice: `${(p.consumer_price || (p.bulk_price * 1.25) || 0).toLocaleString()} تومان`,
-        buyerProfit: `${Math.round((((p.consumer_price || (p.bulk_price * 1.25)) - p.bulk_price) / (p.consumer_price || (p.bulk_price * 1.25))) * 100)}٪ سود`,
-        isSponsored: true,
-        date: "۱۴۰۵/۰۵/۲۲",
-        imageUrl: p.image_url,
-        status: "approved" as const,
-        specialRequest: true,
-        isHotFireDeal: p.isHotFireDeal || p.isLiquid
-      })))
+    ...ads.filter(ad => !ad.id.startsWith("ad-init-")),
+    ...(products || [])
+      .filter(p => !p.disabled && (p.isKafBazaar === true || (p as any).isLiquid === true))
+      .map((p: any) => {
+        const rolePricing = getProductRolePricing(p, user);
+        const userWholesalePrice = rolePricing.unitWholesalePrice;
+        const customerWholesalePrice = rolePricing.customerPrice;
+        const repFloorPrice = rolePricing.representativeFloorPrice;
+        const consumerPrice = rolePricing.consumerPrice;
+        const profitPercent = rolePricing.profitMarginPercent || (consumerPrice > userWholesalePrice ? Math.round(((consumerPrice - userWholesalePrice) / consumerPrice) * 100) : 25);
+        
+        const isLiquid = !!(p.isLiquid);
+        const category: "under_market" | "liquid" | "direct_supply" = isLiquid ? "liquid" : "under_market";
+        const badgeText = isLiquid ? "🔥 حراج مازاد خط تولید" : "📉 کف قیمت بازار";
+
+        return {
+          id: `kaf-${p.id}`,
+          title: p.name,
+          description: p.description || `فروش ویژه با کف قیمت بازار مستقیم از کارخانه ${p.brand || p.factory_name || p.sellerName || "کارخانه همکار"}. بسته‌بندی ${p.carton_pack_count || p.unitsPerCarton || 24} عددی در هر کارتن. حداقل سفارش ${p.min_order_cartons || p.minOrderCartons || 2} کارتن.`,
+          factoryName: p.brand || p.factory_name || p.sellerName || "کارخانه همکار",
+          contactPerson: "پشتیبانی پلتفرم (معامله امن)",
+          contactPhone: "",
+          badgeText,
+          category: category as any,
+          quantity: `${p.stock_quantity_cartons || 500} کارتن`,
+          wholesalePrice: `${userWholesalePrice.toLocaleString('fa-IR')} تومان`,
+          customerPrice: `${customerWholesalePrice.toLocaleString('fa-IR')} تومان`,
+          repPrice: `${repFloorPrice.toLocaleString('fa-IR')} تومان`,
+          marketPrice: `${consumerPrice.toLocaleString('fa-IR')} تومان`,
+          buyerProfit: `${profitPercent}٪ سود (${Math.max(0, consumerPrice - userWholesalePrice).toLocaleString('fa-IR')} ت)`,
+          isSponsored: true,
+          date: "۱۴۰۵/۰۵/۲۲",
+          imageUrl: p.image_url,
+          status: "approved" as const,
+          specialRequest: true,
+          isHotFireDeal: p.isHotFireDeal || p.isLiquid,
+          rawProduct: p
+        };
+      })
   ];
 
   const filteredAds = allOpportunities.filter((ad) => {
@@ -451,8 +371,8 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     return 0;
   });
 
-  // Calculate a "Live Opportunity Count" that is at least 6 to match initial state
-  const displayOpportunityCount = Math.max(filteredAds.length, initialAds.length);
+  // Calculate the exact real count of active approved opportunities
+  const displayOpportunityCount = filteredAds.length;
 
   // Pending ads for admin view
   const pendingAds = ads.filter(ad => ad.status === "pending" || !ad.status);
@@ -582,7 +502,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     <span className="text-xs font-bold text-slate-500 line-through block">{selectedAdDetail.marketPrice}</span>
                   </div>
                   <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50 shadow-2xs">
-                    <span className="text-[9px] text-emerald-800 font-black block mb-1">قیمت پیشنهادی کف:</span>
+                    <span className="text-[9px] text-emerald-800 font-black block mb-1">قیمت خرید عمده:</span>
                     <span className="text-xs font-black text-emerald-700 block">{selectedAdDetail.wholesalePrice}</span>
                   </div>
                   <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50 shadow-2xs">
@@ -590,6 +510,18 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                     <span className="text-[10px] font-black text-amber-700 block leading-tight">{selectedAdDetail.buyerProfit}</span>
                   </div>
                 </div>
+
+                {(selectedAdDetail as any).repPrice && (
+                  <div className="p-2.5 bg-indigo-50/70 rounded-xl border border-indigo-100/70 flex items-center justify-between text-[11px] font-bold text-indigo-950">
+                    <span className="flex items-center gap-1.5 text-indigo-800">
+                      <Percent size={13} className="text-indigo-600" />
+                      <span>نرخ کف کارخانه برای عاملیت و نمایندگان رسمی (۱۰٪ تخفیف مازاد):</span>
+                    </span>
+                    <span className="font-mono font-black text-indigo-900 bg-white px-2.5 py-0.5 rounded-lg border border-indigo-200 shadow-2xs">
+                      {(selectedAdDetail as any).repPrice}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold pt-1.5">
                   <span>میزان بار موجود جهت بارگیری:</span>
@@ -626,16 +558,33 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                   طبق قوانین پیشگیری از تخلف و انحصار بازار، برای برقراری ارتباط با مالک کالا باید درخواست انجام معامله خود را از طریق دکمه واسطه زیر ثبت نمایید. کارشناسان ما تا ۱۵ دقیقه آینده جهت هماهنگی‌های لازم اقدام می‌کنند.
                 </p>
 
-                <button
-                  onClick={() => {
-                    setEscrowModalAd(selectedAdDetail);
-                    setSelectedAdDetail(null);
-                  }}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95"
-                >
-                  <ShieldCheck size={16} />
-                  <span>شروع معامله امن با واسطه‌گری دست‌اول</span>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      if ((selectedAdDetail as any).rawProduct && onSelectProduct) {
+                        onSelectProduct((selectedAdDetail as any).rawProduct);
+                        setSelectedAdDetail(null);
+                      } else {
+                        setEscrowModalAd(selectedAdDetail);
+                        setSelectedAdDetail(null);
+                      }
+                    }}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95"
+                  >
+                    <ShieldCheck size={16} />
+                    <span>{(selectedAdDetail as any).rawProduct ? "ثبت سفارش مستقیم این کالا" : "شروع معامله امن با واسطه‌گری"}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEscrowModalAd(selectedAdDetail);
+                      setSelectedAdDetail(null);
+                    }}
+                    className="w-full py-3 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Phone size={15} className="text-indigo-600" />
+                    <span>درخواست استعلام و مشاوره خرید</span>
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -846,7 +795,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0 shrink-0">
             <button
               onClick={() => {
-                setAds(initialAds);
+                loadAds();
                 setSearchQuery("");
                 setActiveCategoryFilter("all");
               }}
@@ -1072,67 +1021,85 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            {products.filter(p => p.isKafBazaar).map((p, pIdx) => (
-              <div 
-                key={`kafbazaar-prod-${p.id || pIdx}-${pIdx}`}
-                onClick={() => onSelectProduct && onSelectProduct(p)}
-                className="bg-white border border-slate-200/90 rounded-3xl p-3.5 shadow-2xs hover:shadow-material-md hover:border-emerald-300 transition-all relative flex flex-col justify-between cursor-pointer group"
-              >
-                {/* Clean Square Image Container */}
-                <div className="relative aspect-square w-full bg-white rounded-2xl border border-slate-100 p-2 overflow-hidden flex items-center justify-center group-hover:bg-slate-50/50 transition-colors">
-                  <ProductImage 
-                    src={p.image_url} 
-                    alt={p.name} 
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
-                  />
-                  <span className="absolute top-2.5 right-2.5 bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-lg shadow-xs">
-                    📉 تخفیف ویژه کف بازار
-                  </span>
-                  <span className="absolute bottom-2 left-2 bg-white/80 backdrop-blur-xs text-slate-900 text-[8px] font-bold px-2 py-0.5 rounded-md border border-slate-100">
-                    کارتن {p.carton_pack_count} عددی
-                  </span>
-                </div>
+          {(() => {
+            const kafBazaarProducts = products.filter(p => !p.disabled && (p.isKafBazaar === true || (p as any).isLiquid === true));
+            if (kafBazaarProducts.length === 0) return null;
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                {kafBazaarProducts.map((p, pIdx) => {
+                  const rolePricing = getProductRolePricing(p, user);
+                  const userPrice = rolePricing.unitWholesalePrice;
+                  const repPrice = rolePricing.representativeFloorPrice;
+                  const consumerPrice = rolePricing.consumerPrice;
+                  return (
+                    <div 
+                      key={`kafbazaar-prod-${p.id || pIdx}-${pIdx}`}
+                      onClick={() => onSelectProduct && onSelectProduct(p)}
+                      className="bg-white border border-slate-200/90 rounded-3xl p-3.5 shadow-2xs hover:shadow-material-md hover:border-emerald-300 transition-all relative flex flex-col justify-between cursor-pointer group"
+                    >
+                      {/* Clean Square Image Container */}
+                      <div className="relative aspect-square w-full bg-white rounded-2xl border border-slate-100 p-2 overflow-hidden flex items-center justify-center group-hover:bg-slate-50/50 transition-colors">
+                        <ProductImage 
+                          src={p.image_url} 
+                          alt={p.name} 
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
+                        />
+                        <span className="absolute top-2.5 right-2.5 bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-lg shadow-xs">
+                          📉 تخفیف ویژه کف بازار
+                        </span>
+                        <span className="absolute bottom-2 left-2 bg-white/80 backdrop-blur-xs text-slate-900 text-[8px] font-bold px-2 py-0.5 rounded-md border border-slate-100">
+                          کارتن {p.carton_pack_count || 24} عددی
+                        </span>
+                      </div>
 
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold">
-                    <span>{p.brand}</span>
-                    <span className="text-indigo-600 font-black">{p.category}</span>
-                  </div>
-                  <h4 className="text-xs font-black text-slate-900 leading-snug line-clamp-2 min-h-[36px] group-hover:text-emerald-700 transition-colors">{p.name}</h4>
-                  
-                  <div className="pt-2.5 flex justify-between items-end border-t border-slate-100">
-                    <div className="text-right">
-                      {p.consumer_price ? (
-                        <p className="text-[9px] text-slate-400 font-bold line-through">
-                          {(p.consumer_price || 0).toLocaleString()} تومان
-                        </p>
-                      ) : null}
-                      <p className="text-xs font-black text-emerald-700">
-                        {(p.bulk_price || 0).toLocaleString()} <span className="text-[9px]">تومان</span>
-                      </p>
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold">
+                          <span>{p.brand || "کارخانه رسمی"}</span>
+                          <span className="text-indigo-600 font-black">{p.category || "کالای اساسی"}</span>
+                        </div>
+                        <h4 className="text-xs font-black text-slate-900 leading-snug line-clamp-2 min-h-[36px] group-hover:text-emerald-700 transition-colors">{p.name}</h4>
+                        
+                        <div className="pt-2.5 flex justify-between items-end border-t border-slate-100">
+                          <div className="text-right">
+                            <p className="text-[9px] text-slate-400 font-bold line-through">
+                              {consumerPrice.toLocaleString('fa-IR')} تومان
+                            </p>
+                            <p className="text-xs font-black text-emerald-700 font-mono">
+                              {userPrice.toLocaleString('fa-IR')} <span className="text-[9px]">تومان</span>
+                            </p>
+                          </div>
+                          <span className="text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-black border border-emerald-100">
+                            تامین مستقیم
+                          </span>
+                        </div>
+
+                        {/* Representative badge if relevant */}
+                        {repPrice && !rolePricing.isRepresentative && (
+                          <div className="text-[9px] text-slate-500 pt-1 flex items-center justify-between border-t border-slate-50">
+                            <span>کف عاملیت:</span>
+                            <span className="font-mono font-bold text-indigo-700">{repPrice.toLocaleString('fa-IR')} ت</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 pt-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onSelectProduct) onSelectProduct(p);
+                          }}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all text-center cursor-pointer shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <ShieldCheck size={13} />
+                          <span>مشاهده و خرید مستقیم</span>
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-black border border-emerald-100">
-                      تامین مستقیم
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-2">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onSelectProduct) onSelectProduct(p);
-                    }}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all text-center cursor-pointer shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
-                  >
-                    <ShieldCheck size={13} />
-                    <span>مشاهده و استعلام مستقیم</span>
-                  </button>
-                </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       )}
 

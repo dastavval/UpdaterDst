@@ -19,7 +19,7 @@ import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
-import { getApiUrl } from "../utils/api-utils";
+import { getApiUrl, isWarehouseBrand } from "../utils/api-utils";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
 import { 
@@ -11626,7 +11626,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
-                  const productBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)));
+                  const productBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean))).filter(b => !isWarehouseBrand(b));
                   const currentNames = new Set(brands.map(b => b.name));
                   const newBrands: BrandItem[] = [...brands];
                   let addedCount = 0;

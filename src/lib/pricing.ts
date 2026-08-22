@@ -15,6 +15,9 @@ export interface RolePricingInfo {
   floorFactoryUnitPrice: number; // قیمت کاتالوگ / نرخ کف نمایندگی
   unitWholesalePrice: number;    // قیمت پرداختی کاربر
   displayConsumerPrice: number;  // قیمت مصرف کننده
+  customerPrice: number;         // قیمت خریدار عادی و مغازه‌دار
+  representativeFloorPrice: number; // نرخ کف کارخانه برای نماینده
+  consumerPrice: number;         // قیمت مصرف‌کننده مصوب
   pricePerCarton: number;        // قیمت هر کارتن بر اساس نقش
   
   // Discrepancy / Margins & Config
@@ -229,6 +232,9 @@ export function getProductRolePricing(
     floorFactoryUnitPrice,
     unitWholesalePrice,
     displayConsumerPrice,
+    customerPrice: Math.round(floorFactoryUnitPrice * customerMarkupMultiplier),
+    representativeFloorPrice: floorFactoryUnitPrice,
+    consumerPrice: displayConsumerPrice,
     pricePerCarton,
     customerMarkupPercent: config.customerMarkupPercent,
     representativeDiscountPercent: config.customerMarkupPercent,

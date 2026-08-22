@@ -48,7 +48,7 @@ const DealershipRequestView = React.lazy(() => import("./components/DealershipRe
 const B2BProfitSimulator = React.lazy(() => import("./components/B2BProfitSimulator").then(m => ({ default: m.B2BProfitSimulator })));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
-import { getApiUrl } from "./utils/api-utils";
+import { getApiUrl, isWarehouseBrand } from "./utils/api-utils";
 import { recordCRMOrder } from "./lib/crm-helper";
 import { registerRegionalOrderFromCheckout } from "./lib/leads-store";
 import { getProductRolePricing, toPersianDigits } from "./lib/pricing";
@@ -1987,7 +1987,7 @@ export default function App() {
                         <span>فیلتر بر اساس کارخانه</span>
                       </h3>
                       <div className="space-y-1 max-h-48 overflow-y-auto">
-                        {["همه", ...Array.from(new Set(products.map(p => p.brand).filter(Boolean)))].map((brand, idx) => (
+                        {["همه", ...Array.from(new Set(products.map(p => p.brand).filter(Boolean))).filter(b => !isWarehouseBrand(b))].map((brand, idx) => (
                           <button
                             key={`desk-brand-${idx}-${brand}`}
                             onClick={() => setSelectedBrand(brand)}

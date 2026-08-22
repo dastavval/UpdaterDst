@@ -24,6 +24,7 @@ import { Product } from '../types';
 import { getDisplayImageUrl } from '../lib/image-utils';
 import { ProductImage } from './ProductImage';
 import SpecialPriceBagIcon from './SpecialPriceBagIcon';
+import { getProductRolePricing } from '../lib/pricing';
 
 interface FactoryHeroPowerhouseProps {
   products?: Product[];
@@ -32,6 +33,8 @@ interface FactoryHeroPowerhouseProps {
   onBillboardClick?: () => void;
   onAgencyClick?: () => void;
   onAddToCart?: (product: Product, quantityCartons: number) => void;
+  user?: any;
+  userBadge?: string;
 }
 
 const initialAdsFallback: any[] = [];
@@ -43,6 +46,8 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
   onBillboardClick,
   onAgencyClick,
   onAddToCart,
+  user,
+  userBadge,
 }) => {
   const [activeMode, setActiveMode] = useState<'under_market' | 'liquid' | 'high_margin'>('under_market');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
@@ -99,6 +104,8 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=800',
         image_url: item.imageUrl || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=800',
         wholesalePriceStr,
+        customerPriceStr: wholesalePriceStr,
+        repPriceStr: '',
         marketPriceStr,
         buyerProfitStr,
         discountPercent,
@@ -110,15 +117,18 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         rawAd: item
       };
     } else {
-      const wholesaleUnitPrice = item.bulk_price || item.price || 10000;
-      const marketUnitPrice = item.consumer_price || Math.round(wholesaleUnitPrice * 1.35);
-      const unitProfit = Math.max(0, marketUnitPrice - wholesaleUnitPrice);
-      const discountPercent = marketUnitPrice > wholesaleUnitPrice 
-        ? Math.round(((marketUnitPrice - wholesaleUnitPrice) / marketUnitPrice) * 100)
-        : 25;
+      const rolePricing = getProductRolePricing(item, user, userBadge as any);
+      const userWholesalePrice = rolePricing.unitWholesalePrice;
+      const customerPrice = rolePricing.customerPrice;
+      const repFloorPrice = rolePricing.representativeFloorPrice;
+      const consumerPrice = rolePricing.consumerPrice;
+      const unitProfit = Math.max(0, consumerPrice - userWholesalePrice);
+      const discountPercent = rolePricing.profitMarginPercent || 25;
       
-      const wholesalePriceStr = wholesaleUnitPrice.toLocaleString('fa-IR') + ' تومان';
-      const marketPriceStr = marketUnitPrice.toLocaleString('fa-IR') + ' تومان';
+      const wholesalePriceStr = userWholesalePrice.toLocaleString('fa-IR') + ' تومان';
+      const customerPriceStr = customerPrice.toLocaleString('fa-IR') + ' تومان';
+      const repPriceStr = repFloorPrice.toLocaleString('fa-IR') + ' تومان';
+      const marketPriceStr = consumerPrice.toLocaleString('fa-IR') + ' تومان';
       const buyerProfitStr = discountPercent + '٪ سود بنکداری (' + unitProfit.toLocaleString('fa-IR') + ' ت سود واحد)';
 
       return {
@@ -131,6 +141,14 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         imageUrl: item.image_url,
         image_url: item.image_url,
         wholesalePriceStr,
+        customerPriceStr,
+        repPriceStr,
+        userWholesalePrice,
+        customerPrice,
+        repFloorPrice,
+        consumerPrice,
+        isRepresentative: rolePricing.isRepresentative,
+        badgeLabel: rolePricing.badgeLabel,
         marketPriceStr,
         buyerProfitStr,
         discountPercent,
@@ -158,13 +176,19 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
     // Process Catalog Products
     const processedProducts = (products || []).map((prod) => normalizeItem(prod, false));
 
-    // Under Market
-    const finalUnderMarket = underMarketAds.length > 0 
+    // Under Market: prioritize explicit isKafBazaar products, then underMarket ads
+    const kafProducts = processedProducts.filter((p) => p.rawProduct?.isKafBazaar);
+    const finalUnderMarket = kafProducts.length > 0
+      ? kafProducts.slice(0, 4)
+      : underMarketAds.length > 0 
       ? underMarketAds.slice(0, 4)
       : processedProducts.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
 
-    // Liquid / Clearance
-    const finalLiquid = liquidAds.length > 0 
+    // Liquid / Clearance: prioritize explicit isLiquid products, then liquid ads
+    const liquidProducts = processedProducts.filter((p) => p.rawProduct?.isLiquid);
+    const finalLiquid = liquidProducts.length > 0
+      ? liquidProducts.slice(0, 4)
+      : liquidAds.length > 0 
       ? liquidAds.slice(0, 4)
       : processedProducts.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
 
@@ -346,26 +370,55 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
             </div>
 
             {/* Pricing Matrix Block */}
-            <div className="grid grid-cols-2 gap-2.5 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
-              <div className="space-y-0.5">
-                <span className="text-[10px] text-slate-400 block font-bold">قیمت مصرف‌کننده</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-slate-400 line-through font-mono font-bold">
-                    {toPersianNum(currentProduct.marketPriceStr)}
+            <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-slate-400 block font-bold">قیمت مصرف‌کننده (روی جلد)</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 line-through font-mono font-bold">
+                      {toPersianNum(currentProduct.marketPriceStr)}
+                    </span>
+                    <span className="text-[8px] bg-rose-50 text-rose-700 font-black px-1 rounded">مصوب</span>
+                  </div>
+                </div>
+
+                <div className="text-left space-y-0.5 border-r border-slate-100 pr-3">
+                  <span className="text-[10px] text-slate-500 block font-bold">
+                    {currentProduct.isRepresentative ? "قیمت خرید عاملیت شما (کف)" : "قیمت خرید عمده"}
                   </span>
-                  <span className="text-[8px] bg-rose-50 text-rose-700 font-black px-1 rounded">مصوب</span>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
+                      {toPersianNum(currentProduct.wholesalePriceStr)}
+                    </span>
+                    <SpecialPriceBagIcon size={14} animated={true} showBadge={false} />
+                  </div>
                 </div>
               </div>
 
-              <div className="text-left space-y-0.5 border-r border-slate-100 pr-3">
-                <span className="text-[10px] text-slate-500 block font-bold">قیمت خرید عمده (کف)</span>
-                <div className="flex items-center gap-1.5 justify-end">
-                  <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
-                    {toPersianNum(currentProduct.wholesalePriceStr)}
+              {/* Representative Floor Price Strip */}
+              {currentProduct.repPriceStr && !currentProduct.isRepresentative && (
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500 font-bold flex items-center gap-1">
+                    <Percent size={11} className="text-indigo-600" />
+                    <span>نرخ کف کارخانه (۱۰٪ تخفیف عاملیت):</span>
                   </span>
-                  <SpecialPriceBagIcon size={14} animated={true} showBadge={false} />
+                  <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/70">
+                    {toPersianNum(currentProduct.repPriceStr)}
+                  </span>
                 </div>
-              </div>
+              )}
+
+              {currentProduct.isRepresentative && (
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <span className="text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={11} className="text-emerald-600" />
+                    <span>تخفیف ۱۰٪ عاملیت روی قیمت خرید شما اعمال شد</span>
+                  </span>
+                  <span className="font-mono font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/70">
+                    کف قیمت
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Live Margin Calculation Pill */}

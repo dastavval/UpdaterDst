@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
-import { getApiUrl } from "../utils/api-utils";
+import { getApiUrl, isWarehouseBrand } from "../utils/api-utils";
 import { 
   X, 
   Printer, 
@@ -128,7 +128,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user }
   }, [products]);
 
   const allBrands = useMemo(() => {
-    return Array.from(new Set(products.map(p => p.brand).filter(Boolean))) as string[];
+    return Array.from(new Set(products.map(p => p.brand).filter(Boolean))).filter(b => !isWarehouseBrand(b)) as string[];
   }, [products]);
 
   // Handle Category Toggles

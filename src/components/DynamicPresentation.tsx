@@ -42,6 +42,7 @@ import { ReferralRewardModal } from "./ReferralRewardModal";
 import EngagementHub from "./EngagementHub";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { getProductRolePricing } from "../lib/pricing";
+import { isWarehouseBrand } from "../utils/api-utils";
 
 interface DynamicPresentationProps {
   products: Product[];
@@ -471,6 +472,8 @@ export default function DynamicPresentation({
       {/* --- REVOLUTIONARY FACTORY HERO POWERHOUSE (CONNECTED DIRECTLY TO REAL DATABASE PRODUCTS) --- */}
       <FactoryHeroPowerhouse 
         products={products}
+        user={user}
+        userBadge={userBadge}
         onOrderClick={() => setActiveTab?.('order')}
         onFactoryClick={() => setActiveTab?.('factories')}
         onBillboardClick={() => setActiveTab?.('billboard')}
@@ -1187,7 +1190,7 @@ export default function DynamicPresentation({
 
       {/* --- PARTNER BRANDS STRIP --- */}
       {(() => {
-        const activeBrands = b2bConfig?.brands && b2bConfig.brands.length > 0 
+        const activeBrands = (b2bConfig?.brands && b2bConfig.brands.length > 0 
           ? b2bConfig.brands 
           : Array.from(new Set(products.map(p => p.brand).filter(Boolean))).map((brandName, idx) => ({
               id: `brand-${idx}`,
@@ -1195,7 +1198,7 @@ export default function DynamicPresentation({
               type: "واحد تولیدی فعال",
               icon: "🏭",
               logoUrl: undefined
-            }));
+            }))).filter(b => b && b.name && !isWarehouseBrand(b.name));
 
         return (
           <section className="space-y-2 py-3 border-b border-slate-100/60 mb-2">

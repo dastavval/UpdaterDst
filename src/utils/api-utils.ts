@@ -32,3 +32,17 @@ export function getApiUrl(path: string): string {
 
   return `/php/api.php?action=${cleanPath}`;
 }
+
+export function isWarehouseBrand(b: string): boolean {
+  if (!b) return true;
+  const lower = b.toLowerCase();
+  return lower.includes("انبار") || 
+         lower.includes("سوله") || 
+         lower.includes("باربری") || 
+         lower.includes("پخش") || 
+         lower.includes("توزیع") || 
+         lower.includes("ترانزیت") || 
+         lower.includes("parspack") || 
+         lower.includes("پارس پک") || 
+         lower.includes("پارس‌پک");
+}

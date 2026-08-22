@@ -1013,11 +1013,23 @@ app.get("/api/proxy-fetch", handleProxyFetchRequest);
 
 // Endpoint to manually sync ParsPack catalog to local server storage
 app.post("/api/admin/sync-catalog", async (req, res) => {
-  const targetUrl = (req.body?.url as string) || "http://c102393.parspack.net/c102393/catalog.json";
+  const customUrl = req.body?.url as string;
+  const targetUrl = customUrl || (b2bConfig as any)?.catalogJsonUrl || "http://c102393.parspack.net/c102393/catalog.json";
   try {
     console.log(`[Manual Sync] Fetching catalog from: ${targetUrl}`);
-    const response = await fetch(targetUrl);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    let response: any = null;
+    try {
+      response = await fetch(targetUrl, { signal: AbortSignal.timeout(8000) });
+    } catch (fetchErr: any) {
+      if (targetUrl.startsWith("http://")) {
+        const httpsFallback = targetUrl.replace("http://", "https://");
+        response = await fetch(httpsFallback, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+      }
+    }
+
+    if (!response || !response.ok) {
+      throw new Error(`خطا در اتصال به منبع کاتالوگ (${response ? response.status : "عدم پاسخ سرور کاتالوگ"})`);
+    }
     
     const rawText = await response.text();
     const cleanText = rawText.replace(/^\uFEFF/, '').trim();
@@ -1078,7 +1090,7 @@ app.post("/api/admin/sync-catalog", async (req, res) => {
       return res.status(400).json({ success: false, error: "ساختار فایل جیسون نامعتبر است یا محصولی یافت نشد." });
     }
   } catch (error: any) {
-    console.error("[Manual Sync] Error:", error.message);
+    console.warn("[Manual Sync] Notice:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -3480,23 +3492,41 @@ function checkAndAutoGenerateArticles() {
 setInterval(checkAndAutoGenerateArticles, 6 * 60 * 60 * 1000);
 setTimeout(checkAndAutoGenerateArticles, 10000); // Also check 10s after server startup
 
-// Background Auto-Sync: Periodic catalog synchronization from ParsPack
+// Background Auto-Sync: Periodic catalog synchronization from ParsPack / Custom Endpoint
 async function autoSyncCatalog() {
-  const targetUrl = "http://c102393.parspack.net/c102393/catalog.json";
+  const targetUrl = (b2bConfig as any)?.catalogJsonUrl || "http://c102393.parspack.net/c102393/catalog.json";
   try {
-    console.log(`[Auto-Sync] Background sync starting for: ${targetUrl}`);
-    const response = await fetch(targetUrl);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    console.log(`[Auto-Sync] Background sync check starting for: ${targetUrl}`);
+    let response: any = null;
+    try {
+      response = await fetch(targetUrl, { signal: AbortSignal.timeout(6000) });
+    } catch (fetchErr: any) {
+      if (targetUrl.startsWith("http://")) {
+        const httpsFallback = targetUrl.replace("http://", "https://");
+        response = await fetch(httpsFallback, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+      }
+    }
+
+    if (!response || !response.ok) {
+      console.log(`[Auto-Sync] Notice: Remote catalog is currently unavailable (${response ? response.status : "connection unreachable"}), local products database preserved.`);
+      return;
+    }
     
     const rawText = await response.text();
     const cleanText = rawText.replace(/^\uFEFF/, '').trim();
+    if (!cleanText || !cleanText.startsWith("{") && !cleanText.startsWith("[")) {
+      console.log("[Auto-Sync] Notice: Remote catalog returned non-JSON payload, skipping sync.");
+      return;
+    }
+
     const parsed = JSON.parse(cleanText);
-    
     let productsList = [];
     if (Array.isArray(parsed)) {
       productsList = parsed;
     } else if (parsed.products && Array.isArray(parsed.products)) {
       productsList = parsed.products;
+    } else if (parsed.items && Array.isArray(parsed.items)) {
+      productsList = parsed.items;
     }
     
     if (productsList.length > 0) {
@@ -3539,7 +3569,7 @@ async function autoSyncCatalog() {
       console.log(`[Auto-Sync] Success: ${mappedProducts.length} products updated and mapped.`);
     }
   } catch (error: any) {
-    console.error("[Auto-Sync] Failed:", error.message);
+    console.log("[Auto-Sync] Notice: Catalog sync paused gracefully:", error.message || "Offline/Timeout");
   }
 }
 
