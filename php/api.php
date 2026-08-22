@@ -338,6 +338,101 @@ switch ($action) {
         echo $cleanText;
         exit();
 
+    // پروکسی پیشرفته و پرسرعت تصاویر باکت و دور زدن تحریم، SSL و CORS
+    case 'proxy-image':
+    case 'proxy_image':
+        $url = $_GET['url'] ?? $_POST['url'] ?? '';
+        if (empty($url)) {
+            http_response_code(400);
+            echo "URL parameter is required";
+            exit();
+        }
+
+        $url = trim(rawurldecode($url));
+        if (strpos($url, '//') === 0) {
+            $url = 'http:' . $url;
+        }
+
+        // اگر لینک دارای دامنه پارس‌پک باشد، جهت سرعت بیشتر و عبور از خطای پورت ۴۴۳ ابتدا پروتکل را بررسی می‌کنیم
+        $isParsPack = (strpos($url, '.parspack.net') !== false);
+        
+        $response = false;
+        $contentType = 'image/jpeg';
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            
+            // هدرهای شبیه‌ساز مرورگر واقعی برای باز کردن قفل سکیوریتی باکت‌ها
+            $headers = [
+                'Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                'Accept-Language: fa,en-US;q=0.9,en;q=0.8',
+                'Cache-Control: max-age=0'
+            ];
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            
+            $response = curl_exec($ch);
+            $info = curl_getinfo($ch);
+            curl_close($ch);
+
+            if ($response !== false && $info['http_code'] == 200) {
+                if (!empty($info['content_type'])) {
+                    $contentType = $info['content_type'];
+                }
+            } else {
+                $response = false; // تایید عدم موفقیت
+            }
+        }
+
+        // روش دوم جایگزین (file_get_contents) در صورت غیرفعال بودن یا لود نشدن cURL
+        if ($response === false) {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: image/webp,image/apng,image/*,*/*;q=0.8\r\n",
+                    'timeout' => 15
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]);
+            $response = @file_get_contents($url, false, $context);
+            if ($response !== false) {
+                // حدس زدن Content-Type بر اساس پسوند فایل
+                $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+                if ($ext === 'webp') $contentType = 'image/webp';
+                elseif ($ext === 'png') $contentType = 'image/png';
+                elseif ($ext === 'gif') $contentType = 'image/gif';
+                elseif ($ext === 'svg') $contentType = 'image/svg+xml';
+                elseif ($ext === 'avif') $contentType = 'image/avif';
+                else $contentType = 'image/jpeg';
+            }
+        }
+
+        // اگر هنوز با خطا مواجه‌ایم، برای جلوگیری از خالی ماندن تصویر، یک ریدایرکت ۳۰۲ به آدرس مستقیم می‌دهیم تا خود مرورگر تلاش نهایی را انجام دهد.
+        if ($response === false || empty($response)) {
+            header("Location: " . $url);
+            exit();
+        }
+
+        // تنظیم هدرهای بهینه‌ساز کش مرورگر برای افزایش فوق‌العاده سرعت لود بعدی (تا ۱ سال ذخیره در کش سیستم کاربر)
+        header('Content-Type: ' . $contentType);
+        header('Cache-Control: public, max-age=31536000, immutable');
+        header('Pragma: cache');
+        header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() + 31536000));
+        header('Content-Length: ' . strlen($response));
+        
+        echo $response;
+        exit();
+
     // ۲. ثبت سفارش جدید در phpMyAdmin / MySQL
     case 'create_order':
         $input = json_decode(file_get_contents('php://input'), true);

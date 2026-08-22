@@ -20,6 +20,7 @@ import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
+import { ProductImage } from "./ProductImage";
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -5817,17 +5818,11 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                               >
                                 <div className="flex items-center gap-3">
                                   <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/60 flex items-center justify-center">
-                                    {p.image_url ? (
-                                      <img 
-                                        src={getDisplayImageUrl(p.image_url)} 
-                                        alt={p.name} 
-                                        referrerPolicy="no-referrer" 
-                                        className="w-full h-full object-cover" 
-                                        onError={(e) => { e.currentTarget.style.display = "none"; }}
-                                      />
-                                    ) : (
-                                      <span className="text-[9px] font-black text-slate-400">بدون تصویر</span>
-                                    )}
+                                    <ProductImage 
+                                      src={p.image_url} 
+                                      alt={p.name} 
+                                      className="w-full h-full object-cover" 
+                                    />
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-1 mb-1">

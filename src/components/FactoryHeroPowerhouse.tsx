@@ -21,6 +21,8 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { Product } from '../types';
+import { getDisplayImageUrl } from '../lib/image-utils';
+import { ProductImage } from './ProductImage';
 import SpecialPriceBagIcon from './SpecialPriceBagIcon';
 
 interface FactoryHeroPowerhouseProps {
@@ -301,11 +303,10 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
 
               <div className="absolute inset-x-8 bottom-4 h-8 bg-indigo-600/10 blur-2xl rounded-full transition-all duration-500 group-hover:bg-emerald-500/20" />
 
-              <img 
-                src={currentProduct.imageUrl || currentProduct.image_url || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800'} 
+              <ProductImage 
+                src={currentProduct.imageUrl || currentProduct.image_url} 
                 alt={currentProduct.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 relative z-10"
-                referrerPolicy="no-referrer"
               />
 
               {/* Hover Quick Action */}
@@ -433,11 +434,10 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                   }`}
                 >
                   <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-2xs">
-                    <img 
-                      src={prod.image_url || prod.imageUrl || 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&q=80&w=400'} 
+                    <ProductImage 
+                      src={prod.image_url || prod.imageUrl} 
                       alt={prod.name}
                       className="w-full h-full object-contain"
-                      referrerPolicy="no-referrer"
                     />
                   </div>
                   

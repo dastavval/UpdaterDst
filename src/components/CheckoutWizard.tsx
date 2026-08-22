@@ -152,12 +152,12 @@ export default function CheckoutWizard({
   const getProductImage = (item: CartItem) => {
     const prod = products.find(p => p.id === item.productId || p.name === item.name);
     if (prod?.image_url && prod.image_url.trim() !== '') {
-      return prod.image_url;
+      return getDisplayImageUrl(prod.image_url);
     }
     if (item.image_url && item.image_url.trim() !== '' && !item.image_url.includes('unsplash.com/photo-1558961363')) {
-      return item.image_url;
+      return getDisplayImageUrl(item.image_url);
     }
-    return prod?.image_url || item.image_url || "";
+    return getDisplayImageUrl(prod?.image_url || item.image_url || "");
   };
 
   // Quick Add handler for suggested items

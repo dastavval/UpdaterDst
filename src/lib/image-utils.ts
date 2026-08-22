@@ -32,9 +32,14 @@ export function getDisplayImageUrl(rawUrl?: string): string {
     return FALLBACK_IMAGE;
   }
   
-  const isParsPack = url.includes("parspack.net") || url.includes("parsstorage.com");
+  const isParsPack = url.includes("parspack.net") || url.includes("parsstorage.com") || url.includes("storage");
   const isS3 = url.includes("s3.");
   const isHttp = url.startsWith("http://");
+
+  // Prevent proxying self-hosted fully qualified URLs
+  if (typeof window !== 'undefined' && url.includes(window.location.hostname)) {
+    return url;
+  }
 
   // Determine proxy URL path based on hosting environment
   const isDevelopment = typeof window !== 'undefined' && 
@@ -42,7 +47,7 @@ export function getDisplayImageUrl(rawUrl?: string): string {
   const proxyPath = isDevelopment ? `/api/proxy-image?url=` : `/php/api.php?action=proxy-image&url=`;
 
   // Proxy most external images, especially if they are HTTP or from known troublesome domains
-  if (isParsPack || isS3 || isHttp || url.includes("storage") || !url.includes("unsplash.com")) {
+  if (isParsPack || isS3 || isHttp || !url.includes("unsplash.com")) {
     return `${proxyPath}${encodeURIComponent(url)}`;
   }
   

@@ -6,6 +6,7 @@ import { collection, addDoc } from "../lib/data-layer";
 import SpecialPriceBagIcon from "./SpecialPriceBagIcon";
 import { Product } from "../types";
 import { getDisplayImageUrl } from "../lib/image-utils";
+import { ProductImage } from "./ProductImage";
 import { AdItem, getAdFallbackImage } from "../utils/ad-utils";
 import AddAdButton from "./AddAdButton";
 import {
@@ -1080,18 +1081,11 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
               >
                 {/* Clean Square Image Container */}
                 <div className="relative aspect-square w-full bg-white rounded-2xl border border-slate-100 p-2 overflow-hidden flex items-center justify-center group-hover:bg-slate-50/50 transition-colors">
-                  {p.image_url ? (
-                    <img 
-                      src={p.image_url} 
-                      alt={p.name} 
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
-                      referrerPolicy="no-referrer" 
-                    />
-                  ) : (
-                    <div className="text-xs font-bold text-slate-400">
-                      بدون تصویر
-                    </div>
-                  )}
+                  <ProductImage 
+                    src={p.image_url} 
+                    alt={p.name} 
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
+                  />
                   <span className="absolute top-2.5 right-2.5 bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-lg shadow-xs">
                     📉 تخفیف ویژه کف بازار
                   </span>

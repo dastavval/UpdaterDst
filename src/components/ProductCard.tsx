@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, TrendingUp, Building2, Eye, ShieldCheck, Zap, Percent, CheckCircle2, ShoppingCart, Lock, Award, Tag } from "lucide-react";
 import { Product } from "../types";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
+import { ProductImage } from "./ProductImage";
 import { HealthBadgesStrip, HealthCertModal, HealthAppleLogo } from "./HealthAppleBadge";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
@@ -183,31 +184,11 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
            </div>
         )}
 
-        {imageError || !product.image_url ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-slate-200">
-            <Package size={36} className="stroke-[1.25]" />
-            <span className="text-[8px] font-black tracking-widest text-slate-300 uppercase">NO IMAGE</span>
-          </div>
-        ) : (
-          <>
-            {!imageLoaded && (
-              <div className="absolute inset-0 bg-slate-50 flex items-center justify-center z-[1]">
-                <div className="w-12 h-12 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
-              </div>
-            )}
-            <img 
-              key={`${product.id}-img-${retryCount}`}
-              src={getDisplayImageUrl(product.image_url)} 
-              alt={product.name}
-              onLoad={() => setImageLoaded(true)}
-              className={`w-full h-full object-contain p-2.5 transition-all duration-700 ease-out group-hover/img:scale-105 ${
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-              referrerPolicy="no-referrer"
-              onError={handleImageError}
-            />
-          </>
-        )}
+        <ProductImage 
+          src={product.image_url} 
+          alt={product.name}
+          className="w-full h-full object-contain p-2.5 transition-all duration-700 ease-out group-hover/img:scale-105"
+        />
         
         {/* Action Icons Bar */}
         <div className="absolute bottom-2.5 right-2.5 flex flex-col gap-2 transform translate-x-12 group-hover/img:translate-x-0 transition-transform duration-500">

@@ -4,6 +4,7 @@ import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
 import { getDisplayImageUrl } from "./lib/image-utils";
+import { ProductImage } from "./components/ProductImage";
 import Navbar from "./components/Navbar";
 import ProductCard from "./components/ProductCard";
 import CatalogDownloadModal from "./components/CatalogDownloadModal";
@@ -2624,16 +2625,11 @@ export default function App() {
                 <div className="flex -space-x-2 rtl:space-x-reverse">
                   {comparisonList.map((p, idx) => (
                     <div key={`comp-${p.id}-${idx}`} className="w-8 h-8 rounded-full border-2 border-indigo-900 bg-white p-1 flex items-center justify-center overflow-hidden">
-                      {p.image_url ? (
-                        <img 
-                          src={getDisplayImageUrl(p.image_url)} 
-                          alt="" 
-                          className="w-full h-full object-contain" 
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <Package size={14} className="text-slate-400" />
-                      )}
+                      <ProductImage 
+                        src={p.image_url} 
+                        alt="" 
+                        className="w-full h-full object-contain" 
+                      />
                     </div>
                   ))}
                 </div>
