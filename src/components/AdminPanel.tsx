@@ -1950,10 +1950,11 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
       let updatedCount = 0;
       let addedCount = 0;
+      const updatedProductsList = [...products];
 
       for (const incItem of incomingProducts) {
         const sku = incItem.sku || String(incItem.id) || `PRD-${Math.random().toString(36).substring(2, 7)}`;
-        const existing = products.find(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
+        const existingIdx = updatedProductsList.findIndex(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
 
         const factoryBuyPrice = Number(incItem.factoryPrice || incItem.wholesalePrice || incItem.price || 0);
         const dastAvvalSellPrice = Number(incItem.sellPrice || incItem.marketPrice || incItem.bulk_price || (factoryBuyPrice ? Math.round(factoryBuyPrice * 1.04) : 0));
@@ -1968,8 +1969,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
         const brandName = incItem.location || incItem.factoryName || incItem.brand || "انبار دست اول";
 
-        if (existing) {
-          await onUpdateProduct(existing.id, {
+        if (existingIdx >= 0) {
+          const existing = updatedProductsList[existingIdx];
+          updatedProductsList[existingIdx] = {
             ...existing,
             name: incItem.name || existing.name,
             price: factoryBuyPrice || existing.price,
@@ -1986,10 +1988,12 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             sellerName: brandName || existing.sellerName,
             description: incItem.description || existing.description,
             updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
-          });
+          };
           updatedCount++;
         } else {
-          await onAddProduct({
+          const newId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+          updatedProductsList.push({
+            id: newId,
             sku: sku,
             name: incItem.name || "محصول جدید کاتالوگ",
             brand: brandName,
@@ -2010,6 +2014,19 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
           });
           addedCount++;
+        }
+      }
+
+      if (onBulkUpdateProducts) {
+        await onBulkUpdateProducts(updatedProductsList);
+      } else {
+        for (const p of updatedProductsList) {
+          const existing = products.find(ep => ep.id === p.id);
+          if (existing) {
+            await onUpdateProduct(p.id, p);
+          } else {
+            await onAddProduct(p);
+          }
         }
       }
 
@@ -2632,6 +2649,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       }
 
       // 2. Import & Override Products
+      const updatedProductsList = [...products];
       for (let i = 0; i < itemsToImport.length; i++) {
         const p = itemsToImport[i];
         if (i % 2 === 0) {
@@ -2643,15 +2661,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           setImportProgress(pct);
         }
 
-        // Search for existing by SKU or Name
-        const existing = products.find(prod => 
+        // Search for existing by SKU or Name in updatedProductsList to prevent duplicates
+        const existingIdx = updatedProductsList.findIndex(prod => 
           (p.sku && prod.sku && String(prod.sku).trim().toLowerCase() === String(p.sku).trim().toLowerCase()) ||
           (prod.name && String(prod.name).trim().toLowerCase() === String(p.name).trim().toLowerCase())
         );
 
-        if (existing && updateExistingBySku) {
-          const productRef = doc(db, "products", existing.id);
-          await updateDoc(productRef, {
+        if (existingIdx >= 0 && updateExistingBySku) {
+          const existing = updatedProductsList[existingIdx];
+          updatedProductsList[existingIdx] = {
+            ...existing,
             name: p.name,
             sku: p.sku || existing.sku,
             price: p.price,
@@ -2663,14 +2682,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             image_url: p.image_url || existing.image_url,
             unit: p.unit || existing.unit,
             isFeatured: p.isFeatured
-          });
+          };
           updatedCount++;
           if (i % 5 === 0) {
             setImportLogs(prev => [`[OVERRIDE_UPDATED] Product #${existing.id} (${p.sku || p.name}) refreshed.`, ...prev.slice(0, 30)]);
           }
         } else {
-          await addDoc(collection(db, "products"), {
-            sku: p.sku,
+          const newId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+          updatedProductsList.push({
+            id: newId,
+            sku: p.sku || `PRD-${Math.random().toString(36).substring(2, 7)}`,
             name: p.name,
             brand: p.brand || "دست اول",
             brandLogoUrl: "",
@@ -2688,11 +2709,24 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             sellerId: "",
             sellerName: "تامین کننده مرکزی",
             production_lead_time_days: 2,
-            createdAt: serverTimestamp()
+            updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
           });
           importedCount++;
           if (i % 5 === 0) {
             setImportLogs(prev => [`[NEW_CREATED] Product (${p.sku || p.name}) added to database.`, ...prev.slice(0, 30)]);
+          }
+        }
+      }
+
+      if (onBulkUpdateProducts) {
+        await onBulkUpdateProducts(updatedProductsList);
+      } else {
+        for (const p of updatedProductsList) {
+          const existing = products.find(ep => ep.id === p.id);
+          if (existing) {
+            await onUpdateProduct(p.id, p);
+          } else {
+            await onAddProduct(p);
           }
         }
       }
