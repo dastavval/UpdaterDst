@@ -114,6 +114,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
           setSuccess("ورود به پنل مدیریت کل با موفقیت انجام شد.");
           setTimeout(() => {
             onAuthSuccess({
+              id: "admin_hq_01",
               name: "مدیریت کل سامانه",
               email: trimmedEmail,
               role: "admin",
@@ -155,6 +156,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             } با موفقیت انجام شد.`);
             setTimeout(() => {
               onAuthSuccess({
+                id: localUser.id || localUser.userCode || localUser.phone || "usr_temp_" + Math.floor(100000 + Math.random() * 900000),
                 name: localUser.name,
                 email: localUser.email || trimmedEmail,
                 role: localUser.role || "customer",
@@ -194,6 +196,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
           setSuccess("ورود با موفقیت انجام شد.");
           setTimeout(() => {
             onAuthSuccess({
+              id: firebaseUser.uid || "usr_fb_" + Math.floor(100000 + Math.random() * 900000),
               name: firebaseUser.displayName || trimmedEmail.split('@')[0],
               email: firebaseUser.email!,
               role: (firebaseUser as any).role || "customer",
@@ -254,7 +257,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         const cCode = userRole === 'customer' ? `CST-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
 
         // Save to Local Backup FIRST to guarantee instant registration
+        const uId = "usr_" + Math.floor(100000 + Math.random() * 900000);
         const newUserObj = {
+          id: uId,
           name: finalName,
           email: trimmedEmail,
           password: finalPassword,

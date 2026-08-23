@@ -132,6 +132,73 @@ export default function UserPanel({
     return s.replace(/\d/g, (d) => persianDigits[parseInt(d, 10)]);
   };
 
+  // Filter fake data (test orders, past activity history) and set default 'active' status for new registrations
+  const filterFakeDataAndSetStatus = (ordersList: Order[]) => {
+    // 1. If it is a new registration / user is new, default status to 'active'
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt).getTime() : Date.now();
+    const isNewUser = !user?.status || user?.status === 'pending' || (Date.now() - userCreatedAt < 2 * 3600 * 1000);
+
+    if (user && (!user.status || user.status === 'pending')) {
+      const updatedUser = {
+        ...user,
+        status: 'active'
+      };
+      
+      localStorage.setItem("dastavval_user", JSON.stringify(updatedUser));
+      
+      // Update in local users registry too
+      try {
+        const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+        const trimmedEmail = (user.email || "").trim().toLowerCase();
+        const phone = (user.phone || "").trim();
+        if (trimmedEmail && localUsers[trimmedEmail]) {
+          localUsers[trimmedEmail] = { ...localUsers[trimmedEmail], status: 'active' };
+        }
+        if (phone && localUsers[phone]) {
+          localUsers[phone] = { ...localUsers[phone], status: 'active' };
+        }
+        localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+      } catch (e) {
+        console.warn("Could not sync default active status in local registry:", e);
+      }
+
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+    }
+
+    // 2. Clear pre-seeded activity logs for new users in localStorage (to prevent leakage from old sessions)
+    if (isNewUser) {
+      const keysToClear = [
+        "dastavval_marketer_payouts",
+        "dastavval_representative_guarantees"
+      ];
+      keysToClear.forEach(key => {
+        try {
+          if (localStorage.getItem(key)) {
+            localStorage.removeItem(key);
+          }
+        } catch (e) {}
+      });
+    }
+
+    // 3. Filter out orders containing test keywords or belonging to generic simulated buyers
+    return ordersList.filter(order => {
+      const buyerName = (order.buyerName || order.buyerInfo?.name || "").toLowerCase();
+      const isTestKeyword = buyerName.includes("تست") || 
+                            buyerName.includes("test") || 
+                            buyerName.includes("نمونه") || 
+                            buyerName.includes("fake") ||
+                            (order.id && order.id.startsWith("test-"));
+
+      // For new users, exclude test/mock orders entirely so they start with a pristine workspace
+      if (isNewUser && isTestKeyword) {
+        return false;
+      }
+      return true;
+    });
+  };
+
   // Fetch real orders from database / storage
   const fetchOrders = async () => {
     setLoadingOrders(true);
@@ -139,12 +206,14 @@ export default function UserPanel({
       const q = query(collection(db, "orders"));
       const snap = await getDocs(q);
       const ordersData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
-      setAllOrders(ordersData);
+      const filtered = filterFakeDataAndSetStatus(ordersData);
+      setAllOrders(filtered);
     } catch (e) {
       console.warn("Could not fetch orders:", e);
       try {
         const local = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
-        setAllOrders(local);
+        const filtered = filterFakeDataAndSetStatus(local);
+        setAllOrders(filtered);
       } catch {
         setAllOrders([]);
       }
@@ -182,12 +251,22 @@ export default function UserPanel({
   const customerOrders = useMemo(() => {
     if (!user) return [];
     const uPhone = (user.phone || "").trim();
-    const uName = (user.name || "").trim();
-    const uEmail = (user.email || "").trim();
+    const uEmail = (user.email || "").trim().toLowerCase();
+    
     return allOrders.filter(order => {
+      // 1. Match by explicit user ID
+      if (order.userId && user.id && order.userId === user.id) return true;
+      
       const buyerP = (order.buyerPhone || "").trim();
-      const buyerN = (order.buyerName || "").trim();
-      return (uPhone && buyerP === uPhone) || (uName && buyerN === uName) || (uEmail && buyerP === uEmail);
+      const buyerE = (order.buyerEmail || "").trim().toLowerCase();
+      
+      // 2. Match by verified phone number
+      if (uPhone && buyerP === uPhone) return true;
+      
+      // 3. Match by verified email address
+      if (uEmail && buyerE === uEmail) return true;
+      
+      return false;
     });
   }, [allOrders, user]);
 

@@ -174,16 +174,17 @@ export function addLeadFromRegistration(user: { name: string; company?: string; 
   return newLead;
 }
 
-export function getRepCommissions(): { totalCommission: number; history: any[] } {
+export function getRepCommissions(userId?: string): { totalCommission: number; history: any[] } {
   try {
-    const raw = localStorage.getItem(COMMISSION_KEY);
+    const key = userId ? `${COMMISSION_KEY}_${userId}` : COMMISSION_KEY;
+    const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return { totalCommission: 0, history: [] };
 }
 
-export function addRepCommission(amount: number, reason: string, leadId: string) {
-  const current = getRepCommissions();
+export function addRepCommission(amount: number, reason: string, leadId: string, userId?: string) {
+  const current = getRepCommissions(userId);
   const updated = {
     totalCommission: current.totalCommission + amount,
     history: [
@@ -199,7 +200,8 @@ export function addRepCommission(amount: number, reason: string, leadId: string)
     ]
   };
   try {
-    localStorage.setItem(COMMISSION_KEY, JSON.stringify(updated));
+    const key = userId ? `${COMMISSION_KEY}_${userId}` : COMMISSION_KEY;
+    localStorage.setItem(key, JSON.stringify(updated));
   } catch (e) {}
   return updated;
 }

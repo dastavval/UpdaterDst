@@ -48,6 +48,7 @@ const AdBoard = React.lazy(() => import("./components/AdBoard"));
 const CPanelInstallerWizard = React.lazy(() => import("./components/CPanelInstallerWizard"));
 const DealershipRequestView = React.lazy(() => import("./components/DealershipRequestView"));
 const B2BProfitSimulator = React.lazy(() => import("./components/B2BProfitSimulator").then(m => ({ default: m.B2BProfitSimulator })));
+const AgentCatalogView = React.lazy(() => import("./components/AgentCatalogView"));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
 import { getApiUrl, isWarehouseBrand } from "./utils/api-utils";
@@ -319,7 +320,7 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
-  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate'>('presentation');
+  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog'>('presentation');
   const [currentSellerId, setCurrentSellerId] = useState<string>("factory_cheetoz");
   const [currentSellerName, setCurrentSellerName] = useState<string>("مزمز و چیتوز");
   const [products, setProducts] = useState<Product[]>([]);
@@ -563,18 +564,32 @@ export default function App() {
     return () => window.removeEventListener("open-cart", handleOpenCart);
   }, []);
 
+  // Global Switch to Agent Catalog Event Listener
+  useEffect(() => {
+    const handleSwitchToCatalog = () => {
+      setActiveTab('agent-catalog');
+    };
+    window.addEventListener("switch-to-agent-catalog", handleSwitchToCatalog);
+    return () => window.removeEventListener("switch-to-agent-catalog", handleSwitchToCatalog);
+  }, []);
+
   // Read URL query parameter for direct factory or article links
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const factoryParam = params.get('factory');
-      if (factoryParam) {
-        setInitialFactoryIdParam(factoryParam);
-        setActiveTab('factories');
-      }
-      const articleParam = params.get('article');
-      if (articleParam) {
-        setActiveTab('news');
+      const isCatalogView = params.get('catalog-view') === 'true' || params.get('view') === 'catalog-view' || window.location.pathname.includes('/catalog-view') || params.get('agent') !== null;
+      if (isCatalogView) {
+        setActiveTab('agent-catalog');
+      } else {
+        const factoryParam = params.get('factory');
+        if (factoryParam) {
+          setInitialFactoryIdParam(factoryParam);
+          setActiveTab('factories');
+        }
+        const articleParam = params.get('article');
+        if (articleParam) {
+          setActiveTab('news');
+        }
       }
     }
   }, []);
@@ -2731,6 +2746,33 @@ export default function App() {
                     }}
                   />
                 </FadeInContainer>
+              </Suspense>
+            </motion.div>
+          )}
+
+          {activeTab === 'agent-catalog' && (
+            <motion.div
+              key="agent-catalog"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-screen bg-slate-50"
+            >
+              <Suspense fallback={<CatalogSkeleton />}>
+                <AgentCatalogView 
+                  products={products} 
+                  onClose={() => {
+                    if (user?.role === 'representative' || user?.role === 'agency') {
+                      setActiveTab('portal');
+                    } else {
+                      setActiveTab('presentation');
+                    }
+                    if (typeof window !== 'undefined') {
+                      window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                  }}
+                  b2bConfig={b2bConfig}
+                />
               </Suspense>
             </motion.div>
           )}

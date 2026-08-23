@@ -1225,6 +1225,45 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     }
   }, [showImporterDashboard, showAiSettings]);
 
+  // Synchronize registered representative users from dastavval_local_users to representativesList
+  useEffect(() => {
+    try {
+      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      const savedReps = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+      
+      let updated = [...savedReps];
+      let needsUpdate = false;
+      
+      Object.values(localUsers).forEach((u: any) => {
+        if (u.role === 'representative') {
+          // Check if this representative is already in the list
+          const exists = updated.find(r => r.phone === u.phone || r.email === u.email);
+          if (!exists) {
+            updated.push({
+              id: u.userCode || `REP-${Math.floor(1000 + Math.random() * 9000)}`,
+              name: u.name,
+              phone: u.phone,
+              email: u.email,
+              city: u.city || "تهران",
+              address: u.address || "",
+              agencyCode: u.agencyCode || `AGN-${Math.floor(1000 + Math.random() * 9000)}`,
+              badge: u.badge || "نماینده فعال",
+              isApproved: u.isRepresentativeApproved === true || u.agencyApproved === true || false
+            });
+            needsUpdate = true;
+          }
+        }
+      });
+      
+      if (needsUpdate) {
+        setRepresentativesList(updated);
+        localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.warn("Failed to sync representative local users to representativesList:", err);
+    }
+  }, []);
+
   const handleDeleteAllProducts = async () => {
     confirmAction(
       "پاکسازی محصولات",
@@ -3399,6 +3438,48 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     } : r);
     setRepresentativesList(updated);
     localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
+    
+    // Core synchronizations for representative portal
+    if (rep.phone) {
+      localStorage.setItem(`dastavval_rep_approved_${rep.phone}`, "true");
+    }
+    if (rep.id) {
+      localStorage.setItem(`dastavval_rep_approved_${rep.id}`, "true");
+    }
+    if (rep.agencyCode) {
+      localStorage.setItem(`dastavval_rep_approved_${rep.agencyCode}`, "true");
+    }
+    
+    // Update the actual registered user in "dastavval_local_users" and the current logged-in user if they are the one
+    try {
+      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      let userUpdated = false;
+      Object.keys(localUsers).forEach(key => {
+        if (localUsers[key].phone === rep.phone || localUsers[key].email === rep.email) {
+          localUsers[key].isRepresentativeApproved = true;
+          localUsers[key].agencyApproved = true;
+          localUsers[key].agencyCode = rep.agencyCode || localUsers[key].agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`;
+          userUpdated = true;
+        }
+      });
+      if (userUpdated) {
+        localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+      }
+      
+      const currentUserStr = localStorage.getItem("dastavval_user");
+      if (currentUserStr) {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.phone === rep.phone || currentUser.email === rep.email) {
+          currentUser.isRepresentativeApproved = true;
+          currentUser.agencyApproved = true;
+          currentUser.agencyCode = rep.agencyCode || currentUser.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`;
+          localStorage.setItem("dastavval_user", JSON.stringify(currentUser));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync approved rep in admin", err);
+    }
+    
     window.dispatchEvent(new Event("dastavval_reps_updated"));
     setSuccessMsg("دفتر نمایندگی با موفقیت تایید و گواهی رسمی صادر شد.");
     setTimeout(() => setSuccessMsg(null), 3000);

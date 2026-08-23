@@ -220,6 +220,8 @@ export type ShippingMethod = 'barbari' | 'darbasti' | 'deka_post' | 'peyk' | 'co
 
 export interface Order {
   id?: string;
+  userId?: string;
+  buyerEmail?: string;
   buyerName?: string;
   buyerPhone?: string;
   buyerAddress?: string;

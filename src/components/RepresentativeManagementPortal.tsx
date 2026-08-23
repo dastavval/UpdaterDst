@@ -233,6 +233,11 @@ export default function RepresentativeManagementPortal({
   const [ticketSuccessMsg, setTicketSuccessMsg] = useState<string | null>(null);
   const [tickets, setTickets] = useState<any[]>([]);
 
+  // Commission Withdrawal State
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [isSubmittingSettlement, setIsSubmittingSettlement] = useState(false);
+  const [settlementSuccess, setSettlementSuccess] = useState(false);
+
   // Request Approval Modal State (When >= 300M or requesting audit)
   const [showApprovalRequestModal, setShowApprovalRequestModal] = useState(false);
   const [approvalNote, setApprovalNote] = useState("");
@@ -294,29 +299,80 @@ export default function RepresentativeManagementPortal({
   }, [user]);
 
   const myOrders = useMemo(() => {
-    return orders.filter(o => 
-      o.userId === user?.id || 
-      o.customerPhone === user?.phone || 
-      o.representativeId === user?.id ||
-      (province && (o.city || "").includes(province))
-    );
-  }, [orders, user, province]);
+    // A robust, bulletproof check to ensure a user is loaded and valid before filtering
+    const userId = user?.id || user?.userCode || user?.phone || user?.agencyCode || user?.customerCode;
+    if (!userId) return [];
+
+    const userPhone = (user?.phone || user?.mobile || "").trim();
+    const userEmail = (user?.email || "").trim().toLowerCase();
+
+    return orders.filter(o => {
+      // 1. Check matching by explicit userId (both must be defined and non-empty strings)
+      if (o.userId && user?.id && o.userId === user.id) return true;
+      
+      // 2. Check matching by representativeId (both must be defined and non-empty strings)
+      if (o.representativeId && user?.id && o.representativeId === user.id) return true;
+
+      // 3. Check matching by userCode / agencyCode / customerCode
+      if (o.userCode && user?.userCode && o.userCode === user.userCode) return true;
+      if (o.agencyCode && user?.agencyCode && o.agencyCode === user.agencyCode) return true;
+      if (o.customerCode && user?.customerCode && o.customerCode === user.customerCode) return true;
+      if (o.representativeId && user?.userCode && o.representativeId === user.userCode) return true;
+      if (o.representativeId && user?.agencyCode && o.representativeId === user.agencyCode) return true;
+
+      // 4. Check matching by phone number (only if phone is defined and valid)
+      if (userPhone && userPhone.length >= 4) {
+        if (o.customerPhone && o.customerPhone === userPhone) return true;
+        if (o.buyerPhone && o.buyerPhone === userPhone) return true;
+        if (o.representativePhone && o.representativePhone === userPhone) return true;
+      }
+
+      // 5. Check matching by email (only if email is defined and valid)
+      if (userEmail && userEmail.length >= 5) {
+        if (o.customerEmail && o.customerEmail === userEmail) return true;
+        if (o.buyerEmail && o.buyerEmail === userEmail) return true;
+        if (o.representativeEmail && o.representativeEmail === userEmail) return true;
+      }
+
+      return false;
+    });
+  }, [orders, user]);
 
   // Filter representative's orders
     // Check for 3-month inactivity suspension
   const isSuspended = useMemo(() => {
     if (!myOrders || myOrders.length === 0) {
       // If no orders and user is registered for more than 90 days
-      const joinedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+      let joinedAt: Date;
+      if (user?.createdAt) {
+        if (typeof user.createdAt === 'string') {
+          joinedAt = new Date(user.createdAt);
+        } else if (typeof user.createdAt === 'object' && user.createdAt.seconds) {
+          joinedAt = new Date(user.createdAt.seconds * 1000);
+        } else if (user.createdAt instanceof Date) {
+          joinedAt = user.createdAt;
+        } else {
+          joinedAt = new Date();
+        }
+      } else {
+        joinedAt = new Date();
+      }
+      if (isNaN(joinedAt.getTime())) {
+        joinedAt = new Date();
+      }
       const daysSinceJoin = (Date.now() - joinedAt.getTime()) / (1000 * 3600 * 24);
       return daysSinceJoin > 90;
     }
     // Find the latest order date
     const latestOrderTime = Math.max(...myOrders.map((o: any) => {
+      if (o.createdAt) {
+        if (typeof o.createdAt === 'string') return new Date(o.createdAt).getTime();
+        if (typeof o.createdAt === 'object' && o.createdAt.seconds) return o.createdAt.seconds * 1000;
+      }
       if (o.date) return new Date(o.date).getTime();
-      if (o.createdAt?.seconds) return o.createdAt.seconds * 1000;
       return 0;
     }));
+    if (!latestOrderTime || isNaN(latestOrderTime)) return false;
     const daysSinceLastOrder = (Date.now() - latestOrderTime) / (1000 * 3600 * 24);
     return daysSinceLastOrder > 90;
   }, [myOrders, user]);
@@ -330,10 +386,13 @@ export default function RepresentativeManagementPortal({
 
   // Representative Approval Status from Admin
   const isApprovedByAdmin = useMemo(() => {
-    if (user?.isRepresentativeApproved === true || user?.agencyApproved === true || user?.role === 'representative') {
+    if (!user) return false;
+    if (user.isRepresentativeApproved === true || user.agencyApproved === true) {
       return true;
     }
-    const localApproved = localStorage.getItem(`dastavval_rep_approved_${user?.id || user?.phone || user?.userCode}`);
+    const identifier = user.id || user.phone || user.userCode;
+    if (!identifier) return false;
+    const localApproved = localStorage.getItem(`dastavval_rep_approved_${identifier}`);
     return localApproved === 'true';
   }, [user]);
 
@@ -432,14 +491,14 @@ export default function RepresentativeManagementPortal({
 
   // Dynamic Regional Leads from leads-store
   const [regionalLeads, setRegionalLeads] = useState<RegionalLead[]>(() => getRegionalLeads());
-  const [repCommissions, setRepCommissions] = useState(() => getRepCommissions());
+  const [repCommissions, setRepCommissions] = useState(() => getRepCommissions(user?.id || user?.userCode || user?.phone));
   const [leadActionFeedback, setLeadActionFeedback] = useState<string | null>(null);
 
-  // Sync leads when storage changes or on mount
+  // Sync leads when storage changes or on mount or when user changes
   useEffect(() => {
     setRegionalLeads(getRegionalLeads());
-    setRepCommissions(getRepCommissions());
-  }, []);
+    setRepCommissions(getRepCommissions(user?.id || user?.userCode || user?.phone));
+  }, [user]);
 
   // Fulfill from representative warehouse (Local Fulfillment - Max Margin)
   const handleFulfillByRep = (leadId: string) => {
@@ -477,7 +536,7 @@ export default function RepresentativeManagementPortal({
     });
     setRegionalLeads(updated);
     saveRegionalLeads(updated);
-    const newComms = addRepCommission(commission, `پورسانت انحصار منطقه از سفارش مستقیم ${lead.storeName}`, leadId);
+    const newComms = addRepCommission(commission, `پورسانت انحصار منطقه از سفارش مستقیم ${lead.storeName}`, leadId, user?.id || user?.userCode || user?.phone);
     setRepCommissions(newComms);
     setLeadActionFeedback(`سفارش جهت ارسال مستقیم به خط تولید کارخانه ارجاع شد. مبلغ ${toPersianNum(commission)} تومان پورسانت انحصار به حساب شما واریز گردید.`);
     setTimeout(() => setLeadActionFeedback(null), 4500);
@@ -582,6 +641,30 @@ export default function RepresentativeManagementPortal({
     navigator.clipboard.writeText(`${window.location.origin}/catalog-view?agent=${user?.agencyCode || 'REP-7012'}&margin=${customCatalogMarkup}`);
     setCatalogCopied(true);
     setTimeout(() => setCatalogCopied(false), 2500);
+  };
+
+  const handlePreviewCatalog = () => {
+    if (typeof window !== 'undefined') {
+      const margin = customCatalogMarkup;
+      const agent = user?.agencyCode || 'REP-7012';
+      const newUrl = `${window.location.origin}${window.location.pathname}?agent=${agent}&margin=${margin}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
+      window.dispatchEvent(new CustomEvent('switch-to-agent-catalog'));
+    }
+  };
+
+  const handleRequestSettlement = () => {
+    setShowSettlementModal(true);
+    setSettlementSuccess(false);
+  };
+
+  const handleConfirmSettlement = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingSettlement(true);
+    setTimeout(() => {
+      setIsSubmittingSettlement(false);
+      setSettlementSuccess(true);
+    }, 1500);
   };
 
   const handleSubmitGuarantee = (e: React.FormEvent) => {
@@ -1211,15 +1294,15 @@ export default function RepresentativeManagementPortal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> مشتریان جذب شده:</span>
-              <div className="text-xl font-black text-slate-900">{toPersianNum(14)} خریدار</div>
+              <div className="text-xl font-black text-slate-900">{toPersianNum(0)} خریدار</div>
             </div>
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><ShoppingBag size={14} className="text-slate-400" /> سفارشات قطعی:</span>
-              <div className="text-xl font-black text-slate-900">{toPersianNum(38)} سفارش</div>
+              <div className="text-xl font-black text-slate-900">{toPersianNum(0)} سفارش</div>
             </div>
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Wallet size={14} className="text-slate-400" /> پورسانت فعال:</span>
-              <div className="text-xl font-black text-slate-900 text-emerald-600">{toPersianNum("۱۲,۵۰۰,۰۰۰")} <span className="text-xs text-slate-500">تومان</span></div>
+              <div className="text-xl font-black text-slate-900 text-emerald-600">{toPersianNum(0)} <span className="text-xs text-slate-500">تومان</span></div>
             </div>
           </div>
         </div>
@@ -1532,7 +1615,7 @@ export default function RepresentativeManagementPortal({
 
             <button
               type="button"
-              onClick={() => alert(`درخواست تسویه حساب به مبلغ ${toPersianNum(repCommissions.totalCommission)} تومان به واحد مالی کارخانجات ارسال شد و تا ۲۴ ساعت آینده به شبای شما واریز خواهد گردید.`)}
+              onClick={handleRequestSettlement}
               className="px-4 py-2 bg-indigo-600 hover:bg-black text-white font-black rounded-xl transition-all cursor-pointer shadow-xs shrink-0"
             >
               درخواست تسویه پورسانت به حساب بانکی
@@ -1599,6 +1682,14 @@ export default function RepresentativeManagementPortal({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePreviewCatalog}
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Eye size={14} />
+                <span>پیش‌نمایش زنده کاتالوگ</span>
+              </button>
               <button
                 type="button"
                 onClick={handleCopyCatalogLink}
@@ -2102,19 +2193,35 @@ export default function RepresentativeManagementPortal({
       {/* ========================================================================= */}
       {activeTab === 'plaque' && (
         <div className="space-y-6">
-          <HonorPlaqueCard
-            repName={user?.name || "مدیریت عاملیت"}
-            companyName={companyName}
-            tierLevel={activeTier.levelNumber}
-            tierTitle={activeTier.title}
-            badgeLabel={activeTier.badgeLabel}
-            monthlySales={simulatedSales}
-            agencyCode={user?.agencyCode || user?.userCode || "REP-7012"}
-            province={province}
-            city={city}
-            showDownloadButton={true}
-            onOpenPdfModal={() => setShowCertificateModal(true)}
-          />
+          {!isApprovedByAdmin ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 max-w-xl mx-auto my-12" dir="rtl">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center text-3xl mx-auto border border-amber-200">
+                🔒
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-slate-800">این بخش قفل می‌باشد</h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-bold">
+                لوح تایید رسمی و گواهی الکترونیک نمایندگی تنها پس از بررسی و تایید نهایی مشخصات شما توسط مدیریت سامانه فعال و قابل دانلود خواهد بود.
+              </p>
+              <div className="bg-white/80 rounded-2xl p-4 border border-amber-100 inline-flex items-center gap-2 text-xs font-bold text-amber-800">
+                <span>وضعیت پرونده شما:</span>
+                <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-[11px] font-black">در انتظار بررسی و تایید ادمین</span>
+              </div>
+            </div>
+          ) : (
+            <HonorPlaqueCard
+              repName={user?.name || "مدیریت عاملیت"}
+              companyName={companyName}
+              tierLevel={activeTier.levelNumber}
+              tierTitle={activeTier.title}
+              badgeLabel={activeTier.badgeLabel}
+              monthlySales={simulatedSales}
+              agencyCode={user?.agencyCode || user?.userCode || "REP-7012"}
+              province={province}
+              city={city}
+              showDownloadButton={true}
+              onOpenPdfModal={() => setShowCertificateModal(true)}
+            />
+          )}
         </div>
       )}
 
@@ -2868,8 +2975,94 @@ export default function RepresentativeManagementPortal({
         />
       )}
 
-      {/* 🚀 Unified Fixed Add Ad Button (FAB) for Seller Portal (Rep) */}
-      <AddAdButton variant="mobile-fab" />
+      {/* ========================================================================= */}
+      {/* 15. COMMISSION SETTLEMENT MODAL                                           */}
+      {/* ========================================================================= */}
+      {showSettlementModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4 animate-scale-up text-right">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                  <Wallet size={16} />
+                </div>
+                <h4 className="text-sm font-black text-slate-900">
+                  درخواست تسویه پورسانت انحصار
+                </h4>
+              </div>
+              <button onClick={() => setShowSettlementModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            {settlementSuccess ? (
+              <div className="space-y-4 py-3 text-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 size={28} />
+                </div>
+                <div className="space-y-1">
+                  <h5 className="text-sm font-black text-slate-900">درخواست با موفقیت ثبت شد</h5>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    درخواست تسویه پورسانت به مبلغ <strong className="text-emerald-600 font-mono">{toPersianNum(repCommissions.totalCommission)} تومان</strong> ثبت گردید. این مبلغ ظرف ۲۴ ساعت آینده به شماره شبای شما واریز خواهد شد.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSettlementModal(false)}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer"
+                >
+                  فهمیدم، متشکرم
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmSettlement} className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">مبلغ قابل تسویه:</span>
+                    <strong className="text-slate-900 text-sm font-mono">{toPersianNum(repCommissions.totalCommission)} تومان</strong>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-slate-200 pt-2">
+                    <span className="text-slate-500">شماره شبا مقصد:</span>
+                    <strong className="text-slate-700 font-mono text-[11px] tracking-wider">{iban || "IR-000000000000000000000000"}</strong>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">شماره شبا جهت واریز وجه (در صورت نیاز به ویرایش):</label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    placeholder="IR-000000000000000000000000"
+                    value={iban}
+                    onChange={(e) => setIban(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold font-mono text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSettlementModal(false)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSettlement || repCommissions.totalCommission <= 0}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingSettlement ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    <span>تایید و ارسال درخواست تسویه</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Removed AddAdButton per user request */}
 
     </div>
   );
