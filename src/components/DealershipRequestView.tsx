@@ -274,8 +274,8 @@ export default function DealershipRequestView({
                         onChange={(e) => setProvince(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
                       >
-                        {provinces.map((p) => (
-                          <option key={p} value={p}>{p}</option>
+                        {provinces.map((p, pIdx) => (
+                          <option key={`dealer-prov-opt-${p}-${pIdx}`} value={p}>{p}</option>
                         ))}
                       </select>
                     </div>

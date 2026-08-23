@@ -154,9 +154,9 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                     { id: 'cake', label: '🍪 کیک و بیسکویت' },
                     { id: 'sour', label: '🥫 مواد غذایی و کنسرو' },
                     { id: 'drinks', label: '🧃 نوشیدنی‌ها' },
-                  ].map((sec) => (
+                  ].map((sec, secIdx) => (
                     <button
-                      key={sec.id}
+                      key={`b2b-sim-sector-${sec.id}-${secIdx}`}
                       onClick={() => setSelectedSector(sec.id as any)}
                       className={`px-3 py-1.5 rounded-xl text-[10.5px] font-black whitespace-nowrap transition-all cursor-pointer ${
                         selectedSector === sec.id
@@ -213,9 +213,9 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                         { count: 10, label: "خرده‌فروش (۱۰)" },
                         { count: 40, label: "بنکدار (۴۰)" },
                         { count: 120, label: "شرکت پخش (۱۲۰)" }
-                      ].map(preset => (
+                      ].map((preset, pIdx) => (
                         <button
-                          key={preset.count}
+                          key={`b2b-sim-preset-${preset.count}-${pIdx}`}
                           type="button"
                           onClick={() => setMonthlyCartons(preset.count)}
                           className={`py-1.5 px-1 text-center rounded-lg text-[9px] font-black border transition-all cursor-pointer ${
@@ -247,9 +247,9 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                         { months: 3, label: '۳ ماهه (فصلی)' },
                         { months: 6, label: '۶ ماهه (نیم‌سال)' },
                         { months: 12, label: '۱۲ ماهه (۱ ساله)' }
-                      ].map(item => (
+                      ].map((item, mIdx) => (
                         <button
-                          key={item.months}
+                          key={`b2b-sim-month-${item.months}-${mIdx}`}
                           onClick={() => setCompoundHorizonMonths(item.months)}
                           className={`py-1.5 text-center rounded-lg text-[9px] font-black border transition-all cursor-pointer ${
                             compoundHorizonMonths === item.months

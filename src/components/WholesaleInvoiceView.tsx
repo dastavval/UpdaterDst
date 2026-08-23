@@ -5,7 +5,7 @@ import {
   Copy, Edit3, Plus, Trash2,
   Download, FileText, CheckCircle2,
   Image as ImageIcon, Loader2, ShieldCheck,
-  Truck
+  Truck, UserCheck
 } from "lucide-react";
 import { toJpeg, toPng } from "html-to-image";
 import jsPDF from "jspdf";
@@ -189,6 +189,10 @@ export default function WholesaleInvoiceView({
     return itemsCalculation.reduce((sum, it) => sum + Number(it.quantityCartons || 0), 0);
   }, [itemsCalculation]);
 
+  const itemsDiscountsTotal = useMemo(() => {
+    return itemsCalculation.reduce((sum, it) => sum + (it.discountVal || 0), 0);
+  }, [itemsCalculation]);
+
   // Volume Tier Discount (فقط در پرداخت نقدی و تیراژ بالای ۱۰ کارتن اعمال می‌شود)
   const tierDiscountInfo = useMemo(() => {
     if (order?.discountBreakdown?.tier !== undefined) {
@@ -246,7 +250,16 @@ export default function WholesaleInvoiceView({
     return Number(order?.discountBreakdown?.chequeMarkup || 0);
   }, [order]);
 
-  const totalDiscounts = tierDiscountInfo.amount + cashDiscountInfo.amount + badgeDiscountAmount;
+  // Sediment clearance discount
+  const sedimentDiscountAmount = useMemo(() => {
+    const breakDownAny = (order?.discountBreakdown || {}) as any;
+    if (breakDownAny.sediment !== undefined) {
+      return Number(breakDownAny.sediment || 0);
+    }
+    return itemsDiscountsTotal;
+  }, [order, itemsDiscountsTotal]);
+
+  const totalDiscounts = tierDiscountInfo.amount + cashDiscountInfo.amount + badgeDiscountAmount + sedimentDiscountAmount;
 
   const grandTotal = useMemo(() => {
     if (isFactoryView) {
@@ -627,6 +640,24 @@ export default function WholesaleInvoiceView({
             }
           }
         `}} />
+
+        {/* Auto Created Account Banner in Invoice if present */}
+        {order.autoCreatedAccount && (
+          <div className="border border-emerald-300 bg-emerald-50/90 p-3 rounded-xl mb-2 text-[9px] text-emerald-950 flex flex-col sm:flex-row items-center justify-between gap-3 print:hidden">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <UserCheck size={16} />
+              </div>
+              <div>
+                <span className="font-black text-emerald-950 block">حساب کاربری شما به‌طور خودکار ساخته شد!</span>
+                <span className="text-[8.5px] text-emerald-800">شماره موبایل: <strong className="font-mono">{order.autoCreatedAccount.username}</strong> | رمز عبور موقت: <strong className="font-mono">{order.autoCreatedAccount.password}</strong></span>
+              </div>
+            </div>
+            <div className="text-[8px] text-emerald-700 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-200 font-bold shrink-0">
+              💡 برای خریدهای بعدی و پیگیری سفارشات در پلتفرم لاگین کنید.
+            </div>
+          </div>
+        )}
 
         {/* 1. TOP HEADER (سربرگ رسمی با فونت متناسب) */}
         <div className="border border-slate-200 p-3 mb-2 bg-slate-50/50 a4-box rounded-xl">
@@ -1074,6 +1105,13 @@ export default function WholesaleInvoiceView({
                   <span className="text-slate-500 font-medium">جمع کل ناخالص اقلام:</span>
                   <span className="font-mono font-bold text-slate-800">{toPersianNum(totalGross)} تومان</span>
                 </div>
+
+                {sedimentDiscountAmount > 0 && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-rose-700 font-bold">
+                    <span>تخفیف انباشت و رسوب کالا:</span>
+                    <span className="font-mono">-{toPersianNum(sedimentDiscountAmount)} تومان</span>
+                  </div>
+                )}
 
                 {tierDiscountInfo.amount > 0 && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-amber-700 font-bold">

@@ -26,7 +26,8 @@ import {
   Calendar,
   Layers,
   Zap,
-  TrendingUp
+  TrendingUp,
+  Edit3
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -64,6 +65,7 @@ export interface PendingItem {
 interface AdminPendingApprovalsProps {
   orders: any[];
   onUpdateOrderStatus: (orderId: string, nextStatus: string) => Promise<void>;
+  onEditOrder?: (order: any) => void;
   safeBuyRequests: any[];
   onUpdateSafeBuyStatus: (id: string, firebaseId: string | undefined, status: 'approved' | 'rejected' | 'pending') => Promise<void>;
   sponsoredAds: any[];
@@ -84,6 +86,7 @@ interface AdminPendingApprovalsProps {
 export default function AdminPendingApprovals({
   orders = [],
   onUpdateOrderStatus,
+  onEditOrder,
   safeBuyRequests = [],
   onUpdateSafeBuyStatus,
   sponsoredAds = [],
@@ -966,23 +969,114 @@ export default function AdminPendingApprovals({
 
                 {/* Custom Content by Type */}
                 {viewingDetailItem.type === 'wholesale_order' && viewingDetailItem.details.items && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-black text-slate-900">اقلام فاکتور خرید عمده:</h4>
-                    <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100">
-                      {viewingDetailItem.details.items.map((it: any, i: number) => (
-                        <div key={`admin-pend-appr-item-${it.id || it.productName || i}-${i}`} className="p-3 bg-white flex items-center justify-between">
-                          <div>
-                            <span className="font-black text-slate-800">{it.name || it.productName}</span>
-                            <span className="text-[10px] text-slate-400 block">برند: {it.brand || 'معتبر'}</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black text-slate-900">اقلام فاکتور خرید عمده:</h4>
+                      {onEditOrder && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const orderToEdit = viewingDetailItem.details;
+                            setViewingDetailItem(null);
+                            onEditOrder(orderToEdit);
+                          }}
+                          className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer border border-amber-300"
+                        >
+                          <Edit3 size={13} />
+                          <span>ویرایش دستی اقلام فاکتور</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 bg-white shadow-sm">
+                      {viewingDetailItem.details.items.map((it: any, i: number) => {
+                        const qty = Number(it.quantityCartons || it.quantity || it.cartonsCount || 1);
+                        const unitPrice = Number(it.pricePerCarton || it.bulk_price || it.price || it.unitPrice || it.cartonPrice || 0);
+                        const lineTotal = unitPrice * qty;
+
+                        return (
+                          <div key={`admin-pend-appr-item-${it.id || it.productId || i}-${i}`} className="p-3 flex items-center justify-between">
+                            <div>
+                              <span className="font-black text-slate-900 block text-xs">{it.name || it.productName || it.title || 'کالای سفارشی'}</span>
+                              <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
+                                برند: {it.brand || 'معتبر'}
+                              </span>
+                            </div>
+                            <div className="text-left">
+                              <span className="font-black text-slate-900 text-xs block">{toPersianNum(qty)} کارتن</span>
+                              <span className="text-[10px] text-emerald-600 font-black block mt-0.5">
+                                {unitPrice > 0 
+                                  ? `فی: ${toPersianNum(unitPrice.toLocaleString())} تومان` 
+                                  : 'عرضه به قیمت تمام‌شده کارخانه'}
+                              </span>
+                              {lineTotal > 0 && (
+                                <span className="text-[10px] text-slate-500 font-mono font-bold block">
+                                  جمع ردیف: {toPersianNum(lineTotal.toLocaleString())} تومان
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-left">
-                            <span className="font-black text-slate-900">{toPersianNum(it.quantity)} کارتن</span>
-                            <span className="text-[10px] text-emerald-600 block">
-                              فی: {toPersianNum((it.bulk_price || it.price || 0).toLocaleString())} تومان
-                            </span>
-                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Financial & Payment Breakdown Card */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 text-xs">
+                      <div className="flex justify-between items-center font-black text-slate-900 border-b border-slate-200 pb-2">
+                        <span>مبلغ کل قابل پرداخت فاکتور:</span>
+                        <span className="text-sm font-mono font-black text-emerald-600">
+                          {toPersianNum((viewingDetailItem.details.totalAmount || viewingDetailItem.details.finalTotal || viewingDetailItem.valueToman || 0).toLocaleString())} تومان
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                        <div>
+                          <span className="text-slate-400 font-bold block">نحوه تسویه مالی:</span>
+                          <span className="font-black text-slate-800">
+                            {viewingDetailItem.details.paymentStatus === 'paid' ? 'تسویه شده کامل (نقدی)' : 
+                             viewingDetailItem.details.paymentMethod === 'cheque' ? 'چکی / اعتباری صیادی' :
+                             viewingDetailItem.details.paymentMethod === 'split' ? 'ترکیبی (نقد + چک)' : 'در انتظار پرداخت / ثبت فاکتور'}
+                          </span>
                         </div>
-                      ))}
+                        <div>
+                          <span className="text-slate-400 font-bold block">نحوه ارسال و باربری:</span>
+                          <span className="font-black text-slate-800">
+                            {viewingDetailItem.details.shippingMethod || 'باربری شهرام ترابر (کارتنی ۳۵,۰۰۰ تومان)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {viewingDetailItem.details.buyerAddress && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <span className="text-slate-400 font-bold block text-[10px]">آدرس دقیق تحویل و تخلیه بار:</span>
+                          <p className="font-black text-slate-800 text-[11px] leading-relaxed mt-0.5">
+                            {viewingDetailItem.details.buyerAddress}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Safe Buy Request Details */}
+                {viewingDetailItem.type === 'safe_buy' && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs">
+                    <h4 className="text-xs font-black text-slate-900 border-b border-slate-200 pb-2">جزئیات درخواست خرید امن کف بازار:</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block">کالای درخواستی:</span>
+                        <span className="font-black text-slate-900">{viewingDetailItem.details.productTitle || viewingDetailItem.title}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block">حجم سفارش:</span>
+                        <span className="font-black text-slate-900">{viewingDetailItem.quantity || 'سفارش عمده'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block">ودیعه امانی در صندوق:</span>
+                        <span className="font-black text-emerald-600 font-mono">
+                          {toPersianNum(Number(viewingDetailItem.valueToman || 0).toLocaleString())} تومان
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -178,6 +178,25 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
       return;
     }
 
+    try {
+      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      if (user?.email && localUsers[user.email]) {
+        localUsers[user.email].password = newPassword;
+      }
+      if (user?.phone && localUsers[user.phone]) {
+        localUsers[user.phone].password = newPassword;
+      }
+      localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+
+      const updatedUser = { ...user, password: newPassword };
+      localStorage.setItem("dastavval_user", JSON.stringify(updatedUser));
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+    } catch (err) {
+      console.warn("Local storage update error:", err);
+    }
+
     setPassStatus("success");
     setCurrentPassword("");
     setNewPassword("");
@@ -400,7 +419,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
 
           <button 
             type="submit"
-            className="w-full py-2.5 bg-white hover text-white rounded-xl text-xs font-black cursor-pointer text-center"
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black cursor-pointer text-center transition-all shadow-md shadow-emerald-600/20"
           >
             بروزرسانی رمز ورود نهایی
           </button>

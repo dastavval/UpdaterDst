@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc, db, auth } from "./lib/data-layer";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts } from "./lib/db";
@@ -27,6 +27,7 @@ import DastavvalLogo from "./components/DastavvalLogo";
 import TrustBadges from "./components/TrustBadges";
 import PwaInstallModal from "./components/PwaInstallModal";
 import PwaInstallBanner from "./components/PwaInstallBanner";
+import OfflineBanner from "./components/OfflineBanner";
 import LazyViewport from "./components/LazyViewport";
 import VirtualizedProductGrid from "./components/VirtualizedProductGrid";
 
@@ -200,34 +201,82 @@ export default function App() {
   const INITIAL_DEFAULT_FACTORIES: any[] = [];
 
   const [b2bConfig, setB2bConfig] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem("dastavval_b2b_config");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed) {
-          if (!parsed.factories) {
-            parsed.factories = [];
-          }
-          parsed.primaryColor = "sky";
-          return parsed;
-        }
-      }
-    } catch (e) {}
-    return {
+    const defaultDefaults = {
       primaryColor: "emerald",
       appName: "دست اول",
       appSub: "مرجع مبادلات مستقیم و تامین کالای عمده از درب کارخانه",
-      factories: [],
-      categories: [],
+      factories: [
+        {
+          id: "fac-1",
+          factoryCode: "FAC-1001",
+          name: "صنایع غذایی به‌آرا (چی‌توز)",
+          city: "مشهد",
+          province: "خراسان رضوی",
+          establishedYear: 1372,
+          badge: "gold",
+          isVerified: true,
+          logoUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=200&q=80",
+          category: "تنقلات و شکلات"
+        },
+        {
+          id: "fac-2",
+          factoryCode: "FAC-1002",
+          name: "گروه کارخانجات مزمز",
+          city: "تهران",
+          province: "تهران",
+          establishedYear: 1374,
+          badge: "vip",
+          isVerified: true,
+          logoUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=200&q=80",
+          category: "تنقلات و شکلات"
+        }
+      ],
+      categories: [
+        { id: "cat-1", name: "تنقلات و شکلات", label: "تنقلات و شکلات", image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600" },
+        { id: "cat-2", name: "کیک، کلوچه و بیسکویت", label: "کیک، کلوچه و بیسکویت", image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600" },
+        { id: "cat-3", name: "مواد غذایی و کنسروجات", label: "مواد غذایی و کنسروجات", image: "https://images.unsplash.com/photo-1534483509719-3feaee7c30da?auto=format&fit=crop&q=80&w=600" },
+        { id: "cat-4", name: "نوشیدنی‌ها", label: "نوشیدنی‌ها", image: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600" },
+        { id: "cat-5", name: "شوینده و بهداشتی", label: "شوینده و بهداشتی", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600" }
+      ],
       logoUrl: "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
       mascotUrl: "/assets/mascot_character.jpg",
       buyerCredit: 250000000,
       supportPhone: "09999123001",
-      minOrderAmount: 3000000, // 3 Million Toman default minimum order
+      minOrderAmount: 3000000,
       minOrderCartons: 3,
-      topAnnouncement: "",
-      showTopAnnouncement: false,
-      lastGithubUpdate: null,
+      commissionRate: 5,
+      enamadCode: "ENAMAD-99887766",
+      enamadUrl: "https://trustseal.enamad.ir/?id=321456&Code=xyz",
+      samandehiCode: "SAMAN-445566",
+      samandehiUrl: "https://logo.samandehi.ir/verify.aspx?id=123456",
+      tradeUnionCode: "IR-9044502",
+      tradeUnionUrl: "https://dastavval.com/license",
+      invoiceSettings: {
+        sellerTitle: "سامانه مبادلات مستقیم کالای دست اول",
+        sellerPhone: "021-88889999",
+        sellerMobile: "09999123001",
+        hqAddress: "تهران، خیابان ولیعصر، برج تجارت الکترونیک دست اول",
+        bankAccounts: [
+          {
+            bankName: "بانک ملی ایران",
+            ownerName: "سامانه مبادلات دست اول",
+            cardNumber: "۶۰۳۷-۹918-9988-1234",
+            shabaNumber: "IR420190000000102938475661"
+          },
+          {
+            bankName: "بانک ملت",
+            ownerName: "شرکت بازرگانی و تامین کالای دست اول",
+            cardNumber: "۶۱۰۴-۳۳79-8812-3456",
+            shabaNumber: "IR190120000000001234567890"
+          },
+          {
+            bankName: "بانک صادرات ایران",
+            ownerName: "حساب امانی تسویه وجوه عمده",
+            cardNumber: "۶۰۳۷-۶915-0012-9876",
+            shabaNumber: "IR770160000000009876543210"
+          }
+        ]
+      },
       quantityDiscountTiers: [
         { threshold: 10, discountPercent: 3 },
         { threshold: 25, discountPercent: 6 },
@@ -240,6 +289,32 @@ export default function App() {
         { threshold: 500000000, discountPercent: 12 }
       ]
     };
+
+    try {
+      const saved = localStorage.getItem("dastavval_b2b_config");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed) {
+          return {
+            ...defaultDefaults,
+            ...parsed,
+            factories: (parsed.factories && parsed.factories.length > 0) ? parsed.factories : defaultDefaults.factories,
+            categories: (parsed.categories && parsed.categories.length > 0) ? parsed.categories : defaultDefaults.categories,
+            invoiceSettings: {
+              ...defaultDefaults.invoiceSettings,
+              ...(parsed.invoiceSettings || {}),
+              bankAccounts: (parsed.invoiceSettings?.bankAccounts && parsed.invoiceSettings.bankAccounts.length > 0)
+                ? parsed.invoiceSettings.bankAccounts
+                : defaultDefaults.invoiceSettings.bankAccounts
+            },
+            quantityDiscountTiers: (parsed.quantityDiscountTiers && parsed.quantityDiscountTiers.length > 0) ? parsed.quantityDiscountTiers : defaultDefaults.quantityDiscountTiers,
+            volumeDiscountTiers: (parsed.volumeDiscountTiers && parsed.volumeDiscountTiers.length > 0) ? parsed.volumeDiscountTiers : defaultDefaults.volumeDiscountTiers
+          };
+        }
+      }
+    } catch (e) {}
+
+    return defaultDefaults;
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
@@ -402,6 +477,24 @@ export default function App() {
       updatePageSEO(SEO_TAB_CONFIGS[activeTab]);
     }
   }, [activeTab, activeCategory, selectedDetailProduct]);
+
+  // Update favicon and Apple Touch Icon when logoUrl changes
+  useEffect(() => {
+    if (b2bConfig?.logoUrl) {
+      let iconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!iconLink) {
+        iconLink = document.createElement('link');
+        iconLink.rel = 'icon';
+        document.head.appendChild(iconLink);
+      }
+      iconLink.href = b2bConfig.logoUrl;
+      
+      let appleIconLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+      if (appleIconLink) {
+        appleIconLink.href = b2bConfig.logoUrl;
+      }
+    }
+  }, [b2bConfig?.logoUrl]);
 
   // Global Brand Search Event Listener
   useEffect(() => {
@@ -1381,72 +1474,84 @@ export default function App() {
     }
   };
 
-  const filteredProducts = products.filter(product => {
-    // Hide disabled products on public pages
-    const isProdDisabled = product.disabled === true || String(product.disabled) === 'true' || String(product.disabled) === '1' || String(product.disabled) === 'yes';
-    if (isProdDisabled) return false;
+  const activeProducts = useMemo(() => {
+    return products.filter(product => {
+      const isProdDisabled = product.disabled === true || 
+        (product as any).is_active === false || 
+        (product as any).status === 'inactive' || 
+        (product as any).status === 'disabled' || 
+        String(product.disabled) === 'true' || 
+        String(product.disabled) === '1' || 
+        String(product.disabled) === 'yes';
+      if (isProdDisabled) return false;
 
-    // Hide unapproved factory products from public showcase until approved
-    if (product.approvalStatus === 'pending' || product.isApproved === false) {
-      if (userRole !== 'admin') return false;
-    }
+      if (product.approvalStatus === 'rejected') return false;
+      if ((product.approvalStatus === 'pending' || product.isApproved === false) && userRole !== 'admin') {
+        return false;
+      }
+      return true;
+    });
+  }, [products, userRole]);
 
-    const matchesCategory = activeCategory === "همه" || product.category === activeCategory;
-    const matchesBrand = selectedBrand === "همه" || product.brand === selectedBrand;
-    
-    const normalizeStr = (str: string) => (str || "")
-      .toLowerCase()
-      .replace(/[يى]/g, "ی")
-      .replace(/ك/g, "ک")
-      .replace(/‌/g, " ")
-      .trim();
-
-    const q = normalizeStr(searchQuery);
-    const matchesSearch = q === "" || 
-      normalizeStr(product.name).includes(q) ||
-      normalizeStr(product.brand).includes(q) ||
-      normalizeStr(product.description || "").includes(q) ||
-      normalizeStr((product as any).factory_name || "").includes(q);
+  const filteredProducts = useMemo(() => {
+    return activeProducts.filter(product => {
+      const matchesCategory = activeCategory === "همه" || product.category === activeCategory;
+      const matchesBrand = selectedBrand === "همه" || product.brand === selectedBrand;
       
-    return matchesCategory && matchesBrand && matchesSearch;
-  }).sort((a, b) => {
-    // Custom Sorting Options
-    if (sortBy === 'price-asc') {
-      return (a.bulk_price || 0) - (b.bulk_price || 0);
-    }
-    if (sortBy === 'price-desc') {
-      return (b.bulk_price || 0) - (a.bulk_price || 0);
-    }
-    if (sortBy === 'newest') {
-      const aNew = a.isNew ? 1 : 0;
-      const bNew = b.isNew ? 1 : 0;
-      if (aNew !== bNew) return bNew - aNew;
-      return String(b.id).localeCompare(String(a.id));
-    }
-    if (sortBy === 'best-selling') {
-      const aRate = a.rating || 4;
-      const bRate = b.rating || 4;
-      if (aRate !== bRate) return bRate - aRate;
-      const aFav = a.isFavorite ? 1 : 0;
-      const bFav = b.isFavorite ? 1 : 0;
-      return bFav - aFav;
-    }
+      const normalizeStr = (str: string) => (str || "")
+        .toLowerCase()
+        .replace(/[يى]/g, "ی")
+        .replace(/ك/g, "ک")
+        .replace(/‌/g, " ")
+        .trim();
 
-    // Default Sorting (Sponsored & BoostScore)
-    const aSponsored = a.isSponsored ? 1 : 0;
-    const bSponsored = b.isSponsored ? 1 : 0;
-    if (aSponsored !== bSponsored) {
-      return bSponsored - aSponsored;
-    }
-    
-    const aBoost = a.boostScore || 0;
-    const bBoost = b.boostScore || 0;
-    if (aBoost !== bBoost) {
-      return bBoost - aBoost;
-    }
-    
-    return 0;
-  });
+      const q = normalizeStr(searchQuery);
+      const matchesSearch = q === "" || 
+        normalizeStr(product.name).includes(q) ||
+        normalizeStr(product.brand).includes(q) ||
+        normalizeStr(product.description || "").includes(q) ||
+        normalizeStr((product as any).factory_name || "").includes(q);
+        
+      return matchesCategory && matchesBrand && matchesSearch;
+    }).sort((a, b) => {
+      // Custom Sorting Options
+      if (sortBy === 'price-asc') {
+        return (a.bulk_price || 0) - (b.bulk_price || 0);
+      }
+      if (sortBy === 'price-desc') {
+        return (b.bulk_price || 0) - (a.bulk_price || 0);
+      }
+      if (sortBy === 'newest') {
+        const aNew = a.isNew ? 1 : 0;
+        const bNew = b.isNew ? 1 : 0;
+        if (aNew !== bNew) return bNew - aNew;
+        return String(b.id).localeCompare(String(a.id));
+      }
+      if (sortBy === 'best-selling') {
+        const aRate = a.rating || 4;
+        const bRate = b.rating || 4;
+        if (aRate !== bRate) return bRate - aRate;
+        const aFav = a.isFavorite ? 1 : 0;
+        const bFav = b.isFavorite ? 1 : 0;
+        return bFav - aFav;
+      }
+
+      // Default Sorting (Sponsored & BoostScore)
+      const aSponsored = a.isSponsored ? 1 : 0;
+      const bSponsored = b.isSponsored ? 1 : 0;
+      if (aSponsored !== bSponsored) {
+        return bSponsored - aSponsored;
+      }
+      
+      const aBoost = a.boostScore || 0;
+      const bBoost = b.boostScore || 0;
+      if (aBoost !== bBoost) {
+        return bBoost - aBoost;
+      }
+      
+      return 0;
+    });
+  }, [activeProducts, activeCategory, selectedBrand, searchQuery, sortBy]);
 
   const getBadgeDetails = (badge: string) => {
     switch(badge) {
@@ -1731,7 +1836,7 @@ export default function App() {
                 className="space-y-6 sm:space-y-8"
               >
                 <DynamicPresentation 
-                  products={products} 
+                  products={activeProducts} 
                   articles={articles}
                   onEnterPanel={() => setActiveTab('order')} 
                   language={language}
@@ -3558,6 +3663,9 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+      {/* Network Disconnection and Offline Sync Toast */}
+      <OfflineBanner onSyncPendingData={fetchProducts} />
+
       {/* Cheque Charter and Credit Rules Modal */}
       <ChequeCharterModal 
         isOpen={showChequeCharterModal}
@@ -3590,9 +3698,7 @@ export default function App() {
             dir="rtl"
           >
             <div className="relative">
-              <div className="w-24 h-24 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                <ShoppingBag size={44} className="text-emerald-600" />
-              </div>
+              <DastavvalLogo size={80} showText={false} logoUrl={b2bConfig?.logoUrl} />
             </div>
 
             <div className="text-center space-y-2">

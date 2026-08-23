@@ -671,7 +671,9 @@ export default function ProductDetailModal({
                         <div className="space-y-0.5">
                           <span className="text-[9px] font-bold text-slate-500 block">سود ناخالص تخمینی شما از این سفارش:</span>
                           <span className="text-xs font-black text-emerald-800 font-mono">
-                            +{toPersianNum(totalNetProfit.toLocaleString())} تومان ({toPersianNum(profitMarginPercent)}٪ حاشیه سود)
+                            {totalNetProfit > 0
+                              ? `+${toPersianNum(totalNetProfit.toLocaleString())} تومان (${toPersianNum(profitMarginPercent)}٪ حاشیه سود)`
+                              : "قیمت مصوب کارخانه (تامین بدون واسطه)"}
                           </span>
                         </div>
                         {discountSavings > 0 && (
@@ -682,18 +684,24 @@ export default function ProductDetailModal({
                       </div>
 
                       {/* Daily & Compound Nudges */}
-                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200/50 text-[10px] font-black">
-                        <div className="bg-white/80 p-2 rounded-xl border border-emerald-100 flex items-center justify-between">
-                          <span className="text-slate-500 text-[9px]">سود روزانه:</span>
-                          <span className="text-cyan-800 font-mono">+{toPersianNum(Math.round(totalNetProfit / 30).toLocaleString())} ت/روز</span>
+                      {totalNetProfit > 0 ? (
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200/50 text-[10px] font-black">
+                          <div className="bg-white/80 p-2 rounded-xl border border-emerald-100 flex items-center justify-between">
+                            <span className="text-slate-500 text-[9px]">سود روزانه:</span>
+                            <span className="text-cyan-800 font-mono">+{toPersianNum(Math.round(totalNetProfit / 30).toLocaleString())} ت/روز</span>
+                          </div>
+                          <div className="bg-white/80 p-2 rounded-xl border border-amber-200 flex items-center justify-between">
+                            <span className="text-slate-500 text-[9px]">سود مرکب ۶ ماهه:</span>
+                            <span className="text-amber-900 font-mono">
+                              +{toPersianNum(Math.round(totalOrderPrice * (Math.pow(1 + ((profitMarginPercent / 100) * 0.7), 6) - 1)).toLocaleString())} ت
+                            </span>
+                          </div>
                         </div>
-                        <div className="bg-white/80 p-2 rounded-xl border border-amber-200 flex items-center justify-between">
-                          <span className="text-slate-500 text-[9px]">سود مرکب ۶ ماهه:</span>
-                          <span className="text-amber-900 font-mono">
-                            +{toPersianNum(Math.round(totalOrderPrice * (Math.pow(1 + ((profitMarginPercent / 100) * 0.7), 6) - 1)).toLocaleString())} ت
-                          </span>
+                      ) : (
+                        <div className="pt-1.5 border-t border-emerald-200/50 text-center text-emerald-800 font-black text-[10px]">
+                          تامین مستقیم با نرخ مصوب تولیدکننده (حذف کامل هزینه‌های واسطه‌گری)
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Dynamic Conversions display */}

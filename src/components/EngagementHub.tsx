@@ -333,36 +333,52 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
   // ----------------------------------------------------
   const [calcProductId, setCalcProductId] = useState<string>(products[0]?.id || "");
   const [calcCartons, setCalcCartons] = useState<number>(30);
-  const [calcTransportDistance, setCalcTransportDistance] = useState<number>(180); // km
+  const [calcTransportDistance, setCalcTransportDistance] = useState<number>(650); // km
+  const [selectedCarrier, setSelectedCarrier] = useState<'shahram_tarabar' | 'express' | 'darbasti'>('shahram_tarabar');
 
   const activeProduct = products.find(p => p.id === calcProductId) || products[0];
   const cartonPackCount = activeProduct?.carton_pack_count || 24;
   
   // Real transport calculations
-  const weightPerCartonKg = 6.5; // Average real carton weight in food industry
+  const weightPerCartonKg = activeProduct?.weight_per_carton_kg || 10; // Average 10kg per carton
   const totalWeightKg = calcCartons * weightPerCartonKg;
   const totalVolumeM3 = calcCartons * 0.042; // Real cubic meter average per carton
 
-  // Standard official cargo vehicle categories and real rates per KM in Iran
-  const getCargoVehicleInfo = (weightKg: number) => {
-    if (weightKg <= 600) {
-      return { type: "وانت بار پراید / پیکان", minWeight: 0, maxWeight: 600, ratePerKm: 14000, baseFare: 1200000 };
-    } else if (weightKg <= 2000) {
-      return { type: "نیسان مسقف", minWeight: 601, maxWeight: 2000, ratePerKm: 19000, baseFare: 1800000 };
-    } else if (weightKg <= 4000) {
-      return { type: "کامیونت خاور مسقف پتو دار", minWeight: 2001, maxWeight: 4000, ratePerKm: 27000, baseFare: 2900000 };
-    } else if (weightKg <= 10000) {
-      return { type: "کامیون تک (۶ چرخ ۱۰ تن)", minWeight: 4001, maxWeight: 10000, ratePerKm: 39000, baseFare: 4500000 };
-    } else if (weightKg <= 15000) {
-      return { type: "کامیون جفت (۱۰ چرخ ۱۵ تن)", minWeight: 10001, maxWeight: 15000, ratePerKm: 48000, baseFare: 5500000 };
+  // Carrier specific rates based on exact formulas
+  const calculateFreightByCarrier = () => {
+    if (selectedCarrier === 'shahram_tarabar') {
+      // 35,000 Tomans per carton
+      const ratePerCarton = 35000;
+      return {
+        carrierName: "باربری شهرام ترابر",
+        formulaDesc: "۳۵,۰۰۰ تومان به ازای هر کارتن تحویلی (محاسبه مستقیم به تومان)",
+        totalCost: calcCartons * ratePerCarton,
+        vehicleType: calcCartons > 300 ? "کامیون تک / جفت جاده‌ای" : "ناوگان باربری شهرام ترابر"
+      };
+    } else if (selectedCarrier === 'express') {
+      // 50,000 to 60,000 Tomans per carton
+      const ratePerCarton = 55000;
+      return {
+        carrierName: "باربری اکسپرس",
+        formulaDesc: "۵۰,۰۰۰ الی ۶۰,۰۰۰ تومان به ازای هر کارتن تحویلی",
+        totalCost: calcCartons * ratePerCarton,
+        vehicleType: "ناوگان اکسپرس شهری و بین‌شهری"
+      };
     } else {
-      return { type: "تریلی لبه‌دار ترانزیت (۲۲ تن)", minWeight: 15001, maxWeight: 22000, ratePerKm: 62000, baseFare: 7200000 };
+      // Dedicated Truck: 1,000,000 Tomans per 100km for every 200-300 cartons
+      const cartonBatches = Math.max(1, Math.ceil(calcCartons / 250)); // 250 cartons avg per batch
+      const hundredKmUnits = Math.max(1, calcTransportDistance / 100);
+      const totalCost = cartonBatches * hundredKmUnits * 1000000;
+      return {
+        carrierName: "حمل دربستی (خاور / تک / جفت)",
+        formulaDesc: "۱,۰۰۰,۰۰۰ تومان به ازای هر ۱۰۰ کیلومتر مسافت (هر ۲۰۰ تا ۳۰۰ کارتن)",
+        totalCost: totalCost,
+        vehicleType: calcCartons > 600 ? "تریلی ترانزیت دربستی" : "خاور / تک دربستی اختصاصی"
+      };
     }
   };
 
-  const vehicle = getCargoVehicleInfo(totalWeightKg);
-  // Real tariff formula: Base Cargo Fare + (Distance * Rate Per Km)
-  const calculatedFreightCost = vehicle.baseFare + (calcTransportDistance * vehicle.ratePerKm);
+  const carrierResult = calculateFreightByCarrier();
 
   // ----------------------------------------------------
   // SECTION 3: INDUSTRIAL SWAP & BARTER REGISTRY (تهاتر صنعتی)
@@ -733,6 +749,33 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 {/* Inputs */}
                 <div className="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                   <div className="space-y-1">
+                    <label className="text-[11px] font-black text-slate-700 block">انتخاب شرکت و متصدی حمل باربری:</label>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {[
+                        { id: 'shahram_tarabar', name: 'باربری شهرام ترابر', badge: 'کارتنی (۳۵,۰۰۰ تومان برای هر کارتن)' },
+                        { id: 'express', name: 'باربری اکسپرس', badge: 'کارتنی (۵۰-۶۰ک برای هر کارتن)' },
+                        { id: 'darbasti', name: 'ارسال دربستی (خاور/تک)', badge: 'دربستی (۱M برای ۱۰۰km / ۲۰۰-۳۰۰ک)' }
+                      ].map((c) => (
+                        <button
+                          key={`carrier-tab-${c.id}`}
+                          type="button"
+                          onClick={() => setSelectedCarrier(c.id as any)}
+                          className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex justify-between items-center ${
+                            selectedCarrier === c.id
+                              ? "bg-emerald-600 text-white border-emerald-600 font-black shadow-xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 font-bold"
+                          }`}
+                        >
+                          <span className="text-xs">{c.name}</span>
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full ${selectedCarrier === c.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"}`}>
+                            {c.badge}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
                     <label className="text-[11px] font-black text-slate-700 block">انتخاب کالای هدف برای بارگیری:</label>
                     <select
                       value={calcProductId}
@@ -787,7 +830,12 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 {/* Outputs */}
                 <div className="lg:col-span-7 bg-slate-50/50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between">
                   <div className="space-y-3.5">
-                    <h4 className="text-xs font-black text-slate-800">خلاصه گزارش بار جاده‌ای صادر شده:</h4>
+                    <h4 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                      <span>گزارش محاسبه کرایه حمل {carrierResult.carrierName}:</span>
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        {carrierResult.vehicleType}
+                      </span>
+                    </h4>
                     
                     <div className="grid grid-cols-3 gap-3">
                       <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
@@ -797,40 +845,36 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                         </span>
                       </div>
                       <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                        <span className="text-[9px] text-slate-400 block font-bold">حجم تخمینی فضا:</span>
+                        <span className="text-[9px] text-slate-400 block font-bold">تعداد کارتن:</span>
                         <span className="text-xs font-mono font-black text-slate-800">
-                          {toPersianNum(totalVolumeM3.toFixed(2))} m³
+                          {toPersianNum(calcCartons)} کارتن
                         </span>
                       </div>
                       <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                        <span className="text-[9px] text-slate-400 block font-bold">خودروی ترابری لازم:</span>
-                        <span className="text-[10px] font-black text-slate-800 truncate block">
-                          {vehicle.type}
+                        <span className="text-[9px] text-slate-400 block font-bold">مسافت ترانزیت:</span>
+                        <span className="text-xs font-mono font-black text-slate-800">
+                          {toPersianNum(calcTransportDistance)} km
                         </span>
                       </div>
                     </div>
 
                     <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-2.5">
                       <div className="flex justify-between text-xs text-slate-600">
-                        <span>پایه کرایه حمل جاده‌ای مبدا تا مقصد:</span>
-                        <span className="font-mono">{formatPrice(vehicle.baseFare)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-slate-600">
-                        <span>هزینه مسافت پیموده شده ({toPersianNum(calcTransportDistance)} کیلومتر):</span>
-                        <span className="font-mono">{formatPrice(calcTransportDistance * vehicle.ratePerKm)}</span>
+                        <span>مبنای فرمول محاسبه کرایه:</span>
+                        <span className="text-[10px] font-black text-slate-800">{carrierResult.formulaDesc}</span>
                       </div>
                       <div className="border-t border-slate-100 pt-2.5 flex justify-between text-xs text-slate-900 font-black">
                         <span className="flex items-center gap-1">
-                          <ShieldCheck size={14} className="text-slate-800" />
-                          <span>جمع کل بهای فرابری (تخمینی):</span>
+                          <ShieldCheck size={14} className="text-emerald-600" />
+                          <span>جمع کل کرایه برآوردی ({carrierResult.carrierName}):</span>
                         </span>
-                        <span className="font-mono text-slate-900">{formatPrice(calculatedFreightCost)}</span>
+                        <span className="font-mono text-emerald-700 text-sm">{formatPrice(carrierResult.totalCost)}</span>
                       </div>
                     </div>
                   </div>
 
                   <p className="text-[9px] text-slate-400 font-bold mt-4">
-                    * مبالغ فوق تقریبی بوده و جهت ارزیابی سود تجار صادر شده است. تسویه نهایی بار بر اساس بارنامه رسمی دولتی خواهد بود.
+                    * مبالغ فوق بر اساس تعرفه مصوب باربری‌ها صادر شده است. تسویه دقیق در زمان تحویل بارنامه رسمی دولتی خواهد بود.
                   </p>
                 </div>
               </div>

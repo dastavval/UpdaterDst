@@ -174,8 +174,8 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
                   className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-800 focus focus focus transition-all outline-none"
                 >
                   <option value="" disabled>کالایی را انتخاب کنید...</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
+                  {products.map((p, idx) => (
+                    <option key={`ai-prod-opt-${p.id || idx}-${idx}`} value={p.id}>
                       {p.brand} - {p.name} (درب کارخانه: {p.bulk_price.toLocaleString()} تومان)
                     </option>
                   ))}

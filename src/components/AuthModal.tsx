@@ -217,12 +217,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
       } else {
         // === SIGN UP MODE ===
-        if (!cleanPassword) {
-          setError("لطفاً یک رمز عبور تعیین فرمایید.");
-          setLoading(false);
-          return;
-        }
-
         const finalName = name.trim() || (selectedRole === 'factory' ? "مدیر کارخانه" : "همکار گرامی");
         const finalPhone = phone.trim();
         if (!finalPhone) {
@@ -230,6 +224,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
           setLoading(false);
           return;
         }
+
+        // Set default password to phone number if user didn't enter a custom password
+        const finalPassword = cleanPassword || finalPhone;
+
         const finalCompany = company.trim() || (
           selectedRole === 'factory' ? "کارخانه تولیدی" : 
           selectedRole === 'marketer' ? "دفتر نمایندگی و بازاریابی" : "فروشگاه همکار"
@@ -246,7 +244,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         }
         trimmedEmail = userAuthKey;
 
-        const userRole = selectedRole;
+        const userRole = selectedRole || 'customer';
         // Loyalty badges
         const badge = userRole === 'customer' ? 'bronze' : undefined;
         
@@ -259,7 +257,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         const newUserObj = {
           name: finalName,
           email: trimmedEmail,
-          password: cleanPassword,
+          password: finalPassword,
           company: finalCompany,
           city: finalCity,
           phone: finalPhone,
@@ -280,6 +278,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         try {
           const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
           localUsers[trimmedEmail] = newUserObj;
+          // Also index by phone for instant login with phone
+          localUsers[finalPhone] = newUserObj;
           localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
           
           if (newUserObj.status === 'active') {
@@ -297,7 +297,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
         // Try Firebase Auth in background
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
+          const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, finalPassword);
           const user = userCredential.user;
 
           await updateProfile(user, { displayName: finalName });
@@ -820,19 +820,26 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             {/* Password */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black text-slate-700">رمز عبور:</label>
+                <label className="text-[11px] font-black text-slate-700">
+                  {authMode === 'signup' ? "رمز عبور (اختیاری - پیش‌فرض: شماره همراه):" : "رمز عبور:"}
+                </label>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
                   type="password"
-                  required
+                  required={authMode === 'login'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={authMode === 'signup' ? "در صورت خالی ماندن، شماره همراه رمز شما خواهد بود" : "••••••••"}
                   className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 transition-all text-xs font-mono font-bold text-slate-800 text-left"
                 />
               </div>
+              {authMode === 'signup' && (
+                <p className="text-[10px] text-slate-500 font-bold mt-1">
+                  💡 نکته: پس از ثبت‌نام، نام کاربری و رمز ورود اولیه شما شماره همراهتان خواهد بود و هر زمان از بخش ویرایش حساب می‌توانید آن را تغییر دهید.
+                </p>
+              )}
             </div>
 
             <button

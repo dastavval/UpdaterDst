@@ -5,10 +5,12 @@ import {
   HelpCircle, RefreshCw, Calculator, FileText, LayoutDashboard, 
   CreditCard, Award, ArrowLeftRight, Printer, Receipt, ChevronLeft, 
   UserCheck, FileCheck, Truck, Search, Calendar, Clock, CheckCircle2, 
-  Upload, X, Building2, AlertCircle, Eye, Check, User as UserIcon, MessageSquare, Bell, LogOut
+  Upload, X, Building2, AlertCircle, Eye, Check, User as UserIcon, MessageSquare, Bell, LogOut,
+  Briefcase
 } from "lucide-react";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
+import DealershipRequestView from "./DealershipRequestView";
 import { t, Language } from "../lib/translations";
 import { ProfileManagement, SupportTicketSystem, SystemNotifications } from "./PortalModules";
 import ReportsView from "./ReportsView";
@@ -53,7 +55,7 @@ export default function B2BBusinessDashboard({
 }: B2BBusinessDashboardProps) {
 
   // Active Main tab of the partner portal
-  const [activeTab, setActiveTab] = useState<'overview' | 'tracking' | 'roi' | 'reports' | 'agents' | 'profile' | 'tickets' | 'notifications'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tracking' | 'roi' | 'reports' | 'agents' | 'profile' | 'tickets' | 'notifications' | 'dealership_request'>('overview');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -322,6 +324,37 @@ export default function B2BBusinessDashboard({
         </div>
       )}
 
+      {/* 1.6 Customer Switch to Dealership Callout */}
+      {user?.role !== 'agent' && user?.role !== 'admin' && user?.role !== 'factory' && (
+        <div className="bg-gradient-to-r from-emerald-600/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-5 shadow-xs">
+          <div className="flex items-center gap-4 text-right">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+              <Briefcase size={24} />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                  ارتقای پنل به نمایندگی
+                </span>
+                <span className="text-[11px] font-black text-slate-700">سوئیچ به پنل نمایندگان رسمی استانی</span>
+              </div>
+              <p className="text-slate-500 text-xs font-bold max-w-2xl leading-relaxed">
+                مشتری گرامی، با ثبت درخواست نمایندگی و تایید انبار و سیستم توزیع شما، پنل کاربری‌تان به عاملیت رسمی تغییر یافته و از نرخ‌های کف کارخانه و سهمیه انحصاری استان بهره‌مند خواهید شد.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('dealership_request')}
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <ShieldCheck size={16} />
+            <span>ثبت درخواست و سوئیچ به نمایندگی</span>
+          </button>
+        </div>
+      )}
+
       {/* 2. Responsive Sub-Tab Selector */}
       <div className="bg-white border border-slate-100 p-2 rounded-2xl flex flex-wrap gap-2 shadow-sm">
         <button
@@ -394,6 +427,18 @@ export default function B2BBusinessDashboard({
           {t("شبکه نمایندگان و شعب استانی", language)}
         </button>
         
+        <button
+          onClick={() => setActiveTab('dealership_request')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'dealership_request'
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+              : "text-slate-500 hover"
+          }`}
+        >
+          <Briefcase size={14} />
+          <span>{user?.role === 'agent' ? "سوابق پرونده نمایندگی" : "درخواست اخذ نمایندگی"}</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('profile')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
@@ -1099,6 +1144,18 @@ export default function B2BBusinessDashboard({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* --- DEALERSHIP REQUEST & SWITCH TAB --- */}
+        {activeTab === 'dealership_request' && (
+          <div className="animate-in fade-in duration-300">
+            <DealershipRequestView 
+              b2bConfig={b2bConfig}
+              user={user}
+              onNavigateHome={() => setActiveTab('overview')}
+              onOpenCertificate={() => setShowAgentCertificate(true)}
+            />
           </div>
         )}
 

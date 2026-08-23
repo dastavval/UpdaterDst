@@ -410,9 +410,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {linkedProductItems.map((prod) => (
+                  {linkedProductItems.map((prod, pIdx) => (
                     <div
-                      key={`linked-p-${prod.id}`}
+                      key={`linked-p-${prod.id || pIdx}-${pIdx}`}
                       onClick={() => handleProductClick(prod.id)}
                       className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-center justify-between gap-3 cursor-pointer group transition-all"
                     >
@@ -451,9 +451,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {linkedFactoryItems.map((fac: any) => (
+                  {linkedFactoryItems.map((fac: any, fIdx: number) => (
                     <div
-                      key={`linked-fac-${fac.id}`}
+                      key={`linked-fac-${fac.id || fIdx}-${fIdx}`}
                       onClick={() => handleFactoryClick(fac.id)}
                       className="bg-white rounded-2xl p-3 border border-slate-200 hover:border-amber-500 transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
                     >

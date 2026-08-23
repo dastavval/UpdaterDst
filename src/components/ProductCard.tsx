@@ -222,7 +222,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
           </h3>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] font-black text-emerald-600">
-              {toPersianNum(profitPercent)}٪ حاشیه سود بنکداری
+              {profitPercent > 0 ? `${toPersianNum(profitPercent)}٪ حاشیه سود بنکداری` : 'عرضه مستقیم با نرخ کارخانه'}
             </span>
           </div>
         </div>

@@ -54,6 +54,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
 import { db } from "../lib/data-layer";
 import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from "../lib/data-layer";
+import SystemConnectivity from "./SystemConnectivity";
 
 interface AdminSystemConfigProps {
   b2bConfig: B2BConfig;
@@ -2274,6 +2275,8 @@ export default function AdminSystemConfig({
       {/* --- TAB 1: SERVER STATUS & TELEMETRY --- */}
       {activeTab === "status" && (
         <div className="space-y-6 animate-in fade-in duration-300">
+          <SystemConnectivity onRefreshProducts={onRefreshProducts} />
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* CPU GAUGE CARD */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-md space-y-3">

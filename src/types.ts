@@ -245,6 +245,7 @@ export interface Order {
   sellerName?: string;
   createdAt?: any;
   trackingNumber?: string;
+  autoCreatedAccount?: { username: string; password: string } | null;
   hasSeal?: boolean; // For official invoices
   notes?: string;
   receiptUrl?: string; // Uploaded payment receipt or bank slip

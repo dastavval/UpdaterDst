@@ -186,9 +186,9 @@ export default function ChequeCharterModal({
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                {tiers.map((tier) => (
+                {tiers.map((tier, tIdx) => (
                   <div
-                    key={tier.level}
+                    key={`cheque-tier-${tier.level}-${tIdx}`}
                     className={`p-4 rounded-2xl border ${tier.color} space-y-2.5 flex flex-col justify-between shadow-2xs`}
                   >
                     <div>

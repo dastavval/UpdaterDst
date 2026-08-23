@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ShoppingCart, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -709,8 +709,18 @@ export default function AdminPanel({
   const [samandehiImage, setSamandehiImage] = useState("");
   const [samandehiCode, setSamandehiCode] = useState("");
   const [samandehiUrl, setSamandehiUrl] = useState("https://logo.samandehi.ir");
+  const [tradeUnionImage, setTradeUnionImage] = useState("");
   const [tradeUnionCode, setTradeUnionCode] = useState("IR-9044502");
   const [tradeUnionUrl, setTradeUnionUrl] = useState("https://dastavval.com/license");
+  const [hideEnamad, setHideEnamad] = useState(false);
+  const [hideSamandehi, setHideSamandehi] = useState(false);
+  const [hideTradeUnion, setHideTradeUnion] = useState(false);
+  const [hideSsl, setHideSsl] = useState(false);
+  const [customBadges, setCustomBadges] = useState<any[]>([]);
+  const [newBadgeTitle, setNewBadgeTitle] = useState("");
+  const [newBadgeSubtitle, setNewBadgeSubtitle] = useState("");
+  const [newBadgeUrl, setNewBadgeUrl] = useState("");
+  const [newBadgeImage, setNewBadgeImage] = useState("");
   const [zarinpalMerchantCode, setZarinpalMerchantCode] = useState("");
   const [officialSealUrl, setOfficialSealUrl] = useState("");
   const [brandImages, setBrandImages] = useState<any[]>([]);
@@ -967,6 +977,38 @@ export default function AdminPanel({
   const [editPaymentStatus, setEditPaymentStatus] = useState("paid");
   const [editOrderItems, setEditOrderItems] = useState<OrderItem[]>([]);
   const [showPrintInvoice, setShowPrintInvoice] = useState<any | null>(null);
+
+  const handleStartEditOrder = (order: any) => {
+    if (!order) return;
+    setEditingOrder(order);
+    setEditBuyerName(order.buyerName || order.customerName || order.userFullName || "");
+    setEditBuyerPhone(order.buyerPhone || order.customerPhone || order.phone || "");
+    setEditBuyerCompany(order.buyerCompany || order.storeName || order.companyName || "");
+    setEditBuyerAddress(order.buyerAddress || order.shippingAddress || "");
+    setEditTotalAmount(Number(order.totalAmount || order.finalTotal || order.total || 0));
+    setEditPaymentStatus(order.paymentStatus || order.status || "pending");
+
+    const rawItems = order.items || [];
+    const mapped = rawItems.map((it: any, i: number) => ({
+      productId: it.productId || it.id || `item_${i}_${Date.now()}`,
+      name: it.name || it.productName || it.title || "کالای سفارشی",
+      quantityCartons: Number(it.quantityCartons || it.quantity || it.cartonsCount || 1),
+      pricePerCarton: Number(it.pricePerCarton || it.bulk_price || it.price || it.unitPrice || 0),
+      totalItems: Number(it.totalItems || 0)
+    }));
+
+    if (mapped.length === 0) {
+      mapped.push({
+        productId: `manual_${Date.now()}`,
+        name: "کالای سفارشی دستی",
+        quantityCartons: 1,
+        pricePerCarton: 0,
+        totalItems: 0
+      });
+    }
+
+    setEditOrderItems(mapped);
+  };
 
   const handleBackupSite = () => {
     const backupData = {
@@ -1343,10 +1385,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setSamandehiImage((b2bConfig as any).samandehiImage || "");
       setSamandehiCode((b2bConfig as any).samandehiCode || "");
       setSamandehiUrl((b2bConfig as any).samandehiUrl || "https://logo.samandehi.ir");
+      setTradeUnionImage((b2bConfig as any).tradeUnionImage || "");
       setTradeUnionCode((b2bConfig as any).tradeUnionCode || "IR-9044502");
       setTradeUnionUrl((b2bConfig as any).tradeUnionUrl || "https://dastavval.com/license");
       setZarinpalMerchantCode((b2bConfig as any).zarinpalMerchantCode || "");
       setOfficialSealUrl((b2bConfig as any).officialSealUrl || "");
+      setHideEnamad(!!(b2bConfig as any).hideEnamad);
+      setHideSamandehi(!!(b2bConfig as any).hideSamandehi);
+      setHideTradeUnion(!!(b2bConfig as any).hideTradeUnion);
+      setHideSsl(!!(b2bConfig as any).hideSsl);
+      setCustomBadges((b2bConfig as any).customBadges || []);
       setBrandImages((b2bConfig as any).brandImages || []);
       setHqAddress((b2bConfig as any).hqAddress || "");
       setSupportPhone((b2bConfig as any).supportPhone || "");
@@ -1815,10 +1863,16 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         samandehiImage: samandehiImage,
         samandehiCode: samandehiCode,
         samandehiUrl: samandehiUrl,
+        tradeUnionImage: tradeUnionImage,
         tradeUnionCode: tradeUnionCode,
         tradeUnionUrl: tradeUnionUrl,
         zarinpalMerchantCode: zarinpalMerchantCode,
         officialSealUrl: officialSealUrl,
+        hideEnamad: hideEnamad,
+        hideSamandehi: hideSamandehi,
+        hideTradeUnion: hideTradeUnion,
+        hideSsl: hideSsl,
+        customBadges: customBadges,
         brandImages: brandImages,
         hqAddress: hqAddress,
         supportPhone: supportPhone,
@@ -4691,6 +4745,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           {/* REAL-TIME PRIORITIZED PENDING APPROVALS QUEUE */}
           <AdminPendingApprovals
             orders={orders}
+            onEditOrder={handleStartEditOrder}
             safeBuyRequests={safeBuyRequests}
             sponsoredAds={sponsoredAds}
             barterDeals={barterDeals}
@@ -6534,6 +6589,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 text-right" dir="rtl">
           <AdminPendingApprovals
             orders={orders}
+            onEditOrder={handleStartEditOrder}
             safeBuyRequests={safeBuyRequests}
             sponsoredAds={sponsoredAds}
             barterDeals={barterDeals}
@@ -9118,6 +9174,47 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     {/* Trade Union License */}
                     <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-2xl space-y-3 md:col-span-2">
                       <span className="font-black text-xs text-amber-900 block">۳. پروانه ثبت قانونی تعاونی / کسب‌وکارهای مجازی:</span>
+                      
+                      {/* Image Upload for Trade Union */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-600 block">بارگذاری لوگو یا عکس پروانه کسب (تصویر PNG / JPG):</label>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[11px] font-black cursor-pointer transition-all shadow-sm">
+                            <Upload size={13} />
+                            <span>انتخاب عکس پروانه</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setTradeUnionImage(event.target.result as string);
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          {tradeUnionImage && (
+                            <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-amber-200">
+                              <img src={tradeUnionImage} alt="Trade Union" className="h-6 w-auto object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => setTradeUnionImage("")}
+                                className="text-rose-500 hover:text-rose-700 text-[10px] font-bold"
+                              >
+                                حذف عکس
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-black text-slate-600">کد شناسه ثبت پروانه:</label>
@@ -9141,6 +9238,119 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                             dir="ltr"
                           />
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Badge Visibility Toggles & Custom Badges Manager */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 md:col-span-2">
+                      <h5 className="text-xs font-black text-slate-900">تنظیمات نمایش و افزودن نمادهای دلخواه (۳ عدد در هر ردیف):</h5>
+                      
+                      {/* Toggles */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <label className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={!hideEnamad} 
+                            onChange={(e) => setHideEnamad(!e.target.checked)} 
+                            className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                          />
+                          <span className="text-xs font-bold text-slate-800">نمایش ای‌نماد</span>
+                        </label>
+                        <label className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={!hideSamandehi} 
+                            onChange={(e) => setHideSamandehi(!e.target.checked)} 
+                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                          />
+                          <span className="text-xs font-bold text-slate-800">نمایش ساماندهی</span>
+                        </label>
+                        <label className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={!hideTradeUnion} 
+                            onChange={(e) => setHideTradeUnion(!e.target.checked)} 
+                            className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
+                          />
+                          <span className="text-xs font-bold text-slate-800">نمایش پروانه کسب</span>
+                        </label>
+                        <label className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={!hideSsl} 
+                            onChange={(e) => setHideSsl(!e.target.checked)} 
+                            className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                          />
+                          <span className="text-xs font-bold text-slate-800">نمایش پرداخت امن</span>
+                        </label>
+                      </div>
+
+                      {/* Add Custom Badge */}
+                      <div className="pt-3 border-t border-slate-200 space-y-3">
+                        <span className="text-[11px] font-black text-slate-700 block">افزودن نماد یا گواهی جدید دلخواه:</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                          <input
+                            type="text"
+                            value={newBadgeTitle}
+                            onChange={(e) => setNewBadgeTitle(e.target.value)}
+                            placeholder="عنوان نماد (مثلا گواهی ISO)"
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+                          />
+                          <input
+                            type="text"
+                            value={newBadgeSubtitle}
+                            onChange={(e) => setNewBadgeSubtitle(e.target.value)}
+                            placeholder="زیرمتن (مثلا استاندارد مدیریت)"
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold"
+                          />
+                          <input
+                            type="text"
+                            value={newBadgeUrl}
+                            onChange={(e) => setNewBadgeUrl(e.target.value)}
+                            placeholder="لینک استعلام (URL)"
+                            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-left"
+                            dir="ltr"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newBadgeTitle.trim()) return;
+                              setCustomBadges([...customBadges, {
+                                id: 'badge_' + Date.now(),
+                                title: newBadgeTitle.trim(),
+                                subtitle: newBadgeSubtitle.trim() || 'تایید شده',
+                                url: newBadgeUrl.trim() || '#'
+                              }]);
+                              setNewBadgeTitle("");
+                              setNewBadgeSubtitle("");
+                              setNewBadgeUrl("");
+                            }}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <span>افزودن به لیست</span>
+                          </button>
+                        </div>
+
+                        {/* List of Custom Badges */}
+                        {customBadges.length > 0 && (
+                          <div className="space-y-2 mt-2">
+                            {customBadges.map((b, idx) => (
+                              <div key={b.id || idx} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-xl text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-800">{b.title}</span>
+                                  <span className="text-slate-500 text-[10px]">({b.subtitle})</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setCustomBadges(customBadges.filter((_, i) => i !== idx))}
+                                  className="text-rose-600 hover:text-rose-800 text-[11px] font-bold px-2 py-1 bg-rose-50 rounded-lg"
+                                >
+                                  حذف
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -10681,17 +10891,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
-                              setEditingOrder(order);
-                              setEditBuyerName(order.buyerName || "");
-                              setEditBuyerPhone(order.buyerPhone || "");
-                              setEditBuyerCompany(order.buyerCompany || "");
-                              setEditBuyerAddress(order.buyerAddress || "");
-                              setEditTotalAmount(order.totalAmount || 0);
-                              setEditPaymentStatus(order.paymentStatus || "pending");
-                              setEditOrderItems(order.items || []);
-                            }}
-                            className="px-4 py-2 bg-slate-100 hover text-slate-700 font-black text-xs rounded-xl transition-all flex items-center gap-1"
+                            onClick={() => handleStartEditOrder(order)}
+                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
                           >
                             <Edit3 size={14} />
                             ویرایش دستی فاکتور
@@ -13069,127 +13270,233 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         )}
 
         {editingOrder && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden text-right"
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden text-right border border-slate-100 flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                <button onClick={() => setEditingOrder(null)} className="p-2 hover rounded-full transition-all">
-                  <X size={20} className="text-slate-500" />
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">
+                    <Edit3 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      ویرایش و اصلاح فاکتور رسمی #{editingOrder.id?.slice(-6).toUpperCase()}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-bold">
+                      امکان تغییر نام کالا، تعداد، قیمت فی هر کارتن و مشخصات خریدار
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setEditingOrder(null)} 
+                  className="p-2 hover:bg-slate-200 rounded-2xl transition-all cursor-pointer text-slate-500"
+                >
+                  <X size={20} />
                 </button>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <Edit3 size={18} className="text-emerald-600" />
-                  ویرایش و اصلاح فاکتور رسمی
-                </h3>
               </div>
-              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 text-xs">
+                {/* Buyer Info Form */}
+                <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
+                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <User size={15} className="text-blue-600" />
+                    <span>اطلاعات تحویل‌گیرنده و فاکتور:</span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 mb-1">نام تحویل‌گیرنده / مدیر</label>
+                      <input 
+                        value={editBuyerName} 
+                        onChange={e => setEditBuyerName(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 mb-1">نام فروشگاه / شرکت</label>
+                      <input 
+                        value={editBuyerCompany} 
+                        onChange={e => setEditBuyerCompany(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 mb-1">شماره تماس مستقیم</label>
+                      <input 
+                        value={editBuyerPhone} 
+                        onChange={e => setEditBuyerPhone(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 mb-1">وضعیت تسویه مالی</label>
+                      <select
+                        value={editPaymentStatus}
+                        onChange={e => setEditPaymentStatus(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                      >
+                        <option value="pending">در انتظار پرداخت</option>
+                        <option value="paid">تسویه شده کامل</option>
+                        <option value="unpaid">پرداخت نشده / چک</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 mr-2">نام تحویل‌گیرنده</label>
-                    <input 
-                      value={editBuyerName} 
-                      onChange={e => setEditBuyerName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus focus"
+                    <label className="block text-[10px] font-black text-slate-500 mb-1">آدرس تحویل و تخلیه بار</label>
+                    <textarea 
+                      value={editBuyerAddress} 
+                      onChange={e => setEditBuyerAddress(e.target.value)}
+                      rows={2}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 mr-2">نام فروشگاه / شرکت</label>
-                    <input 
-                      value={editBuyerCompany} 
-                      onChange={e => setEditBuyerCompany(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus focus"
-                    />
+                </div>
+
+                {/* Editable Items Table Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                      <ShoppingCart size={15} className="text-emerald-600" />
+                      <span>ویرایش اقلام، تعداد و قیمت تک‌تک کالاهای فاکتور:</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = editOrderItems.reduce((sum, it) => sum + ((Number(it.quantityCartons) || 0) * (Number(it.pricePerCarton) || 0)), 0);
+                        setEditTotalAmount(total);
+                      }}
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border border-emerald-200"
+                    >
+                      <RefreshCw size={12} />
+                      <span>محاسبه خودکار جمع فاکتور</span>
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 mr-2">شماره تماس</label>
-                    <input 
-                      value={editBuyerPhone} 
-                      onChange={e => setEditBuyerPhone(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus focus font-mono"
-                    />
+
+                  <div className="space-y-3">
+                    {editOrderItems.map((item, idx) => (
+                      <div 
+                        key={`admin-panel-edit-order-item-${item.productId || idx}-${idx}`} 
+                        className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5 sm:space-y-0 sm:flex sm:items-center sm:gap-3"
+                      >
+                        {/* Item Name Input */}
+                        <div className="flex-1">
+                          <label className="block text-[9px] font-black text-slate-400 mb-0.5 sm:hidden">نام کالا:</label>
+                          <input
+                            type="text"
+                            value={item.name || ""}
+                            placeholder="نام کامل محصول"
+                            onChange={e => {
+                              const next = [...editOrderItems];
+                              next[idx].name = e.target.value;
+                              setEditOrderItems(next);
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-800 outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        {/* Item Quantity Input */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">تعداد:</span>
+                          <input 
+                            type="number" 
+                            min={1}
+                            value={item.quantityCartons || 1} 
+                            onChange={e => {
+                              const next = [...editOrderItems];
+                              next[idx].quantityCartons = Math.max(1, Number(e.target.value));
+                              setEditOrderItems(next);
+                            }}
+                            className="w-20 bg-white border border-slate-200 rounded-xl px-2 py-2 text-xs font-mono font-black text-center text-emerald-600 outline-none focus:border-emerald-500"
+                          />
+                          <span className="text-[10px] text-slate-500 font-bold">کارتن</span>
+                        </div>
+
+                        {/* Item Price Per Carton Input */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">فی (تومان):</span>
+                          <input 
+                            type="number" 
+                            min={0}
+                            step={1000}
+                            value={item.pricePerCarton || 0} 
+                            onChange={e => {
+                              const next = [...editOrderItems];
+                              next[idx].pricePerCarton = Number(e.target.value);
+                              setEditOrderItems(next);
+                            }}
+                            className="w-28 bg-white border border-slate-200 rounded-xl px-2 py-2 text-xs font-mono font-black text-center text-slate-900 outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        {/* Subtotal Row */}
+                        <div className="text-left min-w-[100px]">
+                          <span className="text-[9px] text-slate-400 block font-bold">جمع ردیف:</span>
+                          <span className="text-xs font-black text-emerald-600 font-mono">
+                            {toPersianNum(((Number(item.quantityCartons) || 0) * (Number(item.pricePerCarton) || 0)).toLocaleString())}
+                          </span>
+                        </div>
+
+                        {/* Delete button */}
+                        <button 
+                          type="button"
+                          onClick={() => setEditOrderItems(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-all cursor-pointer"
+                          title="حذف ردیف"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setEditOrderItems(prev => [
+                          ...prev, 
+                          { productId: `manual_${Date.now()}`, name: 'کالای سفارشی جدید', quantityCartons: 1, pricePerCarton: 0, totalItems: 0 }
+                        ]);
+                      }}
+                      className="w-full py-3 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl text-xs font-black text-slate-500 hover:text-emerald-700 hover:bg-emerald-50/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Plus size={16} />
+                      <span>+ افزودن ردیف کالای جدید به فاکتور</span>
+                    </button>
                   </div>
+                </div>
+
+                {/* Total Amount Input */}
+                <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 mr-2">مبلغ کل فاکتور (تومان)</label>
+                    <label className="block text-xs font-black text-slate-800 mb-0.5">مبلغ نهایی قابل پرداخت فاکتور (تومان):</label>
+                    <p className="text-[10px] text-slate-500 font-bold">
+                      می‌توانید با دکمه محاسبه خودکار بالا جمع کالاها را قرار دهید یا مبلغ را دستی اصلاح کنید.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <input 
                       type="number"
                       value={editTotalAmount} 
                       onChange={e => setEditTotalAmount(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus focus font-mono"
+                      className="w-48 bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-black text-emerald-700 outline-none focus:border-emerald-600 font-mono text-center shadow-sm"
                     />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5 mr-2">آدرس تحویل و تخلیه بار</label>
-                  <textarea 
-                    value={editBuyerAddress} 
-                    onChange={e => setEditBuyerAddress(e.target.value)}
-                    rows={3}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus focus"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 mb-1.5 mr-2">وضعیت تسویه مالی</label>
-                  <select
-                    value={editPaymentStatus}
-                    onChange={e => setEditPaymentStatus(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus focus"
-                  >
-                    <option value="pending">در انتظار پرداخت</option>
-                    <option value="paid">تسویه شده کامل</option>
-                    <option value="unpaid">پرداخت نشده / چک</option>
-                  </select>
-                </div>
-
-                <div className="border-t border-slate-100 pt-6">
-                  <label className="block text-[10px] font-black text-slate-400 mb-3 mr-2">ویرایش اقلام و تعداد فاکتور عمده:</label>
-                  <div className="space-y-3">
-                    {editOrderItems.map((item, idx) => (
-                      <div key={`admin-panel-edit-order-${(item as any).id || (item as any).productId || idx}-${idx}`} className="flex gap-3 items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                        <div className="flex-1 text-[11px] font-black text-slate-700">{item.name}</div>
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number" 
-                            value={item.quantityCartons} 
-                            onChange={e => {
-                              const next = [...editOrderItems];
-                              next[idx].quantityCartons = Number(e.target.value);
-                              setEditOrderItems(next);
-                              // Recalculate total if needed, or let admin edit manually
-                            }}
-                            className="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono text-center"
-                          />
-                          <span className="text-[10px] text-slate-400 font-bold">کارتن</span>
-                        </div>
-                        <button 
-                          onClick={() => setEditOrderItems(prev => prev.filter((_, i) => i !== idx))}
-                          className="p-1.5 text-rose-500 hover rounded-lg transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    <button 
-                      onClick={() => {
-                        // Add a dummy item for editing
-                        setEditOrderItems(prev => [...prev, { productId: 'manual', name: 'کالای دستی', quantityCartons: 1, pricePerCarton: 0, totalItems: 0 }]);
-                      }}
-                      className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-[10px] font-black text-slate-400 hover hover transition-all"
-                    >
-                      + افزودن ردیف کالای جدید به فاکتور
-                    </button>
+                    <span className="text-xs font-black text-slate-700">تومان</span>
                   </div>
                 </div>
               </div>
-              <div className="p-6 bg-slate-50 border-t border-gray-100 flex gap-3">
+
+              {/* Modal Footer */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
                 <button
                   onClick={async () => {
                     setLoading(true);
                     try {
-                      const orderRef = doc(db, "orders", editingOrder.id);
-                      await updateDoc(orderRef, {
+                      const { doc: orderDoc, updateDoc: orderUpdate } = await import("../lib/data-layer");
+                      const orderRef = orderDoc(db, "orders", editingOrder.id);
+                      await orderUpdate(orderRef, {
                         buyerName: editBuyerName,
                         buyerPhone: editBuyerPhone,
                         buyerCompany: editBuyerCompany,
@@ -13198,25 +13505,26 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         paymentStatus: editPaymentStatus,
                         items: editOrderItems
                       });
-                      setSuccessMsg("تغییرات فاکتور با موفقیت ذخیره شد.");
+                      setSuccessMsg("تغییرات فاکتور و اقلام با موفقیت در سیستم ذخیره شد.");
                       setEditingOrder(null);
                       fetchOrders();
                       setTimeout(() => setSuccessMsg(null), 4000);
-                    } catch (e) {
-                      setErrorMsg("خطا در ذخیره فاکتور.");
+                    } catch (e: any) {
+                      setErrorMsg("خطا در ذخیره فاکتور: " + (e.message || ""));
+                      setTimeout(() => setErrorMsg(null), 4000);
                     } finally {
                       setLoading(false);
                     }
                   }}
                   disabled={loading}
-                  className="flex-1 bg-emerald-600 hover text-white font-black py-4 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer text-xs"
                 >
                   {loading ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                  ذخیره و اصلاح نهایی فاکتور
+                  <span>ذخیره و اصلاح نهایی فاکتور</span>
                 </button>
                 <button
                   onClick={() => setEditingOrder(null)}
-                  className="px-8 bg-white border border-gray-200 text-slate-600 font-black py-4 rounded-2xl hover transition-all"
+                  className="px-6 bg-white border border-slate-200 text-slate-600 font-black py-3.5 rounded-2xl hover:bg-slate-100 transition-all cursor-pointer text-xs"
                 >
                   انصراف
                 </button>

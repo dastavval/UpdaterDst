@@ -19,13 +19,13 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.2); }
-    50% { box-shadow: 0 0 24px rgba(16, 185, 129, 0.4); }
+    0%, 100% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.25); }
+    50% { box-shadow: 0 0 32px rgba(16, 185, 129, 0.5); }
   }
 
   @keyframes glow-orange {
-    0%, 100% { box-shadow: 0 0 12px rgba(234, 88, 12, 0.2), 0 0 4px rgba(234, 88, 12, 0.1); }
-    50% { box-shadow: 0 0 25px rgba(234, 88, 12, 0.45), 0 0 8px rgba(234, 88, 12, 0.2); }
+    0%, 100% { box-shadow: 0 0 16px rgba(234, 88, 12, 0.25), 0 0 6px rgba(234, 88, 12, 0.15); }
+    50% { box-shadow: 0 0 30px rgba(234, 88, 12, 0.5), 0 0 10px rgba(234, 88, 12, 0.25); }
   }
 
   @keyframes fire-sway {
@@ -63,13 +63,20 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 800 !important;
   letter-spacing: -0.015em;
   line-height: 1.35;
-  color: #0f172a;
+  color: #1e293b;
 }
 
 p {
   line-height: 1.7;
   color: #334155;
 }
+
+/* Slightly reduce corner roundness across the site */
+.rounded-3xl { border-radius: 1.25rem !important; }
+.rounded-2xl { border-radius: 0.85rem !important; }
+.rounded-xl { border-radius: 0.6rem !important; }
+.rounded-lg { border-radius: 0.4rem !important; }
+.rounded-md { border-radius: 0.3rem !important; }
 
 /* Ensure font sizes are clear, large, and comfortably legible */
 .text-xs { font-size: 0.75rem !important; line-height: 1.5; } /* 12px */
@@ -85,7 +92,7 @@ p {
 [class*="text-[8px]"],
 [class*="text-[9px]"],
 [class*="text-[10px]"] {
-  font-size: 0.725rem !important; /* ~11.6px minimum for comfortable reading */
+  font-size: 0.725rem !important;
 }
 
 /* Refined Spacing */
@@ -93,17 +100,8 @@ p {
 .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem !important; }
 .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.75rem !important; }
 
-/* Custom Animations */
-@keyframes fire-sway {
-  0%, 100% { transform: rotate(-2deg) scale(1); }
-  50% { transform: rotate(3deg) scale(1.05); }
-}
-.animate-fire-sway {
-  animation: fire-sway 2.5s ease-in-out infinite;
-}
-
 ::selection {
-  background-color: rgba(16, 185, 129, 0.2);
+  background-color: rgba(16, 185, 129, 0.25);
   color: #064e3b;
 }
 
@@ -126,16 +124,39 @@ p {
   background: #94a3b8;
 }
 
-/* Custom Utilities */
+/* Custom Eye-Catching Utilities & Lux Gradients */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.lux-card-gradient {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 0.9) 100%);
+}
+
+.icon-glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+}
+
+.icon-glow-orange {
+  box-shadow: 0 0 20px rgba(234, 88, 12, 0.35);
+}
+
+.icon-glow-indigo {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+}
+
 @layer utilities {
   .shadow-material-sm {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
   }
   .shadow-material-md {
-    box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
   }
   .shadow-material-lg {
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 16px -6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12), 0 12px 24px -8px rgba(0, 0, 0, 0.06);
   }
   .hide-scrollbar::-webkit-scrollbar,
   .no-scrollbar::-webkit-scrollbar,

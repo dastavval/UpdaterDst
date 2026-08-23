@@ -77,6 +77,7 @@ export default function UserPanel({
   const [city, setCity] = useState(user?.city || "");
   const [address, setAddress] = useState(user?.address || "");
   const [iban, setIban] = useState(user?.iban || "");
+  const [newPassword, setNewPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -223,22 +224,39 @@ export default function UserPanel({
         iban: iban.trim()
       };
 
+      if (newPassword.trim()) {
+        updatedUser.password = newPassword.trim();
+      }
+
       localStorage.setItem("dastavval_user", JSON.stringify(updatedUser));
       
       const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      
+      // Update by email
       if (user.email && localUsers[user.email]) {
         localUsers[user.email] = {
           ...localUsers[user.email],
           ...updatedUser
         };
-        localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
       }
+      
+      // Update by phone/username
+      const phoneKey = (user.phone || phone || "").trim();
+      if (phoneKey && localUsers[phoneKey]) {
+        localUsers[phoneKey] = {
+          ...localUsers[phoneKey],
+          ...updatedUser
+        };
+      }
+      
+      localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
 
       if (onUpdateUser) {
         onUpdateUser(updatedUser);
       }
 
-      setSuccessMsg("اطلاعات حساب کاربری شما با موفقیت بروزرسانی شد.");
+      setSuccessMsg(newPassword.trim() ? "اطلاعات حساب کاربری و کلمه عبور شما با موفقیت بروزرسانی شد." : "اطلاعات حساب کاربری شما با موفقیت بروزرسانی شد.");
+      setNewPassword("");
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: any) {
       setErrorMsg("خطا در ذخیره مشخصات: " + err.message);
@@ -772,6 +790,35 @@ export default function UserPanel({
       {(userRole === 'customer' || userRole === 'user') && (
         <div className="space-y-6">
           
+          {/* Important Switch Banner for Dealership */}
+          <div className="bg-gradient-to-r from-emerald-600/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-5 shadow-xs">
+            <div className="flex items-center gap-4 text-right">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                <Briefcase size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                    ارتقای پنل کاربری
+                  </span>
+                  <span className="text-[11px] font-black text-slate-700">سوئیچ به پنل نمایندگان رسمی</span>
+                </div>
+                <p className="text-slate-500 text-xs font-bold max-w-2xl leading-relaxed">
+                  مشتری گرامی، با ثبت درخواست نمایندگی و تایید سیستم توزیع شما، پنل کاربری‌تان به عاملیت رسمی تغییر یافته و از نرخ‌های کف کارخانه و سهمیه انحصاری استان بهره‌مند خواهید شد.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('dealership_request')}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <ShieldCheck size={16} />
+              <span>ثبت درخواست و سوئیچ به نمایندگی</span>
+            </button>
+          </div>
+
           {/* Sub-Tab Navigation Bar */}
           <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-2xs flex items-center gap-1.5 overflow-x-auto">
             <button
@@ -1210,6 +1257,18 @@ export default function UserPanel({
                     placeholder="خیابان، پلاک، طبقه یا جزئیات دسترسی راننده..."
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
+                </div>
+
+                <div className="space-y-1 pt-3 border-t border-slate-100">
+                  <label className="text-xs font-black text-slate-800 block">تغییر کلمه عبور (اختیاری):</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="برای تغییر رمز فعلی، رمز جدید را وارد کنید..."
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <p className="text-[10px] text-slate-500 font-bold mt-1">در صورت عدم نیاز به تغییر، این فیلد را خالی بگذارید.</p>
                 </div>
 
                 <div className="flex justify-end pt-2">

@@ -210,5 +210,21 @@
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (!window.__REACT_APP_MOUNTED__) {
+            var root = document.getElementById('root');
+            if (root) {
+              if (window.location.protocol === 'file:') {
+                root.innerHTML = '<div style="min-height: 100vh; background-color: #ffffff; color: #ef4444; font-family: Tahoma, sans-serif; padding: 24px; direction: rtl; text-align: center; display: flex; align-items: center; justify-content: center;"><div><div style="font-size: 48px; margin-bottom: 16px;">⚠️</div><h2 style="font-weight: bold; font-size: 18px; margin-bottom: 8px;">خطای اجرای برنامه (اجرای محلی)</h2><p>برنامه به دلیل محدودیت‌های امنیتی مرورگر قابل اجرا با دوبار کلیک (پروتکل file://) نیست.<br>لطفاً فایل‌ها را روی یک هاست یا وب‌سرور واقعی قرار دهید.</p></div></div>';
+              } else {
+                root.innerHTML = '<div style="min-height: 100vh; background-color: #ffffff; color: #ef4444; font-family: Tahoma, sans-serif; padding: 24px; direction: rtl; text-align: center; display: flex; align-items: center; justify-content: center;"><div><div style="font-size: 48px; margin-bottom: 16px;">🚨</div><h2 style="font-weight: bold; font-size: 18px; margin-bottom: 8px;">خطا در بارگذاری برنامه روی هاست</h2><p>فایل‌های جاوااسکریپت (JS) به درستی بارگذاری نشدند یا خطای ۴۰۴ دادند.<br>لطفاً مطمئن شوید پوشه dist به درستی آپلود شده است. اگر سایت را در یک پوشه فرعی نصب کرده‌اید، حتماً <b>یک علامت اسلش (/)</b> به انتهای آدرس مرورگر خود اضافه کنید.<br>همچنین وضعیت لاگ کنسول (F12) مرورگر را بررسی کنید.</p></div></div>';
+              }
+            }
+          }
+        }, 5000);
+      });
+    </script>
   </body>
 </html>

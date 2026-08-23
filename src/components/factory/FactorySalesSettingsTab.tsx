@@ -22,6 +22,7 @@ export interface FactorySalesSettings {
   allowAllProvinces: boolean; // ارسال به سراسر کشور یا محدود به استان‌های خاص
   allowedProvinces: string[]; // لیست استان‌های مجاز
   isSedimentDisabled: boolean; // غیرفعال‌سازی رسوب بار در انبار کارخانه
+  sedimentDiscountPercent?: number; // درصد تخفیف قابل تنظیم رسوب‌زدایی کالا
   minOrderTotalAmount?: number; // حداقل مبلغ کل سفارش (تومان)
   loadingLeadTimeDays: number; // زمان آماده‌سازی بار (روز کاری)
   directPickupAllowed: boolean; // امکان بارگیری مستقیم با ناوگان اعزامی دست‌اول
@@ -63,6 +64,9 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
   const [allowAllProvinces, setAllowAllProvinces] = useState(currentSettings.allowAllProvinces);
   const [allowedProvinces, setAllowedProvinces] = useState<string[]>(currentSettings.allowedProvinces || IRAN_PROVINCES);
   const [isSedimentDisabled, setIsSedimentDisabled] = useState(currentSettings.isSedimentDisabled);
+  const [sedimentDiscountPercent, setSedimentDiscountPercent] = useState<string>(
+    currentSettings.sedimentDiscountPercent !== undefined ? String(currentSettings.sedimentDiscountPercent) : "8"
+  );
   const [minOrderTotalAmount, setMinOrderTotalAmount] = useState(currentSettings.minOrderTotalAmount ? String(currentSettings.minOrderTotalAmount) : "");
   const [loadingLeadTimeDays, setLoadingLeadTimeDays] = useState(String(currentSettings.loadingLeadTimeDays || 2));
   const [directPickupAllowed, setDirectPickupAllowed] = useState(currentSettings.directPickupAllowed ?? true);
@@ -104,6 +108,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
       allowAllProvinces,
       allowedProvinces: allowAllProvinces ? IRAN_PROVINCES : allowedProvinces,
       isSedimentDisabled,
+      sedimentDiscountPercent: Math.min(30, Math.max(0, parseFloat(sedimentDiscountPercent) || 8)),
       minOrderTotalAmount: cleanMinOrder,
       loadingLeadTimeDays: cleanLeadTime,
       directPickupAllowed,
@@ -228,14 +233,14 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
           )}
         </div>
 
-        {/* 2. Sediment / Stale Inventory Holding Setting (غیرفعال‌سازی رسوب بار) */}
+        {/* 2. Sediment / Stale Inventory Holding Setting (تنظیم درصد تخفیف و غیرفعال‌سازی رسوب بار) */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <PackageX size={18} className="text-indigo-600" />
-            <h4 className="text-xs font-black text-slate-900">۲. سیاست رسوب انبار و نگهداری کالا</h4>
+            <h4 className="text-xs font-black text-slate-900">۲. سیاست رسوب انبار و درصد تخفیف انباشت کالا</h4>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200/80 space-y-3">
+          <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200/80 space-y-4">
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -252,6 +257,34 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 </p>
               </div>
             </label>
+
+            {!isSedimentDisabled && (
+              <div className="pt-3 border-t border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <Percent size={14} className="text-indigo-600" />
+                    <span>درصد تخفیف قابل تنظیم رسوب‌زدایی کالا در فاکتور:</span>
+                  </label>
+                  <span className="text-xs font-mono font-black text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-200">
+                    {sedimentDiscountPercent}٪ تخفیف
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    step="0.5"
+                    value={sedimentDiscountPercent}
+                    onChange={(e) => setSedimentDiscountPercent(e.target.value)}
+                    className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-xl font-mono text-sm font-black text-slate-900 outline-none focus:border-indigo-600"
+                  />
+                  <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+                    این درصد به عنوان تخفیف ویژه‌ی انباشت/رسوب کالا به صورت شفاف در خطوط فاکتور رسمی خریدار لحاظ و کسر می‌گردد.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

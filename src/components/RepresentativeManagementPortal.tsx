@@ -212,9 +212,19 @@ export default function RepresentativeManagementPortal({
   onOpenInvoiceModal
 }: RepresentativeManagementPortalProps) {
   // Main Sub-Tab State
-  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee'>('workplace');
+  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing'>('workplace');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [workplaceViewMode, setWorkplaceViewMode] = useState<'cards' | 'table'>('cards');
+
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const referralCode = user?.agencyCode || user?.userCode || "REP-7012";
+  const referralUrl = `https://dastavval.com/?ref=${referralCode}`;
+
+  const handleCopyReferral = () => {
+    navigator.clipboard.writeText(referralUrl);
+    setCopiedReferral(true);
+    setTimeout(() => setCopiedReferral(false), 2000);
+  };
 
   // Ticket Modal State
   const [showTicketModal, setShowTicketModal] = useState(false);
@@ -989,6 +999,19 @@ export default function RepresentativeManagementPortal({
           <span>💼 میز کار سفارشات ({toPersianNum(products.length)} کالا)</span>
         </button>
 
+        {/* Tab Marketing: Referral Link */}
+        <button
+          onClick={() => setActiveTab('marketing')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'marketing'
+              ? "bg-amber-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <ExternalLink size={16} />
+          <span>🔗 لینک بازاریابی و معرفی</span>
+        </button>
+
         {/* Tab 2: Zero-cost Strategic Perks */}
         <button
           onClick={() => setActiveTab('perks')}
@@ -1093,6 +1116,57 @@ export default function RepresentativeManagementPortal({
           <span>مشخصات دفتر عاملیت</span>
         </button>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 4.5. SUB-TAB CONTENT: 🔗 MARKETING & REFERRAL (لینک بازاریابی)             */}
+      {/* ========================================================================= */}
+      {activeTab === 'marketing' && (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+            <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
+              🔗
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-slate-900">لینک اختصاصی بازاریابی و دعوت نماینده</h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                این لینک را برای سوپرمارکت‌ها، بنکداران و همکاران منطقه خود ارسال فرمایید. با ثبت نام و هر ثبت سفارش از طریق این لینک، عملکرد و پورسانت نقدی به حساب عاملیت شما منظور می‌گردد.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1 bg-slate-50 border border-slate-200 px-4 py-4 rounded-2xl text-xs sm:text-sm font-mono font-bold text-slate-800 text-left flex items-center justify-between overflow-x-auto shadow-inner">
+              <span>{referralUrl}</span>
+              <span className="text-[10px] sm:text-xs text-amber-700 font-black bg-amber-100 px-3 py-1 rounded-md ml-3 shrink-0 border border-amber-200">
+                کد: {referralCode}
+              </span>
+            </div>
+            
+            <button
+              onClick={handleCopyReferral}
+              className="px-6 py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shrink-0"
+            >
+              {copiedReferral ? <Check size={18} /> : <Copy size={18} />}
+              <span>{copiedReferral ? "لینک کپی شد!" : "کپی لینک بازاریابی"}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> مشتریان جذب شده:</span>
+              <div className="text-xl font-black text-slate-900">{toPersianNum(14)} خریدار</div>
+            </div>
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><ShoppingBag size={14} className="text-slate-400" /> سفارشات قطعی:</span>
+              <div className="text-xl font-black text-slate-900">{toPersianNum(38)} سفارش</div>
+            </div>
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Wallet size={14} className="text-slate-400" /> پورسانت فعال:</span>
+              <div className="text-xl font-black text-slate-900 text-emerald-600">{toPersianNum("۱۲,۵۰۰,۰۰۰")} <span className="text-xs text-slate-500">تومان</span></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 4. SUB-TAB CONTENT: 🌟 ZERO-COST STRATEGIC PERKS (مزایای ویژه و بدون هزینه) */}

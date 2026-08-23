@@ -15,6 +15,10 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
+  # جلوگیری از هدایت فایل‌های استاتیک استایل و اسکریپت به index.html (رفع کامل بهم‌ریختگی CSS و MIME type Error)
+  RewriteCond %{REQUEST_URI} \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp|json|map)$ [NC]
+  RewriteRule ^ - [L]
+
   # ۳. هدایت تمام مسیرهای React SPA به index.html بصورت نسبی (مخصوص ساب‌دامنه)
   RewriteRule ^ index.html [L]
 </IfModule>

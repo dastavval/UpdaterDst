@@ -36,6 +36,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   
   const [cashDiscountPercent, setCashDiscountPercent] = useState<number>(currentInv.cashDiscountPercent !== undefined ? currentInv.cashDiscountPercent : 5);
   const [chequeMarkupPerMonthPercent, setChequeMarkupPerMonthPercent] = useState<number>(currentInv.chequeMarkupPerMonthPercent !== undefined ? currentInv.chequeMarkupPerMonthPercent : 6);
+  const [maxSedimentDiscountPercent, setMaxSedimentDiscountPercent] = useState<number>(currentInv.maxSedimentDiscountPercent !== undefined ? currentInv.maxSedimentDiscountPercent : (b2bConfig?.maxSedimentDiscountPercent ?? 5.0));
   const [includeVatByDefault, setIncludeVatByDefault] = useState<boolean>(currentInv.includeVatByDefault !== undefined ? Boolean(currentInv.includeVatByDefault) : true);
   const [defaultDocType, setDefaultDocType] = useState<'proforma' | 'official'>(currentInv.defaultDocType === 'official' ? 'official' : 'proforma');
 
@@ -108,6 +109,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         sellerAddress,
         cashDiscountPercent: Number(cashDiscountPercent),
         chequeMarkupPerMonthPercent: Number(chequeMarkupPerMonthPercent),
+        maxSedimentDiscountPercent: Number(maxSedimentDiscountPercent),
         includeVatByDefault: Boolean(includeVatByDefault),
         defaultDocType,
         officialSealUrl,
@@ -119,6 +121,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         ...b2bConfig,
         officialSealUrl,
         catalogPdfUrl,
+        maxSedimentDiscountPercent: Number(maxSedimentDiscountPercent),
         quantityDiscountTiers: quantityDiscountTiers.map(t => ({
           threshold: Number(t.threshold),
           discountPercent: Number(t.discountPercent)
@@ -328,23 +331,24 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
               </p>
             </div>
 
-            <div className="bg-indigo-50/60 p-5 rounded-2xl border border-indigo-200/60 space-y-3">
-              <label className="block text-xs font-black text-indigo-900">
-                درصد افزایش کارمزد به ازای هر ۱ ماه چک٪
+            <div className="bg-amber-50/60 p-5 rounded-2xl border border-amber-200/60 space-y-3">
+              <label className="block text-xs font-black text-amber-900">
+                سقف درصد تخفیف طرح رسوب‌زدایی و انباشت انبار٪
               </label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min="0"
-                  max="30"
-                  value={chequeMarkupPerMonthPercent}
-                  onChange={e => setChequeMarkupPerMonthPercent(Number(e.target.value))}
-                  className="w-full bg-white border border-indigo-300 rounded-xl px-4 py-2.5 text-sm font-black text-indigo-900 outline-none"
+                  max="20"
+                  step="0.5"
+                  value={maxSedimentDiscountPercent}
+                  onChange={e => setMaxSedimentDiscountPercent(Number(e.target.value))}
+                  className="w-full bg-white border border-amber-300 rounded-xl px-4 py-2.5 text-sm font-black text-amber-900 outline-none"
                 />
-                <span className="text-xs font-bold text-indigo-700">% در ماه</span>
+                <span className="text-xs font-bold text-amber-700">%</span>
               </div>
-              <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
-                مثال: اگر ۶٪ باشد، برای چک ۲ ماهه ۱۲٪ و برای چک ۳ ماهه ۱۸٪ به مبلغ اقلام فاکتور اضافه خواهد شد.
+              <p className="text-[10px] text-amber-800 font-bold leading-relaxed">
+                حداکثر تخفیف قابل تخصیص برای کالاهای دارای رسوب در انبار جهت جلوگیری از ضرر مالی تامین‌کنندگان و کارخانه‌ها.
               </p>
             </div>
 

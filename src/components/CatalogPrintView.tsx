@@ -35,7 +35,7 @@ export default function CatalogPrintView({ products, config }: CatalogPrintViewP
       {/* Grid */}
       <div className="grid grid-cols-2 gap-6">
         {products.filter(p => !p.disabled).map((p, idx) => (
-          <div key={p.id} className="border border-slate-100 rounded-[2rem] p-4 flex flex-col items-center break-inside-avoid">
+          <div key={`catalog-print-p-${p.id || idx}-${idx}`} className="border border-slate-100 rounded-[2rem] p-4 flex flex-col items-center break-inside-avoid">
             <div className="w-full aspect-square bg-slate-50 rounded-2xl overflow-hidden mb-4 border border-slate-100">
               <img 
                 src={p.image_url} 

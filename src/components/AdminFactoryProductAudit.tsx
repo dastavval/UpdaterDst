@@ -342,7 +342,7 @@ export default function AdminFactoryProductAudit({
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredProducts.map((prod) => {
+          {filteredProducts.map((prod, pIdx) => {
             const factoryPrice = prod.bulk_price || prod.price || 0;
             const sitePrice = prod.price || factoryPrice;
             const marginPercent = calculateMargin(factoryPrice, sitePrice);
@@ -351,7 +351,7 @@ export default function AdminFactoryProductAudit({
 
             return (
               <div 
-                key={prod.id}
+                key={`audit-prod-${prod.id || pIdx}-${pIdx}`}
                 className={`bg-white rounded-3xl p-5 border transition-all space-y-4 shadow-2xs hover:shadow-xs ${
                   status === 'pending'
                     ? "border-amber-300/80 ring-2 ring-amber-400/20"
@@ -555,12 +555,12 @@ export default function AdminFactoryProductAudit({
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 block">افزودن سریع مارجین سود سایت:</label>
                   <div className="flex gap-2">
-                    {[5, 10, 15, 20].map((margin) => {
+                    {[5, 10, 15, 20].map((margin, mIdx) => {
                       const basePrice = editingPriceProd.bulk_price || editingPriceProd.price || 0;
                       const calculated = Math.round(basePrice * (1 + margin / 100));
                       return (
                         <button
-                          key={margin}
+                          key={`audit-margin-${margin}-${mIdx}`}
                           type="button"
                           onClick={() => setNewSitePrice(String(calculated))}
                           className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 rounded-xl text-[11px] font-black border border-indigo-200 cursor-pointer"

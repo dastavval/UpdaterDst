@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Package, Truck, Printer, X, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Package, Truck, Printer, X, ArrowRight, Sparkles, UserCheck } from 'lucide-react';
 
 interface OrderSuccessModalProps {
   isOpen: boolean;
@@ -8,9 +8,10 @@ interface OrderSuccessModalProps {
   trackingNumber: string;
   amount: number;
   onPrintInvoice?: () => void;
+  autoCreatedAccount?: { username: string; password: string } | null;
 }
 
-export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amount, onPrintInvoice }: OrderSuccessModalProps) {
+export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amount, onPrintInvoice, autoCreatedAccount }: OrderSuccessModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -27,7 +28,7 @@ export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amo
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-lg bg-white rounded-[3rem] shadow-2xl overflow-hidden text-right"
+            className="relative w-full max-w-lg bg-white rounded-[3rem] shadow-2xl overflow-hidden text-right max-h-[92vh] overflow-y-auto"
           >
             {/* Header / Banner */}
             <div className="bg-emerald-600 p-8 text-white text-center relative overflow-hidden">
@@ -61,6 +62,32 @@ export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amo
                   </span>
                 </div>
               </div>
+
+              {/* Auto Created Account Credentials Box (If guest user) */}
+              {autoCreatedAccount && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-300 p-5 rounded-3xl space-y-3 shadow-sm">
+                  <div className="flex items-center gap-2 text-emerald-950 font-black text-xs sm:text-sm">
+                    <UserCheck size={20} className="text-emerald-600 shrink-0" />
+                    <span>حساب کاربری شما به‌طور خودکار ایجاد شد!</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 font-bold leading-relaxed">
+                    چون برای اولین بار بدون ورود به حساب خرید کردید، پروفایل شما با شماره همراهتان ثبت گردید تا بتوانید سفارشات خود را پیگیری کنید:
+                  </p>
+                  <div className="bg-white p-3.5 rounded-2xl border border-emerald-200 text-xs font-mono space-y-1.5 text-right shadow-2xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 text-[11px]">شماره همراه (نام کاربری):</span>
+                      <strong className="text-slate-900 font-black text-sm" dir="ltr">{autoCreatedAccount.username}</strong>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-slate-100 pt-1.5">
+                      <span className="text-slate-500 text-[11px]">رمز عبور موقت:</span>
+                      <strong className="text-emerald-700 font-black text-sm" dir="ltr">{autoCreatedAccount.password}</strong>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-emerald-700 font-bold">
+                    💡 نکته: در مراجعات بعدی می‌توانید با استفاده از همین شماره همراه و رمز عبور وارد پنل کاربری خود شوید.
+                  </p>
+                </div>
+              )}
 
               {/* Status Timeline Placeholder */}
               <div className="space-y-4">

@@ -18,7 +18,7 @@ interface PremiumProductCardProps {
   onRequireAuth?: () => void;
 }
 
-export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
+export const PremiumProductCard: React.FC<PremiumProductCardProps> = React.memo(({
   product,
   qty,
   onIncrement,
@@ -47,10 +47,15 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
       {/* Top Badge Overlay */}
       <div className="absolute top-4 inset-x-4 z-20 flex justify-between items-start pointer-events-none">
         <div className="flex flex-col gap-2">
-          {profitMargin > 0 && (
+          {profitMargin > 0 ? (
             <div className="bg-emerald-600/95 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-white/20 text-[10px] font-black flex items-center gap-1.5">
               <TrendingUp size={12} className="animate-pulse" />
               سود خالص: {toPersianNum(profitMargin)}٪
+            </div>
+          ) : (
+            <div className="bg-indigo-600/95 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-white/20 text-[10px] font-black flex items-center gap-1.5">
+              <ShieldCheck size={12} />
+              قیمت مصوب کارخانه
             </div>
           )}
         </div>
@@ -107,9 +112,13 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
               </div>
             </div>
             <div className="bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 text-center">
-              <span className="text-[9px] text-emerald-600 font-black block leading-none mb-1">سود هر کارتن</span>
+              <span className="text-[9px] text-emerald-600 font-black block leading-none mb-1">
+                {pricing.profitPerCartonVsConsumer > 0 ? "سود هر کارتن" : "شرایط تامین"}
+              </span>
               <span className="text-xs font-black text-emerald-700 leading-none font-mono">
-                +{toPersianNum(pricing.profitPerCartonVsConsumer.toLocaleString())} ت
+                {pricing.profitPerCartonVsConsumer > 0
+                  ? `+${toPersianNum(pricing.profitPerCartonVsConsumer.toLocaleString())} ت`
+                  : "قیمت تمام‌شده"}
               </span>
             </div>
           </div>
@@ -180,4 +189,4 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});

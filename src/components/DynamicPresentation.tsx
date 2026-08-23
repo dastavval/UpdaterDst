@@ -359,7 +359,7 @@ export default function DynamicPresentation({
             </h4>
             <div className="flex items-center gap-1 mt-0.5">
               <span className="text-[10px] font-black text-emerald-600">
-                {toPersianNum(profitMargin)}٪ حاشیه سود
+                {profitMargin > 0 ? `${toPersianNum(profitMargin)}٪ حاشیه سود` : 'عرضه به قیمت تمام‌شده کارخانه'}
               </span>
             </div>
           </div>
@@ -755,9 +755,9 @@ export default function DynamicPresentation({
       <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-3 border-t border-slate-100/80">
         <div className="relative z-10 space-y-3.5 max-w-xl flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 bg-linear-to-r from-emerald-800 to-teal-800 text-white px-3.5 py-1 rounded-full text-[10px] font-black shadow-sm border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-xs border border-emerald-500/20">
               <Sparkles size={12} className="fill-emerald-300 text-emerald-300 animate-pulse" />
-              <span>پورتال سراسری تامین مستقیم کالا</span>
+              <span>تامین مستقیم از خط تولید 🏭</span>
             </span>
           </div>
 

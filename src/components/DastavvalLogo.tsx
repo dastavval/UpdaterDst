@@ -19,18 +19,21 @@ export default function DastavvalLogo({
 }: DastavvalLogoProps) {
   const [imgFailed, setImgFailed] = React.useState(false);
 
-  const isDefaultLogo = logoUrl === "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png" || !logoUrl || logoUrl === "/assets/logo.svg" || logoUrl.includes("dastavval_logo.png");
-  const officialLogoUrl = "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
+  // Consider logoUrl as custom if it exists and is NOT one of our known placeholders
+  const isCustomLogo = !!logoUrl && 
+    logoUrl !== "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png" && 
+    logoUrl !== "/assets/logo.svg" &&
+    !logoUrl.includes("dastavval_logo.png");
 
   return (
     <div className={`inline-flex items-center gap-2.5 ${className}`}>
-      {((!isDefaultLogo && logoUrl) || officialLogoUrl) && !imgFailed ? (
+      {isCustomLogo && !imgFailed ? (
         <div className="flex items-center justify-center shrink-0">
           <img
-            src={logoUrl || officialLogoUrl}
+            src={logoUrl}
             alt="دست اول"
             style={{ height: size, width: 'auto' }}
-            className="object-contain max-w-[160px] drop-shadow-sm"
+            className="object-contain max-w-[160px] drop-shadow-sm mix-blend-multiply"
             referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
           />
@@ -102,7 +105,7 @@ export default function DastavvalLogo({
             دست اول
           </span>
           <span className="text-[9px] font-black text-emerald-600 tracking-tight mt-0.5">
-            سامانه بنکداری و تامین مستقیم
+            بورس تامین مستقیم از کارخانه
           </span>
         </div>
       )}

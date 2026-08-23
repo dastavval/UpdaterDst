@@ -161,9 +161,9 @@ export default function CPanelInstallerWizard({
               { id: 2, title: "۲. پیکربندی cPanel و Apache", icon: <Server size={15} /> },
               { id: 3, title: "۳. اتصال و تست PHP DB", icon: <Key size={15} /> },
               { id: 4, title: "۴. همگام‌سازی گیت‌هاب و آپدیت", icon: <Github size={15} /> },
-            ].map((step) => (
+            ].map((step, sIdx) => (
               <button
-                key={step.id}
+                key={`cpanel-step-${step.id}-${sIdx}`}
                 onClick={() => setActiveStep(step.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                   activeStep === step.id
@@ -600,8 +600,8 @@ try {
 
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                     <div className="max-h-48 overflow-y-auto p-2 font-mono text-[10px] space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                      {logs.length > 0 ? logs.map((log) => (
-                        <div key={log.id} className={`p-1.5 rounded border-r-2 ${
+                      {logs.length > 0 ? logs.map((log, lIdx) => (
+                        <div key={`cpanel-log-${log.id || lIdx}-${lIdx}`} className={`p-1.5 rounded border-r-2 ${
                           log.type === 'error' ? 'bg-red-50 border-red-500 text-red-800' : 
                           log.type === 'success' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 
                           'bg-slate-50 border-slate-300 text-slate-700'

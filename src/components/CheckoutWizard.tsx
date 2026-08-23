@@ -235,12 +235,21 @@ export default function CheckoutWizard({
   const effectiveCashDiscountPercent = (paymentMethod === 'cash' && tierDiscountPercent === 0) ? cashDiscountPercent : 0;
   const cashDiscountAmount = Math.round(totalAmount * (effectiveCashDiscountPercent / 100));
 
+  // 3.5 Sediment Clearance Discount (تخفیف رسوب‌زدایی انباشت کالا)
+  const defaultSedimentPercent = invSettings.sedimentDiscountPercent ?? 8;
+  const sedimentDiscountAmount = cart.reduce((sum, item) => {
+    const itemProd = products.find(p => p.id === item.productId || p.productCode === item.productId);
+    const itemDiscountP = (item as any).discountPercent ?? (itemProd as any)?.sedimentDiscountPercent ?? ((item as any)?.isSedimentClearance ? defaultSedimentPercent : 0);
+    const itemGross = (item.pricePerCarton || itemProd?.price || 0) * item.quantityCartons;
+    return sum + Math.round(itemGross * (itemDiscountP / 100));
+  }, 0);
+
   // 4. Cheque & Split Calculations (حداقل ۵۰٪ نقد + ۵۰٪ چک صیادی جهت کاهش ریسک و تضمین کارخانه)
   const effectiveCashPercent = paymentMethod === 'cash' ? 100 : splitCashPercent;
   const effectiveChequePercent = paymentMethod === 'cash' ? 0 : (100 - splitCashPercent);
 
   // Total discounts applied
-  const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount;
+  const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount + sedimentDiscountAmount;
   const basePayableAmount = Math.max(0, totalAmount - totalDiscounts);
 
   // Split Breakdown
@@ -326,6 +335,36 @@ export default function CheckoutWizard({
       const sellerId = firstProd?.sellerId || "factory_central";
       const sellerName = firstProd?.sellerName || "گروه صنایع غذایی و بازرگانی دست اول";
 
+      // Auto-create local account for guest user if not logged in
+      let autoCreatedAccount = null;
+      if (!user && buyerPhone) {
+        try {
+          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+          const cleanPhone = buyerPhone.trim();
+          if (!localUsers[cleanPhone]) {
+            localUsers[cleanPhone] = {
+              name: buyerName || "خریدار عمده",
+              email: cleanPhone,
+              phone: cleanPhone,
+              mobile: cleanPhone,
+              password: cleanPhone, // Temporary password is their phone number
+              role: "customer",
+              badge: "خریدار عمده",
+              company: buyerCompany || "فروشگاه / پخش عمده",
+              address: buyerAddress || "تهران",
+              createdAt: new Date().toISOString()
+            };
+            localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          }
+          autoCreatedAccount = {
+            username: cleanPhone,
+            password: cleanPhone
+          };
+        } catch (e) {
+          console.warn("Could not auto-create guest user account:", e);
+        }
+      }
+
       const orderData = {
         buyerName,
         buyerPhone,
@@ -346,7 +385,8 @@ export default function CheckoutWizard({
           chequeMarkup: chequeMarkupAmount,
           chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
           chequeDays: paymentMethod === 'cheque' ? chequeDays : 0,
-          chequeMarkupPercent
+          chequeMarkupPercent,
+          sediment: sedimentDiscountAmount
         },
         paymentMethod,
         settlementBreakdown: {
@@ -379,7 +419,8 @@ export default function CheckoutWizard({
         sellerId,
         sellerName,
         createdAt: serverTimestamp(),
-        trackingNumber
+        trackingNumber,
+        autoCreatedAccount
       };
 
       const docRef = await addDoc(collection(db, "orders"), orderData);
@@ -928,29 +969,71 @@ export default function CheckoutWizard({
                   </div>
                 )}
 
-                <div className="pt-2 space-y-2">
-                  <label className="block text-[11px] font-black text-slate-700">روش ارسال و ترابری جاده‌ای</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="pt-2 space-y-3">
+                  <label className="block text-[11px] font-black text-slate-700">روش ارسال و ترابری جاده‌ای (محاسبه هوشمند کرایه)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                     {[
-                      { id: 'barbari', name: 'باربری جاده‌ای', icon: '🚛' },
-                      { id: 'khavar', name: 'کامیونت / خاور', icon: '🚚' },
-                      { id: 'deka', name: 'اکسپرس (دکا)', icon: '📦' },
-                      { id: 'personal', name: 'تحویل حضوری انبار', icon: '🏭' }
-                    ].map((m, mIdx) => (
-                      <button
-                        key={`ship-method-opt-${m.id}-${mIdx}`}
-                        type="button"
-                        onClick={() => setShippingMethod(m.id)}
-                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
-                          shippingMethod === m.id
-                            ? "border-emerald-500 bg-emerald-50/70 text-emerald-900 shadow-sm ring-2 ring-emerald-500/20 font-black"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-bold"
-                        }`}
-                      >
-                        <span className="text-xl block mb-1">{m.icon}</span>
-                        <span className="text-[10px]">{m.name}</span>
-                      </button>
-                    ))}
+                      { 
+                        id: 'barbari', 
+                        name: 'باربری شهرام ترابر', 
+                        icon: '🚛',
+                        rateDesc: '۳۵,۰۰۰ تومان به ازای هر کارتن (ارسال جاده‌ای بین‌شهری)',
+                        estimatedFee: totalCartons * 35000
+                      },
+                      { 
+                        id: 'express', 
+                        name: 'باربری اکسپرس', 
+                        icon: '📦',
+                        rateDesc: '۵۰ الی ۶۰ هزار تومان به ازای هر کارتن تحویلی',
+                        estimatedFee: totalCartons * 55000
+                      },
+                      { 
+                        id: 'darbasti', 
+                        name: 'ارسال دربستی (خاور/تک)', 
+                        icon: '🚚',
+                        rateDesc: '۱ میلیون تومان به ازای هر ۱۰۰ کیلومتر (هر ۲۰۰ تا ۳۰۰ کارتن)',
+                        estimatedFee: Math.max(1, Math.ceil(totalCartons / 250)) * 6.5 * 1000000
+                      },
+                      { 
+                        id: 'personal', 
+                        name: 'تحویل حضوری در انبار کارخانه', 
+                        icon: '🏭',
+                        rateDesc: 'تسویه درب انبار اصلی تولیدکننده (بدون کرایه)',
+                        estimatedFee: 0
+                      }
+                    ].map((m, mIdx) => {
+                      const isSelected = shippingMethod === m.id || (m.id === 'barbari' && shippingMethod === 'shahram_tarabar') || (m.id === 'express' && shippingMethod === 'deka');
+                      return (
+                        <button
+                          key={`ship-method-opt-${m.id}-${mIdx}`}
+                          type="button"
+                          onClick={() => setShippingMethod(m.id)}
+                          className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-50/80 text-emerald-950 shadow-sm ring-2 ring-emerald-500/20 font-black"
+                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-bold"
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                <span className="text-lg">{m.icon}</span>
+                                {m.name}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-slate-500 font-bold leading-relaxed mb-2">
+                              {m.rateDesc}
+                            </p>
+                          </div>
+                          <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px] font-black text-emerald-800">
+                            <span>برآورد کرایه:</span>
+                            <span className="font-mono text-slate-950">
+                              {m.estimatedFee === 0 ? 'پس‌کرایه / رایگان' : `${Math.round(m.estimatedFee).toLocaleString()} تومان`}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
