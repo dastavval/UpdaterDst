@@ -43,6 +43,7 @@ html {
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -52,23 +53,52 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  font-weight: 350;
+  letter-spacing: -0.01em;
 }
 
 button, input, select, textarea {
   font-family: var(--font-sans), sans-serif !important;
 }
 
-/* --- HIGH-LEGIBILITY & ACCESSIBLE PERSIAN TYPOGRAPHY --- */
+/* --- REFINED & ELEGANT PERSIAN TYPOGRAPHY --- */
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 800 !important;
-  letter-spacing: -0.015em;
+  font-weight: 650 !important;
+  letter-spacing: -0.02em;
   line-height: 1.35;
-  color: #1e293b;
+  color: #0f172a;
 }
 
 p {
   line-height: 1.7;
   color: #334155;
+  font-weight: 350;
+}
+
+/* Soften heavy weights across the UI to achieve a sleek, lightweight modern aesthetic */
+.font-black {
+  font-weight: 700 !important;
+}
+.font-extrabold {
+  font-weight: 650 !important;
+}
+.font-bold {
+  font-weight: 550 !important;
+}
+.font-semibold {
+  font-weight: 450 !important;
+}
+.font-medium {
+  font-weight: 400 !important;
+}
+.font-normal {
+  font-weight: 300 !important;
+}
+.font-light {
+  font-weight: 200 !important;
+}
+.font-thin {
+  font-weight: 100 !important;
 }
 
 /* Slightly reduce corner roundness across the site */

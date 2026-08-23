@@ -18,6 +18,7 @@ import ConfirmModal from "./ConfirmModal";
 import { generateProductCode } from "../lib/id-utils";
 import FactoryManagementPortal from "./FactoryManagementPortal";
 import RepresentativeManagementPortal from "./RepresentativeManagementPortal";
+import { getRepCommissions } from "../lib/leads-store";
 
 interface UserPanelProps {
   user: any;
@@ -100,7 +101,8 @@ export default function UserPanel({
   const [etebaritoMsg, setEtebaritoMsg] = useState<string | null>(null);
   const [payoutsHistory, setPayoutsHistory] = useState<any[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem("dastavval_marketer_payouts") || "[]");
+      const userKey = user?.id || user?.phone ? `dastavval_marketer_payouts_${user?.id || user?.phone}` : "dastavval_marketer_payouts";
+      return JSON.parse(localStorage.getItem(userKey) || "[]");
     } catch {
       return [];
     }
@@ -411,8 +413,8 @@ export default function UserPanel({
     }
   };
 
-  // Marketer Referral Link
-  const referralCode = user?.agencyCode || user?.userCode || "REF-1001";
+  // Marketer Referral Code and Dynamic Link
+  const referralCode = user?.agencyCode || user?.userCode || `AGN-${(user?.phone || '2806').slice(-4)}`;
   const referralUrl = `https://dastavval.ir/?ref=${referralCode}`;
 
   const handleCopyReferral = () => {
@@ -420,6 +422,46 @@ export default function UserPanel({
     setCopiedReferral(true);
     setTimeout(() => setCopiedReferral(false), 2000);
   };
+
+  // Filter Real Marketer / Affiliate Referred Orders
+  const marketerReferredOrders = useMemo(() => {
+    if (!user) return [];
+    const rCode = (referralCode || "").trim().toLowerCase();
+    const uPhone = (user.phone || "").trim();
+    const uId = (user.id || "").trim();
+    
+    return allOrders.filter(order => {
+      const oRef = ((order as any).referralCode || (order as any).refCode || (order as any).marketerCode || (order as any).agentCode || "").trim().toLowerCase();
+      const oMarketerId = ((order as any).marketerId || (order as any).agentId || "").trim();
+      const oMarketerPhone = ((order as any).marketerPhone || "").trim();
+      
+      if (rCode && oRef === rCode) return true;
+      if (uId && oMarketerId === uId) return true;
+      if (uPhone && oMarketerPhone === uPhone) return true;
+      return false;
+    });
+  }, [allOrders, user, referralCode]);
+
+  // Marketer Total Sales Volume
+  const marketerReferredVolume = useMemo(() => {
+    return marketerReferredOrders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+  }, [marketerReferredOrders]);
+
+  // Marketer Recent Orders Count (Last 7 Days)
+  const marketerRecentOrdersCount = useMemo(() => {
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return marketerReferredOrders.filter(o => {
+      const rawDate = (o as any).createdAt || (o as any).date;
+      const t = rawDate ? new Date(rawDate).getTime() : 0;
+      return t >= oneWeekAgo;
+    }).length;
+  }, [marketerReferredOrders]);
+
+  // Marketer Earned & Available Commission (2.5% pure commission rate)
+  const repCommissions = useMemo(() => getRepCommissions(user?.id || user?.phone), [user]);
+  const marketerCommissionRate = 2.5; // 2.5%
+  const computedCommissionFromSales = Math.round(marketerReferredVolume * (marketerCommissionRate / 100));
+  const totalMarketerCommission = (repCommissions.totalCommission || 0) + computedCommissionFromSales;
 
   // Marketer Settlement Request
   const handleRequestSettlement = (e: React.FormEvent) => {
@@ -434,7 +476,8 @@ export default function UserPanel({
     };
     const updated = [newPayout, ...payoutsHistory];
     setPayoutsHistory(updated);
-    localStorage.setItem("dastavval_marketer_payouts", JSON.stringify(updated));
+    const userKey = user?.id || user?.phone ? `dastavval_marketer_payouts_${user?.id || user?.phone}` : "dastavval_marketer_payouts";
+    localStorage.setItem(userKey, JSON.stringify(updated));
     setSettlementSuccess("درخواست تسویه پورسانت با موفقیت ثبت شد و ظرف ۲۴ ساعت کاری واریز می‌گردد.");
     setSettlementAmount("");
     setTimeout(() => setSettlementSuccess(null), 4000);
@@ -666,15 +709,19 @@ export default function UserPanel({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
                   <span className="text-xs font-bold text-slate-500">سفارشات معرفی شده:</span>
-                  <div className="text-xl font-black text-slate-900">{toPersianNum(14)} فاکتور</div>
-                  <span className="text-[10px] text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
-                    +۳ سفارش در این هفته
+                  <div className="text-xl font-black text-slate-900">{toPersianNum(marketerReferredOrders.length)} فاکتور</div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block ${
+                    marketerRecentOrdersCount > 0 
+                      ? "text-emerald-700 bg-emerald-50" 
+                      : "text-slate-600 bg-slate-100"
+                  }`}>
+                    {marketerRecentOrdersCount > 0 ? `+${toPersianNum(marketerRecentOrdersCount)} سفارش در این هفته` : "در انتظار اولین سفارش ارجاعی"}
                   </span>
                 </div>
 
                 <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
                   <span className="text-xs font-bold text-slate-500">حجم کل فروش ارجاعی:</span>
-                  <div className="text-xl font-black text-slate-900">{toPersianNum("۱۴۸,۵۰۰,۰۰۰")} تومان</div>
+                  <div className="text-xl font-black text-slate-900">{toPersianNum(marketerReferredVolume.toLocaleString('fa-IR'))} تومان</div>
                   <span className="text-[10px] text-indigo-700 font-black bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
                     نرخ پورسانت: ۲.۵٪ خالص
                   </span>
@@ -682,7 +729,7 @@ export default function UserPanel({
 
                 <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
                   <span className="text-xs font-bold text-slate-500">موجودی پورسانت قابل تسویه:</span>
-                  <div className="text-xl font-black text-amber-700">{toPersianNum("۳,۷۱۲,۵۰۰")} تومان</div>
+                  <div className="text-xl font-black text-amber-700">{toPersianNum(totalMarketerCommission.toLocaleString('fa-IR'))} تومان</div>
                   <button
                     onClick={() => setMarketerTab('payout')}
                     className="text-[10px] text-amber-800 font-black hover:underline inline-block cursor-pointer"
@@ -691,6 +738,61 @@ export default function UserPanel({
                   </button>
                 </div>
               </div>
+
+              {/* Referred Orders Breakdown / Empty State */}
+              {marketerReferredOrders.length === 0 ? (
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl">
+                    📊
+                  </div>
+                  <h4 className="text-sm font-black text-slate-800">
+                    هنوز سفارشی با لینک یا کد بازاریابی شما ثبت نشده است
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
+                    لینک اختصاصی خود را در گروه‌ها، کانال‌ها یا برای سوپرمارکت‌ها و بنکداران ارسال فرمایید. به محض ثبت و تایید هر سفارش، مبلغ ۲.۵٪ از کل فاکتور به عنوان پورسانت نقدی در این پنل محاسبه و قابل تسویه به شماره شبا خواهد بود.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <FileText size={16} className="text-amber-600" />
+                      <span>لیست فاکتورهای ارجاع شده ({toPersianNum(marketerReferredOrders.length)} مورد)</span>
+                    </h4>
+                    <span className="text-xs text-slate-500 font-bold">مجموع پورسانت: {toPersianNum(totalMarketerCommission.toLocaleString('fa-IR'))} تومان</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold">
+                          <th className="pb-3 pr-2">شماره فاکتور</th>
+                          <th className="pb-3">خریدار / فروشگاه</th>
+                          <th className="pb-3">مبلغ کل سفارش</th>
+                          <th className="pb-3">پورسانت شما (۲.۵٪)</th>
+                          <th className="pb-3">وضعیت</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {marketerReferredOrders.map((ord, idx) => {
+                          const ordTotal = Number(ord.totalAmount) || 0;
+                          const comm = Math.round(ordTotal * 0.025);
+                          return (
+                            <tr key={ord.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 pr-2 font-mono font-bold text-slate-700">#{ord.id ? ord.id.slice(-6).toUpperCase() : `ORD-${idx+1}`}</td>
+                              <td className="py-3 font-bold text-slate-900">{ord.buyerName || ord.buyerInfo?.name || "فروشگاه همکار"}</td>
+                              <td className="py-3 font-mono font-bold text-slate-900">{toPersianNum(ordTotal.toLocaleString('fa-IR'))} تومان</td>
+                              <td className="py-3 font-mono font-bold text-emerald-600">+{toPersianNum(comm.toLocaleString('fa-IR'))} تومان</td>
+                              <td className="py-3">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">تایید شده</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
             </div>
           )}
