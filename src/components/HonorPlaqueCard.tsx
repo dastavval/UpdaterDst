@@ -175,23 +175,51 @@ export default function HonorPlaqueCard({
       setIsDownloadingPdf(true);
       await new Promise((resolve) => setTimeout(resolve, 80));
 
+      if (document.fonts) {
+        try { await document.fonts.ready; } catch (e) {}
+      }
+
+      const element = plaqueRef.current;
+      const origCss = element.getAttribute("style") || "";
+      const bg = plaqueTheme === 'royal_dark' ? "#0b1329" : "#fcfbf9";
+
+      element.style.width = "960px";
+      element.style.minWidth = "960px";
+      element.style.maxWidth = "none";
+      element.style.transform = "none";
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       let imgData = "";
       try {
-        imgData = await toPng(plaqueRef.current, {
-          pixelRatio: 3,
-          backgroundColor: plaqueTheme === 'royal_dark' ? "#0b1329" : "#fcfbf9",
+        imgData = await toPng(element, {
+          pixelRatio: 2.5,
+          backgroundColor: bg,
           cacheBust: true,
         });
       } catch {
-        imgData = await toJpeg(plaqueRef.current, {
+        imgData = await toJpeg(element, {
           quality: 0.98,
-          pixelRatio: 2.5,
-          backgroundColor: plaqueTheme === 'royal_dark' ? "#0b1329" : "#fcfbf9",
+          pixelRatio: 2,
+          backgroundColor: bg,
           cacheBust: true,
         });
+      } finally {
+        if (origCss) {
+          element.setAttribute("style", origCss);
+        } else {
+          element.removeAttribute("style");
+        }
       }
 
       if (!imgData) throw new Error("PDF export failed");
+
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((res) => {
+        img.onload = () => res(true);
+        img.onerror = () => res(true);
+      });
 
       const pdf = new jsPDF({
         orientation: "landscape",
@@ -200,17 +228,35 @@ export default function HonorPlaqueCard({
         compress: true,
       });
 
-      const pdfWidth = 297;
-      const pdfHeight = 210;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const margin = 5;
+      const maxW = pageWidth - (margin * 2);
+      const maxH = pageHeight - (margin * 2);
 
-      pdf.save(`سند_گواهی_نمایندگی_دست_اول_${agencyCode}.pdf`);
+      const naturalW = img.naturalWidth || 960;
+      const naturalH = img.naturalHeight || 680;
+      const aspect = naturalW / naturalH;
+
+      let renderW = maxW;
+      let renderH = maxW / aspect;
+
+      if (renderH > maxH) {
+        renderH = maxH;
+        renderW = maxH * aspect;
+      }
+
+      const posX = margin + (maxW - renderW) / 2;
+      const posY = margin + (maxH - renderH) / 2;
+
+      pdf.addImage(imgData, "PNG", posX, posY, renderW, renderH, undefined, 'FAST');
+      pdf.save(`Dastavval_HonorPlaque_${agencyCode || 'Representative'}.pdf`);
     } catch (err) {
       console.error("Error generating PDF:", err);
       if (onOpenPdfModal) {
         onOpenPdfModal();
       } else {
-        alert("خطا در تولید PDF مستقیم. پنجره مشاهده گواهی باز می‌گردد.");
+        window.print();
       }
     } finally {
       setIsDownloadingPdf(false);

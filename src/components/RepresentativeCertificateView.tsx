@@ -53,29 +53,51 @@ export default function RepresentativeCertificateView({
       setIsDownloading(true);
 
       // Yield execution to allow UI loading spinner to render smoothly
-      await new Promise((resolve) => setTimeout(resolve, 60));
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      if (document.fonts) {
+        try { await document.fonts.ready; } catch (e) {}
+      }
+
+      const origCss = certElem.getAttribute("style") || "";
+      // Temporarily expand certElem to full desktop width for high-res unclipped capture
+      certElem.style.width = "960px";
+      certElem.style.minWidth = "960px";
+      certElem.style.maxWidth = "none";
+      certElem.style.transform = "none";
+
+      await new Promise((res) => setTimeout(res, 100));
 
       let imgData = "";
       try {
         imgData = await toPng(certElem, {
-          pixelRatio: 3,
+          pixelRatio: 2.5,
           backgroundColor: "#ffffff",
           cacheBust: true,
         });
-      } catch (e1) {
+      } catch {
         imgData = await toJpeg(certElem, {
           quality: 0.98,
           pixelRatio: 2,
           backgroundColor: "#ffffff",
           cacheBust: true,
         });
+      } finally {
+        if (origCss) {
+          certElem.setAttribute("style", origCss);
+        } else {
+          certElem.removeAttribute("style");
+        }
       }
 
       if (!imgData) throw new Error("Image conversion failed");
 
       const img = new Image();
       img.src = imgData;
-      await new Promise((res) => { img.onload = () => res(true); });
+      await new Promise((res) => {
+        img.onload = () => res(true);
+        img.onerror = () => res(true);
+      });
 
       const pdf = new jsPDF({
         orientation: "landscape",
@@ -84,12 +106,28 @@ export default function RepresentativeCertificateView({
         compress: true,
       });
 
-      const pdfWidth = 297;
-      const pdfHeight = 210;
-      const imgWidth = pdfWidth;
-      const imgHeight = (img.naturalHeight * pdfWidth) / img.naturalWidth;
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const margin = 5;
+      const maxW = pageWidth - (margin * 2);
+      const maxH = pageHeight - (margin * 2);
 
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, Math.min(imgHeight, pdfHeight), undefined, 'FAST');
+      const naturalW = img.naturalWidth || 960;
+      const naturalH = img.naturalHeight || 680;
+      const aspect = naturalW / naturalH;
+
+      let renderW = maxW;
+      let renderH = maxW / aspect;
+
+      if (renderH > maxH) {
+        renderH = maxH;
+        renderW = maxH * aspect;
+      }
+
+      const posX = margin + (maxW - renderW) / 2;
+      const posY = margin + (maxH - renderH) / 2;
+
+      pdf.addImage(imgData, "PNG", posX, posY, renderW, renderH, undefined, 'FAST');
 
       const pdfOutput = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfOutput);
@@ -271,7 +309,7 @@ export default function RepresentativeCertificateView({
           
           <div 
             id="printable-certificate"
-            className="w-full max-w-[297mm] aspect-[1.414/1] bg-white relative p-12 sm:p-16 border-[16px] border-amber-800 shadow-xl overflow-hidden flex flex-col justify-between"
+            className="w-[880px] max-w-full aspect-[1.414/1] bg-white relative p-8 sm:p-12 border-[14px] border-amber-800 shadow-xl flex flex-col justify-between shrink-0"
             style={{ 
               boxSizing: "border-box",
               backgroundImage: "radial-gradient(#fdfbf7 1.5px, transparent 1.5px), radial-gradient(#fdfbf7 1.5px, #faf7f2 1.5px)",

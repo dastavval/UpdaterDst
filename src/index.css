@@ -61,9 +61,9 @@ button, input, select, textarea {
   font-family: var(--font-sans), sans-serif !important;
 }
 
-/* --- REFINED & ELEGANT PERSIAN TYPOGRAPHY --- */
+/* --- REFINED & ELEGANT PERSIAN TYPOGRAPHY (SLIM & MODERN) --- */
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 650 !important;
+  font-weight: 550 !important;
   letter-spacing: -0.02em;
   line-height: 1.35;
   color: #0f172a;
@@ -72,24 +72,24 @@ h1, h2, h3, h4, h5, h6 {
 p {
   line-height: 1.7;
   color: #334155;
-  font-weight: 350;
+  font-weight: 300;
 }
 
-/* Soften heavy weights across the UI to achieve a sleek, lightweight modern aesthetic */
+/* Soften heavy weights across the entire UI for a sleek, thin, modern Persian typographic feel */
 .font-black {
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 .font-extrabold {
-  font-weight: 650 !important;
-}
-.font-bold {
   font-weight: 550 !important;
 }
-.font-semibold {
+.font-bold {
   font-weight: 450 !important;
 }
-.font-medium {
+.font-semibold {
   font-weight: 400 !important;
+}
+.font-medium {
+  font-weight: 350 !important;
 }
 .font-normal {
   font-weight: 300 !important;

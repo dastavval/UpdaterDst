@@ -264,59 +264,6 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
   const [phone, setPhone] = React.useState('');
   const [submitted, setSubmitted] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-
-  const [representatives, setRepresentatives] = useState<any[]>(() => {
-    const DEFAULT_REPS: any[] = [];
-
-    const saved = localStorage.getItem("dastavval_representatives");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error("Error parsing representatives from localStorage:", e);
-      }
-    }
-    localStorage.setItem("dastavval_representatives", JSON.stringify(DEFAULT_REPS));
-    return DEFAULT_REPS;
-  });
-
-  useEffect(() => {
-    const handleRepsUpdated = () => {
-      const saved = localStorage.getItem("dastavval_representatives");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) setRepresentatives(parsed);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    };
-
-    window.addEventListener("dastavval_reps_updated", handleRepsUpdated);
-    return () => window.removeEventListener("dastavval_reps_updated", handleRepsUpdated);
-  }, []);
-
-  const filteredReps = representatives.filter(rep => 
-    rep.isApproved !== false &&
-    (rep.city.includes(searchTerm) || 
-     rep.name.includes(searchTerm) || 
-     (rep.address && rep.address.includes(searchTerm)))
-  );
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const scrollAmount = 300;
-      // standard scrollBy on RTL viewport: negative scrolls left (towards end)
-      scrollRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
 
   const handleCallbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,11 +284,10 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
   };
 
   return (
-    <div id="contact-section" className="mt-16 mb-0 pb-0 w-full" dir="rtl">
-      {/* Top Card is wrapped in max-w-7xl to align with other grid contents */}
+    <div id="contact-section" className="my-8 w-full" dir="rtl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Top Card: Contact info & Callback form */}
-        <div className="p-6 md:p-10 rounded-t-3xl bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200 shadow-[0_24px_50px_rgba(16,185,129,0.06)] border-b-0 relative overflow-hidden">
+        {/* Contact info & Callback form */}
+        <div className="p-6 md:p-10 rounded-3xl bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200 shadow-sm relative overflow-hidden">
         
         {/* Subtle glowing background effects */}
         <div className="absolute top-0 left-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
@@ -359,7 +305,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
                 </span>
                 پشتیبانی آنلاین و ۲۴ ساعته
               </div>
-              <h2 className="text-xl md font-black tracking-tight leading-tight">
+              <h2 className="text-xl md:text-2xl font-black tracking-tight leading-tight">
                 <span className="block text-slate-900">ارتباط مستقیم با شبکه تامین</span>
                 <span className="bg-gradient-to-l from-emerald-500 to-teal-500 bg-clip-text text-transparent mt-1 block">دست اول همواره پاسخگوی شماست</span>
               </h2>
@@ -372,7 +318,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
               {/* Unit 1: Sales */}
               <a 
                 href="tel:09999123001"
-                className="p-4 rounded-2xl bg-white/70 border border-slate-200 hover:bg-slate-50 transition-all duration-300 group block relative overflow-hidden"
+                className="p-4 rounded-2xl bg-white/70 border border-slate-200 hover:bg-slate-50 transition-all duration-300 group block relative overflow-hidden shadow-xs"
               >
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
                 <div className="flex items-center gap-3.5">
@@ -393,7 +339,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
               {/* Unit 2: Support */}
               <a 
                 href="tel:09999123001"
-                className="p-4 rounded-2xl bg-white/70 border border-slate-200 hover:bg-slate-50 transition-all duration-300 group block relative overflow-hidden"
+                className="p-4 rounded-2xl bg-white/70 border border-slate-200 hover:bg-slate-50 transition-all duration-300 group block relative overflow-hidden shadow-xs"
               >
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500" />
                 <div className="flex items-center gap-3.5">
@@ -413,7 +359,7 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
             </div>
           </div>
 
-          {/* Left Column: Direct Call-back form (No tabs, highly polished!) */}
+          {/* Left Column: Direct Call-back form */}
           <div className="lg:col-span-5 h-full flex flex-col justify-center">
             <div className="p-5 md:p-6 rounded-2xl border bg-white border-slate-200 shadow-md relative overflow-hidden flex flex-col min-h-[220px] justify-center text-right">
               
@@ -501,164 +447,6 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
 
         </div>
       </div>
-
-      {/* Close the max-w-7xl Top Card wrapper so the Bottom Panel can go full-width screen size */}
-      </div>
-
-      {/* Bottom Panel: Creative, Beautiful Horizontal Sliding Representatives List */}
-      {/* This stretches full width, stitches seamlessly with the top card, and touches the footer below. */}
-      <div className="border border-t-0 border-b-0 rounded-b-none w-full bg-slate-50 border-slate-200 relative overflow-hidden text-right py-8">
-        
-        {/* Inner container to center-align the sliding reps list inside the full-width block */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Subtle decorative background glow */}
-        <div className="absolute right-0 bottom-0 w-48 h-48 bg-emerald-500/[0.03] rounded-full blur-[40px] pointer-events-none" />
-
-        {/* Section Header with Live Search & Arrows */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 border-b border-slate-100 pb-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-600">
-                <Building2 size={14} />
-              </div>
-              <h3 className="text-xs md:text-sm font-black text-slate-850">
-                لیست دفاتر و نمایندگان رسمی توزیع سراسری دست اول
-              </h3>
-            </div>
-            <p className="text-[10px] text-slate-400 font-bold">
-              برای ارتباط مستقیم و دریافت فاکتور فیزیکی معتبر با نزدیک‌ترین دفتر استان خود تماس حاصل فرمایید.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
-            {/* Elegant compact Search box */}
-            <div className="relative w-full sm:w-48 md:w-56">
-              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="جستجوی شهر، استان یا نام..."
-                className="w-full py-1.5 pr-8 pl-6 rounded-lg text-right text-[10px] font-bold border transition-all outline-none bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-500/50 shadow-inner"
-              />
-              {searchTerm && (
-                <button 
-                  onClick={() => setSearchTerm('')}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[9px] font-black"
-                >
-                  حذف
-                </button>
-              )}
-            </div>
-
-            {/* Slider Controls */}
-            <div className="flex gap-1 shrink-0">
-              <button 
-                onClick={() => scroll('right')} 
-                className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer border-slate-200 bg-white text-slate-500 hover:text-emerald-600 hover:bg-slate-50 shadow-sm"
-                title="بعدی"
-              >
-                <ChevronRight size={15} />
-              </button>
-              <button 
-                onClick={() => scroll('left')} 
-                className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer border-slate-200 bg-white text-slate-500 hover:text-emerald-600 hover:bg-slate-50 shadow-sm"
-                title="قبلی"
-              >
-                <ChevronLeft size={15} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Horizontal Slider Area */}
-        <div 
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth no-scrollbar select-none cursor-grab active:cursor-grabbing"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {filteredReps.length > 0 ? (
-            filteredReps.map((rep, idx) => {
-              const cleanName = rep.name.replace(/^(حاج\s+|مهندس\s+|آقای\s+|خانم\s+)/, "");
-              const initialChar = cleanName.charAt(0) || "👤";
-              return (
-                <div 
-                  key={`info-rep-${rep.city}-${rep.name}-${idx}`}
-                  className="w-[260px] md:w-[290px] shrink-0 snap-start p-4 rounded-xl border text-right transition-all duration-300 hover:translate-y-[-2px] bg-white border-slate-100/90 hover:border-emerald-500/20 hover:shadow-md shadow-sm"
-                >
-                  {/* Badge and Title */}
-                  <div className="flex justify-between items-center gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[9px] font-black">
-                      <MapPin size={9} />
-                      {rep.city}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-500 text-[9px] font-black">
-                      دفتر توزیع مستقیم
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 mb-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 text-emerald-600 flex items-center justify-center text-[11px] font-black shrink-0 border border-emerald-500/15">
-                      {initialChar}
-                    </div>
-                    <h4 className="text-[11px] font-black text-slate-850">
-                      {rep.name}
-                    </h4>
-                  </div>
-
-                  <p className="text-[9.5px] text-slate-500 font-bold leading-relaxed mb-3 flex items-start gap-1 min-h-[36px]">
-                    <MapPin size={10} className="text-slate-400 shrink-0 mt-0.5" />
-                    <span>{rep.address}</span>
-                  </p>
-
-                  {/* Direct Calling strip */}
-                  <div className="flex justify-between items-center p-2 rounded-lg border bg-slate-50/70 border-slate-100">
-                    {(() => {
-                      const isAuthorized = userBadge === 'admin' || (userCity && rep.city.includes(userCity)) || (userCity && userCity.includes(rep.city));
-                      return (
-                        <>
-                          <span className={`text-[10px] font-black font-mono transition-all ${isAuthorized ? 'text-emerald-600' : 'text-slate-400 blur-[3px] select-none'}`} dir="ltr">
-                            {isAuthorized ? rep.phone : (rep.phone ? rep.phone.replace(/\d/g, "*") : "***********")}
-                          </span>
-                          {isAuthorized ? (
-                            <a 
-                              href={`tel:${rep.tel}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gradient-to-l from-emerald-600 to-teal-500 text-white hover:from-emerald-500 hover:to-teal-400 text-[9px] font-black transition-all cursor-pointer shadow-sm shadow-emerald-600/10"
-                            >
-                              <Phone size={9} />
-                              تماس مستقیم
-                            </a>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                alert("🔒 دسترسی به شماره تماس نمایندگان تنها برای کاربرانی مجاز است که شهر ثبت‌نامی آنها با منطقه تحت پوشش نماینده یکسان باشد.");
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-[9px] font-black transition-all cursor-pointer shadow-sm shadow-purple-600/10"
-                            >
-                              <Phone size={9} />
-                              اطلاعات VIP
-                            </button>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="w-full text-center py-8 space-y-2 flex flex-col items-center justify-center">
-              <span className="text-xl">🔍</span>
-              <p className="text-[10px] text-slate-400 font-bold">نماینده‌ای با مشخصات مورد نظر یافت نشد.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Close the inner container of the Bottom Panel */}
-        </div>
-
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import { generateProductCode } from "../lib/id-utils";
 import FactoryManagementPortal from "./FactoryManagementPortal";
 import RepresentativeManagementPortal from "./RepresentativeManagementPortal";
 import { getRepCommissions } from "../lib/leads-store";
+import { ReferralRewardModal } from "./ReferralRewardModal";
 
 interface UserPanelProps {
   user: any;
@@ -58,11 +59,12 @@ export default function UserPanel({
   // Role-specific Active Tab
   const [factoryTab, setFactoryTab] = useState<'products' | 'add_product' | 'orders' | 'profile'>('products');
   const [marketerTab, setMarketerTab] = useState<'desk' | 'payout' | 'certificate' | 'referred_orders' | 'profile'>('desk');
-  const [customerTab, setCustomerTab] = useState<'orders' | 'quick_order' | 'credit' | 'profile'>('orders');
+  const [customerTab, setCustomerTab] = useState<'orders' | 'quick_order' | 'credit' | 'referrals' | 'profile'>('orders');
 
   // Selected Order for Invoice modal
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
 
   // Orders State
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -559,7 +561,22 @@ export default function UserPanel({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                if (userRole === 'customer' || userRole === 'user') {
+                  setCustomerTab('referrals');
+                } else {
+                  setShowReferralModal(true);
+                }
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shadow-amber-500/20 active:scale-95"
+            >
+              <Gift size={15} />
+              <span>دعوت از همکاران (پاداش خرید)</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('order')}
               className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer"
@@ -1039,6 +1056,18 @@ export default function UserPanel({
             </button>
 
             <button
+              onClick={() => setCustomerTab('referrals')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                customerTab === 'referrals'
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              <Gift size={16} className={customerTab === 'referrals' ? 'text-amber-300' : 'text-amber-500'} />
+              <span>دعوت از همکاران و پاداش خرید</span>
+            </button>
+
+            <button
               onClick={() => setCustomerTab('profile')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 customerTab === 'profile'
@@ -1360,6 +1389,277 @@ export default function UserPanel({
             </div>
           )}
 
+          {/* TAB CONTENT: REFERRAL REWARDS / INVITE COLLEAGUES */}
+          {customerTab === 'referrals' && (
+            <div className="space-y-6">
+              
+              {/* Top Hero Banner */}
+              <div className="bg-gradient-to-br from-emerald-800 via-teal-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-md border border-emerald-500/20">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/30">
+                      <Gift size={14} />
+                      <span>طرح سراسری پاداش نقدی و اعتباری دعوت از همکاران</span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white">
+                      همکاران خود را به قیمت درب کارخانه دعوت کنید، پاداش میلیونی بگیرید!
+                    </h3>
+                    <p className="text-xs sm:text-sm text-emerald-100/90 font-medium max-w-2xl leading-relaxed">
+                      به ازای معرفی هر سوپرمارکت، هایپرمارکت یا عمده‌فروشی، پس از اولین خرید موفق ایشان، <strong className="text-amber-300 font-black">۵۰۰,۰۰۰ تومان اعتبار خرید بی‌قیدوشرط</strong> دریافت کنید و همکار شما نیز تخفیف ویژه خرید اول بهره‌مند می‌شود.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowReferralModal(true)}
+                    className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95"
+                  >
+                    <Sparkles size={16} />
+                    <span>مشاهده پاپ‌آپ و شرایط پاداش</span>
+                  </button>
+                </div>
+
+                {/* KPI Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10 relative z-10">
+                  <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
+                    <span className="text-[11px] text-emerald-200 block font-bold">پاداش هر همکار</span>
+                    <span className="text-sm sm:text-base font-black text-amber-300 font-mono">۵۰۰,۰۰۰ تومان</span>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
+                    <span className="text-[11px] text-emerald-200 block font-bold">تعداد دعوت‌های موفق</span>
+                    <span className="text-sm sm:text-base font-black text-white font-mono">
+                      {toPersianNum(
+                        JSON.parse(localStorage.getItem(`dastaval_referral_list_${user?.phone || user?.id}`) || "[]").length
+                      )} همکار
+                    </span>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
+                    <span className="text-[11px] text-emerald-200 block font-bold">کل پاداش فعال</span>
+                    <span className="text-sm sm:text-base font-black text-emerald-300 font-mono">
+                      {toPersianNum(
+                        JSON.parse(localStorage.getItem(`dastaval_referral_list_${user?.phone || user?.id}`) || "[]").length * 500000
+                      )} تومان
+                    </span>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
+                    <span className="text-[11px] text-emerald-200 block font-bold">سقف پاداش ماهانه</span>
+                    <span className="text-sm sm:text-base font-black text-white">نامحدود</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dedicated Referral Link & Social Sharing */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Share2 size={16} className="text-emerald-600" />
+                    <span>لینک اختصاصی دعوت شما</span>
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium">
+                    این لینک را در گروه‌ها یا برای همکاران صنفی خود بفرستید تا با ثبت سفارش اول، پاداش به حساب شما منظور گردد.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <div className="w-full sm:flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-800 text-left flex items-center justify-between overflow-hidden" dir="ltr">
+                    <span className="truncate">{`https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const link = `https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedReferral(true);
+                      setTimeout(() => setCopiedReferral(false), 2500);
+                    }}
+                    className="w-full sm:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-xs active:scale-95"
+                  >
+                    {copiedReferral ? <Check size={16} className="text-emerald-200" /> : <Copy size={16} />}
+                    <span>{copiedReferral ? "لینک کپی شد!" : "کپی لینک اختصاصی"}</span>
+                  </button>
+                </div>
+
+                {/* Quick Share Buttons */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[11px] font-black text-slate-600 block">ارسال مستقیم در پیام‌رسان‌ها:</span>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(`سلام همکار گرامی، برای خرید مستقیم اقلام سوپرمارکتی به قیمت درب کارخانه و بدون واسطه از پلتفرم دست اول استفاده کن: https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>واتساپ</span>
+                    </a>
+
+                    <a
+                      href={`https://t.me/share/url?url=${encodeURIComponent(`https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`)}&text=${encodeURIComponent(`خرید عمده مواد غذایی و شوینده به قیمت کف کارخانه در دست اول`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>تلگرام</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (navigator.share) {
+                          navigator.share({
+                            title: 'دعوت به پلتفرم دست اول',
+                            text: 'خرید مستقیم اقلام سوپرمارکتی به قیمت درب کارخانه',
+                            url: `https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`
+                          }).catch(() => {});
+                        } else {
+                          alert(`لینک شما: https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`);
+                        }
+                      }}
+                      className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Share2 size={13} />
+                      <span>اشتراک‌گذاری در گوشی / روبیکا / ایتا</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct SMS Invitation Box */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
+                <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900">ارسال پیامک رایگان دعوت به همکار</h4>
+                    <p className="text-xs text-slate-500 font-medium">
+                      شماره موبایل همکار خود را وارد کنید تا پیامک دعوت با لینک اختصاصی شما به طور رایگان ارسال شود.
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const peerName = (form.elements.namedItem('peerName') as HTMLInputElement).value;
+                    const peerPhone = (form.elements.namedItem('peerPhone') as HTMLInputElement).value;
+                    if (!peerPhone) return;
+
+                    const storageKey = `dastaval_referral_list_${user?.phone || user?.id}`;
+                    const currentList = JSON.parse(localStorage.getItem(storageKey) || "[]");
+                    const newItem = {
+                      id: `ref-${Date.now()}`,
+                      name: peerName || "همکار گرامی",
+                      phone: peerPhone,
+                      date: new Date().toLocaleDateString('fa-IR'),
+                      status: 'invited',
+                      rewardStatus: 'pending'
+                    };
+                    currentList.unshift(newItem);
+                    localStorage.setItem(storageKey, JSON.stringify(currentList));
+                    alert(`✅ پیامک دعوت با موفقیت برای فروشگاه "${peerName || peerPhone}" ارسال شد. پس از ثبت اولین سفارش، پاداش ۵۰۰,۰۰۰ تومانی برای شما شارژ خواهد شد.`);
+                    form.reset();
+                    // Trigger re-render
+                    setCustomerTab('referrals');
+                  }}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end"
+                >
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-700 block">نام فروشگاه یا همکار:</label>
+                    <input
+                      name="peerName"
+                      type="text"
+                      placeholder="مثلا هایپرمارکت البرز / آقای رضایی"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900 outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-700 block">شماره موبایل همکار:</label>
+                    <input
+                      name="peerPhone"
+                      type="tel"
+                      required
+                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-mono font-bold text-slate-900 outline-none text-left"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95"
+                  >
+                    <Gift size={15} />
+                    <span>ارسال دعوت‌نامه پیامکی</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* List of Invited Peers */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
+                <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <span>لیست همکاران دعوت‌شده و وضعیت پاداش</span>
+                </h4>
+
+                {(() => {
+                  const storageKey = `dastaval_referral_list_${user?.phone || user?.id}`;
+                  const currentList = JSON.parse(localStorage.getItem(storageKey) || "[]");
+
+                  if (currentList.length === 0) {
+                    return (
+                      <div className="p-8 bg-slate-50 rounded-2xl border border-slate-150 text-center space-y-2">
+                        <Gift size={32} className="text-slate-400 mx-auto" />
+                        <p className="text-xs font-bold text-slate-600">هنوز همکاری را دعوت نکرده‌اید.</p>
+                        <p className="text-[11px] text-slate-400">با ارسال لینک بالا یا ثبت شماره همکار، اولین پاداش خود را دریافت کنید.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-right text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-500 font-bold">
+                            <th className="pb-3">نام همکار / فروشگاه</th>
+                            <th className="pb-3">شماره تماس</th>
+                            <th className="pb-3">تاریخ دعوت</th>
+                            <th className="pb-3">وضعیت سفارش</th>
+                            <th className="pb-3 text-left">مبلغ پاداش</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {currentList.map((item: any, idx: number) => (
+                            <tr key={`peer-${item.id || idx}`} className="hover:bg-slate-50/60">
+                              <td className="py-3 font-black text-slate-800">{item.name}</td>
+                              <td className="py-3 font-mono text-slate-600" dir="ltr">{item.phone}</td>
+                              <td className="py-3 text-slate-500">{item.date}</td>
+                              <td className="py-3">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                                  {item.rewardStatus === 'completed' ? "سفارش ثبت شد (پاداش منظور گردید)" : "دعوت‌نامه ارسال شد"}
+                                </span>
+                              </td>
+                              <td className="py-3 text-left font-black text-emerald-700 font-mono">
+                                ۵۰۰,۰۰۰ تومان
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          )}
+
           {/* TAB CONTENT: STORE PROFILE */}
           {customerTab === 'profile' && (
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
@@ -1495,6 +1795,13 @@ export default function UserPanel({
           onClose={() => setShowCertificateModal(false)}
         />
       )}
+
+      {/* Referral & Invite Reward Modal */}
+      <ReferralRewardModal
+        isOpen={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+        userPhone={user?.phone || user?.mobile || ""}
+      />
 
     </div>
   );

@@ -265,10 +265,19 @@ export default function WholesaleInvoiceView({
     if (isFactoryView) {
       return Math.max(0, totalGross - totalDiscounts + chequeMarkupAmount);
     }
+    const orderAny = order as any;
+    if (orderAny?.payableAmount && Number(orderAny.payableAmount) > 0) {
+      return Number(orderAny.payableAmount);
+    }
+    const computedNet = Math.max(0, totalGross - totalDiscounts + chequeMarkupAmount);
     if (order?.totalAmount && order.totalAmount > 0) {
+      // If order.totalAmount was raw gross amount, apply computedNet
+      if (Math.abs(Number(order.totalAmount) - totalGross) < 100 && totalDiscounts > 0) {
+        return computedNet;
+      }
       return Number(order.totalAmount);
     }
-    return Math.max(0, totalGross - totalDiscounts + chequeMarkupAmount);
+    return computedNet;
   }, [order, totalGross, totalDiscounts, chequeMarkupAmount, isFactoryView]);
 
   const grandTotalInWords = numToPersianWords(grandTotal);

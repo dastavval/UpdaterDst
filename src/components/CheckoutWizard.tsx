@@ -244,8 +244,8 @@ export default function CheckoutWizard({
   const effectiveCashDiscountPercent = (paymentMethod === 'cash' && tierDiscountPercent === 0) ? cashDiscountPercent : 0;
   const cashDiscountAmount = Math.round(totalAmount * (effectiveCashDiscountPercent / 100));
 
-  // 3.5 Sediment Clearance Discount (تخفیف رسوب‌زدایی انباشت کالا)
-  const defaultSedimentPercent = invSettings.sedimentDiscountPercent ?? 8;
+  // 3.5 Sediment Clearance Discount (تخفیف رسوب‌زدایی انباشت کالا - سقف ایمن کارخانه)
+  const defaultSedimentPercent = Math.min(6, invSettings.sedimentDiscountPercent ?? 4);
   const sedimentDiscountAmount = safeCart.reduce((sum, item) => {
     const itemProd = (products || []).find(p => p.id === item.productId || p.productCode === item.productId);
     const itemDiscountP = (item as any).discountPercent ?? (itemProd as any)?.sedimentDiscountPercent ?? ((item as any)?.isSedimentClearance ? defaultSedimentPercent : 0);

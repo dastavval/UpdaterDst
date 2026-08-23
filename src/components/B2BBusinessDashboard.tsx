@@ -6,11 +6,12 @@ import {
   CreditCard, Award, ArrowLeftRight, Printer, Receipt, ChevronLeft, 
   UserCheck, FileCheck, Truck, Search, Calendar, Clock, CheckCircle2, 
   Upload, X, Building2, AlertCircle, Eye, Check, User as UserIcon, MessageSquare, Bell, LogOut,
-  Briefcase
+  Briefcase, Gift, Sparkles
 } from "lucide-react";
 import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import DealershipRequestView from "./DealershipRequestView";
+import { ReferralRewardModal } from "./ReferralRewardModal";
 import { t, Language } from "../lib/translations";
 import { ProfileManagement, SupportTicketSystem, SystemNotifications } from "./PortalModules";
 import ReportsView from "./ReportsView";
@@ -77,6 +78,7 @@ export default function B2BBusinessDashboard({
 
   // Selected Order for Invoice modal
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
+  const [showReferralModal, setShowReferralModal] = useState(false);
 
   // Calculator States
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || "");
@@ -437,6 +439,14 @@ export default function B2BBusinessDashboard({
         >
           <Briefcase size={14} />
           <span>{user?.role === 'agent' ? "سوابق پرونده نمایندگی" : "درخواست اخذ نمایندگی"}</span>
+        </button>
+
+        <button
+          onClick={() => setShowReferralModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-xs cursor-pointer active:scale-95"
+        >
+          <Gift size={14} className="text-white" />
+          <span>🎁 دعوت از همکاران و پاداش</span>
         </button>
 
         <button
@@ -1296,6 +1306,13 @@ export default function B2BBusinessDashboard({
           </div>
         </div>
       )}
+
+      {/* Referral & Invite Reward Modal */}
+      <ReferralRewardModal
+        isOpen={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+        userPhone={user?.phone || user?.mobile || ""}
+      />
 
     </div>
   );

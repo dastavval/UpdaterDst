@@ -32,6 +32,7 @@ import {
   Check,
   Plus,
   Globe,
+  MapPin,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -595,21 +596,21 @@ export default function DynamicPresentation({
         </motion.div>
       </section>
 
-      {/* --- QUICK CATEGORY NAVIGATION - CREATIVE & FLUID --- */}
-      <section className="space-y-6 pt-4">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
-              <Grid size={20} />
+      {/* --- QUICK CATEGORY NAVIGATION - CRISP, VIBRANT & CLARIFIED --- */}
+      <section className="space-y-4 pt-2" dir="rtl">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-2xs">
+              <Grid size={18} />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900">دسته‌بندی‌های کالا</h2>
-              <p className="text-[10px] text-slate-400 font-bold">دسترسی هوشمند به گروه‌های کالایی</p>
+              <h2 className="text-sm sm:text-base font-black text-slate-900">دسته‌بندی‌های کالا</h2>
+              <p className="text-[10px] text-slate-400 font-bold">دسترسی سریع به گروه‌های کالایی و خطوط پخش</p>
             </div>
           </div>
           <button 
             onClick={() => setActiveTab?.('order')}
-            className="text-[11px] font-black text-emerald-700 hover:scale-105 transition-transform flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100"
+            className="text-[11px] font-black text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100/70 px-3 py-1.5 rounded-xl border border-emerald-200/80 cursor-pointer"
           >
             <span>کاتالوگ کامل</span>
             <ChevronLeft size={14} />
@@ -617,7 +618,7 @@ export default function DynamicPresentation({
         </div>
 
         <div className="relative group">
-          <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 scroll-smooth no-scrollbar scroll-snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 -mx-2 px-2 sm:-mx-4 sm:px-4 scroll-smooth no-scrollbar snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
             {categoriesList.map((cat, catIdx) => {
               const itemCount = cat.id === "همه" 
                 ? products.length 
@@ -627,40 +628,53 @@ export default function DynamicPresentation({
               return (
                 <motion.button
                   key={`cat-scroll-${cat.id}-${catIdx}`}
-                  whileHover={{ y: -6, scale: 1.02 }}
+                  whileHover={{ y: -4, scale: 1.02 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={() => {
                     const targetCat = cat.id === "همه" ? "همه" : cat.id;
                     setSelectedCategory(targetCat);
                     if (setActiveCategory) setActiveCategory(targetCat);
                   }}
-                  className={`flex flex-col items-center gap-3 p-3 rounded-2xl min-w-[130px] h-[140px] transition-all cursor-pointer border snap-start relative overflow-hidden group/cat shadow-sm ${
+                  className={`flex flex-col items-center justify-between p-3.5 rounded-2xl min-w-[124px] sm:min-w-[136px] h-[134px] transition-all duration-300 cursor-pointer border snap-start relative overflow-hidden group/cat shadow-xs ${
                     isSelected
-                      ? "border-emerald-500 ring-2 ring-emerald-500/20"
-                      : "bg-white border-slate-100 hover:border-emerald-300"
+                      ? "bg-gradient-to-b from-emerald-600 to-teal-700 text-white border-emerald-500 ring-2 ring-emerald-500/25 shadow-md shadow-emerald-700/20"
+                      : "bg-white text-slate-800 border-slate-200/80 hover:border-emerald-300 hover:shadow-sm"
                   }`}
                 >
-                  {/* Background Image with Overlay */}
-                  <div className="absolute inset-0 z-0">
+                  {/* Subtle Background Graphic without Heavy Blurring */}
+                  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                     <img 
                       src={cat.image || getCategoryImage(cat.id)} 
-                      alt={cat.label}
-                      className="w-full h-full object-cover opacity-15 group-hover/cat:scale-110 transition-transform duration-700"
+                      alt=""
+                      className={`w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-110 ${
+                        isSelected ? "opacity-15" : "opacity-25"
+                      }`}
                     />
-                    <div className={`absolute inset-0 ${isSelected ? 'bg-emerald-700/80' : 'bg-slate-50/60 group-hover/cat:bg-white/40'}`} />
+                    <div className={`absolute inset-0 ${
+                      isSelected 
+                        ? 'bg-gradient-to-b from-emerald-600/85 to-teal-800/95' 
+                        : 'bg-gradient-to-b from-white/90 via-white/80 to-slate-50/90 group-hover/cat:from-white/70'
+                    }`} />
                   </div>
 
-                  <div className={`relative z-10 w-14 h-14 rounded-xl flex items-center justify-center text-2xl transition-all shadow-sm ${
-                    isSelected ? "bg-white/20 text-white" : "bg-white text-slate-700 border border-slate-100"
+                  {/* Icon Badge */}
+                  <div className={`relative z-10 w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${
+                    isSelected 
+                      ? "bg-white/20 text-white border border-white/25 shadow-inner" 
+                      : "bg-white text-slate-700 border border-slate-100 shadow-2xs group-hover/cat:border-emerald-200 group-hover/cat:scale-105"
                   }`}>
                     {cat.icon || "📦"}
                   </div>
-                  <div className="relative z-10 text-center space-y-1 mt-auto">
-                    <h3 className={`text-[11px] font-black whitespace-nowrap ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+
+                  {/* Labels */}
+                  <div className="relative z-10 text-center space-y-1 w-full mt-auto">
+                    <h3 className={`text-[11px] font-black truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                       {cat.label}
                     </h3>
-                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-block backdrop-blur-sm ${
-                      isSelected ? "bg-white/20 text-white" : "bg-slate-200/80 text-slate-600"
+                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-block ${
+                      isSelected 
+                        ? "bg-white/25 text-white border border-white/20" 
+                        : "bg-slate-100 text-slate-600 border border-slate-200/60"
                     }`}>
                       {toPersianNum(itemCount)} کالا
                     </div>
@@ -897,195 +911,218 @@ export default function DynamicPresentation({
         </motion.button>
       </section>
 
-      {/* --- TOP ACTIVE FACTORIES HORIZONTAL LIST --- */}
+      {/* --- TOP ACTIVE FACTORIES & PRODUCTION LINES (CREATIVE & FULLY RESPONSIVE) --- */}
       {(() => {
         const configFactories = b2bConfig?.factories && b2bConfig.factories.length > 0
           ? b2bConfig.factories.map((f: any, idx: number) => ({
               id: f.id || `fac-custom-${idx}`,
               name: f.name || "کارخانه همکار",
-              rating: f.rating || 4.8,
-              reviewsCount: f.reviewsCount || 48,
+              rating: f.rating || 4.9,
+              reviewsCount: f.reviewsCount || 54,
               location: f.location || f.address || f.hqAddress || "ایران، خط تولید",
               logo: f.logo || "🏭",
               logoUrl: f.logoUrl || f.image_url,
-              category: f.category || "صنایع تولیدی",
-              tag: f.establishedYear ? `تاسیس ${f.establishedYear}` : "کارخانه تایید شده",
+              category: f.category || "صنایع تولیدی و پخش عمده",
+              tag: f.establishedYear ? `تاسیس ${f.establishedYear}` : "تامین‌کننده تایید شده",
               description: f.description || f.desc || "",
               contactPhone: f.contactPhone || f.phone || "",
-              capacity: f.capacity || "",
+              capacity: f.capacity || "ظرفیت تامین نامحدود",
               mainProducts: f.mainProducts || [],
             }))
           : [];
 
-        const sortedDisplayFactories = configFactories.sort((a, b) => b.rating - a.rating).slice(0, 3);
+        const displayFactories = configFactories.length > 0
+          ? configFactories.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+          : [];
 
         return (
-          <section className="space-y-6 relative overflow-hidden text-right py-4 border-b border-slate-100/60" dir="rtl">
-            {/* Elegant Atmospheric Glow */}
-            <div className="absolute top-0 left-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute bottom-0 right-0 w-36 h-36 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div className="flex items-center justify-between border-b border-slate-50 pb-4 relative z-10">
+          <section id="homepage-factories-section" className="space-y-5 relative text-right py-3" dir="rtl">
+            {/* Header with Title and Navigation */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-600 flex items-center justify-center shadow-2xs">
-                  <Building2 size={20} className="text-emerald-600 animate-pulse" />
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-2xs shrink-0">
+                  <Building2 size={20} className="text-emerald-700" />
                 </div>
-                <div className="space-y-0.5">
-                  <span className="text-xs sm:text-sm font-black text-slate-800 tracking-tight">
-                    کارخانجات تولیدی برتر دست اول (نمایش افقی)
-                  </span>
-                  <p className="text-[10px] text-slate-400 font-bold">دسترسی مستقیم و استعلام بدون واسطه از تامین‌کنندگان خط تولید</p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      کارخانجات و خطوط تولید مستقیم
+                    </h2>
+                    <span className="text-[9.5px] font-black bg-emerald-100/70 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-200">
+                      قیمت درب کارخانه
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                    تامین مستقیم و استعلام بدون واسطه از تولیدکنندگان معتبر سراسر کشور
+                  </p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-xl font-black hidden sm:inline-block border border-emerald-200/60">
-                  👈 برای مشاهده سایر کارخانجات به چپ بکشید
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className="flex items-center gap-1.5 ml-2">
+                   <button
                     onClick={() => {
                       const el = document.getElementById("homepage-factories-scroll");
-                      if (el) el.scrollBy({ left: 300, behavior: 'smooth' });
+                      if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
                     }}
-                    className="p-2 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl text-slate-600 transition-colors cursor-pointer"
-                    title="قبلی"
+                    className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-emerald-700 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs"
                   >
-                    <ChevronRight size={16} />
+                    <ChevronRight size={18} />
                   </button>
                   <button
                     onClick={() => {
                       const el = document.getElementById("homepage-factories-scroll");
-                      if (el) el.scrollBy({ left: -300, behavior: 'smooth' });
+                      if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
                     }}
-                    className="p-2 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl text-slate-600 transition-colors cursor-pointer"
-                    title="بعدی"
+                    className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-emerald-700 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs"
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={18} />
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    if (setActiveTab) {
+                      setActiveTab('factories');
+                    } else {
+                      window.dispatchEvent(new CustomEvent("view-factories-tab"));
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <span>تالار کارخانجات ({toPersianNum(configFactories.length || 12)})</span>
+                  <ArrowLeft size={13} />
+                </button>
               </div>
             </div>
 
-            {sortedDisplayFactories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center bg-white rounded-[2rem] border border-dashed border-slate-200 p-4 relative z-10">
-                <Building2 size={32} className="text-slate-300 stroke-[1.5]" />
-                <h4 className="text-xs font-black text-slate-600 mt-2.5">هیچ کارخانه تولیدی ثبت نشده است</h4>
+            {displayFactories.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center bg-white rounded-3xl border border-dashed border-slate-200 p-6 relative">
+                <Building2 size={36} className="text-slate-300 stroke-[1.5]" />
+                <h4 className="text-xs font-black text-slate-700 mt-2.5">کارخانه‌ای ثبت نشده است</h4>
                 <p className="text-[10px] text-slate-400 mt-1 max-w-sm leading-relaxed font-bold">
-                  هم‌اکنون می‌توانید از پنل مدیریت (زیربرگه کارخانجات) اولین خط تولید خود را تعریف کنید تا بلافاصله در این بخش نمایش داده شود.
+                  از پنل مدیریت، کارخانجات و برندهای تحت پوشش را تعریف نمایید.
                 </p>
               </div>
             ) : (
               <div 
                 id="homepage-factories-scroll"
-                className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory relative z-10 no-scrollbar" 
-                style={{ direction: 'rtl', scrollBehavior: 'smooth' }}
+                className="flex gap-4 sm:gap-5 overflow-x-auto pb-6 pt-1 snap-x snap-mandatory no-scrollbar scroll-smooth"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {sortedDisplayFactories.map((factory, idx) => {
-                  const badges = ["تامین دست اول", "کیفیت صادراتی", "تضمین قیمت پایه", "ظرفیت بالا", "زنجیره تامین فعال"];
+                {displayFactories.map((factory, idx) => {
+                  const badges = ["تامین دست اول", "کیفیت صادراتی", "تضمین قیمت پایه", "ظرفیت بالا", "زنجیره تامین فعال", "تسویه اعتباری"];
                   const badge = badges[idx % badges.length];
-                  
-                  // Generate realistic live metrics to make the site feel "live" and real
-                  const dealershipCount = (idx % 3 + 2) * 4 + 3;
-                  const dispatchTime = idx % 2 === 0 ? "امروز صبح" : "دیروز عصر";
-                  const liveIndicatorColor = idx % 3 === 0 ? "bg-emerald-500" : "bg-teal-500";
-                  const minOrder = "مستقیم از خط تولید (قیمت درب کارخانه)";
+                  const dealershipCount = (idx % 4 + 3) * 3 + 2;
 
                   return (
-                    <div
-                      key={`${factory.id}-${idx}`}
-                      onClick={() => {
-                        setSelectedHomeFactory(factory);
-                      }}
-                      className="group w-72 sm:w-80 shrink-0 snap-start p-5 rounded-[2.2rem] bg-white border border-slate-200/90 hover:border-emerald-500 hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between text-right relative overflow-hidden shadow-sm hover:-translate-y-1.5"
+                    <motion.div
+                      key={`home-fac-card-${factory.id}-${idx}`}
+                      whileHover={{ y: -4 }}
+                      transition={{ duration: 0.2 }}
+                      className="group bg-white rounded-3xl border border-slate-200/90 hover:border-emerald-500/80 hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-xs relative min-w-[280px] sm:min-w-[320px] max-w-[340px] shrink-0 snap-start"
                     >
-                      {/* Premium Top Status Tag */}
-                      <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full animate-ping shrink-0 bg-emerald-500" />
-                        <span className="text-[9px] font-black bg-emerald-600 text-white px-2.5 py-1 rounded-full shadow-xs">
-                          {badge}
-                        </span>
-                      </div>
-
-                      {/* Rating and category */}
-                      <div className="w-full flex justify-between items-center text-[10px] font-bold text-slate-400 mt-2 mb-3 z-10">
-                        <span className="bg-emerald-50 text-emerald-800 border border-emerald-200/60 font-black px-2.5 py-1 rounded-xl truncate max-w-[120px]">
+                      {/* Card Header Strip */}
+                      <div className="p-4 pb-0 flex items-center justify-between">
+                        <span className="text-[9.5px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg">
                           {factory.category}
                         </span>
-                        <div className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/80 shadow-2xs">
-                          <Star size={12} className="fill-amber-400 text-amber-400" />
-                          <span className="font-black text-slate-800">{factory.rating}</span>
+                        <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/60 text-amber-700 text-[10px] font-black">
+                          <Star size={11} className="fill-amber-400 text-amber-400" />
+                          <span>{factory.rating}</span>
                         </div>
                       </div>
 
-                      {/* Center: Grand Eye-Catching Factory Stage */}
-                      <div className="w-full h-36 rounded-2xl bg-gradient-to-br from-slate-50 via-emerald-50/20 to-teal-50/10 relative overflow-hidden my-2 shadow-xs border border-slate-100 group-hover:border-emerald-300 group-hover:shadow-md transition-all duration-300 flex items-center justify-center p-2">
-                        {factory.logoUrl && (
-                          <img
-                            src={factory.logoUrl}
-                            alt=""
-                            className="absolute inset-0 w-full h-full object-cover scale-125 blur-md opacity-10 group-hover:opacity-20 transition-all duration-500"
-                          />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/5 via-transparent to-white/30 pointer-events-none z-0" />
-
-                        {factory.logoUrl ? (
-                          <img
-                            src={factory.logoUrl}
-                            alt={factory.name}
-                            className="max-w-full max-h-full object-contain relative z-10 p-1 group-hover:scale-105 transition-transform duration-500 drop-shadow-sm"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        ) : (
-                          <span className="text-4xl relative z-10">{factory.logo || "🏭"}</span>
-                        )}
-                      </div>
-
-                      {/* Bottom: Factory Name and short location */}
-                      <div className="w-full space-y-2 mt-2 min-w-0">
-                        <h4 className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate w-full flex items-center gap-1.5">
-                          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                          <span className="truncate">{factory.name}</span>
-                        </h4>
-                        
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500 font-bold">
-                          <span>📍</span>
-                          <span className="truncate">
-                            {factory.location || "آذربایجان شرقی، شبستر"}
-                          </span>
-                        </div>
-
-                        {/* Real-life metrics to prove platform authenticity */}
-                        <div className="bg-white/80 rounded-xl p-2.5 space-y-1.5 text-[10px] text-slate-600 border border-slate-100">
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-slate-400">عاملیت‌های فعال:</span>
-                            <span className="font-black text-slate-700">{dealershipCount} نماینده فعال</span>
+                      {/* Logo Stage and Brand Header */}
+                      <div className="p-4 pt-3 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200/80 p-1.5 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform overflow-hidden">
+                            {factory.logoUrl ? (
+                              <img
+                                src={factory.logoUrl}
+                                alt={factory.name}
+                                className="w-full h-full object-contain"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <span className="text-2xl">{factory.logo || "🏭"}</span>
+                            )}
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-slate-400">آخرین ارسال بار:</span>
-                            <span className="font-black text-emerald-700 flex items-center gap-1">
-                              <span className={`w-1.5 h-1.5 rounded-full ${liveIndicatorColor}`} />
-                              {dispatchTime}
+                          
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
+                              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                              <span className="truncate">{factory.name}</span>
+                            </h3>
+                            <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold truncate">
+                              <MapPin size={11} className="text-slate-400 shrink-0" />
+                              <span className="truncate">{factory.location}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Metrics Pills */}
+                        <div className="grid grid-cols-2 gap-2 text-[10px] font-bold bg-slate-50/80 p-2.5 rounded-2xl border border-slate-100">
+                          <div className="space-y-0.5">
+                            <span className="text-slate-400 text-[9px] block">نمایندگان فعال</span>
+                            <span className="font-black text-slate-800">{toPersianNum(dealershipCount)} عاملیت رسمی</span>
+                          </div>
+                          <div className="space-y-0.5 text-left" dir="ltr">
+                            <span className="text-slate-400 text-[9px] block text-right">وضعیت خط</span>
+                            <span className="font-black text-emerald-700 flex items-center justify-end gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>ارسال روزانه بار</span>
                             </span>
                           </div>
-                          <div className="text-[9px] font-black text-indigo-700 text-center pt-1 border-t border-dashed border-slate-200">
-                            {minOrder}
-                          </div>
                         </div>
+
+                        {/* Main Products / Tags */}
+                        {factory.mainProducts && factory.mainProducts.length > 0 ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {factory.mainProducts.slice(0, 3).map((p: string, pIdx: number) => (
+                              <span key={`p-chip-${factory.id}-${pIdx}`} className="text-[9px] font-bold bg-white text-slate-600 border border-slate-200/80 px-2 py-0.5 rounded-md truncate max-w-[100px]">
+                                {p}
+                              </span>
+                            ))}
+                            {factory.mainProducts.length > 3 && (
+                              <span className="text-[8.5px] font-black text-slate-400">
+                                +{toPersianNum(factory.mainProducts.length - 3)} کالا
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-[9.5px] text-emerald-700 font-bold">
+                            <ShieldCheck size={12} />
+                            <span>تاییدیه رسمی زنجیره توزیع دست اول</span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Quick Interactive Button Overlay at bottom */}
-                      <div className="w-full mt-3 pt-3 border-t border-slate-100 flex justify-center">
-                        <span className="w-full text-[11px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 group-hover:bg-gradient-to-r group-hover:from-emerald-600 group-hover:to-teal-600 group-hover:text-white group-hover:border-transparent py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs">
-                          ورود به غرفه اختصاصی کارخانه
-                          <ArrowLeft size={13} />
-                        </span>
+                      {/* Card Action Buttons */}
+                      <div className="p-3 pt-0 border-t border-slate-100 mt-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedHomeFactory(factory)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 hover:border-transparent text-[10.5px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <span>مشاهده شناسنامه</span>
+                          <ChevronLeft size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent("view-factory", { detail: { factoryId: factory.id } }));
+                          }}
+                          className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white text-[10.5px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                          title="ورود به غرفه"
+                        >
+                          <span>غرفه</span>
+                          <ArrowLeft size={12} />
+                        </button>
                       </div>
-
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

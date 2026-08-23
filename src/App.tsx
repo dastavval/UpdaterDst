@@ -573,6 +573,16 @@ export default function App() {
     return () => window.removeEventListener("switch-to-agent-catalog", handleSwitchToCatalog);
   }, []);
 
+  // Global Open Dealership Request Event Listener
+  useEffect(() => {
+    const handleOpenDealership = () => {
+      setActiveTab('dealership_request');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener("open-dealership-request", handleOpenDealership);
+    return () => window.removeEventListener("open-dealership-request", handleOpenDealership);
+  }, []);
+
   // Read URL query parameter for direct factory or article links
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1961,7 +1971,15 @@ export default function App() {
                 />
                 <AboutUsSection articles={articles} theme={theme} />
                 <TrustSection theme={theme} />
-                <PublicRepresentatives />
+                <PublicRepresentatives 
+                  theme={theme}
+                  userBadge={userBadge}
+                  userCity={user?.city}
+                  onOpenDealershipModal={() => {
+                    setActiveTab('dealership_request');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
               </motion.div>
             )}
 
@@ -3169,7 +3187,7 @@ export default function App() {
                             onClick={() => setShowAuthModal(true)}
                             className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg border border-amber-200/40 font-bold hover transition-colors cursor-pointer"
                           >
-                            ثبت‌نام سریع / ورود
+                            حساب کاربری
                           </button>
                         )}
                       </div>

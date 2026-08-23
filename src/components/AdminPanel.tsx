@@ -1159,6 +1159,8 @@ export default function AdminPanel({
   const [repBadge, setRepBadge] = useState("نماینده فعال");
   const [repIsApproved, setRepIsApproved] = useState(true);
   const [repAgencyCode, setRepAgencyCode] = useState("");
+  const [repBrands, setRepBrands] = useState<string[]>([]);
+  const [newRepBrandInput, setNewRepBrandInput] = useState("");
   const [selectedRepForCertificate, setSelectedRepForCertificate] = useState<any | null>(null);
 
   // Categories Management (Enhanced)
@@ -3142,13 +3144,29 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         updatedFactories.push(newFactory);
       }
       
+      // Auto-register brand when adding/editing factory
+      let currentBrands = [...(b2bConfig?.brands || brands || [])];
+      const brandNameClean = (factoryName || "").trim();
+      if (brandNameClean && !currentBrands.some((b: any) => (b.name || "").trim().toLowerCase() === brandNameClean.toLowerCase())) {
+        const newBrandObj: BrandItem = {
+          id: `brand_fac_${Date.now()}`,
+          name: brandNameClean,
+          type: factoryCategory || "تولیدکننده رسمی",
+          icon: "🏭",
+          logoUrl: factoryLogo || ""
+        };
+        currentBrands.push(newBrandObj);
+        setBrands(currentBrands);
+      }
+
       const updatedConfig = {
         ...b2bConfig,
-        factories: updatedFactories
+        factories: updatedFactories,
+        brands: currentBrands
       };
       await onUpdateB2bConfig(updatedConfig);
       setFactories(updatedFactories);
-      setSuccessMsg("اطلاعات کارخانه با موفقیت ذخیره شد!");
+      setSuccessMsg("اطلاعات کارخانه و برند رسمی با موفقیت ذخیره شد!");
       setShowFactoryForm(false);
       setIsEditingFactory(null);
     } catch (err: any) {
@@ -3358,6 +3376,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setRepBadge(rep.badge || "نماینده فعال");
       setRepIsApproved(rep.isApproved !== false);
       setRepAgencyCode(rep.agencyCode || "");
+      setRepBrands(Array.isArray(rep.brands) ? rep.brands : (typeof rep.brands === 'string' ? rep.brands.split(',').map((s: string) => s.trim()).filter(Boolean) : []));
     } else {
       setEditingRep(null);
       setRepCity("");
@@ -3368,7 +3387,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setRepBadge("نماینده فعال");
       setRepIsApproved(true);
       setRepAgencyCode("");
+      setRepBrands([]);
     }
+    setNewRepBrandInput("");
     setShowRepModal(true);
   };
 
@@ -3389,7 +3410,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         address: repAddress,
         badge: repBadge,
         isApproved: repIsApproved,
-        agencyCode: repAgencyCode || r.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`
+        agencyCode: repAgencyCode || r.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`,
+        brands: repBrands
       } : r);
       setSuccessMsg("مشخصات نماینده با موفقیت بروزرسانی شد.");
     } else {
@@ -3402,7 +3424,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         address: repAddress,
         badge: repBadge,
         isApproved: repIsApproved,
-        agencyCode: repAgencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`
+        agencyCode: repAgencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`,
+        brands: repBrands
       };
       updated = [newRep, ...representativesList];
       setSuccessMsg("نماینده جدید با موفقیت اضافه شد.");
@@ -6995,6 +7018,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         آدرس: {rep.address}
                       </p>
                     )}
+                    {/* Represented Brands in Admin Card */}
+                    {rep.brands && Array.isArray(rep.brands) && rep.brands.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-1">
+                        <span className="text-[10px] text-slate-400 font-bold block w-full">برندهای تحت عاملیت:</span>
+                        {rep.brands.map((b: string, bIdx: number) => (
+                          <span key={`rep-admin-brand-${b}-${bIdx}`} className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+                            {b}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -7148,6 +7182,97 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold font-mono focus:border-teal-500 outline-none"
                         />
                         <span className="text-[9px] text-slate-400 font-bold block mt-1">در صورت خالی بودن، به صورت خودکار صادر می‌شود.</span>
+                      </div>
+                    </div>
+
+                    {/* Brand Allocation for Representative */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-700 mb-1.5 flex items-center justify-between">
+                        <span>برندهای تحت عاملیت این نماینده:</span>
+                        <span className="text-[10px] text-emerald-600 font-bold">{repBrands.length} برند انتخاب شده</span>
+                      </label>
+                      
+                      {/* Active Assigned Brand Badges */}
+                      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[32px] p-2 bg-slate-50 rounded-xl border border-slate-200">
+                        {repBrands.length === 0 ? (
+                          <span className="text-[10px] text-slate-400 font-bold">هیچ برندی انتخاب نشده (عاملیت جامع تمامی کارخانجات)</span>
+                        ) : (
+                          repBrands.map((b, idx) => (
+                            <span key={`sel-rep-brand-${b}-${idx}`} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 text-[10px] font-black flex items-center gap-1.5">
+                              <span>{b}</span>
+                              <button
+                                type="button"
+                                onClick={() => setRepBrands(repBrands.filter(item => item !== b))}
+                                className="text-emerald-700 hover:text-rose-600 font-bold text-xs"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Quick Add from Available Brands */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newRepBrandInput}
+                            onChange={(e) => setNewRepBrandInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newRepBrandInput.trim()) {
+                                e.preventDefault();
+                                if (!repBrands.includes(newRepBrandInput.trim())) {
+                                  setRepBrands([...repBrands, newRepBrandInput.trim()]);
+                                }
+                                setNewRepBrandInput("");
+                              }
+                            }}
+                            placeholder="افزودن نام برند جدید و زدن اینتر..."
+                            className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newRepBrandInput.trim() && !repBrands.includes(newRepBrandInput.trim())) {
+                                setRepBrands([...repBrands, newRepBrandInput.trim()]);
+                                setNewRepBrandInput("");
+                              }
+                            }}
+                            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          >
+                            افزودن
+                          </button>
+                        </div>
+
+                        {/* Quick Available Brands Chips */}
+                        {brands && brands.length > 0 && (
+                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-slate-50/60 rounded-lg border border-slate-100">
+                            {brands.map((brandObj) => {
+                              const isSelected = repBrands.includes(brandObj.name);
+                              return (
+                                <button
+                                  type="button"
+                                  key={`quick-brand-pick-${brandObj.id || brandObj.name}`}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setRepBrands(repBrands.filter(b => b !== brandObj.name));
+                                    } else {
+                                      setRepBrands([...repBrands, brandObj.name]);
+                                    }
+                                  }}
+                                  className={`px-2 py-0.5 rounded-md text-[9.5px] font-black transition-all cursor-pointer border ${
+                                    isSelected 
+                                      ? "bg-emerald-600 text-white border-emerald-600" 
+                                      : "bg-white text-slate-600 hover:bg-slate-100 border-slate-200"
+                                  }`}
+                                >
+                                  {isSelected ? "✓ " : "+ "}{brandObj.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

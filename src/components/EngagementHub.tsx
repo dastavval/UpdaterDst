@@ -270,17 +270,17 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
     // Stagnancy Index calculation (1 to 10 scale)
     const stagnancyIndex = Math.min(10, Math.max(1, Math.round(ratio / 4 + (12 - monthsRemaining) / 2)));
     
-    // Automatic clearance discount (Higher profit margin for colleagues on stagnant stock)
+    // Automatic clearance discount (Controlled reasonable margin on stagnant stock)
     let discountPercent = 0;
     if (stagnancyIndex >= 8) {
-      discountPercent = 14.5 + (charCodeSum % 15) / 10; // 14.5% to 15.9% high profit margin
+      discountPercent = 4.5 + (charCodeSum % 15) / 10; // 4.5% to 5.9% safe discount
     } else if (stagnancyIndex >= 5) {
-      discountPercent = 10.0 + (charCodeSum % 20) / 10; // 10.0% to 11.9%
+      discountPercent = 3.0 + (charCodeSum % 20) / 10; // 3.0% to 4.9%
     } else {
-      discountPercent = 7.5 + (charCodeSum % 10) / 10; // 7.5% to 8.4%
+      discountPercent = 1.5 + (charCodeSum % 10) / 10; // 1.5% to 2.4%
     }
     
-    discountPercent = Math.min(18.0, parseFloat(discountPercent.toFixed(1)));
+    discountPercent = Math.min(6.0, parseFloat(discountPercent.toFixed(1)));
     
     // Actual pricing
     const originalBulkPrice = p.bulk_price || p.price;
