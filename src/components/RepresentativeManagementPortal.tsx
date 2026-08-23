@@ -212,7 +212,7 @@ export default function RepresentativeManagementPortal({
   onOpenInvoiceModal
 }: RepresentativeManagementPortalProps) {
   // Main Sub-Tab State
-  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing'>('workplace');
+  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing' | 'rules'>('workplace');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [workplaceViewMode, setWorkplaceViewMode] = useState<'cards' | 'table'>('cards');
 
@@ -294,6 +294,24 @@ export default function RepresentativeManagementPortal({
   }, [user]);
 
   // Filter representative's orders
+    // Check for 3-month inactivity suspension
+  const isSuspended = useMemo(() => {
+    if (!myOrders || myOrders.length === 0) {
+      // If no orders and user is registered for more than 90 days
+      const joinedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+      const daysSinceJoin = (Date.now() - joinedAt.getTime()) / (1000 * 3600 * 24);
+      return daysSinceJoin > 90;
+    }
+    // Find the latest order date
+    const latestOrderTime = Math.max(...myOrders.map((o: any) => {
+      if (o.date) return new Date(o.date).getTime();
+      if (o.createdAt?.seconds) return o.createdAt.seconds * 1000;
+      return 0;
+    }));
+    const daysSinceLastOrder = (Date.now() - latestOrderTime) / (1000 * 3600 * 24);
+    return daysSinceLastOrder > 90;
+  }, [myOrders, user]);
+
   const myOrders = useMemo(() => {
     return orders.filter(o => 
       o.userId === user?.id || 
@@ -982,6 +1000,32 @@ export default function RepresentativeManagementPortal({
       </div>
 
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* 2.5 SUSPENSION BANNER                                                     */}
+      {/* ========================================================================= */}
+      {isSuspended && (
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 mb-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-start gap-4 text-rose-800">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-rose-200">
+              <ShieldAlert size={24} />
+            </div>
+            <div>
+              <h4 className="font-black text-sm sm:text-base">تعلیق موقت عاملیت به دلیل عدم فعالیت مستمر</h4>
+              <p className="text-xs font-bold text-rose-700/80 mt-1 leading-relaxed max-w-2xl">
+                همکار گرامی، طبق قوانین و مقررات پلتفرم، پنل عاملیت شما به دلیل عدم ثبت سفارش یا خرید در <strong className="font-black">۳ ماه گذشته</strong> موقتاً غیرفعال شده است. لطفاً جهت فعال‌سازی مجدد و تمدید انحصار منطقه‌ای، نسبت به ثبت اولین سفارش جدید اقدام نمایید.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setActiveTab('workplace')}
+            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer whitespace-nowrap shrink-0 transition-colors"
+          >
+            ثبت سفارش مجدد
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 3. REFINED WHITE SUB-TAB NAVIGATION (تب‌های اصلی کاربری و فروش)            */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-xs flex items-center gap-1.5 overflow-x-auto">
@@ -1101,6 +1145,19 @@ export default function RepresentativeManagementPortal({
         >
           <ShieldCheck size={16} className="text-emerald-500" />
           <span>🛡️ ضمانت‌نامه و وثایق ملکی/صیادی</span>
+        </button>
+
+        {/* Tab Rules: Agency Rules */}
+        <button
+          onClick={() => setActiveTab('rules' as any)}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'rules'
+              ? "bg-rose-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Info size={16} className={activeTab === 'rules' ? 'text-white' : 'text-rose-500'} />
+          <span>⚖️ قوانین و مقررات عاملیت</span>
         </button>
 
         {/* Tab 8: Profile & Settings */}
@@ -2505,6 +2562,65 @@ export default function RepresentativeManagementPortal({
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-TAB CONTENT: ⚖️ AGENCY RULES & TERMS                                 */}
+      {/* ========================================================================= */}
+      {activeTab === 'rules' && (
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+          <div className="border-b border-slate-100 pb-5">
+            <span className="text-[10px] font-black text-rose-600 tracking-wider uppercase">TERMS AND CONDITIONS</span>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 pt-1">
+              قوانین، مقررات و الزامات انحصار عاملیت پخش
+            </h3>
+            <p className="text-xs font-bold text-slate-500 mt-2 leading-relaxed max-w-3xl">
+              تداوم همکاری و حفظ انحصار منطقه‌ای منوط به رعایت دقیق الزامات زیر می‌باشد. در صورت تخطی، پلتفرم دست‌اول حق لغو یک‌طرفه عاملیت را محفوظ می‌دارد.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center shrink-0 text-slate-700 text-lg font-black">۱</div>
+              <div>
+                <h4 className="font-black text-slate-900 text-sm">حفظ سطح خرید و فعالیت مستمر (قانون ۳ ماه)</h4>
+                <p className="text-xs font-bold text-slate-600 mt-2 leading-relaxed">
+                  نماینده موظف است به منظور حفظ انحصار منطقه‌ای خود، به صورت مستمر ثبت سفارش داشته باشد. <strong className="text-rose-600">عدم ثبت سفارش به مدت ۳ ماه متوالی</strong> منجر به تعلیق خودکار پنل عاملیت و ابطال حق انحصار در شهر/استان مربوطه خواهد شد.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center shrink-0 text-slate-700 text-lg font-black">۲</div>
+              <div>
+                <h4 className="font-black text-slate-900 text-sm">حفظ قیمت‌گذاری مصوب (کف بازار)</h4>
+                <p className="text-xs font-bold text-slate-600 mt-2 leading-relaxed">
+                  نماینده متعهد می‌گردد که محصولات تامین شده از طریق پلتفرم را صرفاً با رعایت حاشیه سود مصوب و قیمت‌های اعلامی کارخانه در منطقه تحت پوشش توزیع نماید. هرگونه گران‌فروشی یا احتکار کالا موجب لغو فوری عاملیت می‌گردد.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center shrink-0 text-slate-700 text-lg font-black">۳</div>
+              <div>
+                <h4 className="font-black text-slate-900 text-sm">حفظ حریم برند و عدم فروش خارج از شبکه</h4>
+                <p className="text-xs font-bold text-slate-600 mt-2 leading-relaxed">
+                  محصولات خریداری شده با شرایط ویژه عاملیت، صرفاً جهت توزیع در منطقه جغرافیایی ثبت شده (استان/شهر نماینده) می‌باشد. فروش به صورت بنکداری عمده به سایر استان‌ها که دارای نماینده انحصاری هستند، تخلف محسوب می‌شود.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-center shrink-0 text-slate-700 text-lg font-black">۴</div>
+              <div>
+                <h4 className="font-black text-slate-900 text-sm">تضمین‌های مالی و وثایق</h4>
+                <p className="text-xs font-bold text-slate-600 mt-2 leading-relaxed">
+                  جهت استفاده از شرایط خرید اعتباری و دریافت ضمانت‌نامه، ارائه چک صیادی بنفش یا وثایق معتبر بانکی و ملکی الزامی است. نماینده موظف است در موعد مقرر نسبت به تسویه حساب کامل اقدام نماید.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

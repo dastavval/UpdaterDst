@@ -25,6 +25,7 @@ import MultiVendorPanel from "./components/MultiVendorPanel";
 import ZarinpalPaymentModal from "./components/ZarinpalPaymentModal";
 import DastavvalLogo from "./components/DastavvalLogo";
 import TrustBadges from "./components/TrustBadges";
+import PublicRepresentatives from "./components/PublicRepresentatives";
 import PwaInstallModal from "./components/PwaInstallModal";
 import PwaInstallBanner from "./components/PwaInstallBanner";
 import OfflineBanner from "./components/OfflineBanner";
@@ -1854,6 +1855,7 @@ export default function App() {
                 />
                 <AboutUsSection articles={articles} theme={theme} />
                 <TrustSection theme={theme} />
+                <PublicRepresentatives />
               </motion.div>
             )}
 
