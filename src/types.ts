@@ -181,10 +181,12 @@ export interface User {
   province?: string;
   badge?: string;
   userBadge?: string;
+  password?: string;
   role?: 'admin' | 'factory' | 'agent' | 'marketer' | 'customer' | 'seller' | 'representative' | 'leader' | 'importer' | 'supplier' | 'user';
   iban?: string;
   healthLicense?: string;
   logoUrl?: string;
+  createdAt?: string;
   // Factory Rich Information (Optional)
   establishedYear?: string | number;
   dailyCapacity?: string;

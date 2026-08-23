@@ -328,7 +328,7 @@ export default function WholesaleInvoiceView({
     setDownloadSuccessMessage(null);
 
     try {
-      const imgData = await captureInvoiceDataUrl('png', 3.2);
+      const imgData = await captureInvoiceDataUrl('png', 3.5);
       if (!imgData) throw new Error("Canvas rendering failed");
 
       // Load image to get true pixel aspect ratio
@@ -348,17 +348,35 @@ export default function WholesaleInvoiceView({
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const margin = 5;
+      const margin = 5; // Balanced margin
       const availableWidth = pdfWidth - (margin * 2);
       const availableHeight = pdfHeight - (margin * 2);
 
       const imgWidth = availableWidth;
-      const imgHeight = (img.naturalHeight * imgWidth) / img.naturalWidth;
+      const totalImgHeight = (img.naturalHeight * imgWidth) / img.naturalWidth;
+      
+      // Multi-page support: If image is taller than available page height, split it
+      let heightLeft = totalImgHeight;
+      let position = margin;
+      let page = 1;
 
-      pdf.addImage(imgData, "PNG", margin, margin, imgWidth, Math.min(imgHeight, availableHeight), undefined, 'FAST');
+      while (heightLeft > 0) {
+        if (page > 1) {
+          pdf.addPage();
+          position = margin; // Reset position for new page
+        }
+        
+        // Add only the segment of the image that fits on this page
+        // Use sX, sY, sW, sH if possible, but jsPDF.addImage with position works by overlapping
+        pdf.addImage(imgData, "PNG", margin, position - (availableHeight * (page - 1)), imgWidth, totalImgHeight, undefined, 'FAST');
+        
+        heightLeft -= availableHeight;
+        page++;
+      }
+
       pdf.save(`Pishfaktor-${invoiceSerial}.pdf`);
 
-      setDownloadSuccessMessage("فایل PDF پیش‌فاکتور با بالاترین کیفیت (HD) با موفقیت دانلود شد.");
+      setDownloadSuccessMessage(`فایل PDF ${page > 1 ? `${page} صفحه‌ای` : ''} پیش‌فاکتور با بالاترین کیفیت (HD) با موفقیت دانلود شد.`);
       setTimeout(() => setDownloadSuccessMessage(null), 4000);
     } catch (err) {
       console.error("Error generating PDF:", err);
@@ -477,7 +495,7 @@ export default function WholesaleInvoiceView({
               <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
                 <span>{isFactoryView ? "حواله خروج و بارگیری انبار کارخانه" : "پیش‌فاکتور رسمی فروش کالا"}</span>
                 <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${isFactoryView ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                  {isFactoryView ? "نسخه انبار و ترابری" : "تک‌صفحه‌ای A4"}
+                  {isFactoryView ? "نسخه انبار و ترابری" : "پیش‌فاکتور رسمی استاندارد"}
                 </span>
               </h2>
               <p className="text-[10px] text-slate-500 font-medium">
@@ -640,24 +658,6 @@ export default function WholesaleInvoiceView({
             }
           }
         `}} />
-
-        {/* Auto Created Account Banner in Invoice if present */}
-        {order.autoCreatedAccount && (
-          <div className="border border-emerald-300 bg-emerald-50/90 p-3 rounded-xl mb-2 text-[9px] text-emerald-950 flex flex-col sm:flex-row items-center justify-between gap-3 print:hidden">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                <UserCheck size={16} />
-              </div>
-              <div>
-                <span className="font-black text-emerald-950 block">حساب کاربری شما به‌طور خودکار ساخته شد!</span>
-                <span className="text-[8.5px] text-emerald-800">شماره موبایل: <strong className="font-mono">{order.autoCreatedAccount.username}</strong> | رمز عبور موقت: <strong className="font-mono">{order.autoCreatedAccount.password}</strong></span>
-              </div>
-            </div>
-            <div className="text-[8px] text-emerald-700 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-200 font-bold shrink-0">
-              💡 برای خریدهای بعدی و پیگیری سفارشات در پلتفرم لاگین کنید.
-            </div>
-          </div>
-        )}
 
         {/* 1. TOP HEADER (سربرگ رسمی با فونت متناسب) */}
         <div className="border border-slate-200 p-3 mb-2 bg-slate-50/50 a4-box rounded-xl">

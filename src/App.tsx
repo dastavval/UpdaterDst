@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc, db, auth } from "./lib/data-layer";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
-import { cacheProducts, getCachedProducts } from "./lib/db";
+import { cacheProducts, getCachedProducts, cacheB2bConfig, getCachedB2bConfig } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
 import { getDisplayImageUrl } from "./lib/image-utils";
 import { ProductImage } from "./components/ProductImage";
@@ -56,7 +56,7 @@ import { registerRegionalOrderFromCheckout } from "./lib/leads-store";
 import { getProductRolePricing, toPersianDigits } from "./lib/pricing";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search } from "lucide-react";
-import { SectionSkeleton, CatalogSkeleton, TableSkeleton, DashboardSkeleton, ModalSkeleton, CalculatorSkeleton, FadeInContainer } from "./components/Skeleton";
+import { SectionSkeleton, CatalogSkeleton, TableSkeleton, DashboardSkeleton, ModalSkeleton, CalculatorSkeleton, FadeInContainer, ProductGridSkeleton, BentoProductGridSkeleton } from "./components/Skeleton";
 import { translations, Language } from "./lib/translations";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "./lib/id-utils";
 import { PaymentMethod } from "./types";
@@ -339,7 +339,30 @@ export default function App() {
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [cart, setCart] = useState<OrderItem[]>([]);
+  const [cart, setCart] = useState<OrderItem[]>(() => {
+    try {
+      const persistent = localStorage.getItem('dastavval_persistent_cart');
+      if (persistent) {
+        const parsed = JSON.parse(persistent);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load persistent cart from localStorage:", e);
+    }
+    return [];
+  });
+
+  // Save cart to persistent storage on any change
+  useEffect(() => {
+    try {
+      localStorage.setItem('dastavval_persistent_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.warn("Failed to save cart to localStorage:", e);
+    }
+  }, [cart]);
+
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [orderStatus, setOrderStatus] = useState<'idle' | 'processing' | 'success'>('idle');
   const [checkoutError, setCheckoutError] = useState("");
@@ -748,34 +771,32 @@ export default function App() {
     }
   };
 
-  const fetchB2bConfig = async () => {
+  const fetchB2bConfig = async (isBackground = false) => {
     try {
       const res = await fetch(getApiUrl("/api/b2b/config"));
       const contentType = res.headers.get("content-type");
       if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
         if (data && typeof data === 'object') {
-          setB2bConfig((prev: any) => {
-            // Smart Merge: If server returns empty factories/categories but prev had them, 
-            // it might be a temporary server-side issue or uninitialized file.
-            // We only overwrite if data actually has items OR if it's explicitly non-empty.
-            const factories = (data.factories && data.factories.length > 0) ? data.factories : (prev.factories?.length > 0 ? prev.factories : INITIAL_FACTORIES);
-            const categories = (data.categories && data.categories.length > 0) ? data.categories : (prev.categories?.length > 0 ? prev.categories : INITIAL_CATEGORIES);
-            const logoUrl = data.logoUrl || prev.logoUrl || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
-            
-            const merged = { 
-              ...prev, 
-              ...data,
-              factories,
-              categories,
-              logoUrl
-            };
-            
-            try {
-              localStorage.setItem("dastavval_b2b_config", JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
-          });
+          // Merge logic
+          const prev = JSON.parse(localStorage.getItem("dastavval_b2b_config") || "{}");
+          const factories = (data.factories && data.factories.length > 0) ? data.factories : (prev.factories?.length > 0 ? prev.factories : INITIAL_FACTORIES);
+          const categories = (data.categories && data.categories.length > 0) ? data.categories : (prev.categories?.length > 0 ? prev.categories : INITIAL_CATEGORIES);
+          const logoUrl = data.logoUrl || prev.logoUrl || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
+          
+          const merged = { 
+            ...prev, 
+            ...data,
+            factories,
+            categories,
+            logoUrl
+          };
+          
+          setB2bConfig(merged);
+          try {
+            localStorage.setItem("dastavval_b2b_config", JSON.stringify(merged));
+            await cacheB2bConfig(merged);
+          } catch (e) {}
         }
       }
     } catch (e) {
@@ -787,6 +808,7 @@ export default function App() {
     setB2bConfig(updatedConfig);
     try {
       localStorage.setItem("dastavval_b2b_config", JSON.stringify(updatedConfig));
+      cacheB2bConfig(updatedConfig).catch(() => {});
     } catch (e) {}
 
     try {
@@ -1011,50 +1033,68 @@ export default function App() {
       const isCleaned = localStorage.getItem("dastavval_v6_clean");
       if (isCleaned !== "true") {
         const keysToClear = [
-          "mock_db_products",
-          "mock_db_factories",
-          "mock_db_news",
-          "mock_db_orders",
-          "mock_db_reviews",
-          "dastavval_b2b_config",
-          "dastavval_custom_factories",
-          "dastavval_seller_profile",
-          "dastavval_price_alerts",
-          "dastavval_raw_orders",
-          "dastavval_local_users",
-          "dastavval_user",
-          "dastavval_crm_leads"
+          "mock_db_products", "mock_db_factories", "mock_db_news",
+          "mock_db_orders", "mock_db_reviews", "dastavval_b2b_config",
+          "dastavval_custom_factories", "dastavval_seller_profile",
+          "dastavval_price_alerts", "dastavval_raw_orders",
+          "dastavval_local_users", "dastavval_user", "dastavval_crm_leads"
         ];
         keysToClear.forEach(key => {
           try { localStorage.removeItem(key); } catch (e) {}
         });
         try { localStorage.setItem("dastavval_v6_clean", "true"); } catch (e) {}
       }
-    } catch (e) {
-      console.warn("localStorage initialization check error:", e);
-    }
+    } catch (e) {}
 
-    setLoading(true);
-    
-    // Check Firestore Connection Status
-    try {
-      const { getDocFromServer, doc: fireDoc } = await import('./lib/data-layer');
-      await getDocFromServer(fireDoc(db, '_connection_test_', 'ping'));
-      setFirestoreStatus('online');
-    } catch (e) {
-      console.warn("Firestore status check failed:", e);
-      setFirestoreStatus('offline');
-    }
+    // Check Firestore Connection Status in background
+    (async () => {
+      try {
+        const { getDocFromServer, doc: fireDoc } = await import('./lib/data-layer');
+        await getDocFromServer(fireDoc(db, '_connection_test_', 'ping'));
+        setFirestoreStatus('online');
+      } catch (e) {
+        setFirestoreStatus('offline');
+      }
+    })();
 
     try {
-      await seedProductsIfEmpty();
+      // 1. FAST PATH: Check IndexedDB Cache
+      const [cachedProducts, cachedConfig] = await Promise.all([
+        getCachedProducts(),
+        getCachedB2bConfig()
+      ]);
+      
+      let hasCachedData = false;
+      if (cachedProducts && cachedProducts.length > 0) {
+        setProducts(cachedProducts);
+        if (cachedConfig) {
+          setB2bConfig(cachedConfig);
+        }
+        hasCachedData = true;
+        setLoading(false); // Render instantly!
+      } else {
+        setLoading(true);
+      }
+
+      // 2. BACKGROUND SYNC (or foreground if no cache)
+      const fetchPromises = Promise.all([
+        fetchProducts(hasCachedData),
+        fetchDailyPresentation(),
+        fetchB2bConfig(hasCachedData),
+        fetchArticles()
+      ]);
+
+      if (!hasCachedData) {
+        await seedProductsIfEmpty(); 
+        await fetchPromises;
+        setLoading(false);
+      } else {
+        fetchPromises.catch(e => console.error("Background sync error:", e));
+      }
     } catch (e) {
-      console.warn("Seeding failed, proceeding to load products:", e);
+      console.error("Critical error during init:", e);
+      setLoading(false);
     }
-    await fetchProducts();
-    await fetchDailyPresentation();
-    await fetchB2bConfig();
-    await fetchArticles();
   };
 
   const fetchDailyPresentation = async () => {
@@ -1089,9 +1129,9 @@ export default function App() {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       // First try to load from IndexedDB for instant display
       const cached = await getCachedProducts();
       if (cached && cached.length > 0) {
@@ -1151,7 +1191,7 @@ export default function App() {
         console.error("Total failure fetching products:", e);
       }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
@@ -1645,6 +1685,15 @@ export default function App() {
     }
   }, [(b2bConfig as any)?.pwaPromptDelaySeconds]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-4" dir="rtl">
+        <div className="w-16 h-16 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-bold text-sm">در حال دریافت اطلاعات یکپارچه پلتفرم...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen transition-colors duration-300 font-sans bg-white text-slate-900" dir={language === 'en' ? 'ltr' : 'rtl'}>
       
@@ -1910,7 +1959,7 @@ export default function App() {
                       const isActive = activeCategory === cat.value;
                       return (
                         <button
-                          key={`mob-cat-${cat.id || idx}-${idx}`}
+                          key={`mob-cat-v2-${cat.id || idx}-${idx}`}
                           onClick={() => setActiveCategory(cat.value)}
                           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[11px] font-black transition-all shrink-0 border cursor-pointer ${
                             isActive 
@@ -2236,11 +2285,7 @@ export default function App() {
 
                   {/* Products catalog list */}
                   {loading ? (
-                    <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory hide-scrollbar scroll-smooth gap-4 pb-4 px-2">
-                      {[...Array(6)].map((_, i) => (
-                        <div key={`app-skel-prod-${i}`} className="min-w-[85vw] sm:min-w-[320px] snap-center shrink-0 bg-white rounded-2xl h-96 animate-pulse border border-gray-100" />
-                      ))}
-                    </div>
+                    <BentoProductGridSkeleton count={8} />
                   ) : filteredProducts.length === 0 ? (
                     <div className="bg-white rounded-2xl p-16 text-center border border-gray-100 shadow-sm">
                       <Package className="mx-auto text-gray-300 mb-4 animate-bounce" size={48} />
@@ -2258,7 +2303,7 @@ export default function App() {
                         .slice(0, 16)
                         .map((product, idx) => (
                           <ProductCard 
-                            key={`app-prod-${product.id || idx}-${idx}`} 
+                            key={`app-prod-v2-${product.id || idx}-${idx}`} 
                             product={product} 
                             index={idx}
                             onAddToCart={addToCart} 
@@ -2846,7 +2891,13 @@ export default function App() {
                 setCart([]);
                 setIsCartOpen(false);
                 setLastCreatedOrder(createdOrder);
+                
+                // Show auto-created account notice as a persistent notification
+                if (createdOrder.autoCreatedAccount) {
+                  setSyncToastMessage(`حساب کاربری شما با موفقیت ایجاد شد. نام کاربری: ${createdOrder.autoCreatedAccount.username} | رمز عبور: ${createdOrder.autoCreatedAccount.password}`);
+                }
               }}
+              onLogin={(userData) => handleUpdateUser(userData)}
             />
           </FadeInContainer>
         </Suspense>

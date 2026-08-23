@@ -293,6 +293,15 @@ export default function RepresentativeManagementPortal({
     }
   }, [user]);
 
+  const myOrders = useMemo(() => {
+    return orders.filter(o => 
+      o.userId === user?.id || 
+      o.customerPhone === user?.phone || 
+      o.representativeId === user?.id ||
+      (province && (o.city || "").includes(province))
+    );
+  }, [orders, user, province]);
+
   // Filter representative's orders
     // Check for 3-month inactivity suspension
   const isSuspended = useMemo(() => {
@@ -311,15 +320,6 @@ export default function RepresentativeManagementPortal({
     const daysSinceLastOrder = (Date.now() - latestOrderTime) / (1000 * 3600 * 24);
     return daysSinceLastOrder > 90;
   }, [myOrders, user]);
-
-  const myOrders = useMemo(() => {
-    return orders.filter(o => 
-      o.userId === user?.id || 
-      o.customerPhone === user?.phone || 
-      o.representativeId === user?.id ||
-      (province && (o.city || "").includes(province))
-    );
-  }, [orders, user, province]);
 
   // Real Cash Orders Turnover (خرید نقدی)
   const realCashOrdersSum = useMemo(() => {
@@ -1406,7 +1406,7 @@ export default function RepresentativeManagementPortal({
 
           {/* Leads List */}
           <div className="space-y-3">
-            {regionalLeads.map((lead) => {
+            {regionalLeads.map((lead, idx) => {
               const isPending = lead.status === 'pending_rep_action';
               const isFulfilledByRep = lead.status === 'fulfilled_by_rep';
               const isRoutedToFactory = lead.status === 'routed_to_factory';
@@ -1415,7 +1415,7 @@ export default function RepresentativeManagementPortal({
 
               return (
                 <div 
-                  key={lead.id} 
+                  key={`rep-lead-${lead.id || idx}-${idx}`} 
                   className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-4 ${
                     isPending 
                       ? "bg-white border-purple-200 shadow-xs hover:border-purple-300"
@@ -1637,7 +1637,7 @@ export default function RepresentativeManagementPortal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {hotReorderProducts.map((p) => {
+              {hotReorderProducts.map((p, idx) => {
                 const minCartons = p.min_order_cartons || 2;
                 const unitsInCarton = p.carton_pack_count || 12;
                 const unitPrice = p.bulk_price || 0;
@@ -1646,7 +1646,7 @@ export default function RepresentativeManagementPortal({
                 const repCartonPrice = Math.round(cartonPrice * (1 - mult));
 
                 return (
-                  <div key={p.id} className="bg-slate-50/70 hover:bg-slate-100/80 p-3.5 rounded-2xl border border-slate-200 transition-all flex flex-col justify-between space-y-3">
+                  <div key={`rep-hot-reorder-${p.id || idx}-${idx}`} className="bg-slate-50/70 hover:bg-slate-100/80 p-3.5 rounded-2xl border border-slate-200 transition-all flex flex-col justify-between space-y-3">
                     <div className="space-y-1">
                       <span className="text-[9px] font-black text-indigo-700 block">{p.brand || "تولید مستقیم"}</span>
                       <h4 className="text-xs font-black text-slate-900 line-clamp-1">{p.name}</h4>
@@ -2058,7 +2058,7 @@ export default function RepresentativeManagementPortal({
                     }[ord.status as string] || { label: 'تاییدشده', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
 
                     return (
-                      <tr key={ord.id || idx} className="hover:bg-slate-50/80 transition-colors font-medium">
+                      <tr key={`rep-myorder-${ord.id || idx}-${idx}`} className="hover:bg-slate-50/80 transition-colors font-medium">
                         <td className="py-3.5 px-4 font-mono font-black text-slate-900">
                           {toPersianNum(ord.id || `INV-${1000 + idx}`)}
                         </td>
@@ -2146,13 +2146,13 @@ export default function RepresentativeManagementPortal({
 
           {/* 4 Tiers Comparison Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {REPRESENTATIVE_TIERS.map((tier) => {
+            {REPRESENTATIVE_TIERS.map((tier, idx) => {
               const isCurrent = isRepresentativeActive && activeTier.levelNumber === tier.levelNumber;
               const isAchieved = simulatedSales >= tier.minSales;
 
               return (
                 <div
-                  key={tier.id}
+                  key={`rep-tier-card-${tier.id || idx}-${idx}`}
                   className={`rounded-3xl p-5 border-2 transition-all flex flex-col justify-between space-y-4 relative ${
                     isCurrent
                       ? `${tier.borderColor} bg-white shadow-md ring-2 ring-indigo-500/20`
@@ -2472,7 +2472,7 @@ export default function RepresentativeManagementPortal({
                   </div>
                 ) : (
                   <div className="space-y-4 pt-3">
-                    {guarantees.map((guar) => {
+                    {guarantees.map((guar, idx) => {
                       const statusStyles = {
                         'pending_submission': { label: 'پیش‌نویس', color: 'bg-slate-100 text-slate-700 border-slate-200' },
                         'submitted_pending_review': { label: 'در حال بررسی و ممیزی صیاد', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -2490,7 +2490,7 @@ export default function RepresentativeManagementPortal({
 
                       return (
                         <div 
-                          key={guar.id}
+                          key={`rep-guar-item-${guar.id || idx}-${idx}`}
                           className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3 hover:bg-slate-50/80 transition-colors text-right"
                           dir="rtl"
                         >

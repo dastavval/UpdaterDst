@@ -231,7 +231,7 @@ export default function B2BNews({
             </button>
             {ALL_FACTORIES.map((fac, idx) => (
               <button
-                key={`b2b-fac-tab-${fac.id || idx}-${idx}`}
+                key={`b2b-fac-tab-v2-${fac.id || 'no-id'}-${idx}`}
                 onClick={() => setActiveFactory(fac.id)}
                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all shrink-0 cursor-pointer ${
                   activeFactory === fac.id 
@@ -256,7 +256,7 @@ export default function B2BNews({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {filteredFactories.map((fac, idx) => (
               <div 
-                key={`b2b-fac-card-${fac.id || idx}-${idx}`}
+                key={`b2b-fac-card-v2-${fac.id || 'no-id'}-${idx}`}
                 className="rounded-[2.5rem] bg-white border border-slate-100 p-6 sm:p-8 hover transition-all duration-300 flex flex-col justify-between space-y-6 text-right shadow-material-sm relative overflow-hidden"
               >
                 <div className="space-y-5">
@@ -416,7 +416,7 @@ export default function B2BNews({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredNews.map((news, idx) => (
               <div 
-                key={`b2b-news-card-${news.id || idx}-${idx}`}
+                key={`b2b-news-card-v2-${news.id || 'no-id'}-${idx}`}
                 onClick={() => setSelectedNews(news)}
                 className="group cursor-pointer bg-white hover rounded-[2rem] p-4.5 border border-slate-200/60 hover transition-all flex flex-col justify-between h-full"
               >

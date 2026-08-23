@@ -12,7 +12,10 @@ import {
   MapPin, 
   Upload, 
   Truck, 
-  ShieldCheck, 
+  ShieldCheck,
+  AlertTriangle,
+  Mail,
+  Phone, 
   PhoneCall,
   Trash2, 
   Plus, 
@@ -52,6 +55,7 @@ interface CheckoutWizardProps {
   userCity?: string;
   userProvince?: string;
   cityAgency?: any;
+  onLogin?: (userData: any) => void;
 }
 
 export default function CheckoutWizard({
@@ -70,7 +74,8 @@ export default function CheckoutWizard({
   products,
   userCity = "تهران",
   userProvince = "تهران",
-  cityAgency
+  cityAgency,
+  onLogin
 }: CheckoutWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
@@ -123,9 +128,12 @@ export default function CheckoutWizard({
     }
   }, [buyerName, buyerPhone, buyerCompany, buyerAddress]);
 
+  // Filter out any potentially corrupted or null items from the cart prop to prevent errors
+  const safeCart = (cart || []).filter(item => item && typeof item === 'object' && item.productId);
+
   // Payment Method State
-  const cartProducts = cart.map(item => {
-    return products.find(p => p.id === item.productId || p.productCode === item.productId);
+  const cartProducts = safeCart.map(item => {
+    return (products || []).find(p => p.id === item.productId || p.productCode === item.productId);
   });
   const hasNonChequeProducts = cartProducts.some(p => p && p.chequeAllowed === false);
   const nonChequeProductsNames = cartProducts
@@ -141,6 +149,8 @@ export default function CheckoutWizard({
   }, [hasNonChequeProducts, paymentMethod]);
 
   const [paymentReceiptImage, setPaymentReceiptImage] = useState("");
+  const [chequeImage, setChequeImage] = useState("");
+  const [sayadReceiptImage, setSayadReceiptImage] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
 
   // Cheque & Split Cash/Cheque Settlement State
@@ -150,7 +160,6 @@ export default function CheckoutWizard({
   const [chequeDays, setChequeDays] = useState<number>(60); // Default 60 days (2 months)
   const [chequeMonths, setChequeMonths] = useState<number>(2); // Default 2 months
   const [chequeDueDate, setChequeDueDate] = useState("");
-  const [chequeImage, setChequeImage] = useState("");
 
   // Processing state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -204,8 +213,8 @@ export default function CheckoutWizard({
   const minOrderAmount = b2bConfig?.minOrderAmount || 10000000;
   const minOrderCartons = b2bConfig?.minOrderCartons || 5;
 
-  const totalCartons = cart.reduce((sum, item) => sum + item.quantityCartons, 0);
-  const totalUnits = cart.reduce((sum, item) => sum + item.totalItems, 0);
+  const totalCartons = safeCart.reduce((sum, item) => sum + item.quantityCartons, 0);
+  const totalUnits = safeCart.reduce((sum, item) => sum + item.totalItems, 0);
   
   // Weight estimation: average 10-14kg per carton
   const estimatedWeightKg = totalCartons * 12;
@@ -237,8 +246,8 @@ export default function CheckoutWizard({
 
   // 3.5 Sediment Clearance Discount (تخفیف رسوب‌زدایی انباشت کالا)
   const defaultSedimentPercent = invSettings.sedimentDiscountPercent ?? 8;
-  const sedimentDiscountAmount = cart.reduce((sum, item) => {
-    const itemProd = products.find(p => p.id === item.productId || p.productCode === item.productId);
+  const sedimentDiscountAmount = safeCart.reduce((sum, item) => {
+    const itemProd = (products || []).find(p => p.id === item.productId || p.productCode === item.productId);
     const itemDiscountP = (item as any).discountPercent ?? (itemProd as any)?.sedimentDiscountPercent ?? ((item as any)?.isSedimentClearance ? defaultSedimentPercent : 0);
     const itemGross = (item.pricePerCarton || itemProd?.price || 0) * item.quantityCartons;
     return sum + Math.round(itemGross * (itemDiscountP / 100));
@@ -288,7 +297,7 @@ export default function CheckoutWizard({
 
   const handleNextFromStep1 = () => {
     setErrorMessage("");
-    if (cart.length === 0) {
+    if (safeCart.length === 0) {
       setErrorMessage("سبد خرید شما خالی است.");
       return;
     }
@@ -317,10 +326,9 @@ export default function CheckoutWizard({
         setErrorMessage(`مبلغ چک (${chequePortionAmount.toLocaleString()} تومان) بیشتر از سقف اعتبار چکی مجاز شما (${allowedCredit.toLocaleString()} تومان) می‌باشد.`);
         return;
       }
-      if (!chequeSayadiNo.trim() && !chequeImage) {
-        setErrorMessage("لطفاً شماره صیادی ۱۶ رقمی یا تصویر چک صیادی را وارد/آپلود نمایید.");
-        return;
-      }
+      // Removed mandatory image checks to allow viewing invoice without immediate upload
+    } else if (paymentMethod === 'cash') {
+      // Removed mandatory paymentReceiptImage check
     }
     setStep(4);
   };
@@ -331,18 +339,33 @@ export default function CheckoutWizard({
 
     try {
       const trackingNumber = `DX-${Math.floor(10000 + Math.random() * 90000)}`;
-      const firstProd = products.find(p => p.id === cart[0]?.productId);
+      const firstProd = (products || []).find(p => p.id === safeCart[0]?.productId);
       const sellerId = firstProd?.sellerId || "factory_central";
       const sellerName = firstProd?.sellerName || "گروه صنایع غذایی و بازرگانی دست اول";
 
       // Auto-create local account for guest user if not logged in
       let autoCreatedAccount = null;
-      if (!user && buyerPhone) {
+      let currentUser = user;
+
+      if (!currentUser && buyerPhone) {
         try {
           const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
           const cleanPhone = buyerPhone.trim();
-          if (!localUsers[cleanPhone]) {
-            localUsers[cleanPhone] = {
+          
+          if (localUsers[cleanPhone]) {
+            // Existing account detected - Auto login to existing account
+            currentUser = localUsers[cleanPhone];
+            
+            // Check if password was never changed (still matches phone) for seamless auto-login
+            if (currentUser.password === cleanPhone) {
+              autoCreatedAccount = {
+                username: cleanPhone,
+                password: cleanPhone
+              };
+            }
+          } else {
+            // Create new account
+            currentUser = {
               name: buyerName || "خریدار عمده",
               email: cleanPhone,
               phone: cleanPhone,
@@ -354,14 +377,21 @@ export default function CheckoutWizard({
               address: buyerAddress || "تهران",
               createdAt: new Date().toISOString()
             };
+            localUsers[cleanPhone] = currentUser;
             localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+            
+            autoCreatedAccount = {
+              username: cleanPhone,
+              password: cleanPhone
+            };
           }
-          autoCreatedAccount = {
-            username: cleanPhone,
-            password: cleanPhone
-          };
+
+          // Auto-login: Update state in App.tsx
+          if (onLogin && currentUser) {
+            onLogin(currentUser);
+          }
         } catch (e) {
-          console.warn("Could not auto-create guest user account:", e);
+          console.warn("Could not handle guest user account logic:", e);
         }
       }
 
@@ -411,7 +441,8 @@ export default function CheckoutWizard({
           amount: chequePortionAmount,
           dueDate: chequeDueDate || computedDueDate,
           dueDateLong: computedDueDateLong,
-          chequeImageUrl: chequeImage || null
+          chequeImageUrl: chequeImage || null,
+          sayadReceiptImageUrl: sayadReceiptImage || null
         } : null,
         shippingMethod,
         status: 'order_received',
@@ -561,7 +592,7 @@ export default function CheckoutWizard({
                   <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
                     <span>بررسی اقلام سفارش عمده</span>
                     <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-md font-mono font-bold">
-                      {cart.length} قلم کالا
+                      {safeCart.length} قلم کالا
                     </span>
                   </h3>
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -571,7 +602,7 @@ export default function CheckoutWizard({
                   </div>
                 </div>
 
-                {cart.length === 0 ? (
+                {safeCart.length === 0 ? (
                   <div className="py-12 text-center text-slate-400 space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <ShoppingBag size={48} className="mx-auto text-slate-300" />
                     <p className="text-xs font-bold text-slate-600">سبد خرید شما در حال حاضر خالی است.</p>
@@ -585,9 +616,9 @@ export default function CheckoutWizard({
                   </div>
                 ) : (
                   <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                    {cart.map((item, idx) => {
+                    {safeCart.map((item, idx) => {
                       const realImage = getProductImage(item);
-                      const matchedProd = products.find(p => p.id === item.productId || p.name === item.name);
+                      const matchedProd = (products || []).find(p => p.id === item.productId || p.name === item.name);
                       const packCount = matchedProd?.carton_pack_count || item.unitsPerCarton || 24;
                       const unitPrice = Math.round(item.pricePerCarton / packCount);
 
@@ -1336,7 +1367,7 @@ export default function CheckoutWizard({
                             className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                           >
                             <Upload size={13} />
-                            <span>{paymentReceiptImage ? "تغییر تصویر فیش نقدی" : "آپلود فیش واریز پیش‌پرداخت"}</span>
+                            <span>{paymentReceiptImage ? "تغییر تصویر فیش نقدی" : "آپلود فیش واریز (اختیاری جهت مشاهده فاکتور)"}</span>
                           </label>
                           {paymentReceiptImage && (
                             <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-1.5 justify-center">
@@ -1370,6 +1401,23 @@ export default function CheckoutWizard({
                           <div>وضعیت کارمزد: <strong className="text-slate-800">+{chequeMarkupAmount.toLocaleString()} تومان ({chequeMonths * chequeMarkupPerMonth}٪)</strong></div>
                         </div>
 
+                        {/* Cheque Mailing Address */}
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 shadow-xs">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-black text-[10px]">
+                            <MapPin size={14} className="text-amber-700" />
+                            آدرس جهت ارسال فیزیکی چک:
+                          </div>
+                          <p className="text-[10px] text-amber-800 font-bold leading-relaxed">
+                            آذربایجان شرقی ، شهرستان شبستر ، شهرک صنعتی شندآباد ، کوچه شهرک صنعتی st 20، بازرگانی دست اول
+                            <br />
+                            <span className="text-amber-900">کد پستی: 5384155355 | تلفن: 09999123001</span>
+                          </p>
+                          <div className="flex items-center gap-1 text-[9px] text-rose-600 font-black bg-rose-50 p-1.5 rounded-lg border border-rose-100 mt-1">
+                            <AlertCircle size={12} />
+                            <span>برای مشاهده فاکتور نیازی به آپلود نیست، اما جهت خروج بار از انبار الزامی است.</span>
+                          </div>
+                        </div>
+
                         <div>
                           <input
                             type="file"
@@ -1390,11 +1438,39 @@ export default function CheckoutWizard({
                             className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                           >
                             <Upload size={13} />
-                            <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی"}</span>
+                            <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی (اختیاری جهت مشاهده فاکتور)"}</span>
                           </label>
                           {chequeImage && (
                             <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-1.5 justify-center">
                               <CheckCircle2 size={13} /> تصویر روی چک صیادی دریافت شد
+                            </span>
+                          )}
+                        </div>
+                        <div className="pt-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="sayad-receipt-split-input"
+                            className="hidden"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const r = new FileReader();
+                                r.onloadend = () => setSayadReceiptImage(r.result as string);
+                                r.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="sayad-receipt-split-input"
+                            className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                          >
+                            <Upload size={13} />
+                            <span>{sayadReceiptImage ? "تغییر تصویر رسید ثبت صیادی" : "آپلود رسید پستی/ثبت (اختیاری جهت مشاهده فاکتور)"}</span>
+                          </label>
+                          {sayadReceiptImage && (
+                            <span className="text-[10px] text-purple-700 font-black flex items-center gap-1 mt-1.5 justify-center">
+                              <CheckCircle2 size={13} /> رسید ثبت صیادی دریافت شد
                             </span>
                           )}
                         </div>
@@ -1404,7 +1480,7 @@ export default function CheckoutWizard({
                     {/* Cheque Info Inputs */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div>
-                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره صیادی ۱۶ رقمی چک *</label>
+                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره صیادی ۱۶ رقمی چک (اختیاری جهت مشاهده فاکتور)</label>
                         <input
                           type="text"
                           value={chequeSayadiNo}
@@ -1415,7 +1491,7 @@ export default function CheckoutWizard({
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام بانک صادرکننده</label>
+                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام بانک صادرکننده (اختیاری)</label>
                         <input
                           type="text"
                           value={chequeBankName}
@@ -1423,6 +1499,24 @@ export default function CheckoutWizard({
                           placeholder="مثال: بانک صادرات"
                           className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs"
                         />
+                      </div>
+                    </div>
+
+                    {/* Mailing Address & Warning for Cheque */}
+                    <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 mt-4 space-y-3">
+                      <div className="flex items-center gap-2 text-amber-800 font-black text-sm">
+                        <AlertTriangle size={18} className="text-amber-600" />
+                        توجه مهم: ارسال فیزیکی چک صیادی
+                      </div>
+                      <p className="text-xs font-bold text-amber-900/80 leading-relaxed">
+                        لطفاً پس از آپلود تصویر چک و رسید ثبت صیادی، لاشه فیزیکی چک را از طریق پست پیشتاز به آدرس زیر ارسال فرمایید.
+                        <strong className="block mt-2 text-rose-700">⚠️ تذکر: تا زمانی که چک ثبت و به آدرس زیر پست نشود (ارسال کد رهگیری پستی)، بار شما ارسال نخواهد شد.</strong>
+                      </p>
+                      
+                      <div className="bg-white p-3 rounded-lg border border-amber-200 text-[11px] font-bold text-slate-700 leading-relaxed">
+                        <div className="flex gap-1.5"><MapPin size={14} className="text-amber-500 shrink-0" /> <span><strong>آدرس:</strong> آذربایجان شرقی، شهرستان شبستر، شهرک صنعتی شندآباد، کوچه شهرک صنعتی st 20، بازرگانی دست اول</span></div>
+                        <div className="flex gap-1.5 mt-1.5"><Mail size={14} className="text-amber-500 shrink-0" /> <span><strong>کد پستی:</strong> <span className="font-mono">5384155355</span></span></div>
+                        <div className="flex gap-1.5 mt-1.5"><Phone size={14} className="text-amber-500 shrink-0" /> <span><strong>تلفن:</strong> <span className="font-mono">09999123001</span></span></div>
                       </div>
                     </div>
                   </div>
@@ -1445,9 +1539,9 @@ export default function CheckoutWizard({
 
                 {/* Items Thumbnails Summary */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-xs">
-                  <span className="text-[11px] font-black text-slate-600 block">اقلام نهایی سفارش ({cart.length} کالا):</span>
+                  <span className="text-[11px] font-black text-slate-600 block">اقلام نهایی سفارش ({safeCart.length} کالا):</span>
                   <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {cart.map((item, idx) => {
+                    {safeCart.map((item, idx) => {
                       const img = getProductImage(item);
                       return (
                         <div key={`summary-cart-${item.productId || idx}-${idx}`} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
@@ -1557,6 +1651,10 @@ export default function CheckoutWizard({
                     <span className="text-slate-900 font-black truncate max-w-xs">{buyerName} ({buyerPhone})</span>
                   </div>
 
+                  <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-[10px] text-indigo-700 font-bold leading-relaxed">
+                    ℹ️ شما می‌توانید با زدن دکمه زیر، پیش‌فاکتور رسمی را مشاهده، چاپ و یا ذخیره نمایید. امکان آپلود مدارک و تسویه نهایی جهت ارسال بار، در پنل کاربری شما محفوظ خواهد ماند.
+                  </div>
+
                   <div className="flex justify-between items-center text-sm font-black pt-1">
                     <span className="text-slate-900">مجموع کل صورتحساب فاکتور:</span>
                     <span className="text-lg font-black text-emerald-600 font-mono">
@@ -1630,7 +1728,7 @@ export default function CheckoutWizard({
                 onClick={handleNextFromStep3}
                 className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
               >
-                <span>ادامه: پیش‌فاکتور نهایی</span>
+                <span>ادامه و مشاهده پیش‌فاکتور (بدون نیاز به آپلود آنی)</span>
                 <ChevronLeft size={16} />
               </button>
             )}

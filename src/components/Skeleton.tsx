@@ -7,26 +7,180 @@ interface SkeletonProps {
 }
 
 /**
- * Basic Shimmer Skeleton Primitive
+ * Basic Shimmer & Pulse Skeleton Primitive
  */
 export function Skeleton({ className = "", variant = "rect" }: SkeletonProps) {
   return (
     <div 
-      className={`relative overflow-hidden bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-xs ${
+      className={`relative overflow-hidden bg-slate-100 dark:bg-slate-800/60 backdrop-blur-xs ${
         variant === "circle" ? "rounded-full" : variant === "text" ? "rounded-md h-3.5 w-3/4" : "rounded-2xl"
       } ${className}`}
     >
+      {/* Pulse Animation */}
       <motion.div
         animate={{
-          x: ["-100%", "200%"],
+          opacity: [0.5, 1, 0.5],
         }}
         transition={{
           repeat: Infinity,
-          duration: 1.6,
+          duration: 2,
           ease: "easeInOut",
         }}
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 dark:via-slate-700/60 to-transparent skew-x-[-20deg]"
+        className="absolute inset-0 bg-slate-200/50 dark:bg-slate-700/30"
       />
+      
+      {/* Shimmer Animation */}
+      <motion.div
+        animate={{
+          x: ["-100%", "250%"],
+        }}
+        transition={{
+          repeat: Infinity,
+          duration: 1.8,
+          ease: "linear",
+        }}
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 dark:via-slate-600/20 to-transparent skew-x-[-25deg] z-10"
+      />
+    </div>
+  );
+}
+
+/**
+ * Advanced Product Card Skeleton matching ProductCard.tsx
+ */
+export function ProductCardSkeleton() {
+  return (
+    <div className="bg-white rounded-[1.75rem] border border-slate-200/60 p-0 flex flex-col h-full overflow-hidden shadow-sm" dir="rtl">
+      {/* Image Skeleton */}
+      <div className="relative aspect-square w-full bg-slate-50/50 flex items-center justify-center">
+        <Skeleton className="w-2/3 h-2/3 rounded-3xl" />
+        {/* Floating badge skeleton */}
+        <div className="absolute top-2.5 right-2.5">
+          <Skeleton className="w-16 h-5 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Info Section Skeleton */}
+      <div className="p-3.5 flex flex-col gap-2.5 flex-1">
+        <div className="space-y-2">
+          {/* Category tag */}
+          <Skeleton className="w-16 h-4 rounded" />
+          
+          {/* Title - 2 lines */}
+          <div className="space-y-1.5">
+            <Skeleton className="w-full h-4" />
+            <Skeleton className="w-4/5 h-4" />
+          </div>
+          
+          {/* Profit badge */}
+          <Skeleton className="w-32 h-3 mt-1" />
+        </div>
+
+        {/* Pricing Box Skeleton */}
+        <div className="mt-auto space-y-2.5">
+          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100/80 space-y-2">
+            <div className="flex justify-between items-center">
+              <Skeleton className="w-12 h-3" />
+              <Skeleton className="w-24 h-5" />
+            </div>
+            <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/50">
+              <div className="space-y-1">
+                <Skeleton className="w-10 h-2" />
+                <Skeleton className="w-14 h-3" />
+              </div>
+              <div className="text-left space-y-1">
+                <Skeleton className="w-12 h-2 mr-auto" />
+                <Skeleton className="w-16 h-4 mr-auto" />
+              </div>
+            </div>
+          </div>
+
+          {/* Controls Skeleton */}
+          <div className="flex items-center gap-2">
+            <Skeleton className="w-24 h-9 rounded-xl" />
+            <Skeleton className="flex-1 h-9 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Grid of Product Card Skeletons
+ */
+/**
+ * Grid of Product Card Skeletons
+ */
+export function ProductGridSkeleton({ count = 8 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
+      {Array.from({ length: count }).map((_, i) => (
+        <motion.div
+          key={`prod-skel-${i}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05 }}
+        >
+          <ProductCardSkeleton />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Advanced Bento-style Product Grid Skeleton
+ */
+export function BentoProductGridSkeleton({ count = 8 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" dir="rtl">
+      {Array.from({ length: count }).map((_, i) => (
+        <motion.div
+          key={`bento-skel-${i}`}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: i * 0.04 }}
+          className="bg-white rounded-[2.5rem] border border-slate-100 p-5 shadow-xs space-y-4"
+        >
+          <Skeleton className="aspect-square w-full rounded-[2rem]" />
+          <div className="space-y-3 px-2">
+            <Skeleton className="w-20 h-4 rounded-lg" />
+            <Skeleton className="w-full h-6 rounded-xl" />
+            <div className="flex justify-between items-center pt-2">
+              <Skeleton className="w-24 h-8 rounded-xl" />
+              <Skeleton className="w-12 h-12 rounded-full" />
+            </div>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Advanced Full-page Loading State
+ */
+export function PageLoaderSkeleton() {
+  return (
+    <div className="min-h-screen bg-slate-50/50 p-6 space-y-8" dir="rtl">
+      {/* Header Skeleton */}
+      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Skeleton className="w-14 h-14 rounded-2xl" />
+          <div className="space-y-2">
+            <Skeleton className="w-48 h-6" />
+            <Skeleton className="w-32 h-4" />
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <Skeleton className="w-10 h-10 rounded-full" />
+        </div>
+      </div>
+
+      {/* Main Grid Skeleton */}
+      <BentoProductGridSkeleton count={8} />
     </div>
   );
 }
@@ -74,15 +228,7 @@ export function SectionSkeleton() {
       {/* Grid of Skeleton Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={`skel-card-item-${i}`} className="p-4 bg-white rounded-2xl border border-slate-100 space-y-4 shadow-2xs">
-            <Skeleton className="w-full aspect-video rounded-xl" />
-            <Skeleton className="w-3/4 h-5" />
-            <Skeleton className="w-1/2 h-3.5" />
-            <div className="flex justify-between items-center pt-3 border-t border-slate-50">
-              <Skeleton className="w-20 h-7 rounded-lg" />
-              <Skeleton className="w-24 h-8 rounded-xl" />
-            </div>
-          </div>
+          <ProductCardSkeleton key={`skel-card-item-${i}`} />
         ))}
       </div>
     </motion.div>
@@ -113,18 +259,7 @@ export function CatalogSkeleton() {
       {/* Grid Items */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
         {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <div key={`skel-cat-item-${i}`} className="bg-white rounded-3xl border border-slate-100 p-4 space-y-3.5 shadow-2xs">
-            <div className="relative">
-              <Skeleton className="w-full aspect-square rounded-2xl" />
-              <Skeleton className="absolute top-2 right-2 w-16 h-5 rounded-full" />
-            </div>
-            <Skeleton className="w-5/6 h-4" />
-            <Skeleton className="w-2/3 h-3" />
-            <div className="pt-2 border-t border-slate-50 flex justify-between items-center">
-              <Skeleton className="w-24 h-6 rounded-lg" />
-              <Skeleton className="w-20 h-8 rounded-xl" />
-            </div>
-          </div>
+          <ProductCardSkeleton key={`skel-cat-item-${i}`} />
         ))}
       </div>
     </motion.div>

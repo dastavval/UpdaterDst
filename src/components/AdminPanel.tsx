@@ -837,11 +837,42 @@ export default function AdminPanel({
     updateAdsState(newAds, status === 'approved' ? "آگهی با موفقیت تایید و در تالار منتشر شد." : "وضعیت آگهی بروزرسانی شد.");
   };
 
-  const handleUpdateRepStatus = (id: string, isApproved: boolean) => {
-    const updated = representativesList.map(r => (r.id === id || r.agencyCode === id) ? { ...r, isApproved } : r);
+  const handleUpdateRepStatus = (id: string, isApproved: boolean, badge?: string) => {
+    const updated = representativesList.map(r => 
+      (r.id === id || r.agencyCode === id) 
+        ? { 
+            ...r, 
+            isApproved, 
+            status: isApproved ? 'active' : 'rejected',
+            badge: badge || r.badge || 'نماینده رسمی',
+            approvedAt: isApproved ? new Date().toISOString() : r.approvedAt,
+            lastPurchaseAt: isApproved ? new Date().toISOString() : r.lastPurchaseAt // Initialize last purchase on approval
+          } 
+        : r
+    );
     setRepresentativesList(updated);
     localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
     setSuccessMsg(isApproved ? "درخواست عاملیت و نمایندگی با موفقیت تایید شد." : "درخواست نمایندگی رد شد.");
+    setTimeout(() => setSuccessMsg(null), 3000);
+  };
+
+  const handleAuditReps = () => {
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+    const updated = representativesList.map(r => {
+      if (r.isApproved && r.status === 'active' && r.lastPurchaseAt) {
+        const lastPurchase = new Date(r.lastPurchaseAt);
+        if (lastPurchase < threeMonthsAgo) {
+          return { ...r, status: 'inactive', deactivationReason: 'عدم خرید به مدت بیش از ۳ ماه' };
+        }
+      }
+      return r;
+    });
+
+    setRepresentativesList(updated);
+    localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
+    setSuccessMsg("حسابرسی نمایندگان انجام شد. پنل‌های غیرفعال تعلیق گردیدند.");
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
@@ -6059,7 +6090,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     {/* BLACK HACKER-STYLE TERMINAL VIEWPORT */}
                     <div className="bg-slate-50 text-emerald-400 p-4 rounded-2xl font-mono text-[11px] leading-relaxed h-[200px] overflow-y-auto border border-slate-800 shadow-inner flex flex-col space-y-1 text-left" dir="ltr">
                       {importLogs.map((log, i) => (
-                        <div key={i} className="whitespace-pre-wrap">
+                        <div key={`admin-import-log-${i}`} className="whitespace-pre-wrap">
                           <span className="text-slate-500">[{new Date().toLocaleTimeString()}]</span> <span className="text-amber-500">SYS_API_NODE:</span> {log}
                         </div>
                       ))}
@@ -6815,13 +6846,23 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </div>
             </div>
 
-            <button
-              onClick={() => handleOpenRepModal()}
-              className="px-5 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-600/20 cursor-pointer shrink-0"
-            >
-              <Plus size={16} />
-              <span>افزودن نماینده جدید</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleAuditReps}
+                className="px-5 py-3 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 border border-amber-200"
+              >
+                <ShieldAlert size={16} />
+                <span>حسابرسی ۳ ماهه خریدها</span>
+              </button>
+
+              <button
+                onClick={() => handleOpenRepModal()}
+                className="px-5 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-600/20 cursor-pointer shrink-0"
+              >
+                <Plus size={16} />
+                <span>افزودن نماینده جدید</span>
+              </button>
+            </div>
           </div>
 
           {/* Representatives Grid */}
@@ -8241,9 +8282,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               {/* Sidebar: Page List */}
               <div className="md:col-span-1 space-y-2 border-l border-gray-50 pl-6">
                 <p className="text-[10px] font-black text-slate-400 mb-4 px-2 uppercase tracking-widest">لیست صفحات فعال</p>
-                {sitePages.map(page => (
+                {sitePages.map((page, idx) => (
                   <button
-                    key={page.id}
+                    key={`admin-site-page-${page.id || idx}-${idx}`}
                     onClick={() => {
                       setActivePageId(page.id);
                       setPageEditorContent(page.content);
@@ -8720,7 +8761,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   ) : (
                     <div className="space-y-3">
                       {customSlides.map((slide, index) => (
-                        <div key={slide.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group">
+                        <div key={`admin-slide-${slide.id || index}`} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl relative group">
                           <button
                             onClick={() => setCustomSlides(customSlides.filter((_, i) => i !== index))}
                             className="absolute top-2 left-2 p-1.5 bg-red-50 text-red-600 rounded-lg hover transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
@@ -9335,7 +9376,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         {customBadges.length > 0 && (
                           <div className="space-y-2 mt-2">
                             {customBadges.map((b, idx) => (
-                              <div key={b.id || idx} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-xl text-xs">
+                              <div key={`admin-custom-badge-${b.id || idx}-${idx}`} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-xl text-xs">
                                 <div className="flex items-center gap-2">
                                   <span className="font-bold text-slate-800">{b.title}</span>
                                   <span className="text-slate-500 text-[10px]">({b.subtitle})</span>
@@ -10415,7 +10456,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 { id: 'bronze', label: '🥉 برنزی' }
               ].map((pill) => (
                 <button
-                  key={pill.id}
+                  key={`crm-badge-pill-${pill.id}`}
                   type="button"
                   onClick={() => setCrmBadgeFilter(pill.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -10441,7 +10482,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 const count = crmCustomers.filter(c => pill.id === 'all' || c.role === pill.id || (!c.role && pill.id === 'customer')).length;
                 return (
                   <button
-                    key={pill.id}
+                    key={`crm-role-pill-${pill.id}`}
                     type="button"
                     onClick={() => setCrmRoleFilter(pill.id as any)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -12132,7 +12173,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   { id: 'all', label: 'همه', count: sponsoredAds.length },
                 ].map((f) => (
                   <button
-                    key={f.id}
+                    key={`ads-filter-${f.id}`}
                     onClick={() => setAdsFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                       adsFilter === f.id 
@@ -12153,7 +12194,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   { id: 'sell', label: '📤 فروش' },
                 ].map((f) => (
                   <button
-                    key={f.id}
+                    key={`ads-cat-filter-${f.id}`}
                     onClick={() => setAdsCategoryFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                       adsCategoryFilter === f.id 
@@ -13622,7 +13663,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   { id: 'all', label: 'همه', count: safeBuyRequests.length },
                 ].map((f) => (
                   <button
-                    key={f.id}
+                    key={`safebuy-filter-${f.id}`}
                     onClick={() => setSafeBuyFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                       safeBuyFilter === f.id 

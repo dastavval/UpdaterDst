@@ -1,3 +1,4 @@
+import { openDB, IDBPDatabase } from 'idb';
 
 export interface CacheStatus {
   isHealthy: boolean;
@@ -5,88 +6,94 @@ export interface CacheStatus {
   lastUpdate: number | null;
 }
 
-const DB_NAME = 'dastavval_cache';
+const DB_NAME = 'dastavval_cache_v3';
 const DB_VERSION = 1;
-const STORE_NAME = 'products';
+const PRODUCTS_STORE = 'products';
+const CONFIG_STORE = 'b2b_config';
 
-export async function initDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+let dbPromise: Promise<IDBPDatabase> | null = null;
 
-    request.onupgradeneeded = (event: any) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+export async function initDB() {
+  if (typeof window === 'undefined') return null;
+  
+  if (!dbPromise) {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(PRODUCTS_STORE)) {
+          db.createObjectStore(PRODUCTS_STORE, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(CONFIG_STORE)) {
+          db.createObjectStore(CONFIG_STORE, { keyPath: 'id' });
+        }
+      },
+    });
+  }
+  return dbPromise;
 }
 
 export async function cacheProducts(products: any[]): Promise<void> {
   const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    
-    // Clear old data
-    store.clear();
+  if (!db) return;
 
-    products.forEach(p => {
-      store.put({ ...p, _cachedAt: Date.now() });
-    });
-
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+  const tx = db.transaction(PRODUCTS_STORE, 'readwrite');
+  const store = tx.objectStore(PRODUCTS_STORE);
+  
+  await store.clear();
+  const timestamp = Date.now();
+  
+  for (const p of products) {
+    await store.put({ ...p, _cachedAt: timestamp });
+  }
+  
+  await tx.done;
 }
 
 export async function getCachedProducts(): Promise<any[]> {
   const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  if (!db) return [];
+  return db.getAll(PRODUCTS_STORE);
 }
 
 export async function getCacheStatus(): Promise<CacheStatus> {
   try {
     const db = await initDB();
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
+    if (!db) return { isHealthy: false, itemCount: 0, lastUpdate: null };
+
+    const items = await db.getAll(PRODUCTS_STORE);
+    const count = items.length;
+    let lastUpdate: number | null = null;
     
-    const countRequest = store.count();
-    const allRequest = store.getAll(); // To check last update time
+    if (count > 0) {
+      lastUpdate = Math.max(...items.map((i: any) => i._cachedAt || 0));
+    }
 
-    return new Promise((resolve) => {
-      let count = 0;
-      let lastUpdate: number | null = null;
-
-      countRequest.onsuccess = () => {
-        count = countRequest.result;
-      };
-
-      allRequest.onsuccess = () => {
-        const items = allRequest.result;
-        if (items.length > 0) {
-          lastUpdate = Math.max(...items.map((i: any) => i._cachedAt || 0));
-        }
-        resolve({
-          isHealthy: true,
-          itemCount: count,
-          lastUpdate
-        });
-      };
-
-      transaction.onerror = () => resolve({ isHealthy: false, itemCount: 0, lastUpdate: null });
-    });
+    return {
+      isHealthy: true,
+      itemCount: count,
+      lastUpdate
+    };
   } catch (e) {
     return { isHealthy: false, itemCount: 0, lastUpdate: null };
   }
+}
+
+export async function cacheB2bConfig(config: any): Promise<void> {
+  const db = await initDB();
+  if (!db) return;
+
+  const tx = db.transaction(CONFIG_STORE, 'readwrite');
+  const store = tx.objectStore(CONFIG_STORE);
+  
+  await store.clear();
+  await store.put({ id: 'main_config', data: config, _cachedAt: Date.now() });
+  
+  await tx.done;
+}
+
+export async function getCachedB2bConfig(): Promise<any | null> {
+  const db = await initDB();
+  if (!db) return null;
+  
+  const result = await db.get(CONFIG_STORE, 'main_config');
+  return result ? result.data : null;
 }

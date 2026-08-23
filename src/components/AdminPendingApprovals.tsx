@@ -73,7 +73,7 @@ interface AdminPendingApprovalsProps {
   barterDeals: any[];
   onUpdateBarterStatus: (id: string, newStatus: string) => void;
   representativesList: any[];
-  onUpdateRepStatus: (id: string, isApproved: boolean) => void;
+  onUpdateRepStatus: (id: string, isApproved: boolean, badge?: string) => void;
   suppliersList: any[];
   onUpdateSupplierStatus: (id: string, status: 'active' | 'suspended' | 'pending') => Promise<void>;
   callbackRequests: any[];
@@ -111,6 +111,7 @@ export default function AdminPendingApprovals({
   const [viewingDetailItem, setViewingDetailItem] = useState<PendingItem | null>(null);
   const [rejectionModalItem, setRejectionModalItem] = useState<PendingItem | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>("");
+  const [repBadge, setRepBadge] = useState<string>("نماینده رسمی");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -420,8 +421,8 @@ export default function AdminPendingApprovals({
         onUpdateBarterStatus(item.details.id, 'تایید نهایی شده');
         showToast(`قرارداد تهاتر با کارخانه ${item.details.factoryName} تایید نهایی شد.`);
       } else if (item.type === 'dealership') {
-        onUpdateRepStatus(item.details.id || item.details.agencyCode, true);
-        showToast(`درخواست نمایندگی استانی تایید و صادر گردید.`);
+        onUpdateRepStatus(item.details.id || item.details.agencyCode, true, repBadge);
+        showToast(`درخواست نمایندگی استانی با نشان «${repBadge}» تایید و صادر گردید.`);
       } else if (item.type === 'callback') {
         await onUpdateCallback(item.details.id, 'called', 'تماس کارشناسی با موفقیت انجام شد');
         showToast(`وضعیت تماس با ${item.requesterPhone} به انجام شده تغییر کرد.`);
@@ -766,7 +767,7 @@ export default function AdminPendingApprovals({
 
             return (
               <div
-                key={`pending-approval-card-${item.id || idx}-${idx}`}
+                key={`pending-approval-card-v2-${item.id}-${idx}`}
                 className={`bg-white rounded-2xl border transition-all hover:shadow-md p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${
                   item.priority === 'critical'
                     ? 'border-rose-300 bg-rose-50/20'
@@ -995,7 +996,7 @@ export default function AdminPendingApprovals({
                         const lineTotal = unitPrice * qty;
 
                         return (
-                          <div key={`admin-pend-appr-item-${it.id || it.productId || i}-${i}`} className="p-3 flex items-center justify-between">
+                          <div key={`admin-pend-appr-item-v2-${it.id || it.productId || i}-${i}`} className="p-3 flex items-center justify-between">
                             <div>
                               <span className="font-black text-slate-900 block text-xs">{it.name || it.productName || it.title || 'کالای سفارشی'}</span>
                               <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
@@ -1054,6 +1055,64 @@ export default function AdminPendingApprovals({
                           </p>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dealership Request Details */}
+                {viewingDetailItem.type === 'dealership' && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs">
+                      <h4 className="text-xs font-black text-slate-900 border-b border-slate-200 pb-2">اطلاعات متقاضی نمایندگی استانی:</h4>
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">استان مورد تقاضا:</span>
+                          <span className="font-black text-slate-900">{viewingDetailItem.details.province || 'نامشخص'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">شهر/منطقه فعالیتی:</span>
+                          <span className="font-black text-slate-900">{viewingDetailItem.details.city || 'سرتاسری'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">سابقه بنکداری/پخش:</span>
+                          <span className="font-black text-slate-900">{viewingDetailItem.details.experience || 'مشاهده رزومه پیوست'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">کد عاملیت پیشنهادی:</span>
+                          <span className="font-black text-indigo-600 font-mono">{viewingDetailItem.details.agencyCode || 'AUTO-GEN'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Award className="text-amber-600" size={18} />
+                        <span className="text-xs font-black text-amber-950">تعیین نشان و اعتبار نماینده هنگام تایید:</span>
+                      </div>
+                      <p className="text-[10px] text-amber-800 font-bold">نشان انتخاب شده در گواهینامه نمایندگی و پروفایل کاربری ایشان درج خواهد شد.</p>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                        {[
+                          { id: 'نماینده رسمی', label: 'رسمی', icon: '📜' },
+                          { id: 'امین', label: 'امین', icon: '🛡️' },
+                          { id: 'ممتاز', label: 'ممتاز', icon: '💎' },
+                          { id: 'طلایی', label: 'طلایی', icon: '🏆' }
+                        ].map((b) => (
+                          <button
+                            key={`badge-sel-v2-${b.id}`}
+                            type="button"
+                            onClick={() => setRepBadge(b.id)}
+                            className={`p-2 rounded-xl border text-[10px] font-black transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                              repBadge === b.id 
+                                ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
+                            }`}
+                          >
+                            <span className="text-sm">{b.icon}</span>
+                            <span>{b.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1139,7 +1198,6 @@ export default function AdminPendingApprovals({
         )}
       </AnimatePresence>
 
-      {/* REJECTION REASON MODAL */}
       <AnimatePresence>
         {rejectionModalItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
@@ -1158,6 +1216,21 @@ export default function AdminPendingApprovals({
                   <p className="text-[10px] text-slate-400 font-bold">{rejectionModalItem.title}</p>
                 </div>
               </div>
+
+              {rejectionModalItem.type === 'dealership' && (
+                <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 space-y-2">
+                  <label className="text-[11px] font-black text-amber-900 block">انتخاب نشان نمایندگی (اختیاری):</label>
+                  <select 
+                    className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-bold outline-none"
+                    onChange={(e) => setRepBadge(e.target.value)}
+                  >
+                    <option value="نماینده رسمی">عادی (نماینده رسمی)</option>
+                    <option value="امین">نشان امین (توزیع گسترده)</option>
+                    <option value="نماینده طلایی">نشان طلایی (بالاترین تیراژ)</option>
+                    <option value="بازوی اجرایی">نشان بازوی اجرایی (استانی)</option>
+                  </select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-700 block">

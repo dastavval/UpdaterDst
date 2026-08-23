@@ -323,7 +323,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                 <div className="bg-slate-900 text-slate-300 p-4 rounded-2xl font-mono text-[11px] space-y-1.5 max-h-40 overflow-y-auto">
                   <div className="text-slate-400 font-bold border-b border-slate-800 pb-1 mb-2">گزارش لحظه‌ای لایه‌های پروکسی:</div>
                   {statusLogs.map((log, idx) => (
-                    <div key={idx} className="leading-tight">{log}</div>
+                    <div key={`smart-json-log-${idx}`} className="leading-tight">{log}</div>
                   ))}
                 </div>
               )}
@@ -447,7 +447,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {previewProducts.map((p, i) => (
-                      <tr key={i} className="hover:bg-slate-50">
+                      <tr key={`smart-json-preview-${p.id || i}-${i}`} className="hover:bg-slate-50">
                         <td className="p-3 text-slate-400 font-mono">{i + 1}</td>
                         <td className="p-3 flex items-center gap-2">
                           {p.imageUrl ? (
