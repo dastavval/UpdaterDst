@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc, db, auth } from "./lib/data-layer";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts, cacheB2bConfig, getCachedB2bConfig } from "./lib/db";
@@ -674,19 +674,61 @@ export default function App() {
   const [userProvince, setUserProvince] = useState<string>(() => localStorage.getItem("dastavval_user_province") || "تهران");
   const [cityAgency, setCityAgency] = useState<any>(null);
 
-  useEffect(() => {
+  const checkCityRepresentative = useCallback(() => {
     try {
+      if (!userCity) {
+        setCityAgency(null);
+        return;
+      }
+
+      // 1. Check approved representatives from admin panel database
+      const savedReps: any[] = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+      const approvedAdminRep = savedReps.find((r: any) => 
+        r.isApproved === true && 
+        (r.status === 'active' || !r.status) &&
+        r.city && r.city.trim().toLowerCase() === userCity.trim().toLowerCase()
+      );
+
+      if (approvedAdminRep) {
+        setCityAgency(approvedAdminRep);
+        return;
+      }
+
+      // 2. Check registered local users ONLY IF explicitly approved by Admin
       const usersObj = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
       const users = Object.values(usersObj);
-      const rep = users.find((u: any) => 
-        (u.agencyApproved === true || u.role === 'representative' || u.role === 'agency') && 
-        (u.city === userCity || u.province === userProvince || u.agencyProvince === userProvince)
-      );
-      setCityAgency(rep || null);
+      const approvedUserRep = users.find((u: any) => {
+        const isApprovedByAdmin = 
+          u.agencyApproved === true || 
+          u.isRepresentativeApproved === true || 
+          u.representativeApproved === true ||
+          (u.phone && localStorage.getItem(`dastavval_rep_approved_${u.phone}`) === "true") ||
+          (u.id && localStorage.getItem(`dastavval_rep_approved_${u.id}`) === "true");
+
+        const isActive = u.status === 'active' || u.status === undefined;
+        const matchesCity = u.city && u.city.trim().toLowerCase() === userCity.trim().toLowerCase();
+        const hasRepRole = u.role === 'representative' || u.role === 'agency';
+
+        return isApprovedByAdmin && isActive && hasRepRole && matchesCity;
+      });
+
+      setCityAgency(approvedUserRep || null);
     } catch(e) {
       setCityAgency(null);
     }
-  }, [userCity, userProvince]);
+  }, [userCity]);
+
+  useEffect(() => {
+    checkCityRepresentative();
+  }, [checkCityRepresentative]);
+
+  useEffect(() => {
+    const handleRepsChanged = () => {
+      checkCityRepresentative();
+    };
+    window.addEventListener("dastavval_reps_updated", handleRepsChanged);
+    return () => window.removeEventListener("dastavval_reps_updated", handleRepsChanged);
+  }, [checkCityRepresentative]);
 
   useEffect(() => {
     const handleCityChanged = (e: any) => {

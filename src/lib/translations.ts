@@ -74,7 +74,7 @@ export const translations: Record<Language, {
     pitchTitle: "بازرگانی بی‌واسطه خط تولید",
     pitchSub: "ثبت سفارشات مستقیم کارتنی با قیمت مستقیم درب کارخانه",
     home: "خانه",
-    myPanel: "پنل من",
+    myPanel: "حساب کاربری",
     wholesaleBuy: "خرید مستقیم",
     marketplace: "ویترین تامین‌کنندگان",
     specialDeals: "آفرها و تخفیفات حجمی",

@@ -301,9 +301,10 @@ export function ContactSection({ theme, userBadge, userCity }: { theme: 'light' 
   }, []);
 
   const filteredReps = representatives.filter(rep => 
-    rep.city.includes(searchTerm) || 
-    rep.name.includes(searchTerm) || 
-    rep.address.includes(searchTerm)
+    rep.isApproved !== false &&
+    (rep.city.includes(searchTerm) || 
+     rep.name.includes(searchTerm) || 
+     (rep.address && rep.address.includes(searchTerm)))
   );
 
   const scroll = (direction: 'left' | 'right') => {

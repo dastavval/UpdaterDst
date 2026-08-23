@@ -14,7 +14,7 @@ export const ReferralRewardModal: React.FC<ReferralRewardModalProps> = ({
   userPhone = '09123456789'
 }) => {
   const referralCode = `BONK-${userPhone.slice(-4) || '8832'}`;
-  const referralLink = `https://dastaval.ir/join?ref=${referralCode}`;
+  const referralLink = `https://dastavval.com/join?ref=${referralCode}`;
   
   const [copied, setCopied] = useState(false);
   const [friendPhone, setFriendPhone] = useState('');

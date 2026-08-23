@@ -415,7 +415,7 @@ export default function UserPanel({
 
   // Marketer Referral Code and Dynamic Link
   const referralCode = user?.agencyCode || user?.userCode || `AGN-${(user?.phone || '2806').slice(-4)}`;
-  const referralUrl = `https://dastavval.ir/?ref=${referralCode}`;
+  const referralUrl = `https://dastavval.com/?ref=${referralCode}`;
 
   const handleCopyReferral = () => {
     navigator.clipboard.writeText(referralUrl);

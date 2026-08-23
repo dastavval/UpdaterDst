@@ -336,7 +336,7 @@ export default function Navbar({
     { id: 'order', label: t.wholesaleBuy, icon: <ShoppingBag size={18} className="text-slate-500 transition-colors" /> },
     { id: 'billboard', label: "کف بازار", icon: <SpecialPriceBagIcon size={18} animated={true} plain={true} /> },
     { id: 'factories', label: "کارخانجات", icon: <Building2 size={18} className="text-slate-500 transition-colors" /> },
-    { id: 'admin', label: user ? t.myPanel : "ورود / عضویت", icon: <User size={18} className="text-slate-500 transition-colors" /> },
+    { id: 'admin', label: "حساب کاربری", icon: <User size={18} className="text-slate-500 transition-colors" /> },
   ];
 
   const handleNavClick = (id: string) => {
@@ -605,7 +605,7 @@ export default function Navbar({
                   }`}
                 >
                   <User size={15} />
-                  <span>{user ? t.myPanel : "ورود / عضویت"}</span>
+                  <span>حساب کاربری</span>
                 </button>
 
 
@@ -669,7 +669,7 @@ export default function Navbar({
                   className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-black hover transition-all cursor-pointer"
                 >
                   <User size={14} />
-                  ورود / عضویت
+                  حساب کاربری
                 </button>
               )}
 

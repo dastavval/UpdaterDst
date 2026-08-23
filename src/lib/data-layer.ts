@@ -391,7 +391,7 @@ export const signInWithEmailAndPassword = async (...args: any[]) => {
   const emailOrPhone = args[1]?.toLowerCase().trim() || "";
   const password = args[2] || "";
 
-  if ((emailOrPhone === '09914762406' || emailOrPhone === 'admin@dastaval.ir') && password === '@Ali3360') {
+  if ((emailOrPhone === '09914762406' || emailOrPhone === 'admin@dastavval.com' || emailOrPhone === 'admin@dastaval.ir') && password === '@Ali3360') {
     return {
       user: { uid: 'admin_uid', email: emailOrPhone, displayName: 'مدیریت کل سامانه' }
     };

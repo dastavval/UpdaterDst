@@ -109,7 +109,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         }
 
         // Hardcoded Admin Check for development/demo purposes
-        if ((trimmedEmail === '09914762406' || trimmedEmail === 'admin@dastaval.ir') && cleanPassword === '@Ali3360') {
+        if ((trimmedEmail === '09914762406' || trimmedEmail === 'admin@dastavval.com' || trimmedEmail === 'admin@dastaval.ir') && cleanPassword === '@Ali3360') {
           resetLoginAttempts(targetId);
           setSuccess("ورود به پنل مدیریت کل با موفقیت انجام شد.");
           setTimeout(() => {
@@ -241,9 +241,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         let userAuthKey = email.toLowerCase().trim();
         if (!userAuthKey) {
           const slug = finalPhone.replace(/\D/g, '') || finalCompany.replace(/\s+/g, '_');
-          userAuthKey = `${slug}@dastavval.ir`;
+          userAuthKey = `${slug}@dastavval.com`;
         } else if (!userAuthKey.includes("@")) {
-          userAuthKey = `${userAuthKey}@dastavval.ir`;
+          userAuthKey = `${userAuthKey}@dastavval.com`;
         }
         trimmedEmail = userAuthKey;
 

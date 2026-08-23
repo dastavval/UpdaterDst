@@ -179,9 +179,9 @@ export default function AdminSystemConfig({
   }, [activeTab]);
 
   // --- 3. SITE & DATABASE CONFIG STATES ---
-  const [siteDomain, setSiteDomain] = useState((b2bConfig as any).domain || "https://dastavval.ir");
+  const [siteDomain, setSiteDomain] = useState((b2bConfig as any).domain || "https://dastavval.com");
   const [apiGatewayUrl, setApiGatewayUrl] = useState(
-    (b2bConfig as any).apiGatewayUrl || "https://dastavval.ir/api/v1"
+    (b2bConfig as any).apiGatewayUrl || "https://dastavval.com/api/v1"
   );
   const [maintenanceMode, setMaintenanceMode] = useState(!!(b2bConfig as any).maintenanceMode);
   const [rateLimitReq, setRateLimitReq] = useState((b2bConfig as any).rateLimitReq || 120);
