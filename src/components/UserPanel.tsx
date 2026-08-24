@@ -1754,14 +1754,15 @@ export default function UserPanel({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-black text-slate-800 block">آدرس دقیق محل تخلیه بار:</label>
+                  <label className="text-xs font-black text-slate-800 block">آدرس دقیق انبار یا مغازه جهت تخلیه بار:</label>
                   <textarea
                     rows={2}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="خیابان، پلاک، طبقه یا جزئیات دسترسی راننده..."
+                    placeholder="مثال: تهران، جاده خاوران، شهرک صنعتی خاوران، خیابان دوم، پلاک ۴۵، انبار مرکزی توزیع..."
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
+                  <p className="text-[10px] text-slate-400 font-bold mt-1">💡 آدرس دقیق محل تخلیه به همراه شماره پلاک و شناسه انبار جهت صدور بارنامه رسمی</p>
                 </div>
 
                 <div className="space-y-1 pt-3 border-t border-slate-100">

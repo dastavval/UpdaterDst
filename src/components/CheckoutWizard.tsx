@@ -465,7 +465,7 @@ export default function CheckoutWizard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: buyerPhone,
-            buyerName: buyerName || "خریدار گرامی",
+            buyerName: buyerName || "خریدار محترم (عامل توزیع)",
             orderId: trackingNumber
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger in checkout:", err));
@@ -935,43 +935,46 @@ export default function CheckoutWizard({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام و نام خانوادگی تحویل‌گیرنده *</label>
+                    <label className="block text-[11px] font-black text-slate-700 mb-1">نام و نام خانوادگی تحویل‌گیرنده *</label>
                     <input
                       type="text"
                       value={buyerName}
                       onChange={e => setBuyerName(e.target.value)}
-                      placeholder="مثال: علی رضایی"
+                      placeholder="مثال: مهندس علیرضا رضایی"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                     />
+                    <p className="text-[10px] text-slate-400 font-bold mt-1">💡 نام تحویل‌گیرنده اصلی بار در انبار یا خریدار</p>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره تماس (جهت هماهنگی راننده باربری) *</label>
+                    <label className="block text-[11px] font-black text-slate-700 mb-1">شماره همراه (جهت هماهنگی راننده باربری) *</label>
                     <input
                       type="text"
                       value={buyerPhone}
                       onChange={e => setBuyerPhone(e.target.value)}
-                      placeholder="مثال: 09121111111"
+                      placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
                       className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold font-mono text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                       dir="ltr"
                     />
+                    <p className="text-[10px] text-slate-400 font-bold mt-1">💡 دریافت پیامک کد پیگیری و تماس مستقیم راننده</p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام بنکداری / فروشگاه / شرکت</label>
+                  <label className="block text-[11px] font-black text-slate-700 mb-1">نام بنکداری / فروشگاه / شرکت ثبت‌شده</label>
                   <input
                     type="text"
                     value={buyerCompany}
                     onChange={e => setBuyerCompany(e.target.value)}
-                    placeholder="مثال: بازرگانی البرز"
+                    placeholder="مثال: شرکت بازرگانی مواد غذایی البرز"
                     className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                   />
+                  <p className="text-[10px] text-slate-400 font-bold mt-1">💡 جهت ثبت در سربرگ پیش‌فاکتور رسمی کارخانه</p>
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="block text-[11px] font-black text-slate-700">آدرس کامل و دقیق انبار یا مغازه جهت تخلیه بار *</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[11px] font-black text-slate-700">آدرس دقیق انبار یا مغازه جهت تخلیه بار *</label>
                     <button
                       type="button"
                       onClick={() => {
@@ -989,9 +992,10 @@ export default function CheckoutWizard({
                     rows={2}
                     value={buyerAddress}
                     onChange={e => setBuyerAddress(e.target.value)}
-                    placeholder="مثال: تهران، خیابان خیام، پلاک ۱۲۰، انبار مرکزی توزیع..."
+                    placeholder="مثال: تهران، جاده خاوران، شهرک صنعتی خاوران، خیابان دوم، پلاک ۴۵، انبار مرکزی توزیع البرز..."
                     className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
                   />
+                  <p className="text-[10px] text-slate-400 font-bold mt-1">💡 آدرس دقیق تخلیه به همراه پلاک و شناسه انبار جهت صدور بارنامه رسمی</p>
                 </div>
 
                 {cityAgency && (

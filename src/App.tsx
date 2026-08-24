@@ -601,8 +601,8 @@ export default function App() {
             setDirectUrlInvoiceOrder({
               id: cleanNumeric,
               trackingNumber: `DO-${cleanNumeric}`,
-              buyerName: "خریدار گرامی",
-              buyerCompany: "پخش عمده و زنجیره تامین",
+              buyerName: "خریدار محترم (عامل توزیع)",
+              buyerCompany: "شرکت بازرگانی مواد غذایی البرز",
               buyerPhone: "09*********",
               createdAt: new Date().toISOString(),
               totalAmount: 185000000,
@@ -1634,7 +1634,7 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: buyerPhone,
-            buyerName: buyerName || "خریدار گرامی",
+            buyerName: buyerName || "خریدار محترم (عامل توزیع)",
             orderId: trackingNumber
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger:", err));

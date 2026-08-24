@@ -782,15 +782,16 @@ export default function ProductDetailModal({
                       <div className="space-y-1">
                         <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
                           <UserIcon size={12} />
-                          نام و نام خانوادگی رابط
+                          نام و نام خانوادگی مسئول / رابط
                         </label>
                         <input 
                           type="text" 
                           value={buyerName}
                           onChange={(e) => setBuyerName(e.target.value)}
-                          placeholder="مثال: علی رضایی"
+                          placeholder="مثال: مهندس علیرضا رضایی"
                           className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 outline-none focus focus font-bold"
                         />
+                        <p className="text-[9px] text-slate-400 font-bold">💡 نام تحویل‌گیرنده یا مسئول خرید</p>
                         {errors.buyerName && <p className="text-rose-500 text-[9px] font-black">{errors.buyerName}</p>}
                       </div>
 
@@ -803,9 +804,10 @@ export default function ProductDetailModal({
                           type="text" 
                           value={buyerPhone}
                           onChange={(e) => setBuyerPhone(e.target.value)}
-                          placeholder="مثال: 09123456789"
+                          placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
                           className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 font-mono outline-none focus focus text-left"
                         />
+                        <p className="text-[9px] text-slate-400 font-bold">💡 جهت دریافت SMS پیش‌فاکتور</p>
                         {errors.buyerPhone && <p className="text-rose-500 text-[9px] font-black">{errors.buyerPhone}</p>}
                       </div>
                     </div>
@@ -813,30 +815,32 @@ export default function ProductDetailModal({
                     <div className="space-y-1">
                       <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
                         <Building size={12} />
-                        نام بنکداری / فروشگاه
+                        نام بنکداری / فروشگاه / شرکت
                       </label>
                       <input 
                         type="text" 
                         value={buyerCompany}
                         onChange={(e) => setBuyerCompany(e.target.value)}
-                        placeholder="مثال: پخش همکاران البرز"
+                        placeholder="مثال: شرکت بازرگانی مواد غذایی البرز"
                         className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 outline-none focus focus font-bold"
                       />
+                      <p className="text-[9px] text-slate-400 font-bold">💡 عنوان رسمی جهت ثبت در فاکتور رسمی کارخانه</p>
                       {errors.buyerCompany && <p className="text-rose-500 text-[9px] font-black">{errors.buyerCompany}</p>}
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
                         <MapPin size={12} />
-                        نشانی تخلیه بار
+                        نشانی کامل انبار جهت تخلیه بار
                       </label>
                       <textarea 
                         value={buyerAddress}
                         onChange={(e) => setBuyerAddress(e.target.value)}
-                        placeholder="مثال: تهران، جاده قدیم کرج، انبار توزیع شماره ۳"
+                        placeholder="مثال: تهران، جاده قدیم کرج، خیابان هفدهم، پلاک ۱۲، انبار مرکزی توزیع..."
                         rows={2}
                         className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-indigo-800 outline-none focus focus font-bold"
                       />
+                      <p className="text-[9px] text-slate-400 font-bold">💡 آدرس دقیق تخلیه به همراه پلاک جهت صدور بارنامه رسمی</p>
                       {errors.buyerAddress && <p className="text-rose-500 text-[9px] font-black">{errors.buyerAddress}</p>}
                     </div>
 

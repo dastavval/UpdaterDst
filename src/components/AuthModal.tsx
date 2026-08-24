@@ -923,7 +923,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                 {/* Form Fields - Clean, light & comfortable */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black text-slate-700 block">نام و نام خانوادگی مسئول:</label>
+                    <label className="text-[11px] font-black text-slate-700 block">نام و نام خانوادگی مسئول / خریدار:</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
@@ -931,14 +931,15 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="مثال: علی رضایی"
+                        placeholder="مثال: مهندس علیرضا رضایی"
                         className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-500 font-medium">💡 نام مدیریت، مدیر خرید یا مسئول سفارشات مجموعه</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black text-slate-700 block">نام مجموعه / کارخانه / فروشگاه:</label>
+                    <label className="text-[11px] font-black text-slate-700 block">نام مجموعه / بنکداری / فروشگاه:</label>
                     <div className="relative">
                       <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
@@ -946,14 +947,15 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                         required
                         value={company}
                         onChange={(e) => setCompany(e.target.value)}
-                        placeholder="مثال: صنایع غذایی البرز یا هایپرمارکت صدف"
+                        placeholder="مثال: شرکت بازرگانی البرز یا هایپرمارکت صدف"
                         className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-500 font-medium">💡 عنوان ثبت‌شده در جواز کسب یا شرکت جهت صدور فاکتور رسمی</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black text-slate-700 block">شماره همراه (شناسه پرتال):</label>
+                    <label className="text-[11px] font-black text-slate-700 block">شماره همراه (شناسه ورود و پیامک):</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
@@ -966,10 +968,11 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                         dir="ltr"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-500 font-medium">💡 جهت دریافت رمز یک‌بارمصرف (OTP) و لینک پیامکی پیش‌فاکتور</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black text-slate-700 block">استان و شهر فعالیت:</label>
+                    <label className="text-[11px] font-black text-slate-700 block">استان و شهر محل انبار / بنکداری:</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
@@ -981,6 +984,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                         className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-500 font-medium">💡 جهت ارجاع مستقیم به عاملیت توزیع و محاسبه کرایه حمل</p>
                   </div>
                 </div>
 

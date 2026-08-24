@@ -778,31 +778,31 @@ export default function WholesaleInvoiceView({
                     type="text"
                     value={buyerCompany}
                     onChange={(e) => setBuyerCompany(e.target.value)}
-                    placeholder="نام خریدار یا فروشگاه"
-                    className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium"
+                    placeholder="مثال: شرکت بازرگانی مواد غذایی البرز"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[9px] font-bold"
                   />
                   <div className="grid grid-cols-2 gap-1">
                     <input
                       type="text"
                       value={buyerName}
                       onChange={(e) => setBuyerName(e.target.value)}
-                      placeholder="مسئول خرید"
-                      className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium"
+                      placeholder="مثال: مهندس علیرضا رضایی"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[9px] font-bold"
                     />
                     <input
                       type="text"
                       value={buyerPhone}
                       onChange={(e) => setBuyerPhone(e.target.value)}
-                      placeholder="شماره تماس"
-                      className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium font-mono"
+                      placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
+                      className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[9px] font-bold font-mono"
                     />
                   </div>
                   <input
                     type="text"
                     value={buyerAddress}
                     onChange={(e) => setBuyerAddress(e.target.value)}
-                    placeholder="نشانی محل تخلیه بار"
-                    className="w-full bg-slate-50 border border-slate-300 rounded px-1 py-0.5 text-[9px] font-medium"
+                    placeholder="مثال: تهران، جاده خاوران، انبار مرکزی توزیع البرز"
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[9px] font-bold"
                   />
                 </div>
               ) : null}

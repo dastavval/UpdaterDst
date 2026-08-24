@@ -151,6 +151,20 @@ app.use("/api/b2b/config", (req, res, next) => {
 app.use("/api/git/update", sensitiveActionLimiter);
 app.use("/api/git/test-connection", sensitiveActionLimiter);
 
+const DATA_DIR = path.join(process.cwd(), "data");
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {}
+}
+
+const PERSISTENT_UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) {
+  try {
+    fs.mkdirSync(PERSISTENT_UPLOADS_DIR, { recursive: true });
+  } catch (e) {}
+}
+
 // Ensure public uploads directory exists and mount static route
 const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
 try {
@@ -160,10 +174,52 @@ try {
 } catch (e) {
   console.warn("Could not create uploads directory:", e);
 }
+
+// Sync persistent uploads to public/uploads and vice versa on startup
+try {
+  if (fs.existsSync(PERSISTENT_UPLOADS_DIR)) {
+    const list = fs.readdirSync(PERSISTENT_UPLOADS_DIR);
+    for (const file of list) {
+      const src = path.join(PERSISTENT_UPLOADS_DIR, file);
+      const dest = path.join(UPLOADS_DIR, file);
+      if (fs.statSync(src).isFile() && !fs.existsSync(dest)) {
+        fs.copyFileSync(src, dest);
+      }
+    }
+  }
+  if (fs.existsSync(UPLOADS_DIR)) {
+    const list = fs.readdirSync(UPLOADS_DIR);
+    for (const file of list) {
+      const src = path.join(UPLOADS_DIR, file);
+      const dest = path.join(PERSISTENT_UPLOADS_DIR, file);
+      if (fs.statSync(src).isFile() && !fs.existsSync(dest)) {
+        fs.copyFileSync(src, dest);
+      }
+    }
+  }
+} catch (e) {
+  console.warn("Uploads sync warning:", e);
+}
+
 app.use("/uploads", express.static(UPLOADS_DIR));
 
-const CONFIG_FILE = path.join(process.cwd(), "ai-config.json");
-const CACHE_FILE = path.join(process.cwd(), "ai-cache.json");
+const B2B_CONFIG_FILE = path.join(DATA_DIR, "b2b-config.json");
+const OLD_B2B_CONFIG_FILE = path.join(process.cwd(), "b2b-config.json");
+if (!fs.existsSync(B2B_CONFIG_FILE) && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
+  try { fs.copyFileSync(OLD_B2B_CONFIG_FILE, B2B_CONFIG_FILE); } catch (e) {}
+}
+
+const CONFIG_FILE = path.join(DATA_DIR, "ai-config.json");
+const OLD_CONFIG_FILE = path.join(process.cwd(), "ai-config.json");
+if (!fs.existsSync(CONFIG_FILE) && fs.existsSync(OLD_CONFIG_FILE)) {
+  try { fs.copyFileSync(OLD_CONFIG_FILE, CONFIG_FILE); } catch (e) {}
+}
+
+const CACHE_FILE = path.join(DATA_DIR, "ai-cache.json");
+const OLD_CACHE_FILE = path.join(process.cwd(), "ai-cache.json");
+if (!fs.existsSync(CACHE_FILE) && fs.existsSync(OLD_CACHE_FILE)) {
+  try { fs.copyFileSync(OLD_CACHE_FILE, CACHE_FILE); } catch (e) {}
+}
 
 // Default configuration
 let aiConfig = {
@@ -179,14 +235,6 @@ if (fs.existsSync(CONFIG_FILE)) {
   } catch (e) {
     console.error("Failed to read ai-config.json:", e);
   }
-}
-
-const B2B_CONFIG_FILE = path.join(process.cwd(), "b2b-config.json");
-const DATA_DIR = path.join(process.cwd(), "data");
-if (!fs.existsSync(DATA_DIR)) {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch (e) {}
 }
 
 const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
@@ -1620,13 +1668,19 @@ app.post("/api/storage/upload", async (req, res) => {
     const timestamp = Date.now();
     const objectKey = `${subFolder}${timestamp}-${cleanFileName}`;
 
-    // Always ensure local persistence in uploads directory
+    // Always ensure local persistence in both public/uploads and data/uploads
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    const persistentUploadsDir = path.join(DATA_DIR, "uploads");
     try {
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
-      fs.writeFileSync(path.join(uploadsDir, `${timestamp}-${cleanFileName}`), buffer);
+      if (!fs.existsSync(persistentUploadsDir)) {
+        fs.mkdirSync(persistentUploadsDir, { recursive: true });
+      }
+      const targetFileName = `${timestamp}-${cleanFileName}`;
+      fs.writeFileSync(path.join(uploadsDir, targetFileName), buffer);
+      fs.writeFileSync(path.join(persistentUploadsDir, targetFileName), buffer);
     } catch (e) {
       console.warn("Local upload write note:", e);
     }
@@ -1759,12 +1813,16 @@ app.post("/api/storage/delete", async (req, res) => {
 
     const bucket = (b2bConfig.storageBucket || "c102393").trim();
     
-    // Remove local file if exists
+    // Remove local file if exists in both public/uploads and data/uploads
     const cleanFileName = key.split("/").pop();
     if (cleanFileName) {
       const localFilePath = path.join(process.cwd(), "public", "uploads", cleanFileName);
       if (fs.existsSync(localFilePath)) {
         try { fs.unlinkSync(localFilePath); } catch (e) {}
+      }
+      const persistentFilePath = path.join(DATA_DIR, "uploads", cleanFileName);
+      if (fs.existsSync(persistentFilePath)) {
+        try { fs.unlinkSync(persistentFilePath); } catch (e) {}
       }
     }
 
@@ -2909,7 +2967,7 @@ app.post("/api/b2b/orders", (req, res) => {
       const existing = existingOrders.find(o => o.id === incoming.id);
       
       const buyerPhone = incoming.buyerPhone || incoming.buyerInfo?.phone;
-      const buyerName = incoming.buyerName || incoming.buyerInfo?.name || "خریدار گرامی";
+      const buyerName = incoming.buyerName || incoming.buyerInfo?.name || "خریدار محترم (عامل توزیع)";
       
       if (!existing) {
         // NEW ORDER PLACEMENT
@@ -3374,7 +3432,7 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
   }
 
   const cleanPhone = normalizeIranianPhone(phone);
-  const name = (buyerName || "خریدار گرامی").trim();
+  const name = (buyerName || "خریدار محترم B2B").trim();
   
   // Extract strictly numeric digits from orderId e.g. "خریدار عمده (3001)" -> "3001"
   let cleanCode = String(orderId)
@@ -3659,8 +3717,8 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
 
       <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
         <div class="font-black text-slate-800 border-b border-slate-200 pb-1 mb-2 text-indigo-900">👤 مشخصات خریدار / سازمان:</div>
-        <div><span class="text-slate-500">نام خریدار:</span> <span class="font-bold">${matchedOrder.buyerName || "خریدار گرامی"}</span></div>
-        <div><span class="text-slate-500">مجموعه / فروشگاه:</span> <span class="font-bold">${matchedOrder.buyerCompany || "مشتری زنجیره توزیع"}</span></div>
+        <div><span class="text-slate-500">نام خریدار:</span> <span class="font-bold">${matchedOrder.buyerName || "خریدار محترم (عامل توزیع)"}</span></div>
+        <div><span class="text-slate-500">مجموعه / فروشگاه:</span> <span class="font-bold">${matchedOrder.buyerCompany || "شرکت بازرگانی مواد غذایی البرز"}</span></div>
         <div><span class="text-slate-500">شماره همراه:</span> <span class="font-mono font-bold">${matchedOrder.buyerPhone || "-"}</span></div>
       </div>
     </div>
