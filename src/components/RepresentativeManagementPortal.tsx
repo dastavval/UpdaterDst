@@ -449,6 +449,21 @@ export default function RepresentativeManagementPortal({
     ? Math.min(100, Math.round((simulatedSales / nextTier.minSales) * 100))
     : 100;
 
+  // Dynamic Affiliate Stats
+  const affiliateStats = useMemo(() => {
+    const repCodes = [user?.id, user?.agencyCode, user?.userCode, user?.phone].filter(Boolean) as string[];
+    const matchedOrders = orders.filter((o: any) => 
+      o.affiliateRepId && repCodes.includes(o.affiliateRepId)
+    );
+    const uniqueBuyers = new Set(matchedOrders.map((o: any) => o.buyerPhone || o.buyerName));
+    const totalAffiliateComm = matchedOrders.reduce((sum: number, o: any) => sum + (o.affiliateCommissionAmount || 0), 0);
+    return {
+      ordersCount: matchedOrders.length,
+      buyersCount: uniqueBuyers.size,
+      commissionsTotal: totalAffiliateComm
+    };
+  }, [orders, user]);
+
   // Filter and sort products for direct representative Workplace
   const filteredProducts = useMemo(() => {
     let list = products.filter(p => {
@@ -1294,15 +1309,15 @@ export default function RepresentativeManagementPortal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> مشتریان جذب شده:</span>
-              <div className="text-xl font-black text-slate-900">{toPersianNum(0)} خریدار</div>
+              <div className="text-xl font-black text-slate-900">{toPersianNum(affiliateStats.buyersCount)} خریدار</div>
             </div>
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><ShoppingBag size={14} className="text-slate-400" /> سفارشات قطعی:</span>
-              <div className="text-xl font-black text-slate-900">{toPersianNum(0)} سفارش</div>
+              <div className="text-xl font-black text-slate-900">{toPersianNum(affiliateStats.ordersCount)} سفارش</div>
             </div>
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Wallet size={14} className="text-slate-400" /> پورسانت فعال:</span>
-              <div className="text-xl font-black text-slate-900 text-emerald-600">{toPersianNum(0)} <span className="text-xs text-slate-500">تومان</span></div>
+              <div className="text-xl font-black text-slate-900 text-emerald-600">{toPersianNum(affiliateStats.commissionsTotal)} <span className="text-xs text-slate-500">تومان</span></div>
             </div>
           </div>
         </div>

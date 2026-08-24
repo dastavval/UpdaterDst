@@ -419,6 +419,9 @@ export interface B2BConfig {
   smsStockAlertPatternId?: string | number;
   smsLogisticsPatternId?: string | number;
   smsFactoryProductionPatternId?: string | number;
+  smsAdPatternId?: string | number;
+  smsCallbackPatternId?: string | number;
+  smsAdminNotificationPatternId?: string | number;
 }
 
 export type GuaranteeType = 'sayad_cheque' | 'promissory_note' | 'bank_guarantee' | 'cash_deposit';

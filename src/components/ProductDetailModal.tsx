@@ -42,10 +42,10 @@ export default function ProductDetailModal({
   const [detailImgError, setDetailImgError] = useState(false);
   
   // Form fields with intelligent initial auto-fill
-  const [buyerName, setBuyerName] = useState(() => user?.name || "");
+  const [buyerName, setBuyerName] = useState(() => user?.role !== 'admin' && user?.name !== "مدیریت کل سامانه" ? user?.name || "" : "");
   const [buyerPhone, setBuyerPhone] = useState(() => user?.mobile || user?.phone || "");
-  const [buyerCompany, setBuyerCompany] = useState(() => user?.company || "");
-  const [buyerAddress, setBuyerAddress] = useState(() => user?.address || "");
+  const [buyerCompany, setBuyerCompany] = useState(() => user?.role !== 'admin' ? user?.company || "" : "");
+  const [buyerAddress, setBuyerAddress] = useState(() => user?.role !== 'admin' ? user?.address || "" : "");
   const [transportType, setTransportType] = useState("road_truck"); // road_truck, local_cargo, heavy_trailer
 
   // Reset/sync state whenever active product changes
@@ -70,16 +70,16 @@ export default function ProductDetailModal({
       // ignore
     }
 
-    if (user?.name) setBuyerName(user.name);
+    if (user?.name && user.role !== 'admin' && user.name !== "مدیریت کل سامانه") setBuyerName(user.name);
     else if (!buyerName && saved.name) setBuyerName(saved.name);
 
     if (user?.mobile || user?.phone) setBuyerPhone(user.mobile || user.phone || "");
     else if (!buyerPhone && saved.phone) setBuyerPhone(saved.phone);
 
-    if (user?.company) setBuyerCompany(user.company);
+    if (user?.company && user.role !== 'admin') setBuyerCompany(user.company);
     else if (!buyerCompany && saved.company) setBuyerCompany(saved.company);
 
-    if (user?.address) setBuyerAddress(user.address);
+    if (user?.address && user.role !== 'admin') setBuyerAddress(user.address);
     else if (!buyerAddress && saved.address) setBuyerAddress(saved.address);
   }, [user, isOpen]);
 

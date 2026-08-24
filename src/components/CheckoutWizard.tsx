@@ -84,10 +84,10 @@ export default function CheckoutWizard({
   const [showCharterModal, setShowCharterModal] = useState(false);
 
   // Delivery & Shipping Form State
-  const [buyerName, setBuyerName] = useState(user?.name || "");
+  const [buyerName, setBuyerName] = useState(user?.role !== 'admin' && user?.name !== "مدیریت کل سامانه" ? user?.name || "" : "");
   const [buyerPhone, setBuyerPhone] = useState(user?.mobile || user?.phone || "");
-  const [buyerCompany, setBuyerCompany] = useState(user?.company || "");
-  const [buyerAddress, setBuyerAddress] = useState(user?.address || "");
+  const [buyerCompany, setBuyerCompany] = useState(user?.role !== 'admin' ? user?.company || "" : "");
+  const [buyerAddress, setBuyerAddress] = useState(user?.role !== 'admin' ? user?.address || "" : "");
   const [shippingMethod, setShippingMethod] = useState("barbari");
 
   // Auto-fill user profile and saved delivery info when wizard opens or user changes
@@ -100,16 +100,16 @@ export default function CheckoutWizard({
       // ignore
     }
 
-    if (user?.name) setBuyerName(user.name);
+    if (user?.name && user.role !== 'admin' && user.name !== "مدیریت کل سامانه") setBuyerName(user.name);
     else if (!buyerName && savedInfo.name) setBuyerName(savedInfo.name);
 
     if (user?.mobile || user?.phone) setBuyerPhone(user.mobile || user.phone || "");
     else if (!buyerPhone && savedInfo.phone) setBuyerPhone(savedInfo.phone);
 
-    if (user?.company) setBuyerCompany(user.company);
+    if (user?.company && user.role !== 'admin') setBuyerCompany(user.company);
     else if (!buyerCompany && savedInfo.company) setBuyerCompany(savedInfo.company);
 
-    if (user?.address) setBuyerAddress(user.address);
+    if (user?.address && user.role !== 'admin') setBuyerAddress(user.address);
     else if (!buyerAddress && savedInfo.address) setBuyerAddress(savedInfo.address);
   }, [user, isOpen]);
 
@@ -455,8 +455,29 @@ export default function CheckoutWizard({
         autoCreatedAccount
       };
 
+      const storedAffiliateRepId = typeof window !== 'undefined' ? localStorage.getItem('dastavval_affiliate_rep_id') : null;
+      if (storedAffiliateRepId) {
+        (orderData as any).affiliateRepId = storedAffiliateRepId;
+        (orderData as any).affiliateCommissionAmount = Math.round(finalPayableAmount * 0.05);
+      }
+
       const docRef = await addDoc(collection(db, "orders"), orderData);
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalPayableAmount);
+
+      // Record affiliate commission for representative if applicable
+      if (storedAffiliateRepId) {
+        try {
+          const { addRepCommission } = await import('../lib/leads-store');
+          addRepCommission(
+            Math.round(finalPayableAmount * 0.05),
+            `پورسانت ۵٪ فروش با لینک افیلیت سفارش ${trackingNumber}`,
+            trackingNumber,
+            storedAffiliateRepId
+          );
+        } catch (e) {
+          console.warn("Could not record representative affiliate commission:", e);
+        }
+      }
 
       // Trigger automatic Invoice SMS with static factor path to buyer
       try {
@@ -466,7 +487,8 @@ export default function CheckoutWizard({
           body: JSON.stringify({
             phone: buyerPhone,
             buyerName: buyerName || "خریدار محترم (عامل توزیع)",
-            orderId: trackingNumber
+            orderId: trackingNumber,
+            origin: window.location.origin
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger in checkout:", err));
       } catch (e) {

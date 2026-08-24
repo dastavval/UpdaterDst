@@ -424,7 +424,7 @@ export const DigitalEcoTree: React.FC<DigitalEcoTreeProps> = ({ className = '', 
 
           {/* ================= ACTIVE CARGO BOXES TRAVELING DIRECTLY (FACTORY -> SALES) ================= */}
           <g>
-            {boxes.map((box) => {
+            {boxes.map((box, idx) => {
               // Map package movement from Factory Output (X=390) to DastAval sales gate (X=145)
               const startX = 390;
               const endX = 145;
@@ -437,7 +437,7 @@ export const DigitalEcoTree: React.FC<DigitalEcoTreeProps> = ({ className = '', 
 
               return (
                 <g 
-                  key={`cargo-${box.id}`} 
+                  key={`cargo-${box.id}-${idx}`} 
                   opacity={opacity} 
                   transform={`translate(${currentX}, ${currentY}) scale(${scale})`}
                   style={{ transformOrigin: 'center' }}

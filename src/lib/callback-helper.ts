@@ -80,6 +80,15 @@ export async function addCallbackRequest(phone: string, factoryName: string = "Ù
     console.error("Error updating local callback cache:", e);
   }
 
+  // Trigger SMS notification to user and admin
+  try {
+    fetch("/api/sms/send-callback-sms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, details: factoryName })
+    }).catch(err => console.warn("Callback SMS trigger notice:", err));
+  } catch (err) {}
+
   return newId;
 }
 

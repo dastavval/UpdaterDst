@@ -586,9 +586,16 @@ export default function App() {
     return () => window.removeEventListener("open-dealership-request", handleOpenDealership);
   }, []);
 
-  // Read URL query parameter for direct factory or article links or factor URLs
+  // Read URL query parameter for direct factory or article links or factor URLs or affiliate tracking
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const affId = urlParams.get('ref') || urlParams.get('aff') || urlParams.get('rep') || urlParams.get('agent');
+      if (affId) {
+        localStorage.setItem('dastavval_affiliate_rep_id', affId);
+        console.log("Captured affiliate representative/agent ID:", affId);
+      }
+
       const path = window.location.pathname;
       if (path.includes('/invoice/') || path.includes('/factors/')) {
         let decoded = path;
@@ -598,21 +605,57 @@ export default function App() {
           const rawId = match[1].replace(/\.pdf$/i, '').trim();
           const cleanNumeric = rawId.replace(/\D/g, '') || rawId;
           if (cleanNumeric) {
-            setDirectUrlInvoiceOrder({
-              id: cleanNumeric,
-              trackingNumber: `DO-${cleanNumeric}`,
-              buyerName: "خریدار محترم (عامل توزیع)",
-              buyerCompany: "شرکت بازرگانی مواد غذایی البرز",
-              buyerPhone: "09*********",
-              createdAt: new Date().toISOString(),
-              totalAmount: 185000000,
-              items: [
-                { name: "روغن مایع خوراکی آفتابگردان ۱.۵ لیتری (کارتن ۶ عددی)", quantity: 50, price: 420000, brand: "کارخانه کشت و صنعت" },
-                { name: "تن ماهی ۱۸۰ گرمی قوطی آسان بازشو (کارتن ۲۴ عددی)", quantity: 30, price: 2900000, brand: "صنایع غذایی شیلات" }
-              ],
-              paymentStatus: "paid",
-              status: "confirmed"
-            });
+            // Fetch the real order from backend/database
+            const loadRealFactor = async () => {
+              try {
+                const response = await fetch('/api/b2b/orders');
+                if (response.ok) {
+                  const ordersList = await response.json();
+                  const matched = ordersList.find((o: any) => {
+                    const oIdStr = String(o.id || "");
+                    const oTrackStr = String(o.trackingNumber || "");
+                    const oOrderStr = String(o.orderId || "");
+                    return (
+                      oIdStr === rawId ||
+                      oTrackStr === rawId ||
+                      oOrderStr === rawId ||
+                      oIdStr === cleanNumeric ||
+                      oTrackStr === cleanNumeric ||
+                      oOrderStr === cleanNumeric ||
+                      (cleanNumeric && (
+                        oIdStr.includes(cleanNumeric) ||
+                        oTrackStr.includes(cleanNumeric) ||
+                        oOrderStr.includes(cleanNumeric)
+                      ))
+                    );
+                  });
+                  if (matched) {
+                    setDirectUrlInvoiceOrder(matched);
+                    return;
+                  }
+                }
+              } catch (err) {
+                console.error("Error loading real invoice from API:", err);
+              }
+
+              // Fallback if not found or API failed
+              setDirectUrlInvoiceOrder({
+                id: cleanNumeric,
+                trackingNumber: `DO-${cleanNumeric}`,
+                buyerName: "خریدار محترم (عامل توزیع)",
+                buyerCompany: "شرکت بازرگانی مواد غذایی البرز",
+                buyerPhone: "09*********",
+                createdAt: new Date().toISOString(),
+                totalAmount: 185000000,
+                items: [
+                  { name: "روغن مایع خوراکی آفتابگردان ۱.۵ لیتری (کارتن ۶ عددی)", quantity: 50, price: 420000, brand: "کارخانه کشت و صنعت" },
+                  { name: "تن ماهی ۱۸۰ گرمی قوطی آسان بازشو (کارتن ۲۴ عددی)", quantity: 30, price: 2900000, brand: "صنایع غذایی شیلات" }
+                ],
+                paymentStatus: "paid",
+                status: "confirmed"
+              });
+            };
+            loadRealFactor();
           }
         }
       }
@@ -1595,7 +1638,8 @@ export default function App() {
       const orderSellerId = firstItemProd?.sellerId || "";
       const orderSellerName = firstItemProd?.sellerName || "گروه صنایع غذایی به‌آرا (چی‌توز)";
 
-      await addDoc(collection(db, "orders"), {
+      const storedAffiliateRepId = typeof window !== 'undefined' ? localStorage.getItem('dastavval_affiliate_rep_id') : null;
+      const orderData: any = {
         buyerName,
         buyerPhone,
         buyerAddress,
@@ -1622,10 +1666,32 @@ export default function App() {
         sellerName: orderSellerName,
         createdAt: serverTimestamp(),
         trackingNumber
-      });
+      };
+
+      if (storedAffiliateRepId) {
+        orderData.affiliateRepId = storedAffiliateRepId;
+        orderData.affiliateCommissionAmount = Math.round(finalAmount * 0.05);
+      }
+
+      await addDoc(collection(db, "orders"), orderData);
 
       // Sync with B2B CRM System
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalAmount);
+
+      // Record affiliate commission for representative if applicable
+      if (storedAffiliateRepId) {
+        try {
+          const { addRepCommission } = await import('./lib/leads-store');
+          addRepCommission(
+            Math.round(finalAmount * 0.05),
+            `پورسانت ۵٪ فروش با لینک افیلیت سفارش ${trackingNumber}`,
+            trackingNumber,
+            storedAffiliateRepId
+          );
+        } catch (e) {
+          console.warn("Could not record representative affiliate commission:", e);
+        }
+      }
 
       // Trigger automatic Invoice SMS with static factor path to buyer
       try {
@@ -1635,7 +1701,8 @@ export default function App() {
           body: JSON.stringify({
             phone: buyerPhone,
             buyerName: buyerName || "خریدار محترم (عامل توزیع)",
-            orderId: trackingNumber
+            orderId: trackingNumber,
+            origin: window.location.origin
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger:", err));
       } catch (e) {
@@ -1805,10 +1872,10 @@ export default function App() {
   // Pre-fill buyer details when user is logged in
   useEffect(() => {
     if (user) {
-      if (user.name) setBuyerName(user.name);
+      if (user.name && user.role !== 'admin' && user.name !== "مدیریت کل سامانه") setBuyerName(user.name);
       if (user.phone) setBuyerPhone(user.phone);
-      if (user.company) setBuyerCompany(user.company);
-      if (user.address) setBuyerAddress(user.address);
+      if (user.company && user.role !== 'admin') setBuyerCompany(user.company);
+      if (user.address && user.role !== 'admin') setBuyerAddress(user.address);
     }
   }, [user]);
 

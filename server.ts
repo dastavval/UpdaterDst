@@ -6,7 +6,7 @@ import https from "https";
 import dns from "dns";
 import AdmZip from "adm-zip";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import { execSync, exec } from "child_process";
 import { 
@@ -418,6 +418,9 @@ const DEFAULT_B2B_CONFIG = {
   smsStockAlertPatternId: "",
   smsLogisticsPatternId: "",
   smsFactoryProductionPatternId: "",
+  smsAdPatternId: "",
+  smsCallbackPatternId: "",
+  smsAdminNotificationPatternId: "",
   supportPhone: "09999123001",
   buyerCredit: 250000000,
   minOrderAmount: 3000000,
@@ -552,31 +555,34 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
     };
 
     try {
-      const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-      if (!response.ok) throw new Error(`GapGPT API error ${response.status}`);
+      const response = await fetch(url, { 
+        method: "POST", 
+        headers, 
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000) // 15s timeout
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`GapGPT API error ${response.status}: ${errText.substring(0, 100)}`);
+      }
       const data = await response.json();
       return data.choices?.[0]?.message?.content || "";
     } catch (e: any) {
-      console.error("GapGPT call failed:", e);
+      console.error("GapGPT call failed:", e.message || e);
       throw e;
     }
   } else {
     if (!apiKey) throw new Error("No Gemini API Key provided.");
     try {
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
-          }
-        }
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash"
       });
-      const interaction = await ai.interactions.create({
-        model: "gemini-3.7-flash",
-        input: prompt,
-        system_instruction: systemPrompt
+      
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: (systemPrompt ? systemPrompt + "\n\n" : "") + prompt }] }]
       });
-      return interaction.output_text || "";
+      return result.response.text();
     } catch (e: any) {
       const errMsg = e?.message || String(e);
       if (errMsg.includes("resource_exhausted") || errMsg.includes("quota") || errMsg.includes("429")) {
@@ -2981,6 +2987,16 @@ app.post("/api/b2b/orders", (req, res) => {
           const patternId = b2bConfig.smsOrderRegisteredPatternId || null;
           sendMeliPayamakSms(buyerPhone, text, patternId ? Number(patternId) : undefined, `${buyerName};${incoming.id}`);
         }
+
+        // --- NEW: Notify Admin of new order ---
+        const adminPhone = normalizeIranianPhone(b2bConfig.supportPhone || "09999123001");
+        const adminText = `مدیر گرامی، سفارش جدید ${incoming.id} از شماره ${buyerPhone || 'ناشناس'} در سامانه ثبت شد.\nدست اول`;
+        const adminPatternId = b2bConfig.smsAdminNotificationPatternId || null;
+        if (adminPatternId && Number(adminPatternId) > 0) {
+          sendMeliPayamakSms(adminPhone, adminText, Number(adminPatternId), `سفارش جدید;${buyerPhone || incoming.id}`);
+        } else {
+          sendMeliPayamakSms(adminPhone, adminText);
+        }
         
         // Also notify Regional Representative if assigned
         if (incoming.regionalRepresentativeId) {
@@ -3431,7 +3447,7 @@ app.post("/api/sms/send-otp", async (req, res) => {
 // 1-Var Pattern: پیش‌فاکتور سفارش {0} در سامانه دست اول صادر شد:\ndastavval.com/factors/{0}.pdf
 // 2-Var Pattern: جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/{1}.pdf
 app.post("/api/sms/send-invoice-sms", async (req, res) => {
-  const { phone, buyerName, orderId } = req.body;
+  const { phone, buyerName, orderId, origin } = req.body;
   if (!phone || !orderId) {
     return res.status(400).json({ error: "شماره همراه و کد سفارش الزامی است." });
   }
@@ -3448,30 +3464,31 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
     cleanCode = String(orderId).trim().replace(/\s+/g, "").replace(/[^\w-]/g, "") || "1001";
   }
 
-  const textWithFixedLink = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/${cleanCode}.pdf\ndastavval.com\nلغو11`;
+  const baseDomain = (origin || "https://dastavval.com").replace(/\/$/, "");
+  const textWithFixedLink = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد.\n\nلینک مشاهده پیش‌فاکتور:\n${baseDomain}/factors/${cleanCode}\n\nلغو11`;
   const patternId = b2bConfig.smsInvoiceIssuedPatternId || null;
   
   let result: any = { success: false, message: "" };
 
-  // 1. Try sending by 1-variable pattern ({0}=cleanCode e.g. 3001) first!
-  // This matches 1-variable MeliPayamak patterns and populates {0} with ONLY the numeric order code 3001.
+  // 1. Try sending by 2-variable pattern ({0}=name; {1}=cleanCode) first!
+  // This matches standard 2-variable MeliPayamak patterns we recommend.
   if (patternId && Number(patternId) > 0) {
     result = await sendMeliPayamakSms(
       cleanPhone,
       textWithFixedLink,
       Number(patternId),
-      `${cleanCode}`
+      `${name};${cleanCode}`
     );
   }
 
-  // 2. If 1-variable pattern attempt failed (e.g., pattern on MeliPayamak requires 2 variables {0}=name;{1}=code), retry with `${name};${cleanCode}`
+  // 2. If 2-variable pattern attempt failed, retry with 1-variable pattern ({0}=cleanCode)
   if (!result.success && patternId && Number(patternId) > 0 && b2bConfig.smsUsername && b2bConfig.smsPassword) {
-    console.warn("Retrying invoice SMS with 2-variable pattern ({0}=name; {1}=cleanCode)...");
+    console.warn("Retrying invoice SMS with 1-variable pattern ({0}=cleanCode)...");
     result = await sendMeliPayamakSms(
       cleanPhone, 
       textWithFixedLink, 
       Number(patternId), 
-      `${name};${cleanCode}`
+      `${cleanCode}`
     );
   }
 
@@ -3601,6 +3618,56 @@ app.post("/api/sms/send-factory-production-sms", async (req, res) => {
   res.json(result);
 });
 
+// Endpoint to send Callback Request (RQF) & Admin Notification SMS
+app.post("/api/sms/send-callback-sms", async (req, res) => {
+  const { phone, details } = req.body;
+  if (!phone) {
+    return res.status(400).json({ error: "شماره همراه الزامی است." });
+  }
+
+  const cleanPhone = normalizeIranianPhone(phone);
+  const detailText = (details || "درخواست تماس فوری / استعلام قیمت").trim();
+  
+  const userText = `درخواست مشاوره شما برای محصول ${detailText} ثبت شد. کارشناسان ما بزودی تماس میگیرند.\nدست اول\nلغو11`;
+  const callbackPatternId = b2bConfig.smsCallbackPatternId || null;
+  let userResult = { success: false };
+  if (callbackPatternId && Number(callbackPatternId) > 0) {
+    userResult = await sendMeliPayamakSms(cleanPhone, userText, Number(callbackPatternId), `${detailText}`);
+  } else {
+    userResult = await sendMeliPayamakSms(cleanPhone, userText);
+  }
+
+  const adminPhone = normalizeIranianPhone(b2bConfig.supportPhone || "09999123001");
+  const adminText = `مدیر گرامی، درخواست جدید ${detailText} از شماره ${cleanPhone} در سامانه ثبت شد.\nدست اول`;
+  const adminPatternId = b2bConfig.smsAdminNotificationPatternId || null;
+  let adminResult = { success: false };
+  if (adminPatternId && Number(adminPatternId) > 0) {
+    adminResult = await sendMeliPayamakSms(adminPhone, adminText, Number(adminPatternId), `${detailText};${cleanPhone}`);
+  } else {
+    adminResult = await sendMeliPayamakSms(adminPhone, adminText);
+  }
+
+  res.json({ success: true, userResult, adminResult });
+});
+
+app.post("/api/sms/send-ad-status-sms", async (req, res) => {
+  const { phone, userName, adTitle, status } = req.body;
+  if (!phone || status !== 'approved') return res.json({ success: false, message: "Only approved ads trigger SMS" });
+
+  const cleanPhone = normalizeIranianPhone(phone);
+  const text = `جناب ${userName}، آگهی شما با عنوان ${adTitle} تایید و در تالار کف بازار اکران شد.\ndastavval.com\nلغو11`;
+  const patternId = b2bConfig.smsAdPatternId || null;
+  
+  let result = { success: false };
+  if (patternId && Number(patternId) > 0) {
+    result = await sendMeliPayamakSms(cleanPhone, text, Number(patternId), `${userName};${adTitle}`);
+  } else {
+    result = await sendMeliPayamakSms(cleanPhone, text);
+  }
+  
+  res.json({ success: true, result });
+});
+
 // Dedicated Public View & Printable PDF Route for Invoices (/factors/:id, /factors/:id.pdf, or /invoice/:id)
 app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
   const rawParam = req.params.id || "";
@@ -3656,7 +3723,25 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
   const grandTotal = total + tax;
 
   const isPdfRequest = req.originalUrl.includes('.pdf');
-  const autoPrintScript = isPdfRequest ? `<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => window.print(), 800); });</script>` : '';
+  const pdfScript = `
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+      function downloadPdfFile() {
+        const element = document.getElementById('invoice-document-wrapper');
+        const opt = {
+          margin: 5,
+          filename: 'Pishfaktor-${factorId}.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().from(element).set(opt).save();
+      }
+      window.addEventListener('DOMContentLoaded', () => {
+        ${isPdfRequest ? 'setTimeout(downloadPdfFile, 800);' : ''}
+      });
+    </script>
+  `;
 
   const html = `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -3674,18 +3759,21 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
       .print-container { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
     }
   </style>
-  ${autoPrintScript}
+  ${pdfScript}
 </head>
 <body class="p-4 sm:p-8 text-slate-800">
   <!-- Action Bar -->
-  <div class="max-w-4xl mx-auto mb-4 no-print flex items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+  <div class="max-w-4xl mx-auto mb-4 no-print flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
     <div class="flex items-center gap-2">
       <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
       <span class="text-xs font-black text-slate-700">فاکتور رسمی معتبر در سامانه ملّی دست اول (dastavval.com)</span>
     </div>
     <div class="flex items-center gap-2">
+      <button onclick="downloadPdfFile()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
+        📥 دانلود PDF پیش‌فاکتور
+      </button>
       <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
-        🖨️ چاپ و ذخیره PDF فاکتور
+        🖨️ چاپ فاکتور
       </button>
       <a href="/" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">
         ورود به سامانه
@@ -3694,7 +3782,7 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
   </div>
 
   <!-- Official Factor Document -->
-  <div class="max-w-4xl mx-auto bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-xl print-container space-y-6">
+  <div id="invoice-document-wrapper" class="max-w-4xl mx-auto bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-xl print-container space-y-6">
     <!-- Header -->
     <div class="border-b-2 border-slate-900 pb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-4 text-right">

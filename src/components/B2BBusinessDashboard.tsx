@@ -874,7 +874,7 @@ export default function B2BBusinessDashboard({
                 <div className="space-y-3">
                   {defaultRoutes.map((route, idx) => (
                     <div 
-                      key={route.id || idx}
+                      key={`b2b-dash-route-${route.id || idx}-${idx}`}
                       className="p-4 bg-white border border-slate-100 rounded-2xl relative overflow-hidden shadow-sm"
                     >
                       <div className="absolute bottom-0 right-0 left-0 h-1 bg-slate-100">

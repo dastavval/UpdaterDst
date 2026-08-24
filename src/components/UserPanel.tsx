@@ -268,18 +268,26 @@ export default function UserPanel({
       return cleaned;
     };
 
-    const uPhone = normalizeMobile(user.phone || "");
+    const userPhones = [
+      normalizeMobile(user.phone || ""),
+      normalizeMobile(user.mobile || ""),
+      normalizeMobile(user.username || ""),
+      normalizeMobile(user.phone_number || "")
+    ].filter(Boolean);
+
     const uEmail = (user.email || "").trim().toLowerCase();
     
-    return allOrders.filter(order => {
+    return allOrders.filter(orderItem => {
+      const order = orderItem as any;
       // 1. Match by explicit user ID
       if (order.userId && user.id && order.userId === user.id) return true;
+      if (order.username && user.username && order.username === user.username) return true;
       
-      const buyerP = normalizeMobile(order.buyerPhone || "");
-      const buyerE = (order.buyerEmail || "").trim().toLowerCase();
+      const buyerP = normalizeMobile(order.buyerPhone || order.customerPhone || order.phone || order.buyerInfo?.phone || order.buyerInfo?.mobile || "");
+      const buyerE = (order.buyerEmail || order.email || "").trim().toLowerCase();
       
       // 2. Match by verified phone number
-      if (uPhone && buyerP === uPhone) return true;
+      if (buyerP && userPhones.some(phone => phone === buyerP)) return true;
       
       // 3. Match by verified email address
       if (uEmail && buyerE === uEmail) return true;

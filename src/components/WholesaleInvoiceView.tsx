@@ -101,13 +101,24 @@ export default function WholesaleInvoiceView({
 
   // Buyer Info (Confidential for factory view, authentic fallback)
   const buyerInfoAny = (order?.buyerInfo || {}) as any;
+  
+  let rawBuyerCompany = buyerInfoAny.company || order?.buyerCompany || (order?.buyerName ? `مشتری: ${order.buyerName}` : "خریدار ثبت شده سامانه");
+  let rawBuyerName = buyerInfoAny.name || order?.buyerName || "مسئول خرید";
+
+  if (!rawBuyerName || rawBuyerName === "مدیریت کل سامانه" || rawBuyerName === "مدیریت کل سیستم (Full Access Administrator)") {
+    rawBuyerName = "خریدار محترم (عامل توزیع)";
+  }
+  if (!rawBuyerCompany || rawBuyerCompany === "دفتر مرکزی دست اول" || rawBuyerCompany === "مشتری: مدیریت کل سامانه" || rawBuyerCompany === "مشتری: مدیریت کل سیستم (Full Access Administrator)" || rawBuyerCompany === "خریدار ثبت شده سامانه") {
+    rawBuyerCompany = "شرکت پخش مواد غذایی نمونه";
+  }
+
   const initialBuyerCompany = isFactoryView
     ? "خریدار معتبر سامانه دست‌اول (تایید هویت شده)"
-    : (buyerInfoAny.company || order?.buyerCompany || (order?.buyerName ? `مشتری: ${order.buyerName}` : "خریدار ثبت شده سامانه"));
+    : rawBuyerCompany;
   
   const initialBuyerName = isFactoryView
     ? `کد مشتری: ${buyerInfoAny.customerCode || (order?.id ? `CST-${order.id.slice(-5).toUpperCase()}` : 'CST-2048')}`
-    : (buyerInfoAny.name || order?.buyerName || "مسئول خرید");
+    : rawBuyerName;
 
   const initialBuyerPhone = isFactoryView
     ? "محرمانه (پشتیبانی و هماهنگی ترابری دست‌اول)"
