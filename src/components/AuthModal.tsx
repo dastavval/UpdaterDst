@@ -13,6 +13,8 @@ import { doc, setDoc, serverTimestamp } from "../lib/data-layer";
 import { generateUserCode } from "../lib/id-utils";
 import { addLeadFromRegistration } from "../lib/leads-store";
 import { checkLoginRateLimit, recordFailedLoginAttempt, resetLoginAttempts, RateLimitStatus } from "../lib/rate-limiter";
+import { getApiUrl } from "../utils/api-utils";
+import { saveUserSession } from "../lib/auth-helper";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -144,7 +146,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch("/api/sms/send-otp", {
+      const response = await fetch(getApiUrl("/api/sms/send-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: targetPhone })
@@ -193,7 +195,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch("/api/sms/verify-otp", {
+      const response = await fetch(getApiUrl("/api/sms/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: targetPhone, code: codeToVerify })
@@ -203,15 +205,11 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
         setSuccess(data.isNew ? "ثبت‌نام آنی و ورود شما با موفقیت انجام شد!" : "ورود با موفقیت انجام شد.");
         const matchedUser = data.user;
         
-        // Sync with localStorage
+        // Sync with localStorage & session cookies
         try {
-          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
-          localUsers[matchedUser.email] = matchedUser;
-          localUsers[matchedUser.phone] = matchedUser;
-          localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
-          localStorage.setItem("dastavval_user", JSON.stringify(matchedUser));
+          saveUserSession(matchedUser);
         } catch (storageErr) {
-          console.warn("Storage sync failed:", storageErr);
+          console.warn("Storage session sync failed:", storageErr);
         }
 
         setTimeout(() => {
@@ -885,11 +883,11 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                       inactiveClass: "bg-white border-slate-200/90 hover:border-amber-300 hover:bg-amber-50/30 text-slate-850",
                       badgeClass: "bg-amber-100/90 text-amber-800 border-amber-200/80"
                     }
-                  ].map((role) => {
+                  ].map((role, rIdx) => {
                     const isSelected = selectedRole === role.id;
                     return (
                       <button
-                        key={role.id}
+                        key={`auth-role-${role.id}-${rIdx}`}
                         type="button"
                         onClick={() => setSelectedRole(role.id as any)}
                         className={`p-3 rounded-2xl text-right border transition-all cursor-pointer flex flex-col justify-between gap-2 text-right relative overflow-hidden ${

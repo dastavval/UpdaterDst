@@ -210,13 +210,13 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
             </div>
           ) : (
             <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-              {tickets.map((t) => {
+              {tickets.map((t, tIdx) => {
                 const isActive = t.id === activeTicketId;
                 const priorityInfo = PRIORITY_LABELS[t.priority] || PRIORITY_LABELS.medium;
 
                 return (
                   <div
-                    key={t.id}
+                    key={`fact-tkt-${t.id || tIdx}-${tIdx}`}
                     onClick={() => setActiveTicketId(t.id)}
                     className={`p-3.5 rounded-2xl border transition-all cursor-pointer space-y-2 ${
                       isActive 
@@ -268,11 +268,11 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
 
               {/* Chat / Messages Thread */}
               <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] p-2">
-                {activeTicket.messages.map((msg) => {
+                {activeTicket.messages.map((msg, mIdx) => {
                   const isFactory = msg.sender === 'factory';
                   return (
                     <div 
-                      key={msg.id}
+                      key={`fact-msg-${msg.id || mIdx}-${mIdx}`}
                       className={`flex flex-col ${isFactory ? "items-start" : "items-end"}`}
                     >
                       <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs space-y-1 shadow-2xs ${

@@ -5,8 +5,9 @@ import {
   Copy, Edit3, Plus, Trash2,
   Download, FileText, CheckCircle2,
   Image as ImageIcon, Loader2, ShieldCheck,
-  Truck, UserCheck
+  Truck, UserCheck, Link as LinkIcon
 } from "lucide-react";
+import { generateInvoiceUrl } from "../lib/invoice-url-helper";
 import { toJpeg, toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { OfficialUnifiedSealSignature } from "./OfficialDigitalStamp";
@@ -431,6 +432,21 @@ export default function WholesaleInvoiceView({
     }
   };
 
+  const [copiedLink, setCopiedLink] = useState(false);
+  const invoiceStaticUrl = useMemo(() => {
+    return generateInvoiceUrl(invoiceSerial);
+  }, [invoiceSerial]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(invoiceStaticUrl);
+    setCopiedLink(true);
+    setDownloadSuccessMessage(`لینک ثابت و اختصاصی فاکتور (${invoiceStaticUrl}) با موفقیت کپی گردید.`);
+    setTimeout(() => {
+      setCopiedLink(false);
+      setDownloadSuccessMessage(null);
+    }, 4000);
+  };
+
   // 4. Quick Text Copy
   const handleCopyText = () => {
     const title = docType === 'proforma' ? 'پیش‌فاکتور فروش کالا' : 'فاکتور فروش کالا';
@@ -445,7 +461,8 @@ export default function WholesaleInvoiceView({
 هزینه باربری: ۰ تومان (پس‌کرایه به عهده خریدار در مقصد)
 ----------------------------------------
 مبلغ کل فاکتور: ${toPersianNum(grandTotal)} تومان
-(${grandTotalInWords} تومان)`;
+(${grandTotalInWords} تومان)
+مشاهده آنلاین: ${invoiceStaticUrl}`;
     
     navigator.clipboard.writeText(text);
     setCopiedText(true);
@@ -551,6 +568,16 @@ export default function WholesaleInvoiceView({
             >
               {isGeneratingImage ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
               <span>دانلود عکس</span>
+            </button>
+
+            {/* Copy Static Link Button */}
+            <button
+              onClick={handleCopyLink}
+              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+              title={`کپی لینک ثابت فاکتور (${invoiceStaticUrl})`}
+            >
+              {copiedLink ? <Check size={14} className="text-emerald-600" /> : <LinkIcon size={14} />}
+              <span>لینک فاکتور</span>
             </button>
 
             {/* Copy Text Button */}

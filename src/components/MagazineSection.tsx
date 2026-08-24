@@ -145,9 +145,9 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
           {/* Category Filter Chips */}
           {categories.length > 2 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
-              {categories.map((cat) => (
+              {categories.map((cat, catIdx) => (
                 <button
-                  key={`cat-${cat}`}
+                  key={`cat-${cat}-${catIdx}`}
                   type="button"
                   onClick={() => setActiveCategory(cat)}
                   className={`px-3 py-1 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${

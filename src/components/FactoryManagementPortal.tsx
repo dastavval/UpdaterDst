@@ -926,13 +926,13 @@ export default function FactoryManagementPortal({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => {
+              {filteredProducts.map((product, idx) => {
                 const isApproved = product.approvalStatus === 'approved' || product.isApproved === true;
                 const bulkPrice = product.bulk_price || product.price || 0;
 
                 return (
                   <div
-                    key={product.id}
+                    key={`fact-prod-${product.id || idx}-${idx}`}
                     className="bg-white rounded-3xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between space-y-3 group hover:border-indigo-300 transition-all"
                   >
                     <div className="space-y-3">
@@ -1110,8 +1110,8 @@ export default function FactoryManagementPortal({
                   onChange={(e) => setProdCategory(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 cursor-pointer"
                 >
-                  {availableCategories.map((catName) => (
-                    <option key={`fact-mgmt-cat-opt-${catName}`} value={catName}>
+                  {availableCategories.map((catName, cIdx) => (
+                    <option key={`fact-mgmt-cat-opt-${catName}-${cIdx}`} value={catName}>
                       {catName}
                     </option>
                   ))}
@@ -1298,7 +1298,7 @@ export default function FactoryManagementPortal({
             </div>
           ) : (
             <div className="space-y-4">
-              {myOrders.map((order) => {
+              {myOrders.map((order, oIdx) => {
                 // Filter only items belonging to this factory
                 const comp = currentFactoryName.toLowerCase().trim();
                 const fCode = factoryCode.toLowerCase().trim();
@@ -1344,7 +1344,7 @@ export default function FactoryManagementPortal({
 
                 return (
                   <div 
-                    key={order.id}
+                    key={`fact-ord-${order.id || oIdx}-${oIdx}`}
                     className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4"
                   >
                     {/* Header */}
@@ -1565,9 +1565,9 @@ export default function FactoryManagementPortal({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {floorDeals.filter(d => d.status !== 'rejected').map((deal) => (
+                  {floorDeals.filter(d => d.status !== 'rejected').map((deal, dIdx) => (
                     <div
-                      key={deal.id}
+                      key={`fact-deal-${deal.id || dIdx}-${dIdx}`}
                       className="bg-white rounded-3xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between space-y-3"
                     >
                       <div className="space-y-2.5">
@@ -1655,9 +1655,9 @@ export default function FactoryManagementPortal({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {floorRequests.map((req) => (
+                  {floorRequests.map((req, rIdx) => (
                     <div
-                      key={req.id}
+                      key={`fact-req-${req.id || rIdx}-${rIdx}`}
                       className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="space-y-1">
@@ -2028,8 +2028,8 @@ export default function FactoryManagementPortal({
                       className="w-full px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer"
                     >
                       <option value="">-- انتخاب محصول یا نوشتن دستی --</option>
-                      {myProducts.map(p => (
-                        <option key={p.id} value={p.id}>
+                      {myProducts.map((p, pIdx) => (
+                        <option key={`fact-mgmt-prod-${p.id || pIdx}-${pIdx}`} value={p.id}>
                           {p.name} ({toPersianNum(p.bulk_price || p.price)} ت)
                         </option>
                       ))}
@@ -2057,8 +2057,8 @@ export default function FactoryManagementPortal({
                       onChange={(e) => setLotCategory(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 cursor-pointer"
                     >
-                      {availableCategories.map(c => (
-                        <option key={`fact-mgmt-lot-opt-${c}`} value={c}>{c}</option>
+                      {availableCategories.map((c, cIdx) => (
+                        <option key={`fact-mgmt-lot-opt-${c}-${cIdx}`} value={c}>{c}</option>
                       ))}
                     </select>
                   </div>

@@ -3237,6 +3237,31 @@ app.post("/api/sms/history/clear", (req, res) => {
   res.json({ success: true, message: "تاریخچه لاگ‌های پیامک با موفقیت پاک شد." });
 });
 
+app.post("/api/sms/log-event", (req, res) => {
+  try {
+    const entry = req.body || {};
+    const history = loadSmsHistory();
+    const logRecord = {
+      id: entry.id || "sms_client_log_" + Math.floor(100000 + Math.random() * 900000),
+      to: entry.to || "ثبت نشده",
+      text: entry.text || "-",
+      patternId: entry.patternId || null,
+      patternArgs: entry.patternArgs || null,
+      apiType: entry.apiType || "Client Event Logger",
+      mode: entry.mode || "real",
+      success: entry.success ?? false,
+      responseText: entry.responseText || "ثبت رویداد کلاینت",
+      timestamp: entry.timestamp || new Date().toISOString(),
+      source: "client"
+    };
+    history.unshift(logRecord);
+    saveSmsHistory(history.slice(0, 500));
+    res.json({ success: true, payload: logRecord });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Check MeliPayamak Account Balance & Connectivity
 app.get("/api/sms/balance", async (req, res) => {
   const username = (b2bConfig.smsUsername || process.env.MELIPAYAMAK_USERNAME || "").trim();
@@ -3345,8 +3370,11 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
 
   const cleanPhone = normalizeIranianPhone(phone);
   const name = (buyerName || "خریدار گرامی").trim();
-  // Extract clean order code e.g. 3360
-  const cleanCode = String(orderId).replace(/^[^\d]*/, "") || String(orderId);
+  // Extract clean order code e.g. 3360 and convert Farsi/Arabic digits to English
+  const cleanCode = String(orderId)
+    .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+    .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
+    .replace(/^[^\d]*/, "") || String(orderId);
 
   const textWithFixedLink = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/${cleanCode}.pdf\ndastavval.com\nلغو11`;
   const textFallback = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد. جهت مشاهده وارد حساب کاربری خود شوید.\ndastavval.com\nلغو11`;
@@ -3497,10 +3525,14 @@ app.post("/api/sms/send-factory-production-sms", async (req, res) => {
   res.json(result);
 });
 
-// Dedicated Public View & Printable PDF Route for Invoices (/factors/:id or /factors/:id.pdf)
-app.get(["/factors/:id", "/factors/:id.pdf"], (req, res) => {
+// Dedicated Public View & Printable PDF Route for Invoices (/factors/:id, /factors/:id.pdf, or /invoice/:id)
+app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
   const rawParam = req.params.id || "";
-  const factorId = rawParam.replace(/\.pdf$/i, "").trim();
+  let factorId = rawParam.replace(/\.pdf$/i, "").trim();
+  // Convert Persian/Arabic digits to English digits for matching
+  factorId = factorId
+    .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+    .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)]);
 
   const orders = loadOrders();
   const matchedOrder = orders.find((o: any) => 

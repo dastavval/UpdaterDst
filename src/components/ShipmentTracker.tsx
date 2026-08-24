@@ -222,7 +222,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
           <div className="space-y-4">
             {defaultRoutes.map((route, idx) => (
               <div 
-                key={route.id || idx}
+                key={`shipment-route-${route.id || idx}-${idx}`}
                 className={`p-5 rounded-2xl border ${
                   theme === 'dark' ? 'bg-white border-slate-200' : 'bg-white border-slate-100 shadow-sm'
                 } hover transition-shadow relative overflow-hidden`}

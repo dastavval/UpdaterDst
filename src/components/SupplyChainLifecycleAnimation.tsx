@@ -262,7 +262,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
 
                 return (
                   <button
-                    key={step.id}
+                    key={`sc-step-btn-${step.id || idx}-${idx}`}
                     type="button"
                     onClick={() => {
                       setActiveStep(idx);
@@ -327,7 +327,7 @@ export const SupplyChainLifecycleAnimation: React.FC<SupplyChainProps> = ({ onOr
             {/* ANIMATED MAIN CONTENT */}
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeStep}
+                key={`sc-lifecycle-card-${activeStep}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}

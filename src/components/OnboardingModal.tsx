@@ -111,7 +111,7 @@ export default function OnboardingModal({ isOpen, onClose, theme, onSelectAction
               
               {/* Dynamic Icon Badge */}
               <motion.div
-                key={currentStep}
+                key={`onboarding-step-badge-${currentStep}`}
                 initial={{ opacity: 0, scale: 0.5, rotate: -10 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
                 className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr ${current.color} flex items-center justify-center overflow-hidden shadow-xl text-white shrink-0 border-4 border-white`}

@@ -254,14 +254,28 @@ export default function UserPanel({
   // Filter Customer Orders (Orders placed by this customer)
   const customerOrders = useMemo(() => {
     if (!user) return [];
-    const uPhone = (user.phone || "").trim();
+    
+    const normalizeMobile = (num: string) => {
+      if (!num) return "";
+      let cleaned = num.toString().replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]);
+      cleaned = cleaned.replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)]);
+      cleaned = cleaned.replace(/\D/g, "");
+      if (cleaned.startsWith("989")) {
+        cleaned = "0" + cleaned.substring(2);
+      } else if (cleaned.startsWith("9")) {
+        cleaned = "0" + cleaned;
+      }
+      return cleaned;
+    };
+
+    const uPhone = normalizeMobile(user.phone || "");
     const uEmail = (user.email || "").trim().toLowerCase();
     
     return allOrders.filter(order => {
       // 1. Match by explicit user ID
       if (order.userId && user.id && order.userId === user.id) return true;
       
-      const buyerP = (order.buyerPhone || "").trim();
+      const buyerP = normalizeMobile(order.buyerPhone || "");
       const buyerE = (order.buyerEmail || "").trim().toLowerCase();
       
       // 2. Match by verified phone number
@@ -794,7 +808,7 @@ export default function UserPanel({
                           const ordTotal = Number(ord.totalAmount) || 0;
                           const comm = Math.round(ordTotal * 0.025);
                           return (
-                            <tr key={ord.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                            <tr key={`user-ref-ord-${ord.id || idx}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                               <td className="py-3 pr-2 font-mono font-bold text-slate-700">#{ord.id ? ord.id.slice(-6).toUpperCase() : `ORD-${idx+1}`}</td>
                               <td className="py-3 font-bold text-slate-900">{ord.buyerName || ord.buyerInfo?.name || "فروشگاه همکار"}</td>
                               <td className="py-3 font-mono font-bold text-slate-900">{toPersianNum(ordTotal.toLocaleString('fa-IR'))} تومان</td>
@@ -1123,13 +1137,23 @@ export default function UserPanel({
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <span className="text-sm font-black text-slate-900">سفارش {order.id}</span>
+                            <span className="text-sm font-black text-slate-900">سفارش {order.trackingNumber || (order.id ? order.id.slice(-8).toUpperCase() : "جاری")}</span>
                             <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
                               {order.status === 'delivered' ? "تحویل شده" : "بارگیری از انبار دست‌اول"}
                             </span>
                           </div>
                           <span className="text-[11px] text-slate-400 font-bold mt-1 block">
-                            تاریخ: {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fa-IR') : "امروز"} | نحوه پرداخت: {order.paymentMethod || "نقدی با تخفیف"}
+                            تاریخ: {(() => {
+                              if (!order.createdAt) return "امروز";
+                              try {
+                                if (typeof order.createdAt === 'object' && 'seconds' in order.createdAt) {
+                                  return new Date((order.createdAt as any).seconds * 1000).toLocaleDateString('fa-IR');
+                                }
+                                return new Date(order.createdAt as any).toLocaleDateString('fa-IR');
+                              } catch {
+                                return "امروز";
+                              }
+                            })()} | نحوه پرداخت: {order.paymentMethod === 'cash' ? "نقدی با تخفیف" : "چکی / امانی"}
                           </span>
                         </div>
 
@@ -1636,7 +1660,7 @@ export default function UserPanel({
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {currentList.map((item: any, idx: number) => (
-                            <tr key={`peer-${item.id || idx}`} className="hover:bg-slate-50/60">
+                            <tr key={`peer-${item.id || idx}-${idx}`} className="hover:bg-slate-50/60">
                               <td className="py-3 font-black text-slate-800">{item.name}</td>
                               <td className="py-3 font-mono text-slate-600" dir="ltr">{item.phone}</td>
                               <td className="py-3 text-slate-500">{item.date}</td>

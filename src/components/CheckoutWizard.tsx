@@ -36,6 +36,7 @@ import { db } from '../lib/data-layer';
 import { recordCRMOrder } from '../lib/crm-helper';
 import { CartItem, Product, User } from '../types';
 import { getDisplayImageUrl } from '../lib/image-utils';
+import { getApiUrl } from '../utils/api-utils';
 import ChequeCharterModal from './ChequeCharterModal';
 
 interface CheckoutWizardProps {
@@ -456,6 +457,21 @@ export default function CheckoutWizard({
 
       const docRef = await addDoc(collection(db, "orders"), orderData);
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalPayableAmount);
+
+      // Trigger automatic Invoice SMS with static factor path to buyer
+      try {
+        fetch(getApiUrl("/api/sms/send-invoice-sms"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: buyerPhone,
+            buyerName: buyerName || "خریدار گرامی",
+            orderId: trackingNumber
+          })
+        }).catch(err => console.warn("Auto invoice SMS notification trigger in checkout:", err));
+      } catch (e) {
+        console.warn("Could not dispatch invoice SMS in checkout:", e);
+      }
 
       const createdOrder = { ...orderData, id: docRef.id, createdAt: new Date() };
 

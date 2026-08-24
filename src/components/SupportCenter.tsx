@@ -346,9 +346,9 @@ export default function SupportCenter({ theme = 'light' }: { theme?: 'light' | '
               { id: "invoice", label: "فاکتور رسمی و صدور بارنامه" },
               { id: "guarantee", label: "صندوق امانی و کیفیت" },
               { id: "logistics", label: "لجستیک و حمل و نقل" },
-            ].map((cat) => (
+            ].map((cat, cIdx) => (
               <button
-                key={cat.id}
+                key={`sup-faq-cat-${cat.id || cIdx}-${cIdx}`}
                 onClick={() => {
                   setActiveFaqCategory(cat.id);
                   setOpenFaqIndex(null);

@@ -287,11 +287,11 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
 
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredProducts.map((p) => {
+          {filteredProducts.map((p, pIdx) => {
             const inCartQty = cart[p.id] || 0;
             return (
               <div 
-                key={p.id}
+                key={`agent-cat-prod-${p.id || pIdx}-${pIdx}`}
                 className="bg-white rounded-3xl border border-slate-200 p-4 shadow-xs flex gap-4 hover:border-emerald-500/30 hover:shadow-md transition-all relative overflow-hidden"
               >
                 {/* Product Image */}

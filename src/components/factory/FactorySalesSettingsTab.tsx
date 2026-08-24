@@ -349,11 +349,11 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 pt-1">
-                  {IRAN_PROVINCES.map((prov) => {
+                  {IRAN_PROVINCES.map((prov, pIdx) => {
                     const isSelected = allowedProvinces.includes(prov);
                     return (
                       <button
-                        key={prov}
+                        key={`prov-sales-opt-${prov}-${pIdx}`}
                         type="button"
                         onClick={() => handleToggleProvince(prov)}
                         className={`p-2 rounded-xl text-xs font-bold text-right transition-all flex items-center justify-between cursor-pointer border ${

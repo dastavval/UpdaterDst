@@ -259,9 +259,9 @@ export default function ErrorPages({
           <span>تست زنده‌ی انواع خطاها:</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {(['404', '403', '500', '503', 'offline', '429', 'pending_approval'] as ErrorType[]).map((errKey) => (
+          {(['404', '403', '500', '503', 'offline', '429', 'pending_approval'] as ErrorType[]).map((errKey, errIdx) => (
             <button
-              key={errKey}
+              key={`err-btn-${errKey}-${errIdx}`}
               type="button"
               onClick={() => setActiveError(errKey)}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
@@ -278,7 +278,7 @@ export default function ErrorPages({
 
       {/* Main Creative Error Container */}
       <motion.div
-        key={activeError}
+        key={`error-page-card-${activeError}`}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -16 }}

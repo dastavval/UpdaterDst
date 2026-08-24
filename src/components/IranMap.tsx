@@ -357,7 +357,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
                    C 135,20 120,45 115,75 Z" 
                 fill={theme === 'dark' ? 'rgba(30,58,138,0.1)' : 'rgba(191,219,254,0.3)'}
               />
-              {HUBS.map(hub => {
+              {HUBS.map((hub, hIdx) => {
                 const isSelected = selectedHub?.id === hub.id;
                 const isHovered = hoveredHub?.id === hub.id;
                 const isCentral = hub.type === 'central';
@@ -366,7 +366,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
                 
                 return (
                   <g 
-                    key={hub.id}
+                    key={`hub-marker-${hub.id || hIdx}-${hIdx}`}
                     className="cursor-pointer group"
                     onClick={() => setSelectedHub(hub)}
                     onMouseEnter={() => setHoveredHub(hub)}

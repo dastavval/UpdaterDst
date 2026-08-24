@@ -61,9 +61,9 @@ export default function TrustBadges({ b2bConfig, className = "" }: TrustBadgesPr
     <div className={`w-full max-w-4xl mx-auto py-3 px-2 ${className}`} dir="rtl">
       {/* Horizontal row of simple clickable square badge boxes without text */}
       <div className="flex flex-row flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-5 mx-auto">
-        {visibleBadges.map((badge) => (
+        {visibleBadges.map((badge, idx) => (
           <a
-            key={badge.id}
+            key={`trust-badge-${badge.id || idx}-${idx}`}
             href={badge.url || "#"}
             target="_blank"
             rel="noopener noreferrer"

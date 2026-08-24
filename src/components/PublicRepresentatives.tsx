@@ -523,11 +523,11 @@ export default function PublicRepresentatives({
                 همه استان‌ها ({representatives.length})
               </button>
 
-              {availableProvinces.map((prov) => {
+              {availableProvinces.map((prov, pIdx) => {
                 const count = representatives.filter(r => r.province === prov).length;
                 return (
                   <button
-                    key={`prov-chip-${prov}`}
+                    key={`prov-chip-${prov}-${pIdx}`}
                     onClick={() => setSelectedProvince(prov)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
                       selectedProvince === prov
@@ -560,11 +560,11 @@ export default function PublicRepresentatives({
                 همه برندها
               </button>
 
-              {availableBrands.map((brandName) => {
+              {availableBrands.map((brandName, bIdx) => {
                 const count = representatives.filter(r => Array.isArray(r.brands) && r.brands.includes(brandName)).length;
                 return (
                   <button
-                    key={`brand-filter-${brandName}`}
+                    key={`brand-filter-${brandName}-${bIdx}`}
                     onClick={() => setSelectedBrand(brandName)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 ${
                       selectedBrand === brandName

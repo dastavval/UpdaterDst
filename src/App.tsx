@@ -35,6 +35,7 @@ import VirtualizedProductGrid from "./components/VirtualizedProductGrid";
 import CheckoutWizard from "./components/CheckoutWizard";
 import WholesaleInvoiceView from "./components/WholesaleInvoiceView";
 import ChequeCharterModal from "./components/ChequeCharterModal";
+import { getUserSession, saveUserSession, clearUserSession } from "./lib/auth-helper";
 
 // Lazy loading heavy view sections for optimal page-load and rendering performance
 const WholesaleCatalogView = React.lazy(() => import("./components/WholesaleCatalogView"));
@@ -1301,6 +1302,15 @@ export default function App() {
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (syncToastMessage) {
+      const timer = setTimeout(() => {
+        setSyncToastMessage(null);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [syncToastMessage]);
+
   const handleManualSync = async () => {
     setIsSyncingData(true);
     setSyncToastMessage("در حال همگام‌سازی لحظه‌ای تمام داده‌های سامانه و فاکتورها...");
@@ -1590,7 +1600,7 @@ export default function App() {
 
       // Trigger automatic Invoice SMS with static factor path to buyer
       try {
-        fetch("/api/sms/send-invoice-sms", {
+        fetch(getApiUrl("/api/sms/send-invoice-sms"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1733,18 +1743,8 @@ export default function App() {
     setUser(null);
     setUserBadge('bronze');
     
-    // Clear all user-related localStorage items
-    localStorage.removeItem('dastavval_user');
-    localStorage.removeItem('dastavval_user_token');
-    
-    // Call firebase mock signout if imported
-    try {
-      import("./lib/auth-helper").then(({ logoutUser }) => {
-        logoutUser().catch(() => {});
-      });
-    } catch (e) {
-      console.warn("Could not log out firebase user:", e);
-    }
+    // Clear session and cookies
+    clearUserSession();
 
     // Set tab to presentation
     setActiveTab('presentation');
@@ -1757,23 +1757,18 @@ export default function App() {
 
   const handleUpdateUser = (updatedUser: any) => {
     setUser(updatedUser);
-    localStorage.setItem('dastavval_user', JSON.stringify(updatedUser));
+    saveUserSession(updatedUser);
   };
 
-  // Load user session on mount
+  // Load user session on mount (from localStorage or cookies via auth-helper)
   useEffect(() => {
-    const savedUser = localStorage.getItem('dastavval_user');
+    const savedUser = getUserSession();
     if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        setUser(parsed);
-        if (parsed.badge) {
-          setUserBadge(parsed.badge);
-        } else if (parsed.role === 'admin') {
-          setUserBadge('admin');
-        }
-      } catch (e) {
-        console.warn("Could not load saved user", e);
+      setUser(savedUser);
+      if (savedUser.badge) {
+        setUserBadge(savedUser.badge as any);
+      } else if (savedUser.role === 'admin') {
+        setUserBadge('admin');
       }
     }
   }, []);
@@ -1788,20 +1783,10 @@ export default function App() {
     }
   }, [user]);
 
-  // Auto PWA Install Prompt Timer based on b2bConfig delay
+  // Auto PWA Install Prompt disabled to prevent non-intrusive page blocking (Modal opens cleanly on user click)
   useEffect(() => {
-    const delaySec = (b2bConfig as any)?.pwaPromptDelaySeconds || 35;
-    const hasSeenPwaPrompt = sessionStorage.getItem("has_seen_pwa_prompt");
-    
-    if (!hasSeenPwaPrompt) {
-      const timer = setTimeout(() => {
-        setShowPwaModal(true);
-        sessionStorage.setItem("has_seen_pwa_prompt", "true");
-      }, delaySec * 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [(b2bConfig as any)?.pwaPromptDelaySeconds]);
+    // PWA modal triggers explicitly via navbar button or PWA banner shortcut
+  }, []);
 
   if (loading) {
     return (
@@ -1863,27 +1848,34 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Elegant Toast for Instant Data Sync */}
+      {/* Elegant Toast for Instant Data Sync & Account Notifications */}
       <AnimatePresence>
         {syncToastMessage && (
           <motion.div 
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-[130] max-w-md bg-white border border-slate-200/60 p-4 rounded-2xl shadow-2xl shadow-slate-200/60 flex items-center gap-3.5 backdrop-blur-md"
+            className="fixed bottom-6 right-6 z-[130] max-w-md bg-white border border-slate-200/80 p-4 rounded-2xl shadow-2xl shadow-slate-300/60 flex items-start gap-3 backdrop-blur-md"
             dir="rtl"
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSyncingData ? "bg-emerald-50 text-emerald-600" : "bg-emerald-500 text-white shadow-sm shadow-emerald-500/20"}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${isSyncingData ? "bg-emerald-50 text-emerald-600" : "bg-emerald-500 text-white shadow-sm shadow-emerald-500/20"}`}>
               {isSyncingData ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
                 <CheckCircle2 size={18} />
               )}
             </div>
-            <div className="text-right">
-              <h5 className="font-black text-slate-900 text-xs">همگام‌سازی لحظه‌ای داده‌ها</h5>
-              <p className="text-[10px] text-slate-500 font-bold mt-0.5 leading-relaxed">{syncToastMessage}</p>
+            <div className="text-right flex-1 min-w-0 pr-1">
+              <h5 className="font-black text-slate-900 text-xs">اطلاعیه سیستم و حساب کاربری</h5>
+              <p className="text-[11px] text-slate-700 font-bold mt-1 leading-relaxed select-text">{syncToastMessage}</p>
             </div>
+            <button
+              onClick={() => setSyncToastMessage(null)}
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 flex items-center justify-center transition-all cursor-pointer shrink-0"
+              title="بستن پیام"
+            >
+              <X size={14} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

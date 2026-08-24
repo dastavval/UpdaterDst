@@ -181,7 +181,7 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                     {priceHistory.map((ph, idx) => (
-                      <tr key={ph.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={`fact-ph-${ph.id || idx}-${idx}`} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-slate-400">{toPersianNum(idx + 1)}</td>
                         <td className="py-3 px-4 font-black text-slate-900">{ph.productName}</td>
                         <td className="py-3 px-4 font-mono text-slate-500 line-through">
@@ -228,9 +228,9 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
           </div>
 
           <div className="space-y-3">
-            {settlements.map((st) => (
+            {settlements.map((st, stIdx) => (
               <div 
-                key={st.id}
+                key={`fact-st-${st.id || stIdx}-${stIdx}`}
                 className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
                 <div className="space-y-1">
@@ -270,9 +270,9 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
             </div>
           ) : (
             <div className="space-y-2">
-              {orders.filter(o => o.status === 'completed').map((ord) => (
+              {orders.filter(o => o.status === 'completed').map((ord, oIdx) => (
                 <div 
-                  key={ord.id}
+                  key={`fact-ord-${ord.id || oIdx}-${oIdx}`}
                   className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
                 >
                   <div className="space-y-0.5">

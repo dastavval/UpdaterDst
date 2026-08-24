@@ -25,13 +25,8 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
     }
 
     // Check if dismissed in this session or permanently
-    const dismissed = localStorage.getItem("pwa_banner_dismissed_permanently") || sessionStorage.getItem("pwa_banner_dismissed");
+    const dismissed = localStorage.getItem("pwa_banner_dismissed_permanently") || localStorage.getItem("dastavval_pwa_dismissed") || sessionStorage.getItem("pwa_banner_dismissed");
     if (dismissed) return;
-
-    // Show banner after 20 seconds of calm browsing
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 20000);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -48,7 +43,6 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };

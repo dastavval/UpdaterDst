@@ -390,12 +390,12 @@ export default function FactoryChatSystem({
 
       {/* MESSAGES THREAD */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50">
-        {messages.map((msg) => {
+        {messages.map((msg, mIdx) => {
           const isUser = msg.sender === 'user';
 
           return (
             <motion.div
-              key={msg.id}
+              key={`fact-chat-msg-${msg.id || mIdx}-${mIdx}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
@@ -614,8 +614,8 @@ export default function FactoryChatSystem({
                     onChange={(e) => handleProductChange(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>
+                    {products.map((p, pIdx) => (
+                      <option key={`fact-chat-opt-${p.id || pIdx}-${pIdx}`} value={p.id}>
                         {p.name} - قیمت اصلی: {p.price.toLocaleString('fa-IR')} تومان
                       </option>
                     ))}

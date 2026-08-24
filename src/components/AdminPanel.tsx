@@ -3863,7 +3863,23 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       };
 
       await addDoc(collection(db, "orders"), newOrder);
-      setSuccessMsg(`فاکتور رسمی با موفقیت برای شرکت «${showDirectInvoiceModal.company}» صادر شد.`);
+
+      // Trigger automatic Invoice SMS with static factor path to buyer immediately
+      try {
+        fetch(getApiUrl("/api/sms/send-invoice-sms"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: showDirectInvoiceModal.phone,
+            buyerName: showDirectInvoiceModal.name || "خریدار گرامی",
+            orderId: newOrder.trackingNumber
+          })
+        }).catch(err => console.warn("Auto direct invoice SMS notification trigger:", err));
+      } catch (e) {
+        console.warn("Could not dispatch direct invoice SMS:", e);
+      }
+
+      setSuccessMsg(`فاکتور رسمی با موفقیت برای شرکت «${showDirectInvoiceModal.company}» صادر شد و پیامک فاکتور ارسال گردید.`);
       setShowDirectInvoiceModal(null);
       setDirectInvoiceItems([]);
       setDirectAddress("");
@@ -6936,8 +6952,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
                   >
                     <option value="">انتخاب خودکار توسط GapGPT</option>
-                    {products.map((p) => (
-                      <option key={`gapgpt-prd-${p.id}`} value={p.id}>
+                    {products.map((p, pIdx) => (
+                      <option key={`gapgpt-prd-${p.id || pIdx}-${pIdx}`} value={p.id}>
                         {p.name} ({p.brand || 'معتبر'})
                       </option>
                     ))}
@@ -6953,8 +6969,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
                   >
                     <option value="">انتخاب خودکار توسط GapGPT</option>
-                    {(b2bConfig?.factories || []).map((f: any) => (
-                      <option key={`gapgpt-fac-${f.id}`} value={f.id}>
+                    {(b2bConfig?.factories || []).map((f: any, fIdx: number) => (
+                      <option key={`gapgpt-fac-${f.id || fIdx}-${fIdx}`} value={f.id}>
                         {f.name} ({f.city || 'ایران'})
                       </option>
                     ))}
@@ -10917,9 +10933,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 { id: 'gold', label: '🥇 طلایی' },
                 { id: 'silver', label: '🥈 نقره‌ای' },
                 { id: 'bronze', label: '🥉 برنزی' }
-              ].map((pill) => (
+              ].map((pill, pIdx) => (
                 <button
-                  key={`crm-badge-pill-${pill.id}`}
+                  key={`crm-badge-pill-${pill.id}-${pIdx}`}
                   type="button"
                   onClick={() => setCrmBadgeFilter(pill.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -10941,11 +10957,11 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 { id: 'representative', label: '🛡️ نماینده' },
                 { id: 'marketer', label: '📣 بازاریاب' },
                 { id: 'factory', label: '🏭 کارخانه' }
-              ].map((pill) => {
+              ].map((pill, pIdx) => {
                 const count = crmCustomers.filter(c => pill.id === 'all' || c.role === pill.id || (!c.role && pill.id === 'customer')).length;
                 return (
                   <button
-                    key={`crm-role-pill-${pill.id}`}
+                    key={`crm-role-pill-${pill.id}-${pIdx}`}
                     type="button"
                     onClick={() => setCrmRoleFilter(pill.id as any)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -12634,9 +12650,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   { id: 'approved', label: 'تایید شده', count: sponsoredAds.filter(a => a.status === 'approved').length },
                   { id: 'rejected', label: 'رد شده', count: sponsoredAds.filter(a => a.status === 'rejected').length },
                   { id: 'all', label: 'همه', count: sponsoredAds.length },
-                ].map((f) => (
+                ].map((f, fIdx) => (
                   <button
-                    key={`ads-filter-${f.id}`}
+                    key={`ads-filter-${f.id}-${fIdx}`}
                     onClick={() => setAdsFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                       adsFilter === f.id 
@@ -12655,9 +12671,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   { id: 'under_market', label: '📉 زیر قیمت' },
                   { id: 'buy', label: '📥 خرید' },
                   { id: 'sell', label: '📤 فروش' },
-                ].map((f) => (
+                ].map((f, fIdx) => (
                   <button
-                    key={`ads-cat-filter-${f.id}`}
+                    key={`ads-cat-filter-${f.id}-${fIdx}`}
                     onClick={() => setAdsCategoryFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                       adsCategoryFilter === f.id 
@@ -14124,9 +14140,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   { id: 'approved', label: 'تایید شده', count: safeBuyRequests.filter(r => r.status === 'approved').length },
                   { id: 'rejected', label: 'رد شده', count: safeBuyRequests.filter(r => r.status === 'rejected').length },
                   { id: 'all', label: 'همه', count: safeBuyRequests.length },
-                ].map((f) => (
+                ].map((f, fIdx) => (
                   <button
-                    key={`safebuy-filter-${f.id}`}
+                    key={`safebuy-filter-${f.id}-${fIdx}`}
                     onClick={() => setSafeBuyFilter(f.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                       safeBuyFilter === f.id 

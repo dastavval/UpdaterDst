@@ -3154,8 +3154,8 @@ export default function AdminSystemConfig({
                 <div className="space-y-3">
                   <label className="block text-[10px] font-black text-slate-700">لیست نودهای دیتابیس فعال (Shared Nodes):</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {remoteDbNodes.map((node) => (
-                      <div key={node.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between group">
+                    {remoteDbNodes.map((node, nIdx) => (
+                      <div key={`remote-db-node-${node.id || nIdx}-${nIdx}`} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between group">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`w-1.5 h-1.5 rounded-full ${node.status === 'connected' ? 'bg-emerald-500 animate-pulse' : node.status === 'syncing' ? 'bg-amber-500' : 'bg-slate-300'}`} />
                           <div className="min-w-0">
@@ -3267,9 +3267,9 @@ export default function AdminSystemConfig({
                   { id: "round_robin", title: "Round Robin (توزیع چرخشی منظم)", desc: "تقسیم مساوی درخواست‌ها به ترتیب بین تمام سرورها." },
                   { id: "ip_hash", title: "IP Hash (ثبات نشست کاربر)", desc: "تخصیص کاربر به نود ثابت بر اساس هش آدرس آی‌پی." },
                   { id: "weighted", title: "Weighted Latency (کمترین تاخیر شبکه)", desc: "اولولیت‌دهی بر اساس سریع‌ترین زمان پاسخگویی." }
-                ].map((item) => (
+                ].map((item, iIdx) => (
                   <div
-                    key={item.id}
+                    key={`lb-strat-${item.id || iIdx}-${iIdx}`}
                     onClick={() => setLbStrategy(item.id as any)}
                     className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                       lbStrategy === item.id
@@ -3291,8 +3291,8 @@ export default function AdminSystemConfig({
             <div className="lg:col-span-2 space-y-4">
               <h4 className="text-xs font-black text-slate-700">ماتریس نودهای خوشه سرور (Server Cluster Nodes):</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {lbNodes.map((node) => (
-                  <div key={node.id} className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-3">
+                {lbNodes.map((node, nodeIdx) => (
+                  <div key={`lb-node-${node.id || nodeIdx}-${nodeIdx}`} className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-slate-800">{node.name}</span>
                       <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-mono font-bold rounded-md">

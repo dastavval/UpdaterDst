@@ -51,7 +51,7 @@ export default function SiteRoadmap({ theme }: SiteRoadmapProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
           {steps.map((step, index) => (
             <motion.div
-              key={step.id}
+              key={`roadmap-step-${step.id || index}-${index}`}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}

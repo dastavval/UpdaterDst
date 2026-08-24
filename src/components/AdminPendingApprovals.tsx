@@ -726,9 +726,9 @@ export default function AdminPendingApprovals({
             { id: 'callback', label: 'استعلام فوری و تماس', count: aggregatedPendingItems.filter(i => i.type === 'callback').length },
             { id: 'support_ticket', label: 'تیکت پشتیبانی و بار', count: aggregatedPendingItems.filter(i => i.type === 'support_ticket').length },
             { id: 'factory_registration', label: 'ثبت‌نام کارخانجات جدید', count: aggregatedPendingItems.filter(i => i.type === 'factory_registration').length },
-          ].map(tab => (
+          ].map((tab, tIdx) => (
             <button
-              key={tab.id}
+              key={`pending-tab-${tab.id}-${tIdx}`}
               type="button"
               onClick={() => setFilterType(tab.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${

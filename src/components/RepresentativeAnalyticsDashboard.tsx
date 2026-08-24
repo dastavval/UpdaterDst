@@ -121,12 +121,12 @@ export default function RepresentativeAnalyticsDashboard({
 
         {/* Target Level Quick Selector Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto shrink-0 bg-slate-50 p-1 rounded-2xl border border-slate-200">
-          {tiers.map(t => {
+          {tiers.map((t, tIdx) => {
             const isSelected = selectedTargetId === t.id;
             const isReached = currentSales >= t.minSales;
             return (
               <button
-                key={t.id}
+                key={`rep-target-tier-${t.id || tIdx}-${tIdx}`}
                 onClick={() => setSelectedTargetId(t.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                   isSelected 
@@ -366,12 +366,12 @@ export default function RepresentativeAnalyticsDashboard({
             </div>
 
             <div className="space-y-2.5 pt-1">
-              {tiers.map(t => {
+              {tiers.map((t, tIdx) => {
                 const percent = Math.min(100, Math.round((currentSales / t.minSales) * 100));
                 const isPassed = currentSales >= t.minSales;
 
                 return (
-                  <div key={t.id} className="space-y-1 text-xs">
+                  <div key={`rep-prog-tier-${t.id || tIdx}-${tIdx}`} className="space-y-1 text-xs">
                     <div className="flex justify-between items-center text-[11px] font-bold">
                       <span className={isPassed ? "text-emerald-800 font-black" : "text-slate-700"}>
                         {t.title} ({toPersianNum(t.minSalesFormatted)})

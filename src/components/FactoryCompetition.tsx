@@ -25,7 +25,7 @@ export default function FactoryCompetition({ factories, theme }: FactoryCompetit
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedFactories.map((factory, index) => (
           <motion.div
-            key={factory.id}
+            key={`fact-comp-${factory.id || index}-${index}`}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}

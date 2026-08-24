@@ -260,8 +260,8 @@ export const ReferralRewardModal: React.FC<ReferralRewardModalProps> = ({
 
               <div className="space-y-1.5 max-h-36 overflow-y-auto">
                 {invitedList.length > 0 ? (
-                  invitedList.map((item) => (
-                    <div key={item.id} className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
+                  invitedList.map((item, itemIdx) => (
+                    <div key={`inv-item-${item.id || itemIdx}-${itemIdx}`} className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
                       <div className="space-y-0.5">
                         <div className="font-black text-slate-900">{item.name}</div>
                         <div className="text-[10px] text-slate-500 font-bold">{item.city} • {item.date}</div>

@@ -510,7 +510,7 @@ export default function DealershipRequestView({
                   {cityTierData.growthSteps ? (
                     cityTierData.growthSteps.map((step, idx) => (
                       <div 
-                        key={`growth-step-${step.stepNumber}`}
+                        key={`growth-step-${step.stepNumber}-${idx}`}
                         className={`p-2.5 rounded-2xl border transition-all ${
                           idx === 0 
                             ? "bg-emerald-50/70 border-emerald-200/80 text-slate-800" 
@@ -618,11 +618,11 @@ export default function DealershipRequestView({
               <div className="space-y-2 pt-2">
                 <span className="text-xs font-black text-slate-700">انتخاب سریع کلان‌شهرها و مراکز استان:</span>
                 <div className="flex flex-wrap gap-2">
-                  {quickCities.map((qc) => {
+                  {quickCities.map((qc, qcIdx) => {
                     const isSelected = city === qc.name;
                     return (
                       <button
-                        key={`qc-${qc.name}`}
+                        key={`qc-${qc.name}-${qcIdx}`}
                         onClick={() => {
                           setCity(qc.name);
                           setProvince(qc.prov);

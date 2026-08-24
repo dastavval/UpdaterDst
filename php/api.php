@@ -75,6 +75,15 @@ function normalize_iranian_phone_php($rawPhone) {
     return $clean;
 }
 
+function convert_to_english_digits_php($input) {
+    if (empty($input)) return '';
+    $persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    $arabic  = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    $english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    $clean = str_replace($persian, $english, (string)$input);
+    return str_replace($arabic, $english, $clean);
+}
+
 function get_b2b_config_php($pdo) {
     $config = [];
     try {
@@ -610,7 +619,68 @@ switch ($action) {
 
         if ($code === '12345' || ($stored && $stored['code'] === $code && $stored['expiresAt'] > time())) {
             unset($_SESSION['otp_' . $cleanPhone]);
-            echo json_encode(['success' => true, 'message' => 'احراز هویت پیامکی با موفقیت انجام شد.'], JSON_UNESCAPED_UNICODE);
+            
+            $matchedUser = null;
+            $isNew = false;
+            $localUsers = [];
+            
+            try {
+                $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_users'");
+                $stmt->execute();
+                $row = $stmt->fetch();
+                if ($row && !empty($row['setting_value'])) {
+                    $decoded = json_decode($row['setting_value'], true);
+                    if (is_array($decoded)) {
+                        $localUsers = $decoded;
+                    }
+                }
+            } catch (Exception $e) {}
+            
+            foreach ($localUsers as $key => $u) {
+                if (isset($u['phone']) && normalize_iranian_phone_php($u['phone']) === $cleanPhone) {
+                    $matchedUser = $u;
+                    break;
+                }
+            }
+            
+            if (!$matchedUser) {
+                $isNew = true;
+                $uId = "usr_" . rand(100000, 999999);
+                $uCode = "CST-" . rand(1000, 9999);
+                $emailStr = $cleanPhone . "@dastavval.com";
+                
+                $matchedUser = [
+                    'id' => $uId,
+                    'name' => 'خریدار عمده (' . substr($cleanPhone, -4) . ')',
+                    'email' => $emailStr,
+                    'password' => $cleanPhone,
+                    'company' => 'فروشگاه همکار (ثبت نام آنی)',
+                    'city' => 'تهران',
+                    'phone' => $cleanPhone,
+                    'badge' => 'bronze',
+                    'role' => 'customer',
+                    'userCode' => $uCode,
+                    'customerCode' => $uCode,
+                    'status' => 'active',
+                    'createdAt' => date('c')
+                ];
+                
+                $localUsers[$emailStr] = $matchedUser;
+                $localUsers[$cleanPhone] = $matchedUser;
+                
+                try {
+                    $json = json_encode($localUsers, JSON_UNESCAPED_UNICODE);
+                    $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_users', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $saveStmt->execute([$json, $json]);
+                } catch (Exception $e) {}
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'isNew' => $isNew,
+                'message' => 'احراز هویت پیامکی با موفقیت انجام شد.',
+                'user' => $matchedUser
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'error' => 'کد تایید نامعتبر یا منقضی شده است.'], JSON_UNESCAPED_UNICODE);
         }
@@ -630,6 +700,7 @@ switch ($action) {
 
         $cleanPhone = normalize_iranian_phone_php($phone);
         $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $cleanCode = convert_to_english_digits_php($cleanCode);
         $textWithFixedLink = "جناب $buyerName، پیش‌فاکتور سفارش $cleanCode در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/$cleanCode.pdf\ndastavval.com\nلغو11";
 
         $b2bConfig = get_b2b_config_php($pdo);
