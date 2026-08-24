@@ -101,12 +101,18 @@ p {
   font-weight: 100 !important;
 }
 
-/* Slightly reduce corner roundness across the site */
-.rounded-3xl { border-radius: 1.25rem !important; }
-.rounded-2xl { border-radius: 0.85rem !important; }
-.rounded-xl { border-radius: 0.6rem !important; }
-.rounded-lg { border-radius: 0.4rem !important; }
-.rounded-md { border-radius: 0.3rem !important; }
+/* Slightly reduce corner roundness across the site for a crisp, modern feel */
+.rounded-3xl { border-radius: 0.85rem !important; }
+.rounded-2xl { border-radius: 0.55rem !important; }
+.rounded-xl { border-radius: 0.4rem !important; }
+.rounded-lg { border-radius: 0.3rem !important; }
+.rounded-md { border-radius: 0.22rem !important; }
+.rounded-sm { border-radius: 0.15rem !important; }
+[class*="rounded-[2.5rem]"],
+[class*="rounded-[2.2rem]"],
+[class*="rounded-[2rem]"] {
+  border-radius: 0.85rem !important;
+}
 
 /* Ensure font sizes are clear, large, and comfortably legible */
 .text-xs { font-size: 0.75rem !important; line-height: 1.5; } /* 12px */
@@ -125,24 +131,25 @@ p {
   font-size: 0.725rem !important;
 }
 
-/* Refined Spacing */
-.space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.85rem !important; }
-.space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem !important; }
-.space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.75rem !important; }
+/* Refined, tighter spacing across layout */
+.space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.55rem !important; }
+.space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.65rem !important; }
+.space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.95rem !important; }
+.space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem !important; }
 
 ::selection {
-  background-color: rgba(16, 185, 129, 0.25);
+  background-color: rgba(16, 185, 129, 0.2);
   color: #064e3b;
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f8fafc;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -154,39 +161,39 @@ p {
   background: #94a3b8;
 }
 
-/* Custom Eye-Catching Utilities & Lux Gradients */
+/* Custom Eye-Catching Utilities & Light Clean Panels */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.7);
 }
 
 .lux-card-gradient {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 0.9) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 0.95) 100%);
 }
 
 .icon-glow-emerald {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
 }
 
 .icon-glow-orange {
-  box-shadow: 0 0 20px rgba(234, 88, 12, 0.35);
+  box-shadow: 0 0 14px rgba(234, 88, 12, 0.2);
 }
 
 .icon-glow-indigo {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.2);
 }
 
 @layer utilities {
   .shadow-material-sm {
-    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px 0 rgba(0, 0, 0, 0.015);
   }
   .shadow-material-md {
-    box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 14px -3px rgba(15, 23, 42, 0.04), 0 2px 6px -2px rgba(0, 0, 0, 0.02);
   }
   .shadow-material-lg {
-    box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12), 0 12px 24px -8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 10px 25px -6px rgba(15, 23, 42, 0.06), 0 4px 10px -4px rgba(0, 0, 0, 0.03);
   }
   .hide-scrollbar::-webkit-scrollbar,
   .no-scrollbar::-webkit-scrollbar,

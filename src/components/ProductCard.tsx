@@ -155,7 +155,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
         delay: (index % 4) * 0.05, 
         ease: [0.21, 0.47, 0.32, 0.98] 
       }}
-      className="bg-white rounded-[1.75rem] border border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 hover:border-emerald-500/30 transition-all duration-500 group flex flex-col relative h-full overflow-hidden"
+      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all duration-300 group flex flex-col relative h-full overflow-hidden"
     >
       {/* Top Accent Line for Featured */}
       {product.isFeatured && (

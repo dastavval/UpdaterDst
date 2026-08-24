@@ -32,6 +32,8 @@ import { calculateDealershipTier } from "../utils/dealershipCityTiers";
 interface DealershipRequestViewProps {
   b2bConfig?: any;
   user?: any;
+  userCity?: string;
+  userProvince?: string;
   onNavigateHome: () => void;
   onOpenCertificate?: () => void;
 }
@@ -39,6 +41,8 @@ interface DealershipRequestViewProps {
 export default function DealershipRequestView({
   b2bConfig,
   user,
+  userCity,
+  userProvince,
   onNavigateHome,
   onOpenCertificate
 }: DealershipRequestViewProps) {
@@ -48,20 +52,46 @@ export default function DealershipRequestView({
   const [fullName, setFullName] = useState(user?.name || "");
   const [mobile, setMobile] = useState(user?.phone || user?.mobile || "");
   const [companyName, setCompanyName] = useState(user?.company || "");
-  const [province, setProvince] = useState(user?.province || "تهران");
-  const [city, setCity] = useState(user?.city || "تهران");
-  const [warehouseSpace, setWarehouseSpace] = useState("۲۰۰ تا ۵۰۰ متر مربع");
-  const [distributionVehicles, setDistributionVehicles] = useState("۲ تا ۴ دستگاه وانت/کامیونت");
-  const [experienceYears, setExperienceYears] = useState("۵ تا ۱۰ سال");
-  const [capitalRange, setCapitalRange] = useState("۱ تا ۳ میلیارد تومان");
+
+  // Initialize province and city with intelligent fallback from user prop, userCity prop, or localStorage
+  const [province, setProvince] = useState<string>(() => {
+    if (user?.province) return user.province;
+    if (userProvince) return userProvince;
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dastavval_user_province");
+      if (saved) return saved;
+    }
+    return "خراسان رضوی";
+  });
+
+  const [city, setCity] = useState<string>(() => {
+    if (user?.city) return user.city;
+    if (userCity) return userCity;
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dastavval_user_city");
+      if (saved) return saved;
+    }
+    return "قوچان";
+  });
+
+  const [warehouseSpace, setWarehouseSpace] = useState("۱۰۰ تا ۳۰۰ متر مربع");
+  const [distributionVehicles, setDistributionVehicles] = useState("۱ تا ۲ دستگاه وانت/کامیونت");
+  const [experienceYears, setExperienceYears] = useState("۲ تا ۵ سال");
+  const [capitalRange, setCapitalRange] = useState("۵۰۰ میلیون تا ۱ میلیارد تومان");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
 
-  // Listen to open-dealership-request event for city prefill
+  // Sync state if userCity or userProvince prop changes
   React.useEffect(() => {
-    const handleEvent = (e: any) => {
+    if (userCity) setCity(userCity);
+    if (userProvince) setProvince(userProvince);
+  }, [userCity, userProvince]);
+
+  // Listen to events for city prefill and header location selector changes
+  React.useEffect(() => {
+    const handleOpenEvent = (e: any) => {
       if (e.detail?.city) {
         setCity(e.detail.city);
       }
@@ -70,13 +100,27 @@ export default function DealershipRequestView({
       }
       setActiveTab('form');
     };
-    window.addEventListener("open-dealership-request", handleEvent);
-    return () => window.removeEventListener("open-dealership-request", handleEvent);
+
+    const handleCityChangeEvent = (e: any) => {
+      if (e.detail?.city) {
+        setCity(e.detail.city);
+      }
+      if (e.detail?.province) {
+        setProvince(e.detail.province);
+      }
+    };
+
+    window.addEventListener("open-dealership-request", handleOpenEvent);
+    window.addEventListener("dastavval-city-changed", handleCityChangeEvent);
+    return () => {
+      window.removeEventListener("open-dealership-request", handleOpenEvent);
+      window.removeEventListener("dastavval-city-changed", handleCityChangeEvent);
+    };
   }, []);
 
   // Dynamic Demographic Quota Calculation for selected city
   const cityTierData = useMemo(() => {
-    return calculateDealershipTier(city || "تهران", province);
+    return calculateDealershipTier(city || "قوچان", province);
   }, [city, province]);
 
   // Provinces List
@@ -89,19 +133,20 @@ export default function DealershipRequestView({
   ];
 
   const quickCities = [
-    { name: "تهران", prov: "تهران" },
+    { name: "قوچان", prov: "خراسان رضوی" },
+    { name: "سبزوار", prov: "خراسان رضوی" },
+    { name: "نیشابور", prov: "خراسان رضوی" },
     { name: "مشهد", prov: "خراسان رضوی" },
+    { name: "تهران", prov: "تهران" },
     { name: "اصفهان", prov: "اصفهان" },
     { name: "کرج", prov: "البرز" },
     { name: "شیراز", prov: "فارس" },
     { name: "تبریز", prov: "آذربایجان شرقی" },
-    { name: "اهواز", prov: "خوزستان" },
-    { name: "قم", prov: "قم" },
-    { name: "رشت", prov: "گیلان" },
+    { name: "کاشان", prov: "اصفهان" },
+    { name: "دزفول", prov: "خوزستان" },
+    { name: "آمل", prov: "مازندران" },
     { name: "کرمانشاه", prov: "کرمانشاه" },
     { name: "همدان", prov: "همدان" },
-    { name: "ارومیه", prov: "آذربایجان غربی" },
-    { name: "یزد", prov: "یزد" },
     { name: "بندرعباس", prov: "هرمزگان" }
   ];
 
@@ -503,7 +548,7 @@ export default function DealershipRequestView({
                 </div>
 
                 <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed">
-                  💡 شروع با حداقل ۳۰ کارتن بدون ریسک انبارداری؛ سهمیه و تخفیف‌ها پس از هر دوره سفارش به صورت اتوماتیک افزایش می‌یابد.
+                  💡 شروع آسان در {cityTierData.cityName} با حداقل {cityTierData.starterMinCartons} ({cityTierData.initialMinOrderFormatted}) بدون ریسک انبارداری؛ سهمیه و تخفیف‌ها پس از هر دوره سفارش به صورت اتوماتیک افزایش می‌یابد.
                 </p>
               </div>
 
@@ -565,7 +610,7 @@ export default function DealershipRequestView({
                   استعلام آنلاین سقف نمایندگی، تعداد کارتن و شرایط ضمانت بر اساس کشش شهر
                 </h2>
                 <p className="text-xs font-bold text-slate-500 leading-relaxed max-w-3xl">
-                  در پلتفرم دست اول، سهمیه سفارشات به صورت کارتنی، با حداقل ورود کم‌ریسک (شروع از ۳۰ کارتن) و ارتقای خودکار پلکانی بر اساس رشد فروش هر منطقه تخصیص می‌یابد.
+                  در پلتفرم دست اول، سهمیه سفارشات بر اساس ظرفیت واقعی شهر <span className="text-emerald-700 font-black">{cityTierData.cityName}</span> ({cityTierData.tierLabel}) تنظیم می‌شود. برای شهرهای کوچک و متوسط مانند {cityTierData.cityName}، شرایط ورود تسهیل‌شده با حداقل سفارش <span className="text-emerald-700 font-black">{cityTierData.starterMinCartons} ({cityTierData.initialMinOrderFormatted})</span> در نظر گرفته شده تا تمامی همکاران محلی بتوانند به‌راحتی فعالیت خود را آغاز کنند.
                 </p>
               </div>
 

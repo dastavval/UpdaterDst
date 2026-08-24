@@ -29,7 +29,11 @@ export default function QuickOrderList({
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesSearch = p.name.includes(searchQuery) || p.brand.includes(searchQuery);
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || 
+        p.name.toLowerCase().includes(q) || 
+        p.brand.toLowerCase().includes(q) ||
+        (p.tags && Array.isArray(p.tags) && p.tags.some(t => typeof t === 'string' && t.toLowerCase().includes(q)));
       const matchesCategory = !selectedCategory || p.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });

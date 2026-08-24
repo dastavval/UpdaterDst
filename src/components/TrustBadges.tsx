@@ -28,49 +28,57 @@ export default function TrustBadges({ b2bConfig, className = "" }: TrustBadgesPr
   const badges: TrustBadgeItem[] = [
     {
       id: 'badge_1',
-      title: 'ای‌نماد رسمی',
-      subtitle: 'تایید شده و معتبر',
+      title: 'ای‌نماد رسمی ۵ ستاره',
+      subtitle: 'مرکز توسعه تجارت الکترونیکی',
       url: b2bConfig?.enamadUrl || 'https://trustseal.enamad.ir',
       imageUrl: b2bConfig?.enamadImage || ''
     },
     {
       id: 'badge_2',
-      title: 'نشان ساماندهی',
-      subtitle: 'وزارت فرهنگ و ارشاد',
+      title: 'نشان ثبت ساماندهی',
+      subtitle: 'وزارت فرهنگ و ارشاد اسلامی',
       url: b2bConfig?.samandehiUrl || 'https://logo.samandehi.ir',
       imageUrl: b2bConfig?.samandehiImage || ''
     },
     {
       id: 'badge_3',
-      title: 'پروانه کسب صنفی',
-      subtitle: b2bConfig?.tradeUnionCode || 'IR-9044502',
+      title: 'پروانه کسب کشوری',
+      subtitle: b2bConfig?.tradeUnionCode ? `شناسه صنفی: ${b2bConfig.tradeUnionCode}` : 'اتحادیه کسب‌وکارهای مجازی',
       url: b2bConfig?.tradeUnionUrl || 'https://dastavval.com/license',
       imageUrl: b2bConfig?.tradeUnionImage || ''
     }
   ];
 
   return (
-    <div className={`w-full max-w-5xl mx-auto py-4 px-2 overflow-x-auto no-scrollbar ${className}`} dir="rtl">
-      <div className="flex flex-row flex-nowrap items-center justify-center gap-3 sm:gap-5 min-w-max mx-auto">
+    <div className={`w-full max-w-5xl mx-auto py-5 px-2 ${className}`} dir="rtl">
+      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mx-auto">
         {badges.map((badge, idx) => (
           <a
             key={badge.id || idx}
             href={badge.url || "#"}
             target="_blank"
             rel="noopener noreferrer"
-            title={badge.title}
-            className="group relative bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-emerald-500 rounded-2xl flex items-center justify-center transition-all shadow-sm hover:shadow-lg cursor-pointer w-24 h-24 sm:w-32 sm:h-32 shrink-0 p-3 sm:p-4"
+            title={`${badge.title} - ${badge.subtitle}`}
+            className="group relative bg-white hover:bg-slate-50/80 border border-slate-200/90 hover:border-emerald-500 rounded-2xl flex items-center gap-3 transition-all shadow-xs hover:shadow-md cursor-pointer px-4 py-3 min-w-[200px] sm:min-w-[230px]"
           >
-            <div className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden">
+            <div className="w-12 h-12 rounded-xl bg-slate-50 group-hover:bg-emerald-50/50 border border-slate-100 flex items-center justify-center shrink-0 transition-colors overflow-hidden">
               {badge.imageUrl ? (
                 <img src={badge.imageUrl} alt={badge.title} className="w-full h-full object-contain mix-blend-multiply" />
               ) : idx === 0 ? (
-                <ShieldCheck className="text-slate-300 w-12 h-12 sm:w-16 sm:h-16" />
+                <ShieldCheck className="text-emerald-600 w-7 h-7 group-hover:scale-110 transition-transform" />
               ) : idx === 1 ? (
-                <Award className="text-slate-300 w-12 h-12 sm:w-16 sm:h-16" />
+                <Award className="text-blue-600 w-7 h-7 group-hover:scale-110 transition-transform" />
               ) : (
-                <CheckCircle2 className="text-slate-300 w-12 h-12 sm:w-16 sm:h-16" />
+                <CheckCircle2 className="text-indigo-600 w-7 h-7 group-hover:scale-110 transition-transform" />
               )}
+            </div>
+            <div className="text-right min-w-0">
+              <h4 className="text-xs font-black text-slate-850 group-hover:text-emerald-700 transition-colors truncate">
+                {badge.title}
+              </h4>
+              <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5">
+                {badge.subtitle}
+              </p>
             </div>
           </a>
         ))}

@@ -56,6 +56,7 @@ import {
 } from "../data/rawMaterialsData";
 import { Product, FactoryProfile } from "../types";
 import FactoryDedicatedPage from "./FactoryDedicatedPage";
+import { isWarehouseBrand } from "../utils/api-utils";
 
 const toPersianNum = (num: number | string) => {
   if (num === undefined || num === null) return "";
@@ -650,7 +651,32 @@ export default function FactoriesView({
 
   // Fallback to b2bConfig factories if available, with dynamic merging of registered factory profiles
   const allFactories: FactoryItem[] = useMemo(() => {
-    const list = factories.length > 0 ? factories : (b2bConfig?.factories || []);
+    let list = factories.length > 0 ? factories : (b2bConfig?.factories || []);
+    if (list.length === 0 && products && products.length > 0) {
+      const validBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)))
+        .filter(b => !isWarehouseBrand(b));
+
+      list = validBrands.map((bName, idx) => {
+        const sample = products.find(p => p.brand === bName);
+        const fullName = bName.startsWith("صنایع") || bName.startsWith("گروه") || bName.startsWith("کارخانه")
+          ? bName
+          : `گروه صنایع غذایی ${bName}`;
+        return {
+          id: `fac-auto-${idx}`,
+          factoryCode: `FAC-${1000 + idx}`,
+          name: fullName,
+          rating: 4.9,
+          reviewsCount: 42 + (idx * 9) % 50,
+          location: sample?.shipping_origin || "ایران، خط تولید",
+          logoUrl: sample?.brandLogoUrl || sample?.image_url,
+          category: sample?.category || "صنایع غذایی و بهداشتی",
+          establishedYear: 1380 + (idx * 3) % 40,
+          description: `تولیدکننده رسمی محصولات ${bName} با تضمین اصالت و تامین مستقیم.`,
+          capacity: "ظرفیت تامین کامل",
+          mainProducts: products.filter(p => p.brand === bName).map(p => p.name).slice(0, 3)
+        };
+      });
+    }
     try {
       const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
       const localUsersList = Object.values(localUsers).filter((u: any) => u.userRole === 'factory' || u.role === 'factory' || u.status === 'active');

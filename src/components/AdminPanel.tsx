@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ShoppingCart, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ShoppingCart, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale, Bot, Wand2 } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -19,7 +19,7 @@ import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
-import { getApiUrl, isWarehouseBrand } from "../utils/api-utils";
+import { getApiUrl, isWarehouseBrand, getEffectiveProductTags } from "../utils/api-utils";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
 import { 
@@ -1292,15 +1292,46 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const [directShippingMethod, setDirectShippingMethod] = useState("barbari");
   const [directAddress, setDirectAddress] = useState("");
 
+  // Dynamically compute all real site brands across products, factories, and brand config
+  const allAvailableBrandsList = useMemo(() => {
+    const set = new Set<string>();
+    if (brands && Array.isArray(brands)) {
+      brands.forEach(b => {
+        if (b?.name && !isWarehouseBrand(b.name)) set.add(b.name.trim());
+      });
+    }
+    if (products && Array.isArray(products)) {
+      products.forEach(p => {
+        if (p?.brand && !isWarehouseBrand(p.brand)) set.add(p.brand.trim());
+      });
+    }
+    if (b2bConfig?.factories && Array.isArray(b2bConfig.factories)) {
+      b2bConfig.factories.forEach((f: any) => {
+        if (f?.name && !isWarehouseBrand(f.name)) set.add(f.name.trim());
+      });
+    }
+    return Array.from(set).map(name => ({ id: `brand-${name}`, name }));
+  }, [brands, products, b2bConfig]);
+
   // News & Articles States
   const [isAddingNews, setIsAddingNews] = useState(false);
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
   const [newsTitle, setNewsTitle] = useState("");
   const [newsSummary, setNewsSummary] = useState("");
   const [newsContent, setNewsContent] = useState("");
-  const [newsCategory, setNewsCategory] = useState<any>("تنظیم بازار");
+  const [newsCategory, setNewsCategory] = useState<any>("راهنمای خرید عمده");
   const [newsImage, setNewsImage] = useState("");
   const [newsSource, setNewsSource] = useState("مدیریت سامانه");
+
+  // GapGPT AI Article Generator States
+  const [gapGptTopicType, setGapGptTopicType] = useState<'wholesale' | 'product' | 'factory' | 'billboard' | 'custom'>('wholesale');
+  const [gapGptProductId, setGapGptProductId] = useState<string>('');
+  const [gapGptFactoryId, setGapGptFactoryId] = useState<string>('');
+  const [gapGptCategory, setGapGptCategory] = useState<string>('راهنمای خرید عمده');
+  const [gapGptCustomPrompt, setGapGptCustomPrompt] = useState<string>('');
+  const [gapGptTone, setGapGptTone] = useState<string>('رسمی و بنکداری');
+  const [isGeneratingWithGapGpt, setIsGeneratingWithGapGpt] = useState<boolean>(false);
+  const [gapGptStatusMsg, setGapGptStatusMsg] = useState<string | null>(null);
 
   // Channel Posts States
   const [editingChannelPostId, setEditingChannelPostId] = useState<string | null>(null);
@@ -1404,6 +1435,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const [isOrganic, setIsOrganic] = useState(false);
   const [healthCertCode, setHealthCertCode] = useState("");
   const [chequeAllowed, setChequeAllowed] = useState(true);
+  const [productTags, setProductTags] = useState("");
 
   const handleResetForm = () => {
     setIsEditing(null);
@@ -1423,6 +1455,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setIsOrganic(false);
     setHealthCertCode("۱۶/۱۲۴۵۸");
     setChequeAllowed(true);
+    setProductTags("");
     setPackDescription("");
     setShippingOrigin("");
     setCartonPackCount(24);
@@ -1571,6 +1604,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setIsOrganic(!!p.isOrganic);
     setHealthCertCode(p.healthCertCode || "۱۶/۱۲۴۵۸");
     setChequeAllowed(p.chequeAllowed !== false);
+    setProductTags(p.tags && Array.isArray(p.tags) ? p.tags.join("، ") : "");
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1828,6 +1862,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const customTags = productTags ? productTags.split(/[\n،,]+/).map(t => t.trim()).filter(Boolean) : [];
+    const computedTags = getEffectiveProductTags({
+      name,
+      brand,
+      category,
+      tags: customTags,
+      hasHealthApple,
+      isOrganic,
+      isNatural
+    });
+
     const productPayload = {
       name,
       brand,
@@ -1856,7 +1901,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       isNatural,
       isOrganic,
       healthCertCode,
-      chequeAllowed: !!chequeAllowed
+      chequeAllowed: !!chequeAllowed,
+      tags: computedTags
     };
 
     try {
@@ -3362,6 +3408,66 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         }
       }
     );
+  };
+
+  // GapGPT AI Article Generator Handlers
+  const handleGenerateSingleGapGptArticle = async () => {
+    setIsGeneratingWithGapGpt(true);
+    setGapGptStatusMsg("در حال تولید و نگارش مقاله تخصصی با هوش مصنوعی GapGPT و لینک‌دهی سئو...");
+    try {
+      const res = await fetch("/api/ai/generate-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topicType: gapGptTopicType,
+          targetId: gapGptTopicType === 'product' ? gapGptProductId : (gapGptTopicType === 'factory' ? gapGptFactoryId : undefined),
+          customPrompt: gapGptCustomPrompt,
+          category: gapGptCategory,
+          tone: gapGptTone
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.article) {
+        setNewsTitle(data.article.title || "");
+        setNewsSummary(data.article.summary || "");
+        setNewsContent(data.article.content || "");
+        setNewsCategory(data.article.category || gapGptCategory);
+        setNewsImage(data.article.imageUrl || "");
+        setNewsSource(data.article.source || "تحریریه هوش مصنوعی GapGPT");
+        setGapGptStatusMsg("✅ مقاله هوشمند با موفقیت تولید گردید! اطلاعات فرم زیر تکمیل شد؛ می‌توانید بررسی و منتشر کنید.");
+        setIsAddingNews(true);
+        if (onUpdateArticles) await onUpdateArticles();
+      } else {
+        setGapGptStatusMsg("❌ خطا در دریافت پاسخ از سرویس GapGPT: " + (data.error || "خطای ناشناخته"));
+      }
+    } catch (err: any) {
+      setGapGptStatusMsg("❌ خطا در ارتباط با سرویس GapGPT: " + err.message);
+    } finally {
+      setIsGeneratingWithGapGpt(false);
+    }
+  };
+
+  const handleGenerateDailyBatchGapGpt = async () => {
+    setIsGeneratingWithGapGpt(true);
+    setGapGptStatusMsg("در حال تولید گروهی ۴ مقاله تخصصی برای مجله خبری با GapGPT...");
+    try {
+      const res = await fetch("/api/ai/generate-daily-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 4 })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGapGptStatusMsg(`✅ تعداد ${data.generatedCount || 4} مقاله جدید با موفقیت تولید و به مجله افزوده شد.`);
+        if (onUpdateArticles) await onUpdateArticles();
+      } else {
+        setGapGptStatusMsg("❌ خطا در تولید روزانه مقالات: " + (data.error || "خطا"));
+      }
+    } catch (err: any) {
+      setGapGptStatusMsg("❌ خطا در ساخت گروهی مقالات.");
+    } finally {
+      setIsGeneratingWithGapGpt(false);
+    }
   };
 
   // Representative Management Handlers
@@ -6758,17 +6864,155 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </div>
               <div>
                 <h3 className="text-lg font-black text-slate-900 font-sans tracking-tight">مدیریت اخبار و مقالات سامانه</h3>
-                <p className="text-xs text-slate-400 font-bold mt-1">انتشار اطلاعیه‌ها، اخبار بازار و راهنماهای آموزشی برای بنکداران</p>
+                <p className="text-xs text-slate-400 font-bold mt-1">انتشار اطلاعیه‌ها، اخبار بازار، راهنماهای آموزشی با دستیار GapGPT</p>
               </div>
             </div>
             
             <button 
               onClick={() => { setIsAddingNews(!isAddingNews); setEditingNewsId(null); }}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover text-white rounded-2xl text-xs font-black transition-all shadow-material-md hover active:scale-95"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black transition-all shadow-material-md hover active:scale-95 cursor-pointer"
             >
               {isAddingNews ? <X size={16} /> : <PlusCircle size={16} />}
-              {isAddingNews ? "انصراف از ثبت" : "انتشار مطلب جدید"}
+              {isAddingNews ? "انصراف از ثبت" : "ثبت/ویرایش دستی مقاله"}
             </button>
+          </div>
+
+          {/* GapGPT Intelligent Content Generation Control Panel */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-2xl border border-indigo-500/20 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-5">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-3 bg-gradient-to-tr from-amber-400 to-emerald-400 text-slate-950 rounded-2xl shadow-lg">
+                    <Sparkles size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-black text-white flex items-center gap-2">
+                      <span>تولید محتوای هوشمند مجله با GapGPT</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">موتور نویسنده B2B</span>
+                    </h4>
+                    <p className="text-xs text-slate-300 font-medium mt-1">نگارش خودکار مقاله تحلیلی، استعلام قیمت، راهنمای خرید عمده و اخبار خط تولید با لینک‌دهی تعاملی سئو</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleGenerateDailyBatchGapGpt}
+                    disabled={isGeneratingWithGapGpt}
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {isGeneratingWithGapGpt ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                    <span>تولید روزانه ۴ مقاله (دسته‌ای)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Controls Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Topic Type Selector */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">نوع مقاله / موضوع تولیدی:</label>
+                  <select
+                    value={gapGptTopicType}
+                    onChange={(e: any) => setGapGptTopicType(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
+                  >
+                    <option value="wholesale">📦 راهنمای خرید عمده و تحلیل حاشیه سود</option>
+                    <option value="product">🛍️ بررسی تخصصی محصول ویژه</option>
+                    <option value="factory">🏭 معرفی خط تولید کارخانه</option>
+                    <option value="billboard">⚡ فرصت‌های حراج کف بازار</option>
+                    <option value="custom">✍️ موضوع سفارشی با پرامپت دلخواه</option>
+                  </select>
+                </div>
+
+                {/* Target Product Selection */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">کالای مرتبط (جهت لینک‌دهی سئو):</label>
+                  <select
+                    value={gapGptProductId}
+                    onChange={(e) => setGapGptProductId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
+                  >
+                    <option value="">انتخاب خودکار توسط GapGPT</option>
+                    {products.map((p) => (
+                      <option key={`gapgpt-prd-${p.id}`} value={p.id}>
+                        {p.name} ({p.brand || 'معتبر'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Target Factory Selection */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">کارخانه مرتبط (جهت لینک‌دهی سئو):</label>
+                  <select
+                    value={gapGptFactoryId}
+                    onChange={(e) => setGapGptFactoryId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
+                  >
+                    <option value="">انتخاب خودکار توسط GapGPT</option>
+                    {(b2bConfig?.factories || []).map((f: any) => (
+                      <option key={`gapgpt-fac-${f.id}`} value={f.id}>
+                        {f.name} ({f.city || 'ایران'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Custom Prompt & Options */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">پرامپت اختصاصی / کلمات کلیدی مد نظر سئو:</label>
+                  <input
+                    type="text"
+                    value={gapGptCustomPrompt}
+                    onChange={(e) => setGapGptCustomPrompt(e.target.value)}
+                    placeholder="مثال: وضعیت حاشیه سود پخش عمده تن ماهی ۱۸۰ گرمی در بنکداری‌های تهران و اصفهان..."
+                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white placeholder-slate-400 focus:border-amber-400 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">دسته‌بندی موضوعی:</label>
+                  <select
+                    value={gapGptCategory}
+                    onChange={(e) => setGapGptCategory(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
+                  >
+                    <option value="راهنمای خرید عمده">راهنمای خرید عمده</option>
+                    <option value="تحلیل خط تولید">تحلیل خط تولید</option>
+                    <option value="اخبار کف بازار">اخبار کف بازار</option>
+                    <option value="تنظیم بازار">تنظیم بازار و سهمیه</option>
+                    <option value="تامین مواد اولیه">تامین مواد اولیه</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Status Message */}
+              {gapGptStatusMsg && (
+                <div className="p-3.5 rounded-xl bg-indigo-900/80 border border-indigo-400/30 text-emerald-300 text-xs font-bold flex items-center justify-between">
+                  <span>{gapGptStatusMsg}</span>
+                  <button onClick={() => setGapGptStatusMsg(null)} className="text-slate-400 hover:text-white cursor-pointer">✕</button>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={handleGenerateSingleGapGptArticle}
+                  disabled={isGeneratingWithGapGpt}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg cursor-pointer disabled:opacity-50"
+                >
+                  {isGeneratingWithGapGpt ? <RefreshCw size={16} className="animate-spin" /> : <Bot size={16} />}
+                  <span>تولید و نگارش مقاله کامل با GapGPT</span>
+                </button>
+
+                <span className="text-[11px] text-slate-400 font-bold hidden sm:inline">موتور فعال: GapGPT (هوش مصنوعی تحلیلی مجله دست اول)</span>
+              </div>
+            </div>
           </div>
 
           {isAddingNews && (
@@ -7246,9 +7490,9 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         </div>
 
                         {/* Quick Available Brands Chips */}
-                        {brands && brands.length > 0 && (
-                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-slate-50/60 rounded-lg border border-slate-100">
-                            {brands.map((brandObj) => {
+                        {allAvailableBrandsList && allAvailableBrandsList.length > 0 && (
+                          <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto p-1.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                            {allAvailableBrandsList.map((brandObj) => {
                               const isSelected = repBrands.includes(brandObj.name);
                               return (
                                 <button
@@ -7263,8 +7507,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                                   }}
                                   className={`px-2 py-0.5 rounded-md text-[9.5px] font-black transition-all cursor-pointer border ${
                                     isSelected 
-                                      ? "bg-emerald-600 text-white border-emerald-600" 
-                                      : "bg-white text-slate-600 hover:bg-slate-100 border-slate-200"
+                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs" 
+                                      : "bg-white text-slate-700 hover:bg-slate-100 border-slate-200"
                                   }`}
                                 >
                                   {isSelected ? "✓ " : "+ "}{brandObj.name}
@@ -7888,15 +8132,28 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                       </label>
                     </div>
 
-                    <div className="pt-2">
-                      <label className="text-[11px] font-black text-emerald-900 block mb-1">کد پروانه بهداشتی / شماره سیب سلامت:</label>
-                      <input
-                        type="text"
-                        value={healthCertCode}
-                        onChange={e => setHealthCertCode(e.target.value)}
-                        placeholder="مثال: ۱۶/۱۲۴۵۸"
-                        className="w-full sm:w-64 px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-xs font-mono font-black text-emerald-950 text-right"
-                      />
+                    <div className="pt-2 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                      <div>
+                        <label className="text-[11px] font-black text-emerald-900 block mb-1">کد پروانه بهداشتی / شماره سیب سلامت:</label>
+                        <input
+                          type="text"
+                          value={healthCertCode}
+                          onChange={e => setHealthCertCode(e.target.value)}
+                          placeholder="مثال: ۱۶/۱۲۴۵۸"
+                          className="w-full sm:w-64 px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-xs font-mono font-black text-emerald-950 text-right"
+                        />
+                      </div>
+
+                      <div className="flex-1 w-full">
+                        <label className="text-[11px] font-black text-slate-800 block mb-1">تگ‌ها و کلیدواژه‌های سئو (با کاما جدا کنید):</label>
+                        <input
+                          type="text"
+                          value={productTags}
+                          onChange={e => setProductTags(e.target.value)}
+                          placeholder="مثال: چیپس، باتو، تنقلات سیب زمینی، خرید عمده"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                        />
+                      </div>
                     </div>
                   </div>
 

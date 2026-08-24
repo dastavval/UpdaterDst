@@ -48,7 +48,17 @@ import {
   Percent,
   TrendingDown,
   Trash2,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Smartphone,
+  MessageSquare,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Hash,
+  Phone,
+  Truck,
+  Boxes,
+  PackageCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -77,7 +87,8 @@ type ActiveTab =
   | "installer"
   | "backup"
   | "parspack_storage"
-  | "financial";
+  | "financial"
+  | "sms";
 
 export default function AdminSystemConfig({
   b2bConfig,
@@ -89,6 +100,49 @@ export default function AdminSystemConfig({
   defaultTab
 }: AdminSystemConfigProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>(defaultTab || "github");
+
+  // --- MELIPAYAMAK SMS & PATTERN STATE ---
+  const [smsUsername, setSmsUsername] = useState(b2bConfig.smsUsername || "");
+  const [smsPassword, setSmsPassword] = useState(b2bConfig.smsPassword || "");
+  const [smsFromNumber, setSmsFromNumber] = useState(b2bConfig.smsFromNumber || "5000400075");
+  const [smsEnabled, setSmsEnabled] = useState(b2bConfig.smsEnabled !== false);
+  const [showSmsPassword, setShowSmsPassword] = useState(false);
+
+  // Pattern (الگو) IDs
+  const [smsOtpPatternId, setSmsOtpPatternId] = useState(b2bConfig.smsOtpPatternId ? String(b2bConfig.smsOtpPatternId) : "");
+  const [smsWelcomePatternId, setSmsWelcomePatternId] = useState(b2bConfig.smsWelcomePatternId ? String(b2bConfig.smsWelcomePatternId) : "");
+  const [smsOrderRegisteredPatternId, setSmsOrderRegisteredPatternId] = useState(b2bConfig.smsOrderRegisteredPatternId ? String(b2bConfig.smsOrderRegisteredPatternId) : "");
+  const [smsOrderStatusChangedPatternId, setSmsOrderStatusChangedPatternId] = useState(b2bConfig.smsOrderStatusChangedPatternId ? String(b2bConfig.smsOrderStatusChangedPatternId) : "");
+  const [smsProductApprovedPatternId, setSmsProductApprovedPatternId] = useState(b2bConfig.smsProductApprovedPatternId ? String(b2bConfig.smsProductApprovedPatternId) : "");
+  const [smsProductRejectedPatternId, setSmsProductRejectedPatternId] = useState(b2bConfig.smsProductRejectedPatternId ? String(b2bConfig.smsProductRejectedPatternId) : "");
+  const [smsAccountActivatedPatternId, setSmsAccountActivatedPatternId] = useState(b2bConfig.smsAccountActivatedPatternId ? String(b2bConfig.smsAccountActivatedPatternId) : "");
+  const [smsAccountRejectedPatternId, setSmsAccountRejectedPatternId] = useState(b2bConfig.smsAccountRejectedPatternId ? String(b2bConfig.smsAccountRejectedPatternId) : "");
+  const [smsRepNotificationPatternId, setSmsRepNotificationPatternId] = useState(b2bConfig.smsRepNotificationPatternId ? String(b2bConfig.smsRepNotificationPatternId) : "");
+  const [smsInvoiceIssuedPatternId, setSmsInvoiceIssuedPatternId] = useState(b2bConfig.smsInvoiceIssuedPatternId ? String(b2bConfig.smsInvoiceIssuedPatternId) : "");
+  const [smsAbandonedOrderPatternId, setSmsAbandonedOrderPatternId] = useState(b2bConfig.smsAbandonedOrderPatternId ? String(b2bConfig.smsAbandonedOrderPatternId) : "");
+  const [smsStockAlertPatternId, setSmsStockAlertPatternId] = useState(b2bConfig.smsStockAlertPatternId ? String(b2bConfig.smsStockAlertPatternId) : "");
+  const [smsLogisticsPatternId, setSmsLogisticsPatternId] = useState(b2bConfig.smsLogisticsPatternId ? String(b2bConfig.smsLogisticsPatternId) : "");
+  const [smsFactoryProductionPatternId, setSmsFactoryProductionPatternId] = useState(b2bConfig.smsFactoryProductionPatternId ? String(b2bConfig.smsFactoryProductionPatternId) : "");
+
+  // SMS Live Playground & Tester States
+  const [testSmsPhone, setTestSmsPhone] = useState("");
+  const [testSmsText, setTestSmsText] = useState("سلام و احترام، این پیامک تستی جهت بررسی خط پیامکی سامانه ملّی دست اول است.");
+  const [testPatternPhone, setTestPatternPhone] = useState("");
+  const [testPatternId, setTestPatternId] = useState("");
+  const [testPatternArgs, setTestPatternArgs] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsLogs, setSmsLogs] = useState<any[]>([]);
+  const [loadingSmsLogs, setLoadingSmsLogs] = useState(false);
+  const [smsFilterQuery, setSmsFilterQuery] = useState("");
+  const [copiedPatternKey, setCopiedPatternKey] = useState<string | null>(null);
+
+  const handleCopyPatternText = (key: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPatternKey(key);
+    setTimeout(() => {
+      setCopiedPatternKey((prev) => (prev === key ? null : prev));
+    }, 2500);
+  };
 
   useEffect(() => {
     if (defaultTab) {
@@ -678,7 +732,143 @@ export default function AdminSystemConfig({
     if (activeTab === "parspack_storage") {
       fetchStorageFiles();
     }
+    if (activeTab === "sms") {
+      fetchSmsLogs();
+    }
   }, [activeTab]);
+
+  const fetchSmsLogs = async () => {
+    setLoadingSmsLogs(true);
+    try {
+      const res = await fetch("/api/sms/history");
+      const data = await res.json();
+      if (data.history) {
+        setSmsLogs(data.history);
+      }
+    } catch (e: any) {
+      console.error("Error fetching SMS logs:", e);
+    } finally {
+      setLoadingSmsLogs(false);
+    }
+  };
+
+  const handleSaveSmsConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog("ذخیره مشخصات درگاه ملی‌پیامک و کدهای الگو (پترن)...");
+    try {
+      await onUpdateB2bConfig({
+        smsUsername,
+        smsPassword,
+        smsFromNumber,
+        smsEnabled,
+        smsOtpPatternId,
+        smsWelcomePatternId,
+        smsOrderRegisteredPatternId,
+        smsOrderStatusChangedPatternId,
+        smsProductApprovedPatternId,
+        smsProductRejectedPatternId,
+        smsAccountActivatedPatternId,
+        smsAccountRejectedPatternId,
+        smsRepNotificationPatternId,
+        smsInvoiceIssuedPatternId,
+        smsAbandonedOrderPatternId,
+        smsStockAlertPatternId,
+        smsLogisticsPatternId,
+        smsFactoryProductionPatternId
+      } as any);
+      addLog("تنظیمات و الگوهای سامانه پیامک با موفقیت در سیستم اعمال گردید.");
+      setSuccessMsg("اطلاعات وب‌سرویس ملی‌پیامک و کدهای الگو با موفقیت ذخیره شدند.");
+    } catch (err: any) {
+      setErrorMsg("خطا در ذخیره تنظیمات درگاه پیامک: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendTestSms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testSmsPhone || !testSmsText) {
+      setErrorMsg("شماره گیرنده و متن پیامک تستی الزامی است.");
+      return;
+    }
+    setSmsSending(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog(`ارسال پیامک تستی ساده به شماره ${testSmsPhone}...`);
+    try {
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: testSmsPhone,
+          text: testSmsText
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message || "پیامک تستی با موفقیت ارسال شد.");
+        addLog(`نتیجه ارسال: ${data.message}`);
+        fetchSmsLogs();
+      } else {
+        setErrorMsg(data.message || "خطا در ارسال پیامک.");
+        addLog(`خطا در ارسال پیامک: ${data.message}`);
+      }
+    } catch (err: any) {
+      setErrorMsg("خطا در برقراری ارتباط با درگاه پیامک: " + err.message);
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
+  const handleSendTestPatternSms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testPatternPhone || !testPatternId) {
+      setErrorMsg("شماره گیرنده و کد الگوی ثبت شده در ملی‌پیامک الزامی است.");
+      return;
+    }
+    setSmsSending(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog(`ارسال پیامک تستی بر اساس الگو (کد ${testPatternId}) به شماره ${testPatternPhone}...`);
+    try {
+      const res = await fetch("/api/sms/send-pattern", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: testPatternPhone,
+          patternId: testPatternId,
+          patternArgs: testPatternArgs
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message || "پیامک با موفقیت از طریق متد الگو (پترن) ارسال شد.");
+        addLog(`نتیجه ارسال با الگو: ${data.message}`);
+        fetchSmsLogs();
+      } else {
+        setErrorMsg(data.message || "خطا در ارسال پیامک با الگو.");
+        addLog(`خطا در ارسال با الگو: ${data.message}`);
+      }
+    } catch (err: any) {
+      setErrorMsg("خطا در ارسال پیامک با الگو: " + err.message);
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
+  const handleClearSmsLogs = async () => {
+    if (!window.confirm("آیا از پاک‌سازی کامل تاریخچه پیامک‌های ثبت‌شده اطمینان دارید؟")) return;
+    try {
+      await fetch("/api/sms/history/clear", { method: "POST" });
+      setSmsLogs([]);
+      setSuccessMsg("تاریخچه لاگ‌های پیامک پاک شد.");
+    } catch (e: any) {
+      setErrorMsg("خطا در پاک کردن لاگ‌ها.");
+    }
+  };
 
   const handleSaveSocialConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1515,6 +1705,18 @@ export default function AdminSystemConfig({
         >
           <Download size={16} />
           بکاپ و انتقال داده
+        </button>
+
+        <button
+          onClick={() => setActiveTab("sms")}
+          className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "sms"
+              ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20 ring-2 ring-rose-400/40"
+              : "bg-rose-50/80 text-rose-900 hover:bg-rose-100/90"
+          }`}
+        >
+          <Smartphone size={16} className={activeTab === "sms" ? "text-white" : "text-rose-600"} />
+          <span>📱 سامانه پیامک و الگو (ملی‌پیامک)</span>
         </button>
 
         <button
@@ -4432,6 +4634,1132 @@ export default function AdminSystemConfig({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* --- TAB: MELIPAYAMAK SMS GATEWAY, OTP & PATTERN ENGINE --- */}
+      {activeTab === "sms" && (
+        <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
+          
+          {/* Header & Gateway Status Overview */}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-slate-100 pb-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5">
+                  <Smartphone size={12} className="text-rose-600" />
+                  MeliPayamak.com REST API
+                </span>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5 ${
+                  smsUsername && smsPassword 
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${smsUsername && smsPassword ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                  {smsUsername && smsPassword ? "متصل به درگاه واقعی ملی‌پیامک" : "حالت شبیه‌ساز امن (Sandbox Demo)"}
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-3">
+                <MessageSquare className="text-rose-600" size={26} />
+                سامانه هوشمند پیامک، الگوهای خدماتی و ورود پیامکی (OTP)
+              </h3>
+              <p className="text-xs text-slate-500 font-bold max-w-3xl leading-relaxed">
+                مدیریت کامل وب‌سرویس ملی‌پیامک، ارسال خودکار بر اساس الگو (پترن‌های خدماتی بدون بلاک لیست)، اطلاع‌رسانی سفارشات، تغییر وضعیت زنجیره تأمین، تایید محصولات کارخانجات و ورود آنی با شماره موبایل.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={fetchSmsLogs}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <RefreshCw size={14} className={loadingSmsLogs ? "animate-spin" : ""} />
+                <span>بازخوانی لاگ‌ها</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Informational Notice */}
+          <div className="p-4 bg-gradient-to-r from-rose-50/80 via-white to-amber-50/80 border border-rose-100 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles size={20} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-black text-slate-800">
+                  راهنمای متد الگو (BaseServiceNumber / پترن خدماتی)
+                </p>
+                <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                  ارسال با الگو باعث می‌شود پیامک‌های حیاتی شما (کد ورود OTP، ثبت سفارش، تایید حساب و محصول) حتی به شماره‌های مسدود در بلک‌لیست مخابراتی (Blacklist) در کسری از ثانیه تحویل داده شوند. کدهای الگوی ثبت‌شده در پنل ملی‌پیامک خود را در بخش زیر وارد نمایید.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 1. Melipayamak API Credentials & Settings */}
+          <form onSubmit={handleSaveSmsConfig} className="space-y-6">
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
+                <div className="flex items-center gap-2">
+                  <Key size={18} className="text-rose-600" />
+                  <h4 className="text-sm font-black text-slate-800">
+                    تنظیمات وب‌سرویس و احراز هویت درگاه ملی‌پیامک
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-600 cursor-pointer flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={smsEnabled}
+                      onChange={(e) => setSmsEnabled(e.target.checked)}
+                      className="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer"
+                    />
+                    فعال بودن ماژول پیامک
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">
+                    نام کاربری ملی‌پیامک (Username):
+                  </label>
+                  <input
+                    type="text"
+                    value={smsUsername}
+                    onChange={(e) => setSmsUsername(e.target.value)}
+                    placeholder="مثال: meli_user123"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-rose-500"
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold">نام کاربری ثبت‌شده در پنل melipayamak.com</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-700">
+                      رمز عبور وب‌سرویس (Password / API Key):
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowSmsPassword(!showSmsPassword)}
+                      className="text-[10px] text-rose-600 font-bold hover:underline cursor-pointer"
+                    >
+                      {showSmsPassword ? "مخفی کردن" : "نمایش"}
+                    </button>
+                  </div>
+                  <input
+                    type={showSmsPassword ? "text" : "password"}
+                    value={smsPassword}
+                    onChange={(e) => setSmsPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-rose-500"
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold">کلمه عبور یا کلید دسترسی API درگاه</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">
+                    شماره خط اختصاصی ارسال‌کننده (From):
+                  </label>
+                  <input
+                    type="text"
+                    value={smsFromNumber}
+                    onChange={(e) => setSmsFromNumber(e.target.value)}
+                    placeholder="مثال: 5000400075"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-rose-500"
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold">شماره فرستنده برای ارسال‌های عادی</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Patterns & Template IDs */}
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
+                <div className="flex items-center gap-2">
+                  <Hash size={18} className="text-indigo-600" />
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      <span>متن‌های استاندارد و تأییدشده الگو (پترن) ملی‌پیامک</span>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md">
+                        منطبق با قوانین مخابرات و درج dastavval.com
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-bold mt-1 leading-relaxed">
+                      💡 طبق استانداردهای اپراتور و ملی‌پیامک، در کلیه الگوها نام سامانه، آدرس وب‌سایت (<code className="text-indigo-600 font-mono">dastavval.com</code>) و عبارت <code className="text-slate-600 font-mono">لغو11</code> درج گردیده است تا از بروز خطای رد الگو جلوگیری شود.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alert box about code 523053 resolution */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+                <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 space-y-1">
+                  <div className="font-black text-amber-800">راهنمای ویرایش الگوی رد شده (کد ۵۲۳۰۵۳ در ملی‌پیامک):</div>
+                  <p className="leading-relaxed">
+                    علت رد الگو توسط اپراتور عدم درج آدرس سایت بوده است. در پنل ملی‌پیامک به آدرس <a href="https://login.melipayamak.com/?module=ShareService" target="_blank" rel="noreferrer" className="text-indigo-600 underline font-bold">login.melipayamak.com/?module=ShareService</a> وارد شوید، الگوی مورد نظر را باز کرده و متن اصلاح‌شده زیر (شامل <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-amber-300">dastavval.com</code>) را جایگزین نمایید.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 1. Smart OTP Auto-Fill */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-rose-600">
+                        <Smartphone size={16} />
+                        <span className="text-xs font-black">۱. کد ورود پیامکی هوشمند (OTP)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('otp', "کد ورود به سامانه ملّی دست اول: {0}\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                        title="کپی متن جهت ثبت در ملی‌پیامک"
+                      >
+                        {copiedPatternKey === 'otp' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      کد ورود به سامانه ملّی دست اول: <span className="text-rose-600 font-bold">{"{0}"}</span><br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">
+                      متغیر: <code className="text-rose-600 font-bold">{"{0}"}</code> = کد ۵ رقمی | <span className="text-emerald-600 font-bold">تشخیص خودکار کیبورد گوشی (Auto-Fill)</span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsOtpPatternId}
+                      onChange={(e) => setSmsOtpPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 523053"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Invoice Issued with Bucket Link */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-blue-600">
+                        <FileText size={16} />
+                        <span className="text-xs font-black">۲. صدور پیش‌فاکتور + لینک باکت</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPatternText('invoiceWithLink', "جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: {2}\ndastavval.com\nلغو11")}
+                          className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          title="نسخه همراه با لینک فاکتور"
+                        >
+                          {copiedPatternKey === 'invoiceWithLink' ? (
+                            <>
+                              <Check size={11} className="text-emerald-600" />
+                              <span className="text-emerald-700">کپی شد</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} />
+                              <span>با لینک باکت</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPatternText('invoiceFallback', "جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد. جهت مشاهده وارد حساب کاربری شوید.\ndastavval.com\nلغو11")}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          title="نسخه بدون لینک (در صورت عدم پذیرش لینک متغیر توسط اپراتور)"
+                        >
+                          {copiedPatternKey === 'invoiceFallback' ? (
+                            <>
+                              <Check size={11} className="text-emerald-600" />
+                              <span className="text-emerald-700">کپی شد</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} />
+                              <span>بدون لینک</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-blue-600 font-bold">{"{0}"}</span>، پیش‌فاکتور سفارش <span className="text-blue-600 font-bold">{"{1}"}</span> در سامانه دست اول صادر شد.<br />
+                      مشاهده: <span className="text-blue-600 font-bold">{"{2}"}</span><br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">
+                      متغیرها: <code className="text-blue-600 font-bold">{"{0}"}</code> = نام خریدار | <code className="text-blue-600 font-bold">{"{1}"}</code> = شماره سفارش | <code className="text-blue-600 font-bold">{"{2}"}</code> = لینک امن باکت فاکتور
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsInvoiceIssuedPatternId}
+                      onChange={(e) => setSmsInvoiceIssuedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125440"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Abandoned Order Follow-up */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <Clock size={16} />
+                        <span className="text-xs font-black">۳. پیگیری فاکتور و سفارش رها شده</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('abandonedOrder', "جناب {0}، سفارش عمده شما به شماره {1} در انتظار واریز است. جهت رزرو بار کارخانه و عدم لغو سفارش اقدام فرمایید.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'abandonedOrder' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-amber-600 font-bold">{"{0}"}</span>، سفارش عمده شما به شماره <span className="text-amber-600 font-bold">{"{1}"}</span> در انتظار واریز است. جهت رزرو بار کارخانه و عدم لغو سفارش اقدام فرمایید.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-amber-600 font-bold">{"{0}"}</code> = نام خریدار | <code className="text-amber-600 font-bold">{"{1}"}</code> = کد سفارش</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsAbandonedOrderPatternId}
+                      onChange={(e) => setSmsAbandonedOrderPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125441"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Back in Stock Alert */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <PackageCheck size={16} />
+                        <span className="text-xs font-black">۴. اطلاع موجودی مجدد کالا</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('stockAlert', "جناب {0}، کالای درخواستی «{1}» مجدداً در انبار کارخانه موجود شد. قیمت جدید: {2}\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'stockAlert' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-emerald-600 font-bold">{"{0}"}</span>، کالای درخواستی «<span className="text-emerald-600 font-bold">{"{1}"}</span>» مجدداً در انبار کارخانه موجود شد. قیمت جدید: <span className="text-emerald-600 font-bold">{"{2}"}</span><br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-emerald-600 font-bold">{"{0}"}</code> = نام | <code className="text-emerald-600 font-bold">{"{1}"}</code> = کالا | <code className="text-emerald-600 font-bold">{"{2}"}</code> = قیمت</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsStockAlertPatternId}
+                      onChange={(e) => setSmsStockAlertPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125442"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Logistics Shipping & Waybill */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-violet-600">
+                        <Truck size={16} />
+                        <span className="text-xs font-black">۵. بارنامه و ترانزیت لجستیک</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('logistics', "جناب {0}، بار سفارش {1} با شماره بارنامه {2} بارگیری شد.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'logistics' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-violet-600 font-bold">{"{0}"}</span>، بار سفارش <span className="text-violet-600 font-bold">{"{1}"}</span> با شماره بارنامه <span className="text-violet-600 font-bold">{"{2}"}</span> بارگیری شد.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-violet-600 font-bold">{"{0}"}</code> = نام خریدار | <code className="text-violet-600 font-bold">{"{1}"}</code> = سفارش | <code className="text-violet-600 font-bold">{"{2}"}</code> = شماره بارنامه</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsLogisticsPatternId}
+                      onChange={(e) => setSmsLogisticsPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125443"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-violet-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 6. Factory Production Milestone */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-indigo-600">
+                        <Boxes size={16} />
+                        <span className="text-xs font-black">۶. خروج از خط تولید کارخانه</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('factoryProd', "جناب {0}، سفارش {1} از خط تولید کارخانه خارج و بسته‌بندی شد.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'factoryProd' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-indigo-600 font-bold">{"{0}"}</span>، سفارش <span className="text-indigo-600 font-bold">{"{1}"}</span> از خط تولید کارخانه خارج و بسته‌بندی شد.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-indigo-600 font-bold">{"{0}"}</code> = نام خریدار | <code className="text-indigo-600 font-bold">{"{1}"}</code> = کد سفارش</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsFactoryProductionPatternId}
+                      onChange={(e) => setSmsFactoryProductionPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125444"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 7. Welcome */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <CheckCircle2 size={16} />
+                        <span className="text-xs font-black">۷. خوش‌آمدگویی و ثبت‌نام</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('welcome', "عضویت شما در سامانه ملّی دست اول با کد کاربری {0} تایید شد.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'welcome' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      عضویت شما در سامانه ملّی دست اول با کد کاربری <span className="text-emerald-600 font-bold">{"{0}"}</span> تایید شد.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیر: <code className="text-emerald-600 font-bold">{"{0}"}</code> = کد کاربر</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsWelcomePatternId}
+                      onChange={(e) => setSmsWelcomePatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125431"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 8. Order Registered */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-blue-600">
+                        <MessageSquare size={16} />
+                        <span className="text-xs font-black">۸. ثبت سفارش جدید خریدار</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('orderReg', "جناب {0}، سفارش {1} شما در سامانه دست اول ثبت شد و در حال پردازش است.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'orderReg' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-blue-600 font-bold">{"{0}"}</span>، سفارش <span className="text-blue-600 font-bold">{"{1}"}</span> شما در سامانه دست اول ثبت شد و در حال پردازش است.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-blue-600 font-bold">{"{0}"}</code> = نام خریدار | <code className="text-blue-600 font-bold">{"{1}"}</code> = شماره سفارش</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsOrderRegisteredPatternId}
+                      onChange={(e) => setSmsOrderRegisteredPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125432"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 9. Order Status Changed */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-indigo-600">
+                        <RotateCcw size={16} />
+                        <span className="text-xs font-black">۹. تغییر وضعیت سفارش</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('orderStatus', "جناب {0}، وضعیت سفارش {1} شما در دست اول به {2} تغییر یافت.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'orderStatus' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-indigo-600 font-bold">{"{0}"}</span>، وضعیت سفارش <span className="text-indigo-600 font-bold">{"{1}"}</span> شما در دست اول به <span className="text-indigo-600 font-bold">{"{2}"}</span> تغییر یافت.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-indigo-600 font-bold">{"{0}"}</code> = نام | <code className="text-indigo-600 font-bold">{"{1}"}</code> = سفارش | <code className="text-indigo-600 font-bold">{"{2}"}</code> = وضعیت</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsOrderStatusChangedPatternId}
+                      onChange={(e) => setSmsOrderStatusChangedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125433"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 10. Product Approved */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-teal-600">
+                        <CheckCircle size={16} />
+                        <span className="text-xs font-black">۱۰. تأیید محصول کارخانه</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('prodApprove', "جناب {0}، محصول {1} شما در سامانه ملّی دست اول تایید و منتشر شد.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'prodApprove' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-teal-600 font-bold">{"{0}"}</span>، محصول <span className="text-teal-600 font-bold">{"{1}"}</span> شما در سامانه ملّی دست اول تایید و منتشر شد.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-teal-600 font-bold">{"{0}"}</code> = تولیدکننده | <code className="text-teal-600 font-bold">{"{1}"}</code> = عنوان کالا</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsProductApprovedPatternId}
+                      onChange={(e) => setSmsProductApprovedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125434"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-teal-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 11. Product Rejected */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <AlertTriangle size={16} />
+                        <span className="text-xs font-black">۱۱. رد یا ویرایش محصول</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('prodReject', "جناب {0}، محصول {1} تایید نشد. علت: {2} - سامانه دست اول\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'prodReject' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-amber-600 font-bold">{"{0}"}</span>، محصول <span className="text-amber-600 font-bold">{"{1}"}</span> تایید نشد. علت: <span className="text-amber-600 font-bold">{"{2}"}</span> - سامانه دست اول<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-amber-600 font-bold">{"{0}"}</code> = نام | <code className="text-amber-600 font-bold">{"{1}"}</code> = کالا | <code className="text-amber-600 font-bold">{"{2}"}</code> = دلیل</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsProductRejectedPatternId}
+                      onChange={(e) => setSmsProductRejectedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125435"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 12. Account Activated */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-cyan-600">
+                        <ShieldCheck size={16} />
+                        <span className="text-xs font-black">۱۲. تأیید حساب و احراز هویت</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('accActive', "جناب {0}، مدارک و حساب شما در سامانه ملّی دست اول تایید و فعال شد.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'accActive' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-cyan-600 font-bold">{"{0}"}</span>، مدارک و حساب شما در سامانه ملّی دست اول تایید و فعال شد.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیر: <code className="text-cyan-600 font-bold">{"{0}"}</code> = نام کاربر</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsAccountActivatedPatternId}
+                      onChange={(e) => setSmsAccountActivatedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125436"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 13. Account Rejected */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-rose-600">
+                        <XCircle size={16} />
+                        <span className="text-xs font-black">۱۳. رد مدارک هویتی</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('accReject', "جناب {0}، مدارک هویتی شما تایید نشد. جهت تکمیل وارد پنل دست اول شوید.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'accReject' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-rose-600 font-bold">{"{0}"}</span>، مدارک هویتی شما تایید نشد. جهت تکمیل وارد پنل دست اول شوید.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیر: <code className="text-rose-600 font-bold">{"{0}"}</code> = نام کاربر</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsAccountRejectedPatternId}
+                      onChange={(e) => setSmsAccountRejectedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125437"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 14. Representative Notification */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-purple-600">
+                        <Network size={16} />
+                        <span className="text-xs font-black">۱۴. اطلاع سفارش به نماینده</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('repNotif', "جناب {0}، سفارش جدید {1} در حوزه نمایندگی شما ثبت شد. سامانه دست اول\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'repNotif' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-purple-600 font-bold">{"{0}"}</span>، سفارش جدید <span className="text-purple-600 font-bold">{"{1}"}</span> در حوزه نمایندگی شما ثبت شد. سامانه دست اول<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-purple-600 font-bold">{"{0}"}</code> = نام نماینده | <code className="text-purple-600 font-bold">{"{1}"}</code> = سفارش</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsRepNotificationPatternId}
+                      onChange={(e) => setSmsRepNotificationPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125438"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-8 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-2xl shadow-lg shadow-rose-600/25 flex items-center gap-2 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+              >
+                <Save size={16} />
+                <span>ذخیره کلیه تنظیمات و کدهای الگوی پیامک</span>
+              </button>
+            </div>
+          </form>
+
+          {/* 3. Live SMS Playground & Diagnostic Testers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+            {/* Simple Text SMS Tester */}
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-4">
+              <div className="flex items-center gap-2">
+                <Send size={18} className="text-rose-600" />
+                <h4 className="text-xs font-black text-slate-800">
+                  تست ارسال مستقیم پیامک متنی (SendSMS)
+                </h4>
+              </div>
+              <p className="text-[11px] text-slate-500 font-bold">
+                جهت تست اتصال خط اختصاصی به شماره همراه مقصد دلخواه
+              </p>
+
+              <form onSubmit={handleSendTestSms} className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 block">شماره همراه گیرنده:</label>
+                  <input
+                    type="text"
+                    value={testSmsPhone}
+                    onChange={(e) => setTestSmsPhone(e.target.value)}
+                    placeholder="09123456789"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 block">متن پیامک تستی:</label>
+                  <textarea
+                    rows={3}
+                    value={testSmsText}
+                    onChange={(e) => setTestSmsText(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={smsSending}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Send size={14} />
+                  <span>ارسال پیامک تستی ساده</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Pattern Based SMS Tester */}
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="text-indigo-600" />
+                <h4 className="text-xs font-black text-slate-800">
+                  تست ارسال بر اساس الگو (BaseServiceNumber)
+                </h4>
+              </div>
+              <p className="text-[11px] text-slate-500 font-bold">
+                جهت تست و عیب‌یابی الگوهای خدماتی و متغیرهای چندگانه
+              </p>
+
+              <form onSubmit={handleSendTestPatternSms} className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-black text-slate-700 block">شماره همراه:</label>
+                    <input
+                      type="text"
+                      value={testPatternPhone}
+                      onChange={(e) => setTestPatternPhone(e.target.value)}
+                      placeholder="09123456789"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-black text-slate-700 block">کد الگو (bodyId):</label>
+                    <input
+                      type="text"
+                      value={testPatternId}
+                      onChange={(e) => setTestPatternId(e.target.value)}
+                      placeholder="مثال: 125430"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 block">مقادیر متغیرها (با سمیکالن ; جدا کنید):</label>
+                  <input
+                    type="text"
+                    value={testPatternArgs}
+                    onChange={(e) => setTestPatternArgs(e.target.value)}
+                    placeholder="مثال: علی رضایی;10045"
+                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 text-left font-mono"
+                  />
+                </div>
+
+                {/* Quick Presets for instant testing */}
+                <div className="space-y-1 pt-1">
+                  <label className="text-[10px] font-black text-slate-500 block">سناریوهای تستی پیش‌فرض:</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestPatternId(smsOtpPatternId || "523053");
+                        setTestPatternArgs("58924");
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-rose-50 border border-slate-200 text-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-all"
+                    >
+                      🔑 تست کد ورود OTP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestPatternId(smsInvoiceIssuedPatternId || "");
+                        setTestPatternArgs("محمدحسین احمدی;10452;https://storage.dastavval.com/invoices/inv-10452.pdf");
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-blue-50 border border-slate-200 text-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-all"
+                    >
+                      📄 تست صدور فاکتور (با لینک باکت)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestPatternId(smsAbandonedOrderPatternId || "");
+                        setTestPatternArgs("محمدحسین احمدی;10452");
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-all"
+                    >
+                      ⏳ تست فاکتور رهاشده
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestPatternId(smsStockAlertPatternId || "");
+                        setTestPatternArgs("محمدحسین احمدی;میلگرد ۱۴ اصفهان;۲۸٬۵۰۰ تومان");
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-emerald-50 border border-slate-200 text-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-all"
+                    >
+                      📦 تست موجودی مجدد
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={smsSending}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Sparkles size={14} />
+                  <span>تست و شبیه‌سازی ارسال با الگو</span>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* 4. Live SMS History & Dispatch Audit Table */}
+          <div className="space-y-4 pt-4 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <HistoryIcon size={18} className="text-rose-600" />
+                <h4 className="text-xs font-black text-slate-800">
+                  لاگ و تاریخچه پیامک‌های ارسال‌شده ({toPersianNum(smsLogs.length)} رکورد)
+                </h4>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={smsFilterQuery}
+                  onChange={(e) => setSmsFilterQuery(e.target.value)}
+                  placeholder="جستجو در شماره یا متن..."
+                  className="px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold"
+                />
+                <button
+                  type="button"
+                  onClick={handleClearSmsLogs}
+                  className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer transition-all"
+                >
+                  <Trash2 size={12} />
+                  <span>پاک‌سازی تاریخچه</span>
+                </button>
+              </div>
+            </div>
+
+            {smsLogs.length === 0 ? (
+              <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
+                <Smartphone size={32} className="text-slate-400 mx-auto" />
+                <p className="text-xs font-black text-slate-700">هنوز پیامکی در سیستم ثبت نشده است.</p>
+                <p className="text-[11px] text-slate-400 font-bold">با ارسال پیامک تستی یا ثبت سفارش و تایید محصول، لاگ‌ها به صورت زنده نمایش داده می‌شوند.</p>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-slate-50 text-slate-600 p-3 text-[11px] font-black grid grid-cols-12 gap-2 text-right border-b border-slate-200">
+                  <span className="col-span-2">گیرنده</span>
+                  <span className="col-span-2">نوع متد</span>
+                  <span className="col-span-4">متن / متغیرها</span>
+                  <span className="col-span-2 text-center">زمان ارسال</span>
+                  <span className="col-span-2 text-center">وضعیت</span>
+                </div>
+
+                <div className="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
+                  {smsLogs
+                    .filter((log) => {
+                      if (!smsFilterQuery) return true;
+                      return (
+                        (log.to && log.to.includes(smsFilterQuery)) ||
+                        (log.text && log.text.includes(smsFilterQuery)) ||
+                        (log.apiType && log.apiType.toLowerCase().includes(smsFilterQuery.toLowerCase()))
+                      );
+                    })
+                    .map((log, idx) => (
+                      <div key={`sms-log-item-${idx}`} className="p-3 bg-white hover:bg-slate-50 grid grid-cols-12 gap-2 items-center text-xs font-bold text-slate-700">
+                        <span className="col-span-2 font-mono text-[11px] text-slate-800" dir="ltr">
+                          {log.to}
+                        </span>
+
+                        <span className="col-span-2 text-[10px] font-mono text-indigo-600">
+                          {log.apiType || "Regular"}
+                        </span>
+
+                        <span className="col-span-4 text-[11px] text-slate-600 truncate" title={log.text}>
+                          {log.text}
+                        </span>
+
+                        <span className="col-span-2 text-center text-[10px] text-slate-400 font-mono" dir="ltr">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleTimeString("fa-IR") : "-"}
+                        </span>
+
+                        <div className="col-span-2 flex items-center justify-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                            log.success 
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                              : "bg-rose-50 text-rose-700 border border-rose-200"
+                          }`}>
+                            {log.success ? "ارسال موفق" : "خطا"}
+                          </span>
+                          <span className="text-[9px] text-slate-400">
+                            {log.mode === "real" ? "واقعی" : "دمو"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

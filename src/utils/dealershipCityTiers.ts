@@ -81,7 +81,16 @@ const KNOWN_CITIES_DATA: Record<string, { province: string; population: number; 
   "یاسوج": { province: "کهگیلویه و بویراحمد", population: 150000, tier: 2, tierLabel: "مرکز استان (سطح ۲)" },
   "بیرجند": { province: "خراسان جنوبی", population: 220000, tier: 2, tierLabel: "مرکز استان (سطح ۲)" },
 
-  // Tier 3: شهرهای متوسط و مراکز شهرستان‌های صنعتی و تجاری (۱۰۰ تا ۳۰۰ هزار)
+  // Tier 3: شهرهای متوسط و مراکز شهرستان‌های صنعتی، تجاری و مرزی (۱۰۰ تا ۳۰۰ هزار)
+  "قوچان": { province: "خراسان رضوی", population: 140000, tier: 3, tierLabel: "شهرستان تجاری و مرزی (سطح ۳)" },
+  "سبزوار": { province: "خراسان رضوی", population: 250000, tier: 3, tierLabel: "شهرستان تجاری و دانشگاهی (سطح ۳)" },
+  "تربت حیدریه": { province: "خراسان رضوی", population: 150000, tier: 3, tierLabel: "شهرستان تجاری و کشاورزی (سطح ۳)" },
+  "کاشمر": { province: "خراسان رضوی", population: 110000, tier: 3, tierLabel: "شهرستان تجاری منطقه‌ای (سطح ۳)" },
+  "تربت جام": { province: "خراسان رضوی", population: 110000, tier: 3, tierLabel: "شهرستان مرزی و تجاری (سطح ۳)" },
+  "گناباد": { province: "خراسان رضوی", population: 90000, tier: 3, tierLabel: "شهرستان منطقه‌ای (سطح ۳)" },
+  "چناران": { province: "خراسان رضوی", population: 70000, tier: 3, tierLabel: "شهرستان صنعتی (سطح ۳)" },
+  "اسفراین": { province: "خراسان شمالی", population: 70000, tier: 3, tierLabel: "شهرستان صنعتی (سطح ۳)" },
+  "شیروان": { province: "خراسان شمالی", population: 90000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "آمل": { province: "مازندران", population: 280000, tier: 3, tierLabel: "شهر صنعتی و تجاری (سطح ۳)" },
   "بروجرد": { province: "لرستان", population: 250000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "سیرجان": { province: "کرمان", population: 220000, tier: 3, tierLabel: "شهر صنعتی و معدنی (سطح ۳)" },
@@ -98,7 +107,6 @@ const KNOWN_CITIES_DATA: Record<string, { province: string; population: number; 
   "شاهرود": { province: "سمنان", population: 160000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "زابل": { province: "سیستان و بلوچستان", population: 140000, tier: 3, tierLabel: "شهرستان مرزی (سطح ۳)" },
   "جهرم": { province: "فارس", population: 150000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
-  "تربت حیدریه": { province: "خراسان رضوی", population: 150000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "کیش": { province: "هرمزگان", population: 45000, tier: 3, tierLabel: "منطقه آزاد تجاری (سطح ۳)" },
   "قشم": { province: "هرمزگان", population: 50000, tier: 3, tierLabel: "منطقه آزاد تجاری (سطح ۳)" },
   "چابهار": { province: "سیستان و بلوچستان", population: 120000, tier: 3, tierLabel: "بندر استراتژیک تجاری (سطح ۳)" }
@@ -250,79 +258,79 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
       }
     ];
   } else if (baseData.tier === 3) {
-    // Tier 3: Medium Cities
-    starterMinCartons = "۲۰ تا ۴۰ کارتن";
-    monthlyCartons = "۶۰ تا ۲۰۰ کارتن";
-    growthTargetCartons = "تا ۳۰۰ کارتن در ماه";
-    initialMinOrderToman = 25_000_000;
-    monthlyQuotaCeilingToman = 280_000_000;
-    guaranteeLimitToman = 40_000_000;
-    recommendedWarehouseSpace = "۵۰ تا ۱۲۰ متر مربع (مغازه یا انبار)";
-    recommendedFleet = "۱ دستگاه وانت پخش یا خودرو مناسب";
+    // Tier 3: Medium Cities (100k to 300k, e.g. Quchan, Sabzevar, Kashan, Amol)
+    starterMinCartons = "۱۵ تا ۳۰ کارتن";
+    monthlyCartons = "۴۰ تا ۱۲۰ کارتن";
+    growthTargetCartons = "تا ۲۰۰ کارتن در ماه";
+    initialMinOrderToman = 15_000_000;
+    monthlyQuotaCeilingToman = 120_000_000;
+    guaranteeLimitToman = 20_000_000;
+    recommendedWarehouseSpace = "۴0 تا ۱۰۰ متر مربع (فروشگاه، مغازه یا انبار)";
+    recommendedFleet = "۱ دستگاه وانت پخش یا خودرو سواری باربری";
     estimatedGrossMargin = "۱۸٪ تا ۲۴٪ سود خالص";
 
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: تست و شروع",
-        cartonRange: "۲۰ تا ۴۰ کارتن",
-        volumeTomanFormatted: "۲۵ میلیون تومان",
+        title: "گام ۱: ورود فوق‌العاده آسان",
+        cartonRange: "۱۵ تا ۳۰ کارتن",
+        volumeTomanFormatted: "۱۵ میلیون تومان",
         marginPercent: "۱۸٪",
-        description: "سفارش خرد کارتنی به قیمت کف تولیدی کارخانه"
+        description: "شروع کم‌ریسک و تست بازار محلی با حداقل سرمایه اولیه"
       },
       {
         stepNumber: 2,
-        title: "گام ۲: توسعه محلی",
-        cartonRange: "۶۰ تا ۱۵۰ کارتن",
-        volumeTomanFormatted: "۸۰ تا ۱۸۰ میلیون تومان",
+        title: "گام ۲: توسعه توزیع محلی",
+        cartonRange: "۴۰ تا ۸۰ کارتن",
+        volumeTomanFormatted: "۴۰ تا ۸۰ میلیون تومان",
         marginPercent: "۲۱٪",
-        description: "افزایش پلکانی سهمیه متناسب با فروش ماهانه"
+        description: "افزایش خودکار سهمیه متناسب با کشش بازار شهرستان"
       },
       {
         stepNumber: 3,
-        title: "گام ۳: نمایندگی انحصاری شهر",
-        cartonRange: "۲۰۰ تا ۳۰۰ کارتن",
-        volumeTomanFormatted: "۲۸۰ میلیون تومان",
-        marginPercent: "۲۴٪",
-        description: "عاملیت اصلی شهر با ارجاع تمامی خریداران بومی"
+        title: "گام ۳: عاملیت رسمی شهرستان",
+        cartonRange: "۱۰۰ تا ۲۰۰ کارتن",
+        volumeTomanFormatted: "۱۲۰ میلیون تومان",
+        marginPercent: "۲۴٪ ماکزیمم",
+        description: "عاملیت اصلی شهر با ارجاع کلیه خریداران عمده بومی"
       }
     ];
   } else {
     // Tier 4: Small Towns (< 100k)
-    starterMinCartons = "۱۵ تا ۳۰ کارتن";
-    monthlyCartons = "۴۰ تا ۱۲۰ کارتن";
-    growthTargetCartons = "تا ۱۸۰ کارتن در ماه";
-    initialMinOrderToman = 18_000_000;
-    monthlyQuotaCeilingToman = 160_000_000;
-    guaranteeLimitToman = 25_000_000;
-    recommendedWarehouseSpace = "۳۰ تا ۸۰ متر مربع (فروشگاه یا انبار)";
-    recommendedFleet = "۱ دستگاه وانت یا خودرو سواری باربری";
+    starterMinCartons = "۱۰ تا ۲۰ کارتن";
+    monthlyCartons = "۲۵ تا ۶۰ کارتن";
+    growthTargetCartons = "تا ۱۲۰ کارتن در ماه";
+    initialMinOrderToman = 9_000_000;
+    monthlyQuotaCeilingToman = 75_000_000;
+    guaranteeLimitToman = 12_000_000;
+    recommendedWarehouseSpace = "۲۵ تا ۶۰ متر مربع (فروشگاه یا انبار کوچک)";
+    recommendedFleet = "۱ دستگاه وانت یا خودرو شخصی باربری";
     estimatedGrossMargin = "۱۸٪ تا ۲۲٪ سود خالص";
 
     growthSteps = [
       {
         stepNumber: 1,
         title: "گام ۱: ثبت و شروع سریع",
-        cartonRange: "۱۵ تا ۳۰ کارتن",
-        volumeTomanFormatted: "۱۸ میلیون تومان",
+        cartonRange: "۱۰ تا ۲۰ کارتن",
+        volumeTomanFormatted: "۹ میلیون تومان",
         marginPercent: "۱۸٪",
-        description: "شروع فوق‌العاده آسان با حداقل سرمایه اولیه"
+        description: "شروع کار بدون نیاز به چک سنگین یا انبار تجاری بزرگ"
       },
       {
         stepNumber: 2,
-        title: "گام ۲: ارتقای سهمیه",
-        cartonRange: "۴۰ تا ۸۰ کارتن",
-        volumeTomanFormatted: "۵۰ تا ۱۰۰ میلیون تومان",
+        title: "گام ۲: رشد تدریجی",
+        cartonRange: "۲۵ تا ۵۰ کارتن",
+        volumeTomanFormatted: "۲۵ تا ۵۰ میلیون تومان",
         marginPercent: "۲۰٪",
-        description: "رشد تدریجی سفارش‌ها متناسب با کشش منطقه"
+        description: "رشد پلکانی سهمیه متناسب با فروش ماهانه مغازه"
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت معتبر شهرستان",
-        cartonRange: "۱۰۰ تا ۱۸۰ کارتن",
-        volumeTomanFormatted: "۱۶۰ میلیون تومان",
+        title: "گام ۳: عاملیت معتبر منطقه",
+        cartonRange: "۶۰ تا ۱۲۰ کارتن",
+        volumeTomanFormatted: "۷۵ میلیون تومان",
         marginPercent: "۲۲٪",
-        description: "نماینده رسمی ثبت‌شده با اولویت ارسال کالا"
+        description: "نماینده رسمی ثبت‌شده با ارسال مستقیم باربری"
       }
     ];
   }

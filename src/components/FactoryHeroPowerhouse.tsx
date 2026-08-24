@@ -236,154 +236,154 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
 
   return (
     <>
-      <div className="w-full bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all duration-300 p-4 sm:p-5 text-right relative overflow-hidden" dir="rtl">
+      <div className="w-full bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-all duration-200 p-3.5 sm:p-4 text-right relative overflow-hidden" dir="rtl">
         
         {/* Subtle Ambient Background Gradients */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Header Bar: Title & 3 Options in Exactly One Single Responsive Row */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 border-b border-slate-100 pb-3.5 mb-4 relative z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 border-b border-slate-100 pb-2.5 mb-3 relative z-10">
           
           {/* Header Identity */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-linear-to-tr from-emerald-600 via-teal-600 to-emerald-500 text-white flex items-center justify-center font-black shrink-0 shadow-md shadow-emerald-500/15">
-              <Factory size={20} />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+              <Factory size={18} />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-tight">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="text-sm font-black text-slate-900 tracking-tight">
                   تالار معاملات مستقیم و بارهای مازاد کارخانجات
                 </h2>
-                <span className="bg-linear-to-r from-orange-600 via-rose-600 to-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs animate-pulse">
-                  <Flame size={11} className="text-amber-200" />
+                <span className="bg-gradient-to-r from-orange-500 via-rose-500 to-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                  <Flame size={10} className="text-amber-200" />
                   <span>عرضه مستقیم</span>
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
                 خرید مستقیم از کارخانه
               </p>
             </div>
           </div>
           
-          {/* Unified 3 Options in ONE Single Clean Line (3 تا گزینه تو یه خط) */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 w-full lg:w-auto shrink-0 shadow-2xs">
+          {/* Unified 3 Options in ONE Single Clean Line */}
+          <div className="grid grid-cols-3 gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/60 w-full lg:w-auto shrink-0">
             <button
               onClick={() => { setActiveMode('under_market'); setSelectedIndex(0); }}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
                 activeMode === 'under_market'
-                  ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/60 font-black scale-[1.02]'
+                  ? 'bg-white text-emerald-900 shadow-2xs border border-slate-200/60 font-black'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
-              <TrendingDown size={13} className="text-emerald-600 shrink-0" />
+              <TrendingDown size={12} className="text-emerald-600 shrink-0" />
               <span>زیر قیمت ({toPersianNum(underMarketList.length)})</span>
             </button>
 
             <button
               onClick={() => { setActiveMode('liquid'); setSelectedIndex(0); }}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
                 activeMode === 'liquid'
-                  ? 'bg-white text-orange-950 shadow-xs border border-slate-200/60 font-black scale-[1.02]'
+                  ? 'bg-white text-orange-900 shadow-2xs border border-slate-200/60 font-black'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
-              <Layers size={13} className="text-orange-600 shrink-0" />
+              <Layers size={12} className="text-orange-600 shrink-0" />
               <span>مازاد خط ({toPersianNum(liquidList.length)})</span>
             </button>
 
             <button
               onClick={() => { setActiveMode('high_margin'); setSelectedIndex(0); }}
-              className={`px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`px-2.5 sm:px-3.5 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
                 activeMode === 'high_margin'
-                  ? 'bg-linear-to-r from-amber-500 to-emerald-600 text-white shadow-xs border border-amber-400 font-black scale-[1.02]'
+                  ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white shadow-2xs font-black'
                   : 'text-slate-700 hover:text-slate-950 hover:bg-white/50'
               }`}
             >
-              <Coins size={13} className={activeMode === 'high_margin' ? 'text-amber-100 shrink-0' : 'text-amber-600 shrink-0'} />
+              <Coins size={12} className={activeMode === 'high_margin' ? 'text-amber-100 shrink-0' : 'text-amber-600 shrink-0'} />
               <span>بیشترین سود ({toPersianNum(highMarginList.length)})</span>
             </button>
           </div>
         </div>
 
         {/* Compact & Creative Main Showcase: 2-Column Balanced Side-by-Side View */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 relative z-10 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 relative z-10 items-stretch">
           
           {/* Left / Visual Image Frame Podium (5 Cols on Desktop) */}
-          <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 flex flex-col justify-between relative group overflow-hidden shadow-2xs">
+          <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200/80 flex flex-col justify-between relative group overflow-hidden shadow-2xs">
             
             {/* Square Clean Image taking the entire box space with minimal padding */}
             <div 
               onClick={() => setPreviewImage(currentProduct.imageUrl || currentProduct.image_url)}
-              className="w-full h-72 sm:h-80 lg:h-full min-h-[280px] lg:min-h-[340px] flex items-center justify-center p-0 cursor-pointer relative group transition-all duration-500 bg-white"
+              className="w-full h-64 sm:h-72 lg:h-full min-h-[250px] lg:min-h-[300px] flex items-center justify-center p-0 cursor-pointer relative group transition-all duration-300 bg-white"
             >
               {/* Top Floating Badges Overlaid Directly on Image */}
-              <div className="absolute top-3 right-3 left-3 flex items-center justify-between gap-2 z-20 pointer-events-none">
-                <span className="bg-linear-to-r from-emerald-600 to-teal-700 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1 pointer-events-auto">
-                  <Percent size={11} className="text-emerald-200" />
+              <div className="absolute top-2.5 right-2.5 left-2.5 flex items-center justify-between gap-2 z-20 pointer-events-none">
+                <span className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs flex items-center gap-1 pointer-events-auto">
+                  <Percent size={10} className="text-emerald-200" />
                   <span>{toPersianNum(currentProduct.discountPercent || 30)}٪ سود بنکداری</span>
                 </span>
               </div>
 
-              <div className="absolute inset-x-8 bottom-4 h-8 bg-indigo-600/10 blur-2xl rounded-full transition-all duration-500 group-hover:bg-emerald-500/20" />
+              <div className="absolute inset-x-8 bottom-4 h-8 bg-indigo-600/10 blur-2xl rounded-full transition-all duration-300 group-hover:bg-emerald-500/20" />
 
               <ProductImage 
                 src={currentProduct.imageUrl || currentProduct.image_url} 
                 alt={currentProduct.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 relative z-10"
+                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300 relative z-10"
               />
 
               {/* Hover Quick Action */}
-              <div className="absolute inset-0 bg-slate-400/50 backdrop-blur-sm[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-30 rounded-2xl">
-                <span className="bg-white/95 text-slate-950 text-[11px] font-black px-4 py-2 rounded-xl shadow-xl flex items-center gap-1.5">
-                  <Eye size={14} className="text-emerald-600" />
+              <div className="absolute inset-0 bg-slate-400/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center z-30 rounded-xl">
+                <span className="bg-white/95 text-slate-950 text-[11px] font-bold px-3.5 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
+                  <Eye size={13} className="text-emerald-600" />
                   <span>مشاهده آنالیز کالا</span>
                 </span>
               </div>
 
               {/* Bottom Floating Factory Source Badge */}
-              <div className="absolute bottom-2.5 inset-x-3 text-center text-[10px] text-slate-600 font-bold bg-white/90 backdrop-blur-xs py-1 px-2 rounded-lg border border-slate-100 shadow-2xs z-20">
+              <div className="absolute bottom-2 inset-x-2 text-center text-[10px] text-slate-600 font-medium bg-white/90 backdrop-blur-xs py-0.5 px-2 rounded border border-slate-100 shadow-2xs z-20">
                 مبدا بارگیری: <strong className="text-slate-900">{currentProduct.factoryName || currentProduct.brand}</strong>
               </div>
             </div>
           </div>
 
           {/* Right / Product Details & Commercial Matrix (7 Cols on Desktop) */}
-          <div className="lg:col-span-7 flex flex-col justify-between gap-3 bg-slate-50/70 rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+          <div className="lg:col-span-7 flex flex-col justify-between gap-2.5 bg-slate-50/60 rounded-xl p-3.5 border border-slate-200/70 shadow-2xs">
             
             {/* Title & Description */}
-            <div className="space-y-1.5 text-right">
-              <div className="inline-flex items-center gap-1 bg-emerald-100/80 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded-md">
-                <Sparkles size={11} className="text-emerald-700" />
+            <div className="space-y-1 text-right">
+              <div className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded">
+                <Sparkles size={10} className="text-emerald-700" />
                 <span>تامین مستقیم با تسویه امانی</span>
               </div>
               
-              <h3 className="text-sm sm:text-base font-black text-slate-950 leading-snug">
+              <h3 className="text-sm font-black text-slate-900 leading-snug">
                 {currentProduct.name}
               </h3>
 
               {currentProduct.description && (
-                <p className="text-[11px] text-slate-600 font-medium leading-relaxed bg-white/80 p-2.5 rounded-xl border border-slate-200/60 shadow-2xs line-clamp-2">
+                <p className="text-[11px] text-slate-600 font-normal leading-relaxed bg-white/90 p-2 rounded-lg border border-slate-200/50 line-clamp-2">
                   {currentProduct.description}
                 </p>
               )}
             </div>
 
             {/* Pricing Matrix Block */}
-            <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs space-y-2.5">
-              <div className="grid grid-cols-2 gap-2.5">
+            <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] text-slate-400 block font-bold">قیمت مصرف‌کننده (روی جلد)</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400 line-through font-mono font-bold">
+                  <span className="text-[10px] text-slate-400 block font-medium">قیمت مصرف‌کننده (روی جلد)</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-slate-400 line-through font-mono font-medium">
                       {toPersianNum(currentProduct.marketPriceStr)}
                     </span>
-                    <span className="text-[8px] bg-rose-50 text-rose-700 font-black px-1 rounded">مصوب</span>
+                    <span className="text-[8px] bg-rose-50 text-rose-700 font-bold px-1 rounded">مصوب</span>
                   </div>
                 </div>
 
-                <div className="text-left space-y-0.5 border-r border-slate-100 pr-3">
-                  <span className="text-[10px] text-slate-500 block font-bold">
+                <div className="text-left space-y-0.5 border-r border-slate-100 pr-2.5">
+                  <span className="text-[10px] text-slate-500 block font-medium">
                     {currentProduct.isRepresentative ? "قیمت خرید عاملیت شما (کف)" : "قیمت خرید عمده"}
                   </span>
                   <div className="flex items-center gap-1.5 justify-end">
@@ -397,24 +397,24 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
 
               {/* Representative Floor Price Strip */}
               {currentProduct.repPriceStr && !currentProduct.isRepresentative && (
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                  <span className="text-slate-500 font-bold flex items-center gap-1">
-                    <Percent size={11} className="text-indigo-600" />
+                <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500 font-medium flex items-center gap-1">
+                    <Percent size={10} className="text-indigo-600" />
                     <span>نرخ کف کارخانه (۱۰٪ تخفیف عاملیت):</span>
                   </span>
-                  <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/70">
+                  <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/70">
                     {toPersianNum(currentProduct.repPriceStr)}
                   </span>
                 </div>
               )}
 
               {currentProduct.isRepresentative && (
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                  <span className="text-emerald-700 font-bold flex items-center gap-1">
-                    <CheckCircle2 size={11} className="text-emerald-600" />
+                <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <span className="text-emerald-700 font-medium flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-emerald-600" />
                     <span>تخفیف ۱۰٪ عاملیت روی قیمت خرید شما اعمال شد</span>
                   </span>
-                  <span className="font-mono font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/70">
+                  <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/70">
                     کف قیمت
                   </span>
                 </div>
@@ -423,9 +423,9 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
 
             {/* Live Margin Calculation Pill */}
             {currentProduct.unitProfit > 0 && (
-              <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-200/80 flex items-center justify-between text-[11px] font-bold text-emerald-900">
-                <div className="flex items-center gap-1.5">
-                  <Coins size={14} className="text-emerald-600" />
+              <div className="bg-emerald-50/80 rounded-lg p-2 border border-emerald-200/60 flex items-center justify-between text-[11px] font-bold text-emerald-900">
+                <div className="flex items-center gap-1">
+                  <Coins size={13} className="text-emerald-600" />
                   <span>سود خالص هر کارتن به نفع خریدار:</span>
                 </div>
                 <span className="font-mono font-black text-emerald-800 text-xs">
@@ -435,20 +435,20 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
             )}
 
             {/* Action Buttons Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
               <button
                 onClick={handleQuickAdd}
-                className="w-full bg-linear-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-black py-2.5 px-3 rounded-xl transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <SpecialPriceBagIcon size={15} showBadge={true} animated={true} />
+                <SpecialPriceBagIcon size={14} showBadge={true} animated={true} />
                 <span>{currentProduct.isAd ? "شروع معامله امن این بار" : "ثبت سفارش مستقیم"}</span>
               </button>
 
               <button
                 onClick={onBillboardClick}
-                className="w-full bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-black py-2.5 px-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                className="w-full bg-white hover:bg-slate-50 border border-slate-300/80 text-slate-800 text-xs font-bold py-2 px-3 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
               >
-                <TrendingDown size={14} className="text-emerald-600" />
+                <TrendingDown size={13} className="text-emerald-600" />
                 <span>تالار بارهای زیر قیمت</span>
               </button>
             </div>
@@ -458,18 +458,18 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         </div>
 
         {/* Bottom: Fast Interactive Product Thumbnails Selector */}
-        <div className="border-t border-slate-100 pt-3 mt-3 text-right">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] text-slate-500 font-black flex items-center gap-1">
-              <Sparkles size={12} className="text-emerald-600" />
+        <div className="border-t border-slate-100 pt-2.5 mt-2.5 text-right">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+              <Sparkles size={11} className="text-emerald-600" />
               <span>انتخاب سریع سایر بارهای ویژه و کارخانجات فعال:</span>
             </span>
             <button 
               onClick={onOrderClick}
-              className="text-[10px] text-emerald-700 hover:text-emerald-800 font-black flex items-center gap-0.5 cursor-pointer"
+              className="text-[10px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-0.5 cursor-pointer"
             >
               <span>مشاهده همه محصولات</span>
-              <ChevronLeft size={12} />
+              <ChevronLeft size={11} />
             </button>
           </div>
 
@@ -480,13 +480,13 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                 <button
                   key={`hero-thumb-${prod.id || 'item'}-${idx}`}
                   onClick={() => setSelectedIndex(idx)}
-                  className={`p-2 rounded-xl border text-right transition-all flex items-center gap-2 cursor-pointer relative overflow-hidden ${
+                  className={`p-1.5 rounded-lg border text-right transition-all flex items-center gap-1.5 cursor-pointer relative overflow-hidden ${
                     isSelected
-                      ? 'bg-emerald-50/90 border-emerald-500 text-slate-950 ring-1.5 ring-emerald-400 shadow-2xs scale-[1.01]'
+                      ? 'bg-emerald-50/90 border-emerald-500 text-slate-950 ring-1 ring-emerald-400 shadow-2xs'
                       : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-2xs">
+                  <div className="w-8 h-8 rounded bg-slate-50 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-2xs">
                     <ProductImage 
                       src={prod.image_url || prod.imageUrl} 
                       alt={prod.name}
@@ -495,8 +495,8 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                   </div>
                   
                   <div className="truncate flex-1 min-w-0">
-                    <span className="text-[11px] font-black block truncate text-slate-900">{prod.name}</span>
-                    <span className="text-[9px] text-slate-400 font-bold block truncate">
+                    <span className="text-[11px] font-bold block truncate text-slate-900">{prod.name}</span>
+                    <span className="text-[9px] text-slate-400 font-medium block truncate">
                       {prod.factoryName || prod.brand || 'کارخانه رسمی'}
                     </span>
                   </div>

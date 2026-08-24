@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product, Order } from "../types";
+import { getEffectiveProductTags } from "../utils/api-utils";
 import ParsPackImageUploader from "./ParsPackImageUploader";
 import FactorySalesSettingsTab from "./factory/FactorySalesSettingsTab";
 import FactoryTicketsTab from "./factory/FactoryTicketsTab";
@@ -222,6 +223,7 @@ export default function FactoryManagementPortal({
   const [prodWeight, setProdWeight] = useState<string>("");
   const [prodImageUrl, setProdImageUrl] = useState<string>("");
   const [prodDescription, setProdDescription] = useState<string>("");
+  const [prodTags, setProdTags] = useState<string>("");
 
   const [isSubmittingProd, setIsSubmittingProd] = useState(false);
   const [prodFormSuccess, setProdFormSuccess] = useState<string | null>(null);
@@ -465,6 +467,7 @@ export default function FactoryManagementPortal({
     setProdWeight((prod as any).weight || "");
     setProdImageUrl(prod.image_url || "");
     setProdDescription(prod.description || "");
+    setProdTags(prod.tags && Array.isArray(prod.tags) ? prod.tags.join("، ") : "");
     setActiveTab('add_product');
   };
 
@@ -480,6 +483,7 @@ export default function FactoryManagementPortal({
     setProdWeight("");
     setProdImageUrl("");
     setProdDescription("");
+    setProdTags("");
     setProdFormError(null);
     setProdFormSuccess(null);
   };
@@ -518,6 +522,14 @@ export default function FactoryManagementPortal({
       const cleanStock = parseInt(prodStock, 10) || 100;
       const cleanConsumerPrice = Math.round(cleanBulkPrice * 1.25);
 
+      const customTagsList = prodTags ? prodTags.split(/[\n،,]+/).map(t => t.trim()).filter(Boolean) : [];
+      const computedTags = getEffectiveProductTags({
+        name: prodName.trim(),
+        brand: user?.company || currentFactoryName,
+        category: prodCategory || availableCategories[0],
+        tags: customTagsList
+      });
+
       const productPayload: Partial<Product> = {
         name: prodName.trim(),
         brand: user?.company || currentFactoryName,
@@ -531,6 +543,7 @@ export default function FactoryManagementPortal({
         unit: "کارتن",
         image_url: prodImageUrl,
         description: prodDescription.trim(),
+        tags: computedTags,
         factoryName: user?.company || currentFactoryName,
         factory_name: user?.company || currentFactoryName,
         sellerId: factoryCode,
@@ -1200,6 +1213,23 @@ export default function FactoryManagementPortal({
                   placeholder="توضیحات مختصر در مورد ترکیبات و کیفیت محصول..."
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
                 />
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <Tag size={13} className="text-indigo-600" />
+                  <span>تگ‌ها و کلیدواژه‌های سئو و جستجو (با کاما یا اینتر جدا کنید):</span>
+                </label>
+                <input
+                  type="text"
+                  value={prodTags}
+                  onChange={(e) => setProdTags(e.target.value)}
+                  placeholder="مثال: چیپس، باتو، تنقلات سیب زمینی، خرید عمده چیپس"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                />
+                <p className="text-[10px] text-slate-400 font-bold">
+                  کلیدواژه‌های سئو به خریداران کمک می‌کنند کالای شما را آسان‌تر در موتورهای جستجو و نوار جستجوی سامانه پیدا کنند.
+                </p>
               </div>
             </div>
 

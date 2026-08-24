@@ -400,6 +400,25 @@ export interface B2BConfig {
   githubRepoUrl?: string;
   githubToken?: string;
   lastGithubUpdate?: number | null;
+  // Melipayamak SMS Gateway & Pattern Configurations
+  smsUsername?: string;
+  smsPassword?: string;
+  smsFromNumber?: string;
+  smsEnabled?: boolean;
+  smsOtpPatternId?: string | number;
+  smsWelcomePatternId?: string | number;
+  smsOrderRegisteredPatternId?: string | number;
+  smsOrderStatusChangedPatternId?: string | number;
+  smsProductApprovedPatternId?: string | number;
+  smsProductRejectedPatternId?: string | number;
+  smsAccountActivatedPatternId?: string | number;
+  smsAccountRejectedPatternId?: string | number;
+  smsRepNotificationPatternId?: string | number;
+  smsInvoiceIssuedPatternId?: string | number;
+  smsAbandonedOrderPatternId?: string | number;
+  smsStockAlertPatternId?: string | number;
+  smsLogisticsPatternId?: string | number;
+  smsFactoryProductionPatternId?: string | number;
 }
 
 export type GuaranteeType = 'sayad_cheque' | 'promissory_note' | 'bank_guarantee' | 'cash_deposit';

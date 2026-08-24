@@ -4,7 +4,7 @@ import {
   X, Package, ShieldCheck, Truck, Info, FileText, CheckCircle2, 
   Plus, Minus, Building, Phone, User as UserIcon, MapPin, UploadCloud, 
   AlertCircle, ArrowRight, ArrowLeft, Check, Sparkles, Scale, BadgeAlert,
-  Star, MessageSquare, ShoppingCart, Lock
+  Star, MessageSquare, ShoppingCart, Lock, Tag
 } from "lucide-react";
 import type { Product, User } from "../types";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
@@ -13,6 +13,7 @@ import StarRating from "./StarRating";
 import { ExpandableText } from "./ExpandableText";
 import { HealthAppleLogo, HealthBadgesStrip, HealthCertModal } from "./HealthAppleBadge";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
+import { getEffectiveProductTags } from "../utils/api-utils";
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -470,6 +471,35 @@ export default function ProductDetailModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Product SEO Tags & Keywords Block */}
+                {(() => {
+                  const effectiveTags = getEffectiveProductTags(product);
+                  return (
+                    <div className="space-y-2 pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
+                        <Tag size={13} className="text-emerald-600" />
+                        <span>کلیدواژه‌های جستجو و سئو:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {effectiveTags.map((tag, tIdx) => (
+                          <button
+                            key={`modal-tag-${tIdx}-${tag}`}
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: tag } }));
+                              onClose();
+                            }}
+                            className="text-[10px] font-bold bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200/70 transition-all cursor-pointer flex items-center gap-1"
+                            title={`جستجوی تمام کالاهای مرتبط با ${tag}`}
+                          >
+                            <span>#</span>
+                            <span>{tag}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Badges of Standard Compliance */}

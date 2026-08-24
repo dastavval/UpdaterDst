@@ -23,6 +23,8 @@ interface B2BBusinessDashboardProps {
   language: Language;
   userBadge?: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin';
   user?: any;
+  userCity?: string;
+  userProvince?: string;
   lastOrderTracking?: string;
   lastOrderAmount?: number;
   transitRoutes?: any[];
@@ -46,6 +48,8 @@ export default function B2BBusinessDashboard({
   language,
   userBadge = "bronze", 
   user,
+  userCity,
+  userProvince,
   lastOrderTracking = "",
   lastOrderAmount = 0,
   transitRoutes = [],
@@ -1163,6 +1167,8 @@ export default function B2BBusinessDashboard({
             <DealershipRequestView 
               b2bConfig={b2bConfig}
               user={user}
+              userCity={userCity}
+              userProvince={userProvince}
               onNavigateHome={() => setActiveTab('overview')}
               onOpenCertificate={() => setShowAgentCertificate(true)}
             />

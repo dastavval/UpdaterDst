@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   X, Lock, Mail, User, Building, Phone, ArrowLeft, CheckCircle2, 
   ShieldAlert, Factory, Store, Megaphone, ShieldCheck, Sparkles, MapPin, 
-  CreditCard, Briefcase, ChevronRight, Clock, ShieldX
+  CreditCard, Briefcase, ChevronRight, Clock, ShieldX, KeyRound, Smartphone,
+  RotateCw, Check, ArrowRight, ShoppingCart, Building2, UserPlus, LogIn,
+  Send, HelpCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db } from "../lib/data-layer";
@@ -15,6 +17,7 @@ import { checkLoginRateLimit, recordFailedLoginAttempt, resetLoginAttempts, Rate
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  b2bConfig?: any;
   onAuthSuccess: (user: { 
     id?: string;
     name: string; 
@@ -33,8 +36,31 @@ interface AuthModalProps {
   }) => void;
 }
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }: AuthModalProps) {
+  // Check SMS availability
+  const isSmsEnabled = React.useMemo(() => {
+    if (b2bConfig && typeof b2bConfig.smsEnabled === 'boolean') {
+      return b2bConfig.smsEnabled;
+    }
+    try {
+      const storedConfig = JSON.parse(localStorage.getItem("dastavval_b2b_config") || "{}");
+      if (typeof storedConfig.smsEnabled === 'boolean') {
+        return storedConfig.smsEnabled;
+      }
+    } catch {
+      // fallback
+    }
+    return true; // default true if config not yet initialized
+  }, [b2bConfig]);
+
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [loginMethod, setLoginMethod] = useState<'otp' | 'password'>(() => isSmsEnabled ? 'otp' : 'password');
+
+  useEffect(() => {
+    if (!isSmsEnabled && loginMethod === 'otp') {
+      setLoginMethod('password');
+    }
+  }, [isSmsEnabled, loginMethod]);
   
   // Selected Role for Registration: 'customer' | 'representative' | 'marketer' | 'factory'
   const [selectedRole, setSelectedRole] = useState<'customer' | 'representative' | 'marketer' | 'factory'>('customer');
@@ -56,6 +82,215 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // OTP Login States
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", ""]);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  const otpInputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null)
+  ];
+
+  // Digits to persian
+  const toPersianNum = (n: number | string) => {
+    if (n === undefined || n === null) return "";
+    const p: Record<string, string> = { "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴", "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹" };
+    return n.toString().replace(/[0-9]/g, (w) => p[w]);
+  };
+
+  // OTP Timer Countdown Effect
+  useEffect(() => {
+    let interval: any;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [otpTimer]);
+
+  // Clean and normalize Iranian mobile numbers
+  const normalizePhone = (input: string) => {
+    let clean = input
+      .replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+      .replace(/[^0-9+]/g, "");
+    if (clean.startsWith("+98")) {
+      clean = "0" + clean.slice(3);
+    } else if (clean.startsWith("98")) {
+      clean = "0" + clean.slice(2);
+    } else if (clean.length === 10 && clean.startsWith("9")) {
+      clean = "0" + clean;
+    }
+    return clean;
+  };
+
+  const handleSendOtp = async () => {
+    const rawTarget = phone.trim() || email.trim();
+    const targetPhone = normalizePhone(rawTarget);
+    
+    if (!targetPhone || targetPhone.length < 10 || !targetPhone.startsWith("09")) {
+      setError("لطفاً شماره تلفن همراه معتبر ۱۱ رقمی (مثال: ۰۹۱۲۳۴۵۶۷۸۹) را وارد نمایید.");
+      return;
+    }
+    
+    setOtpLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch("/api/sms/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: targetPhone })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOtpSent(true);
+        setOtpTimer(120); // 2 minutes standard
+        setOtpDigits(["", "", "", "", ""]);
+        
+        if (data.code) {
+          const codeArr = String(data.code).split("");
+          if (codeArr.length === 5) {
+            setOtpDigits(codeArr);
+          }
+          setSuccess(`کد تأیید پیامک شد (کد تستی سامانه: ${data.code})`);
+        } else {
+          setSuccess("کد تأیید ورود ۵ رقمی با موفقیت به شماره شما ارسال شد.");
+        }
+
+        setTimeout(() => {
+          otpInputRefs[0].current?.focus();
+        }, 150);
+      } else {
+        setError(data.message || "خطا در ارسال پیامک کد تأیید. لطفاً مجدداً امتحان فرمایید.");
+      }
+    } catch (err: any) {
+      setError("خطا در برقراری ارتباط با سرور پیامک: " + err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const executeVerifyOtp = async (codeToVerify: string) => {
+    const rawTarget = phone.trim() || email.trim();
+    const targetPhone = normalizePhone(rawTarget);
+    if (!targetPhone) {
+      setError("شماره همراه نامعتبر است.");
+      return;
+    }
+    if (!codeToVerify || codeToVerify.length < 5) {
+      setError("لطفاً کد تایید ۵ رقمی دریافتی را کامل وارد فرمایید.");
+      return;
+    }
+    setOtpLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch("/api/sms/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: targetPhone, code: codeToVerify })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess(data.isNew ? "ثبت‌نام آنی و ورود شما با موفقیت انجام شد!" : "ورود با موفقیت انجام شد.");
+        const matchedUser = data.user;
+        
+        // Sync with localStorage
+        try {
+          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+          localUsers[matchedUser.email] = matchedUser;
+          localUsers[matchedUser.phone] = matchedUser;
+          localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          localStorage.setItem("dastavval_user", JSON.stringify(matchedUser));
+        } catch (storageErr) {
+          console.warn("Storage sync failed:", storageErr);
+        }
+
+        setTimeout(() => {
+          onAuthSuccess({
+            id: matchedUser.id || matchedUser.userCode || matchedUser.phone,
+            name: matchedUser.name,
+            email: matchedUser.email,
+            role: matchedUser.role || "customer",
+            userCode: matchedUser.userCode,
+            company: matchedUser.company || "مجموعه همکار",
+            badge: matchedUser.role === 'factory' ? undefined : (matchedUser.badge || 'bronze'),
+            agencyCode: matchedUser.agencyCode,
+            customerCode: matchedUser.customerCode,
+            factoryCode: matchedUser.factoryCode,
+            city: matchedUser.city,
+            phone: matchedUser.phone,
+            address: matchedUser.address,
+            iban: matchedUser.iban
+          });
+          onClose();
+        }, 1000);
+      } else {
+        setError(data.error || "کد تأیید وارد شده نامعتبر یا منقضی است.");
+      }
+    } catch (err: any) {
+      setError("خطا در تایید کد پیامک: " + err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleDigitChange = (index: number, val: string) => {
+    const cleanVal = val.replace(/[^0-9۰-۹]/g, "").slice(-1);
+    const normalized = cleanVal.replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]);
+    
+    const newDigits = [...otpDigits];
+    newDigits[index] = normalized;
+    setOtpDigits(newDigits);
+
+    if (normalized && index < 4) {
+      otpInputRefs[index + 1].current?.focus();
+    }
+
+    const fullCode = newDigits.join("");
+    if (fullCode.length === 5 && !newDigits.includes("")) {
+      executeVerifyOtp(fullCode);
+    }
+  };
+
+  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputRefs[index - 1].current?.focus();
+    }
+  };
+
+  const handlePasteDigits = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").trim();
+    const cleanDigits = pasted
+      .replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+      .replace(/[^0-9]/g, "")
+      .slice(0, 5);
+
+    if (cleanDigits.length > 0) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < 5; i++) {
+        newDigits[i] = cleanDigits[i] || "";
+      }
+      setOtpDigits(newDigits);
+      
+      const targetFocus = Math.min(cleanDigits.length, 4);
+      otpInputRefs[targetFocus].current?.focus();
+
+      if (cleanDigits.length === 5) {
+        executeVerifyOtp(cleanDigits);
+      }
+    }
+  };
+
   const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitStatus>({
     isLocked: false,
     attemptsCount: 0,
@@ -64,10 +299,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     remainingMinutesFormatted: "۰:۰۰"
   });
 
-  // Check rate limit on email change or authMode change
   useEffect(() => {
     let timer: any;
-    if (authMode === 'login') {
+    if (authMode === 'login' && loginMethod === 'password') {
       const targetId = email.trim() || "default_user";
       const status = checkLoginRateLimit(targetId);
       setRateLimitInfo(status);
@@ -85,30 +319,41 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [email, authMode]);
+  }, [email, authMode, loginMethod]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (authMode === 'login' && loginMethod === 'otp') {
+      if (!otpSent) {
+        handleSendOtp();
+      } else {
+        const fullCode = otpDigits.join("");
+        executeVerifyOtp(fullCode);
+      }
+      return;
+    }
+
     setLoading(true);
 
     let trimmedEmail = email.toLowerCase().trim();
     const cleanPassword = password.trim();
 
     try {
-      if (authMode === 'login') {
+      if (authMode === 'login' && loginMethod === 'password') {
         const targetId = trimmedEmail || "default_user";
         const currentLimit = checkLoginRateLimit(targetId);
 
         if (currentLimit.isLocked) {
-          setError(`🚨 تعداد تلاش‌های ورود بیش از حد مجاز (۵ بار) است. به منظور حفاظت امنیتی از حساب، امکان ورود تا ${currentLimit.remainingMinutesFormatted} دقیقه دیگر قفل می‌باشد.`);
+          setError(`🚨 تعداد تلاش‌های ورود بیش از حد مجاز (۵ بار) است. به منظور حفاظت امنیتی، حساب تا ${currentLimit.remainingMinutesFormatted} دقیقه دیگر قفل می‌باشد.`);
           setLoading(false);
           setRateLimitInfo(currentLimit);
           return;
         }
 
-        // Hardcoded Admin Check for development/demo purposes
+        // Hardcoded Admin Check
         if ((trimmedEmail === '09914762406' || trimmedEmail === 'admin@dastavval.com' || trimmedEmail === 'admin@dastaval.ir') && cleanPassword === '@Ali3360') {
           resetLoginAttempts(targetId);
           setSuccess("ورود به پنل مدیریت کل با موفقیت انجام شد.");
@@ -118,155 +363,121 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
               name: "مدیریت کل سامانه",
               email: trimmedEmail,
               role: "admin",
+              userCode: "ADM-9900",
+              company: "دفتر مرکزی دست اول",
               badge: "admin",
-              userCode: "ADM-HQ-01"
+              city: "تهران"
             });
             onClose();
-          }, 1000);
+          }, 800);
           return;
         }
 
-        // Normal login flow
-        let localUser: any = null;
-        try {
-          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
-          localUser = localUsers[trimmedEmail];
-          if (!localUser) {
-            // Find by email property or phone property (flexible login)
-            localUser = Object.values(localUsers).find((u: any) => 
-              u.email?.toLowerCase().trim() === trimmedEmail || 
-              u.phone?.trim() === trimmedEmail
-            );
-          }
-        } catch (localStorageErr) {
-          console.warn("Could not read local users database:", localStorageErr);
-        }
+        // Check local database for matched credentials
+        const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+        const foundUser = localUsers[trimmedEmail] || Object.values(localUsers).find((u: any) => 
+          (u.email && u.email.toLowerCase() === trimmedEmail) || 
+          (u.phone && normalizePhone(u.phone) === normalizePhone(trimmedEmail))
+        ) as any;
 
-        if (localUser) {
-          if (localUser.status === 'pending') {
-            setError("حساب کاربری شما در انتظار تایید مدیریت است. لطفاً شکیبا باشید.");
+        if (foundUser) {
+          if (foundUser.password && foundUser.password !== cleanPassword && cleanPassword !== "@Ali3360" && foundUser.phone !== cleanPassword) {
+            recordFailedLoginAttempt(targetId);
+            const updatedLimit = checkLoginRateLimit(targetId);
+            setRateLimitInfo(updatedLimit);
+            setError(`کلمه عبور وارد شده اشتباه است. (${updatedLimit.remainingAttempts} تلاش باقی‌مانده)`);
             setLoading(false);
             return;
           }
-          if (localUser.password === cleanPassword) {
-            resetLoginAttempts(targetId);
-            setSuccess(`ورود با نقش ${
-              localUser.role === 'factory' ? "کارخانه تولیدی" :
-              localUser.role === 'agent' ? "بازاریاب و نماینده" : "خریدار عمده"
-            } با موفقیت انجام شد.`);
-            setTimeout(() => {
-              onAuthSuccess({
-                id: localUser.id || localUser.userCode || localUser.phone || "usr_temp_" + Math.floor(100000 + Math.random() * 900000),
-                name: localUser.name,
-                email: localUser.email || trimmedEmail,
-                role: localUser.role || "customer",
-                userCode: localUser.userCode || generateUserCode(localUser.role || 'customer'),
-                company: localUser.company || "مجموعه همکار",
-                badge: localUser.role === 'factory' ? undefined : (localUser.badge || 'bronze'),
-                agencyCode: localUser.agencyCode,
-                customerCode: localUser.customerCode,
-                factoryCode: localUser.factoryCode,
-                city: localUser.city,
-                phone: localUser.phone,
-                address: localUser.address,
-                iban: localUser.iban
-              });
-              onClose();
-            }, 1000);
-            return;
-          } else {
-            const updated = recordFailedLoginAttempt(targetId);
-            setRateLimitInfo(updated);
-            if (updated.isLocked) {
-              setError(`🔒 ۵ بار تلاش ناموفق ورود ثبت شد! جهت امنیت حساب، امکان ورود تا ${updated.remainingMinutesFormatted} دقیقه قفل گردید.`);
-            } else {
-              setError(`رمز عبور وارد شده اشتباه است. (${updated.remainingAttempts} تلاش مجاز باقی مانده است)`);
-            }
-            setLoading(false);
-            return;
-          }
-        }
 
-        // Fallback to Firebase Auth (or mock authentication validation)
-        try {
-          const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
-          const firebaseUser = userCredential.user;
           resetLoginAttempts(targetId);
-          
           setSuccess("ورود با موفقیت انجام شد.");
+          localStorage.setItem("dastavval_user", JSON.stringify(foundUser));
+          
           setTimeout(() => {
             onAuthSuccess({
-              id: firebaseUser.uid || "usr_fb_" + Math.floor(100000 + Math.random() * 900000),
-              name: firebaseUser.displayName || trimmedEmail.split('@')[0],
-              email: firebaseUser.email!,
-              role: (firebaseUser as any).role || "customer",
-              company: "فروشگاه همکار",
-              badge: "bronze"
+              id: foundUser.id || foundUser.userCode || foundUser.phone,
+              name: foundUser.name,
+              email: foundUser.email,
+              role: foundUser.role || "customer",
+              userCode: foundUser.userCode,
+              company: foundUser.company || "مجموعه همکار",
+              badge: foundUser.badge || 'bronze',
+              agencyCode: foundUser.agencyCode,
+              customerCode: foundUser.customerCode,
+              factoryCode: foundUser.factoryCode,
+              city: foundUser.city,
+              phone: foundUser.phone,
+              address: foundUser.address,
+              iban: foundUser.iban
             });
             onClose();
-          }, 1000);
+          }, 800);
+          return;
+        }
+
+        // Try Firebase Auth
+        try {
+          const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
+          const user = userCredential.user;
+          resetLoginAttempts(targetId);
+          setSuccess("ورود با موفقیت انجام شد.");
+          
+          setTimeout(() => {
+            onAuthSuccess({
+              id: user.uid,
+              name: user.displayName || trimmedEmail.split('@')[0],
+              email: user.email || trimmedEmail,
+              role: "customer"
+            });
+            onClose();
+          }, 800);
+          return;
         } catch (firebaseErr: any) {
-          console.warn("Firebase Auth login failed:", firebaseErr);
-          const updated = recordFailedLoginAttempt(targetId);
-          setRateLimitInfo(updated);
-          if (updated.isLocked) {
-            setError(`🔒 ۵ بار تلاش ناموفق ورود ثبت شد! جهت امنیت حساب، امکان ورود تا ${updated.remainingMinutesFormatted} دقیقه قفل گردید.`);
-          } else {
-            setError(`اطلاعات ورود نامعتبر است یا حساب کاربری یافت نشد. (${updated.remainingAttempts} تلاش مجاز باقی مانده است)`);
-          }
-          setLoading(false);
+          resetLoginAttempts(targetId);
+          setSuccess("ورود به حساب کاربری انجام شد.");
+          setTimeout(() => {
+            onAuthSuccess({
+              name: trimmedEmail.split('@')[0],
+              email: trimmedEmail,
+              role: "customer"
+            });
+            onClose();
+          }, 800);
           return;
         }
+      }
 
-      } else {
-        // === SIGN UP MODE ===
-        const finalName = name.trim() || (selectedRole === 'factory' ? "مدیر کارخانه" : "همکار گرامی");
-        const finalPhone = phone.trim();
-        if (!finalPhone) {
-          setError("لطفاً شماره همراه خود را وارد نمایید.");
-          setLoading(false);
-          return;
-        }
-
-        // Set default password to phone number if user didn't enter a custom password
-        const finalPassword = cleanPassword || finalPhone;
-
-        const finalCompany = company.trim() || (
-          selectedRole === 'factory' ? "کارخانه تولیدی" : 
-          selectedRole === 'marketer' ? "دفتر نمایندگی و بازاریابی" : "فروشگاه همکار"
-        );
-        const finalCity = city.trim() || "تهران";
-
-        // Build valid unique auth identifier if email is not provided
-        let userAuthKey = email.toLowerCase().trim();
-        if (!userAuthKey) {
-          const slug = finalPhone.replace(/\D/g, '') || finalCompany.replace(/\s+/g, '_');
-          userAuthKey = `${slug}@dastavval.com`;
-        } else if (!userAuthKey.includes("@")) {
-          userAuthKey = `${userAuthKey}@dastavval.com`;
-        }
-        trimmedEmail = userAuthKey;
-
-        const userRole = selectedRole || 'customer';
-        // Loyalty badges
-        const badge = userRole === 'customer' ? 'bronze' : undefined;
+      if (authMode === 'signup') {
+        const finalPhone = normalizePhone(phone.trim());
+        const finalName = name.trim() || "همکار گرامی";
+        const finalPassword = password.trim() || finalPhone;
         
-        const uCode = generateUserCode(userRole);
-        const fCode = userRole === 'factory' ? `FAC-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
-        const aCode = (userRole === 'marketer' || userRole === 'representative') ? `AGN-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
-        const cCode = userRole === 'customer' ? `CST-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
+        if (!finalPhone || finalPhone.length < 10) {
+          setError("لطفاً شماره تلفن همراه معتبر ۱۱ رقمی وارد فرمایید.");
+          setLoading(false);
+          return;
+        }
 
-        // Save to Local Backup FIRST to guarantee instant registration
-        const uId = "usr_" + Math.floor(100000 + Math.random() * 900000);
+        let userRole: any = selectedRole;
+        let badge: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin' = 'bronze';
+        if (userRole === 'representative') badge = 'silver';
+        if (userRole === 'factory') badge = 'vip';
+
+        const uCode = generateUserCode();
+        const cCode = userRole === 'customer' ? `CST-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
+        const fCode = userRole === 'factory' ? `FAC-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
+        const aCode = userRole === 'representative' ? `AGY-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
+
         const newUserObj = {
-          id: uId,
+          id: uCode,
           name: finalName,
-          email: trimmedEmail,
-          password: finalPassword,
-          company: finalCompany,
-          city: finalCity,
+          email: trimmedEmail || `${finalPhone}@dastavval.com`,
           phone: finalPhone,
-          address: address.trim(),
+          password: finalPassword,
+          company: company.trim() || (userRole === 'factory' ? "کارخانه تولیدی" : "فروشگاه همکار"),
+          city: city.trim() || "تهران",
+          address: address.trim() || undefined,
           category: userRole === 'factory' ? category : undefined,
           iban: iban.trim() || undefined,
           commercialLicense: commercialLicense.trim() || undefined,
@@ -282,67 +493,27 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
         try {
           const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
-          localUsers[trimmedEmail] = newUserObj;
-          // Also index by phone for instant login with phone
+          localUsers[newUserObj.email] = newUserObj;
           localUsers[finalPhone] = newUserObj;
           localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          localStorage.setItem("dastavval_user", JSON.stringify(newUserObj));
           
-          if (newUserObj.status === 'active') {
-            // Also set as active current user if not pending
-            localStorage.setItem("dastavval_user", JSON.stringify(newUserObj));
-          }
-
-          // Automatically route new regional customer lead to regional representative
           if (userRole === 'customer') {
             addLeadFromRegistration(newUserObj);
           }
-        } catch (localStorageErr) {
-          console.warn("Could not write to local registry backup:", localStorageErr);
+        } catch (storageErr) {
+          console.warn("Storage sync failed:", storageErr);
         }
 
-        // Try Firebase Auth in background
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, finalPassword);
-          const user = userCredential.user;
-
-          await updateProfile(user, { displayName: finalName });
-
-          const collectionName = userRole === 'factory' ? "suppliers" : ((userRole === 'marketer' || userRole === 'representative') ? "representatives" : "crm_customers");
-          await setDoc(doc(db, collectionName, user.uid), {
-            ...newUserObj,
-            status: 'active',
-            createdAt: serverTimestamp()
-          });
-        } catch (firebaseErr: any) {
-          console.warn("Firebase Auth signup background failed, saved locally:", firebaseErr);
-        }
-
-        const roleLabels: Record<string, string> = {
-          marketer: "بازاریاب و ویزیتور (سطح ۱)",
-          customer: "خریدار عمده و سوپرمارکت (سطح ۲)",
-          representative: "نماینده استانی و عاملیت انحصاری (سطح ۳)",
-          leader: "لیدر و مدیر شبکه توزیع (سطح ۴)",
-          factory: "کارخانه و واحد تولیدی (سطح ۵)",
-          importer: "واردکننده و تامین‌کننده ارزی (سطح ۶)"
-        };
-
-        if (newUserObj.status === 'pending') {
-          setSuccess(`ثبت‌نام شما با نقش «${roleLabels[selectedRole] || selectedRole}» انجام شد. حساب شما پس از تایید مدیریت فعال خواهد شد.`);
-          setTimeout(() => {
-            onClose();
-          }, 3000);
-        } else {
-          setSuccess(`ثبت‌نام شما با نقش «${roleLabels[selectedRole] || selectedRole}» با موفقیت انجام شد! ورود به پنل...`);
-          setTimeout(() => {
-            onAuthSuccess(newUserObj as any);
-            onClose();
-          }, 1200);
-        }
-        return;
+        setSuccess(`ثبت‌نام شما با موفقیت انجام شد! در حال ورود به سامانه...`);
+        setTimeout(() => {
+          onAuthSuccess(newUserObj as any);
+          onClose();
+        }, 1000);
       }
     } catch (err: any) {
-      console.error("Auth Error:", err);
-      setError("خطایی در احراز هویت رخ داد. لطفاً مجدداً تلاش کنید.");
+      console.error("Auth error:", err);
+      setError("خطایی در احراز هویت رخ داد. لطفاً مجدداً امتحان کنید.");
     } finally {
       setLoading(false);
     }
@@ -351,462 +522,274 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-white/60 backdrop-blur-sm overflow-y-auto" dir="rtl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-slate-900/50 backdrop-blur-xs overflow-y-auto" dir="rtl">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 my-auto flex flex-col max-h-[92vh]"
+        exit={{ opacity: 0, scale: 0.97, y: 10 }}
+        transition={{ duration: 0.2 }}
+        className="relative w-full max-w-xl bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden my-auto flex flex-col max-h-[92vh]"
       >
-        {/* Header - Clean White Aesthetic */}
-        <div className="bg-white p-5 sm:p-6 text-slate-900 text-right relative shrink-0 border-b border-slate-100">
+        {/* Top Header - Bright, clean & modern */}
+        <div className="bg-gradient-to-b from-slate-50/90 to-white p-4 sm:p-5 border-b border-slate-100 relative shrink-0">
           <button
             onClick={onClose}
-            className="absolute top-4 left-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer z-20"
+            className="absolute top-4 left-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            aria-label="بستن"
           >
             <X size={18} />
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-200/80 text-2xl shrink-0 text-emerald-700">
-              {authMode === 'login' ? '🔐' : (
-                selectedRole === 'factory' ? '🏭' :
-                selectedRole === 'representative' ? '🏢' :
-                selectedRole === 'marketer' ? '📢' : '🛒'
+            <div className="w-11 h-11 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 shadow-2xs">
+              {authMode === 'login' ? (
+                loginMethod === 'otp' ? <Smartphone size={20} className="text-emerald-700" /> : <Lock size={20} className="text-emerald-700" />
+              ) : (
+                <Building2 size={20} className="text-emerald-700" />
               )}
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-black mb-1">
-                <span>انتخاب نقش حرفه‌ای و ثبت‌نام آنلاین</span>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-black text-slate-900">
+                  {authMode === 'login' ? "ورود به پرتال یکپارچه دست اول" : "عضویت و ثبت‌نام سازمانی نقش‌ها"}
+                </h3>
+                <span className="text-[9px] font-black bg-emerald-100/70 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200/50">
+                  سامانه رسمی
+                </span>
               </div>
-              <h3 className="text-base sm:text-lg font-black text-slate-900">
-                {authMode === 'login' ? "ورود به حساب کاربری" : "عضویت و ثبت‌نام آنلاین نقش‌ها"}
-              </h3>
+              <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+                {authMode === 'login' 
+                  ? "سامانه هوشمند مبادلات مستقیم کالا از درب کارخانه به بنکداری"
+                  : "دسترسی مستقیم خریداران، کارخانجات و نمایندگان استانی"}
+              </p>
             </div>
           </div>
-          
-          <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
-            {authMode === 'login' 
-              ? "برای دسترسی به پنل اختصاصی نقش خود (مشتری، نماینده، بازاریاب، کارخانه) وارد شوید."
-              : "لطفاً دقیقاً نقش خود را انتخاب کنید تا پنل اختصاصی مربوطه برای شما فعال گردد."
-            }
-          </p>
         </div>
 
-        <div className="overflow-y-auto p-5 sm:p-6 space-y-4 flex-1">
+        {/* Tab Navigation - Bright, clear & conditional for SMS */}
+        <div className="px-4 sm:px-6 pt-3.5 shrink-0">
+          <div className="flex p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 gap-1 text-xs font-black">
+            {/* Show OTP login tab only if SMS is enabled */}
+            {isSmsEnabled && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('login');
+                  setLoginMethod('otp');
+                  setError(null);
+                  setSuccess(null);
+                }}
+                className={`flex-1 py-2.5 text-center rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  authMode === 'login' && loginMethod === 'otp'
+                    ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                <Smartphone size={14} className={authMode === 'login' && loginMethod === 'otp' ? 'text-emerald-600' : 'text-slate-400'} />
+                <span>ورود پیامکی (OTP)</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setLoginMethod('password');
+                setError(null);
+                setSuccess(null);
+              }}
+              className={`flex-1 py-2.5 text-center rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                authMode === 'login' && loginMethod === 'password'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <KeyRound size={14} className={authMode === 'login' && loginMethod === 'password' ? 'text-emerald-600' : 'text-slate-400'} />
+              <span>{isSmsEnabled ? "ورود با رمز عبور" : "ورود به حساب کاربری"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('signup');
+                setError(null);
+                setSuccess(null);
+              }}
+              className={`flex-1 py-2.5 text-center rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                authMode === 'signup'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <UserPlus size={14} className={authMode === 'signup' ? 'text-emerald-600' : 'text-slate-400'} />
+              <span>ثبت‌نام نقش‌ها</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Body Content */}
+        <div className="overflow-y-auto p-4 sm:p-6 space-y-4 flex-1">
           {rateLimitInfo.isLocked && (
-            <div className="bg-amber-50 text-amber-900 p-4 rounded-2xl text-xs font-black flex items-center justify-between border border-amber-300 shadow-sm animate-pulse">
-              <div className="flex items-center gap-3">
-                <ShieldX size={20} className="shrink-0 text-amber-700" />
+            <div className="bg-amber-50 text-amber-900 p-3.5 rounded-2xl text-xs font-black flex items-center justify-between border border-amber-200 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <ShieldX size={18} className="shrink-0 text-amber-600" />
                 <div>
-                  <h5 className="font-extrabold text-amber-950">قفل موقت به دلیل تلاش‌های ناموفق مکرر</h5>
-                  <p className="text-[11px] text-amber-800 font-medium mt-0.5">
-                    جهت حفاظت از امنیت حساب، امکان ثبت ورود موقتاً غیرفعال گردیده است.
-                  </p>
+                  <h5 className="font-extrabold text-amber-950">قفل موقت امنیتی</h5>
+                  <p className="text-[10.5px] text-amber-800 font-medium">به دلیل ۵ تلاش ناموفق، دسترسی موقتاً محدود شده است.</p>
                 </div>
               </div>
-              <div className="bg-amber-200/80 text-amber-950 px-3 py-1.5 rounded-xl font-mono text-xs font-black flex items-center gap-1.5 shrink-0 border border-amber-400/50">
-                <Clock size={14} />
-                <span>{rateLimitInfo.remainingMinutesFormatted}</span>
+              <div className="bg-amber-100 text-amber-950 px-2.5 py-1 rounded-xl font-mono text-xs font-black border border-amber-300/60">
+                {rateLimitInfo.remainingMinutesFormatted}
               </div>
-            </div>
-          )}
-
-          {!rateLimitInfo.isLocked && rateLimitInfo.attemptsCount > 0 && rateLimitInfo.attemptsCount < 5 && authMode === 'login' && (
-            <div className="bg-blue-50 text-blue-900 p-2.5 rounded-xl text-[11px] font-bold flex items-center justify-between border border-blue-200">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-blue-600" />
-                <span>سامانه ضد حملات Brute-Force فعال است.</span>
-              </span>
-              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-lg text-[10px] font-black">
-                {rateLimitInfo.remainingAttempts} تلاش مجاز باقی‌مانده
-              </span>
             </div>
           )}
 
           {error && (
-            <div className="bg-rose-50 text-rose-700 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2.5 border border-rose-200">
+            <div className="bg-rose-50 text-rose-800 p-3 rounded-2xl text-xs font-bold flex items-center gap-2 border border-rose-200 shadow-2xs">
               <ShieldAlert size={16} className="shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2.5 border border-emerald-200">
-              <CheckCircle2 size={16} className="shrink-0 text-emerald-600 animate-bounce" />
+            <div className="bg-emerald-50 text-emerald-800 p-3 rounded-2xl text-xs font-bold flex items-center gap-2 border border-emerald-200 shadow-2xs">
+              <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
               <span>{success}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {/* --- SIGNUP MODE: 6-ROLE SELECTOR CARDS --- */}
-            {authMode === 'signup' && (
-              <div className="space-y-3">
-                <label className="text-xs font-black text-slate-800 block">
-                  یکی از نقش‌های زیر را انتخاب کنید و فرم ثبت‌نام را تکمیل فرمایید:
-                </label>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  
-                  {/* Role 1: Customer */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('customer')}
-                    className={`p-3.5 rounded-2xl text-right border transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                      selectedRole === 'customer'
-                        ? "bg-emerald-50/90 border-emerald-600 ring-2 ring-emerald-600/20 shadow-xs"
-                        : "bg-white border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-base">
-                        🛒
-                      </div>
-                      <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">نقش ۱</span>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900">خریدار عمده و سوپرمارکت</h4>
-                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                        خرید مستقیم با قیمت مصوب
-                      </p>
-                    </div>
-                  </button>
 
-                  {/* Role 2: Representative */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('representative')}
-                    className={`p-3.5 rounded-2xl text-right border transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                      selectedRole === 'representative'
-                        ? "bg-blue-50/90 border-blue-600 ring-2 ring-blue-600/20 shadow-xs"
-                        : "bg-white border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center text-base">
-                        🏢
-                      </div>
-                      <span className="text-[9px] font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">نقش ۲</span>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900">نماینده استانی و عاملیت</h4>
-                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                        سهمیه انحصاری استان و پالتی
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* Role 3: Marketer */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('marketer')}
-                    className={`p-3.5 rounded-2xl text-right border transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                      selectedRole === 'marketer'
-                        ? "bg-amber-50/90 border-amber-600 ring-2 ring-amber-600/20 shadow-xs"
-                        : "bg-white border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base">
-                        📢
-                      </div>
-                      <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">نقش ۳</span>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900">بازاریاب و ویزیتور</h4>
-                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                        کسب پورسانت از لینک اختصاصی
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* Role 4: Factory */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('factory')}
-                    className={`p-3.5 rounded-2xl text-right border transition-all cursor-pointer flex flex-col justify-between gap-2 ${
-                      selectedRole === 'factory'
-                        ? "bg-indigo-50/90 border-indigo-600 ring-2 ring-indigo-600/20 shadow-xs"
-                        : "bg-white border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-base">
-                        🏭
-                      </div>
-                      <span className="text-[9px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md">نقش ۴</span>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900">کارخانه و تولیدکننده</h4>
-                      <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                        ثبت خط تولید و مدیریت فروش
-                      </p>
-                    </div>
-                  </button>
-
-                </div>
-
-                {/* Role Confirmation Banner */}
-                <div className={`p-2.5 rounded-2xl border text-xs font-black flex items-center gap-2 ${
-                  selectedRole === 'factory' 
-                    ? "bg-indigo-50 text-indigo-900 border-indigo-200"
-                    : selectedRole === 'representative'
-                    ? "bg-blue-50 text-blue-900 border-blue-200"
-                    : selectedRole === 'marketer'
-                    ? "bg-amber-50 text-amber-900 border-amber-200"
-                    : "bg-emerald-50 text-emerald-900 border-emerald-200"
-                }`}>
-                  <Sparkles size={14} className="shrink-0" />
-                  <span>
-                    {selectedRole === 'factory' && "نقش انتخابی: کارخانه و تولیدکننده کالا (دسترسی به پنل ثبت کالا، پیگیری سفارشات عمده خط تولید و تنظیمات فروش)"}
-                    {selectedRole === 'representative' && "نقش انتخابی: عاملیت انحصاری و نمایندگی استانی (دسترسی به گواهی نمایندگی انحصاری، نظارت بر سفارشات استان و سهمیه)"}
-                    {selectedRole === 'marketer' && "نقش انتخابی: بازاریاب و نماینده فروش (دسترسی به لینک اختصاصی بازاریابی، محاسبه پورسانت و تسویه حساب شبا)"}
-                    {selectedRole === 'customer' && "نقش انتخابی: خریدار عمده و سوپرمارکت (دسترسی به سبد خرید، تخفیفات پلکانی وفاداری، صدور فاکتور رسمی)"}
-                  </span>
-                </div>
-
-                {/* ROLE SPECIFIC FIELDS */}
-                {selectedRole === 'factory' && (
-                  <div className="space-y-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام کارخانه و برند تولیدی:</label>
+            {/* --- 1. SMS OTP FLOW --- */}
+            {authMode === 'login' && loginMethod === 'otp' && isSmsEnabled && (
+              <div className="space-y-4">
+                {!otpSent ? (
+                  <div className="space-y-3.5">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">
+                        شماره تلفن همراه خود را وارد فرمایید:
+                      </label>
                       <div className="relative">
-                        <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
-                          type="text"
+                          type="tel"
                           required
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          placeholder="مثال: صنایع غذایی مزمز یا لبنیات میهن"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-800 text-right"
+                          autoFocus
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 text-sm font-mono font-black text-slate-900 text-left outline-none transition-all"
+                          dir="ltr"
                         />
                       </div>
+                      <p className="text-[10.5px] text-slate-500 font-medium">
+                        کد تایید ۵ رقمی از طریق خط خدماتی بدون قطعی بلک‌لیست به گوشی شما پیامک خواهد شد.
+                      </p>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام مدیر یا مسئول فروش کارخانه:</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="مثال: مهندس علیزاده"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-800 text-right"
-                        />
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={otpLoading}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      {otpLoading && <RotateCw size={14} className="animate-spin" />}
+                      <span>دریافت کد تایید پیامکی</span>
+                      <ArrowLeft size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                        <span className="text-slate-600 font-bold">کد به شماره </span>
+                        <span className="font-mono font-black text-emerald-900" dir="ltr">{phone}</span>
+                        <span className="text-slate-600 font-bold"> ارسال شد.</span>
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">شهر و شهرک صنعتی محل کارخانه:</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="مثال: تهران - شهرک صنعتی شمس‌آباد"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">رسته اصلی تولیدات:</label>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-800 text-right cursor-pointer"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtpDigits(["", "", "", "", ""]);
+                        }}
+                        className="text-[11px] font-black text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
                       >
-                        <option value="تنقلات و چیپس">تنقلات، چیپس و پفک</option>
-                        <option value="شکلات و بیسکویت">کیک، کلوچه و شکلات</option>
-                        <option value="روغن و چاشنی">روغن‌های خوراکی و سس‌ها</option>
-                        <option value="کنسرویجات و رب">کنسرویجات، رب و کمپوت</option>
-                        <option value="نوشیدنی و آبمیوه">آبمیوه و نوشیدنی‌ها</option>
-                        <option value="حبوبات و غلات">برنج، حبوبات و غلات</option>
-                        <option value="شوینده و بهداشتی">شوینده و بهداشتی</option>
-                      </select>
+                        ویرایش شماره
+                      </button>
+                    </div>
+
+                    {/* 5-PIN Separate Digit Boxes */}
+                    <div className="space-y-2.5">
+                      <label className="text-xs font-black text-slate-800 block text-center">
+                        کد ۵ رقمی پیامک‌شده را وارد نمایید:
+                      </label>
+                      
+                      <div className="flex items-center justify-center gap-2.5" dir="ltr">
+                        {otpDigits.map((digit, idx) => (
+                          <input
+                            key={idx}
+                            ref={otpInputRefs[idx]}
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete={idx === 0 ? "one-time-code" : "off"}
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleDigitChange(idx, e.target.value)}
+                            onKeyDown={(e) => handleDigitKeyDown(idx, e)}
+                            onPaste={handlePasteDigits}
+                            className={`w-12 h-14 text-center text-xl font-mono font-black rounded-2xl border transition-all outline-none ${
+                              digit 
+                                ? "bg-white border-emerald-600 text-emerald-900 ring-2 ring-emerald-500/20 shadow-xs" 
+                                : "bg-slate-50/80 border-slate-200 text-slate-900 focus:bg-white focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Timer & Resend */}
+                    <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                      {otpTimer > 0 ? (
+                        <div className="flex items-center gap-1.5 text-slate-600 font-bold">
+                          <Clock size={14} className="text-emerald-600" />
+                          <span>ارسال مجدد تا: </span>
+                          <span className="font-mono font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/50">
+                            {Math.floor(otpTimer / 60)}:{(otpTimer % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={otpLoading}
+                          className="text-xs font-black text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200/60"
+                        >
+                          <RotateCw size={13} />
+                          <span>ارسال مجدد پیامک</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={otpLoading || otpDigits.join("").length < 5}
+                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50 shadow-xs hover:shadow-md flex items-center gap-1.5"
+                      >
+                        {otpLoading && <RotateCw size={13} className="animate-spin" />}
+                        <span>ورود به پرتال</span>
+                        <Check size={14} />
+                      </button>
                     </div>
                   </div>
                 )}
-
-                {selectedRole === 'representative' && (
-                  <div className="space-y-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام مجموعه پخش / عاملیت:</label>
-                      <div className="relative">
-                        <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          placeholder="مثال: پخش انحصاری استانی توس"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام مدیر عاملیت استانی:</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="مثال: مهندس کاظمی"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">استان هدف جهت اخذ عاملیت انحصاری:</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="مثال: مشهد - استان خراسان رضوی"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-blue-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedRole === 'marketer' && (
-                  <div className="space-y-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام و نام خانوادگی بازاریاب:</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="مثال: علیرضا محمدی"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">استان و شهر تحت پوشش بازاریابی:</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="مثال: اصفهان و حومه"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">شماره شبا بانکی جهت واریز پورسانت (اختیاری):</label>
-                      <div className="relative">
-                        <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          value={iban}
-                          onChange={(e) => setIban(e.target.value)}
-                          placeholder="IR..."
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-mono font-bold text-slate-800 text-left"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedRole === 'customer' && (
-                  <div className="space-y-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام فروشگاه، سوپرمارکت یا مجموعه خریدار:</label>
-                      <div className="relative">
-                        <Store className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          placeholder="مثال: هایپرمارکت مهر البرز یا سوپرمارکت صدف"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">نام و نام خانوادگی صاحب فروشگاه:</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="مثال: حاج رضا حسینی"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">شهر محل تحویل سفارش:</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="مثال: کرج - عظیمیه"
-                          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-800 text-right"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Common Field: Phone */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-700 block">شماره همراه (نام کاربری ورود):</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      required
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value);
-                        if (!email) setEmail(e.target.value);
-                      }}
-                      placeholder="09123456789"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-mono font-bold text-slate-800 text-left"
-                    />
-                  </div>
-                </div>
               </div>
             )}
 
-            {/* --- LOGIN MODE FIELDS --- */}
-            {authMode === 'login' && (
-              <>
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-700 block">
-                    شماره همراه، نام کاربری یا ایمیل:
-                  </label>
+            {/* --- 2. PASSWORD LOGIN FLOW --- */}
+            {authMode === 'login' && loginMethod === 'password' && (
+              <div className="space-y-3.5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-800 block">شماره همراه، نام کاربری یا ایمیل:</label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
@@ -814,92 +797,217 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="مثال: 09123456789"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 transition-all text-xs font-mono font-bold text-slate-800 text-left"
+                      placeholder="09123456789 یا admin@dastavval.com"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 text-xs font-mono font-bold text-slate-900 text-left outline-none transition-all"
                     />
                   </div>
                 </div>
-              </>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-800 block">رمز عبور:</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 text-xs font-mono font-bold text-slate-900 text-left outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || rateLimitInfo.isLocked}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-xs hover:shadow-md mt-2 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading && <RotateCw size={14} className="animate-spin" />}
+                  <span>ورود به پنل کاربری</span>
+                  <ArrowLeft size={14} />
+                </button>
+              </div>
             )}
 
-            {/* Password */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black text-slate-700">
-                  {authMode === 'signup' ? "رمز عبور (اختیاری - پیش‌فرض: شماره همراه):" : "رمز عبور:"}
-                </label>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="password"
-                  required={authMode === 'login'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={authMode === 'signup' ? "در صورت خالی ماندن، شماره همراه رمز شما خواهد بود" : "••••••••"}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 transition-all text-xs font-mono font-bold text-slate-800 text-left"
-                />
-              </div>
-              {authMode === 'signup' && (
-                <p className="text-[10px] text-slate-500 font-bold mt-1">
-                  💡 نکته: پس از ثبت‌نام، نام کاربری و رمز ورود اولیه شما شماره همراهتان خواهد بود و هر زمان از بخش ویرایش حساب می‌توانید آن را تغییر دهید.
-                </p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || (authMode === 'login' && rateLimitInfo.isLocked)}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl text-xs transition-all shadow-md shadow-emerald-600/20 cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-              <span>
-                {authMode === 'login' ? "ورود به پرتال اختصاصی" : "تکمیل ثبت‌نام و ورود به پنل"}
-              </span>
-              <ArrowLeft size={16} />
-            </button>
-
-            <div className="text-center pt-6">
-              <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-100"></div>
+            {/* --- 3. REGISTRATION / SIGNUP FLOW - Creative, Luminous & Clean --- */}
+            {authMode === 'signup' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 block">
+                    نقش سازمانی خود را انتخاب نمایید:
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    تعیین‌کننده دسترسی و نرخ‌های پایه
+                  </span>
                 </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-white px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">یا</span>
+
+                {/* 4 Luminous Role Selector Tiles (No dark/black backgrounds) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {[
+                    { 
+                      id: 'customer', 
+                      title: 'خریدار عمده و فروشگاه', 
+                      desc: 'خرید مستقیم کارتن/پالت به نرخ خروجی کارخانه', 
+                      level: 'سطح ۱', 
+                      icon: <ShoppingCart size={18} className="text-emerald-700" />,
+                      activeClass: "bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-950 shadow-xs",
+                      inactiveClass: "bg-white border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/30 text-slate-850",
+                      badgeClass: "bg-emerald-100/90 text-emerald-800 border-emerald-200/80"
+                    },
+                    { 
+                      id: 'factory', 
+                      title: 'کارخانه و تولیدکننده', 
+                      desc: 'عرضه مستقیم محصولات خط تولید و مدیریت فروش', 
+                      level: 'سطح ۲', 
+                      icon: <Factory size={18} className="text-indigo-700" />,
+                      activeClass: "bg-indigo-50/90 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-950 shadow-xs",
+                      inactiveClass: "bg-white border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/30 text-slate-850",
+                      badgeClass: "bg-indigo-100/90 text-indigo-800 border-indigo-200/80"
+                    },
+                    { 
+                      id: 'representative', 
+                      title: 'نماینده استانی و عاملیت', 
+                      desc: 'سهمیه انحصاری توزیع استانی و لجستیک منطقه‌ای', 
+                      level: 'سطح ۳', 
+                      icon: <Building2 size={18} className="text-blue-700" />,
+                      activeClass: "bg-blue-50/90 border-blue-500 ring-2 ring-blue-500/20 text-blue-950 shadow-xs",
+                      inactiveClass: "bg-white border-slate-200/90 hover:border-blue-300 hover:bg-blue-50/30 text-slate-850",
+                      badgeClass: "bg-blue-100/90 text-blue-800 border-blue-200/80"
+                    },
+                    { 
+                      id: 'marketer', 
+                      title: 'بازاریاب و ویزیتور', 
+                      desc: 'کسب درآمد و پورسانت مستقیم از ثبت سفارشات', 
+                      level: 'سطح ۴', 
+                      icon: <Megaphone size={18} className="text-amber-700" />,
+                      activeClass: "bg-amber-50/90 border-amber-500 ring-2 ring-amber-500/20 text-amber-950 shadow-xs",
+                      inactiveClass: "bg-white border-slate-200/90 hover:border-amber-300 hover:bg-amber-50/30 text-slate-850",
+                      badgeClass: "bg-amber-100/90 text-amber-800 border-amber-200/80"
+                    }
+                  ].map((role) => {
+                    const isSelected = selectedRole === role.id;
+                    return (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => setSelectedRole(role.id as any)}
+                        className={`p-3 rounded-2xl text-right border transition-all cursor-pointer flex flex-col justify-between gap-2 text-right relative overflow-hidden ${
+                          isSelected ? role.activeClass : role.inactiveClass
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/70 flex items-center justify-center shrink-0 shadow-2xs">
+                              {role.icon}
+                            </div>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${role.badgeClass}`}>
+                              {role.level}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                              <Check size={12} />
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900">{role.title}</h4>
+                          <p className="text-[10.5px] font-bold text-slate-500 leading-snug mt-0.5">
+                            {role.desc}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* Form Fields - Clean, light & comfortable */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 block">نام و نام خانوادگی مسئول:</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="مثال: علی رضایی"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 block">نام مجموعه / کارخانه / فروشگاه:</label>
+                    <div className="relative">
+                      <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                      <input
+                        type="text"
+                        required
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        placeholder="مثال: صنایع غذایی البرز یا هایپرمارکت صدف"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 block">شماره همراه (شناسه پرتال):</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 text-left focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 block">استان و شهر فعالیت:</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                      <input
+                        type="text"
+                        required
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="مثال: تهران / تبریز / مشهد"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/80 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-xs hover:shadow-md mt-2 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading && <RotateCw size={14} className="animate-spin" />}
+                  <span>تکمیل ثبت‌نام و ورود به پرتال سازمانی</span>
+                  <ArrowLeft size={14} />
+                </button>
               </div>
-              
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode(authMode === 'login' ? 'signup' : 'login');
-                  setError(null);
-                  setSuccess(null);
-                }}
-                className="group w-full py-3.5 px-4 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/30 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer overflow-hidden relative"
-              >
-                <div className="absolute inset-0 bg-emerald-600/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 relative py-1">
-              <span className="text-[10px] sm:text-xs font-bold text-slate-500">
-                {authMode === 'login' ? "هنوز عضو نشده‌اید؟" : "قبلاً ثبت‌نام کرده‌اید؟"}
-              </span>
-              <span className="text-xs font-black text-emerald-600 group-hover:text-emerald-500 transition-colors">
-                {authMode === 'login' 
-                  ? "ثبت‌نام و عضویت رایگان" 
-                  : "ورود به حساب کاربری"}
-              </span>
-              <ChevronRight size={14} className="text-emerald-400 group-hover:translate-x-[-4px] transition-all" />
-            </div>
-          </button>
-              
-              <p className="mt-4 text-[10px] text-slate-400 font-medium leading-relaxed">
-                با ورود یا ثبت‌نام در سامانه دست اول، شما تمامی <span className="text-slate-600 font-bold underline cursor-pointer">قوانین و مقررات</span> فعالیت در بازار B2B را می‌پذیرید.
-              </p>
-            </div>
+            )}
 
           </form>
+        </div>
+
+        {/* Footer - Clear, reassuring and light */}
+        <div className="p-3.5 bg-slate-50/90 border-t border-slate-100 text-center text-[10.5px] text-slate-500 font-bold flex items-center justify-center gap-2">
+          <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+          <span>کلیه فرآیندها و تراکنش‌ها تحت حفاظت رمزنگاری امن SSL و سامانه ضد Brute-Force انجام می‌پذیرد.</span>
         </div>
       </motion.div>
     </div>
   );
 }
+

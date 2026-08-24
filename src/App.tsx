@@ -49,6 +49,7 @@ const CPanelInstallerWizard = React.lazy(() => import("./components/CPanelInstal
 const DealershipRequestView = React.lazy(() => import("./components/DealershipRequestView"));
 const B2BProfitSimulator = React.lazy(() => import("./components/B2BProfitSimulator").then(m => ({ default: m.B2BProfitSimulator })));
 const AgentCatalogView = React.lazy(() => import("./components/AgentCatalogView"));
+const ErrorPages = React.lazy(() => import("./components/ErrorPages"));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
 import { getApiUrl, isWarehouseBrand } from "./utils/api-utils";
@@ -320,7 +321,7 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
-  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog'>('presentation');
+  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog' | 'error'>('presentation');
   const [currentSellerId, setCurrentSellerId] = useState<string>("factory_cheetoz");
   const [currentSellerName, setCurrentSellerName] = useState<string>("مزمز و چیتوز");
   const [products, setProducts] = useState<Product[]>([]);
@@ -1552,6 +1553,22 @@ export default function App() {
       // Sync with B2B CRM System
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalAmount);
 
+      // Trigger automatic Invoice SMS with Bucket / tracking link to buyer
+      try {
+        fetch("/api/sms/send-invoice-sms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: buyerPhone,
+            buyerName: buyerName || "خریدار گرامی",
+            orderId: trackingNumber,
+            invoiceUrl: `https://dastavval.com/orders?id=${trackingNumber}`
+          })
+        }).catch(err => console.warn("Auto invoice SMS notification trigger:", err));
+      } catch (e) {
+        console.warn("Could not dispatch invoice SMS:", e);
+      }
+
       // Register regional fulfillment task and notify regional representative
       registerRegionalOrderFromCheckout({
         orderId: trackingNumber,
@@ -1975,6 +1992,8 @@ export default function App() {
                   theme={theme}
                   userBadge={userBadge}
                   userCity={user?.city}
+                  b2bConfig={b2bConfig}
+                  products={products}
                   onOpenDealershipModal={() => {
                     setActiveTab('dealership_request');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2472,6 +2491,8 @@ export default function App() {
                     language={language}
                     userBadge={userBadge}
                     user={user}
+                    userCity={userCity}
+                    userProvince={userProvince}
                     lastOrderTracking={lastOrderTracking}
                     lastOrderAmount={lastOrderAmount}
                     transitRoutes={b2bConfig?.transitRoutes}
@@ -2851,6 +2872,8 @@ export default function App() {
                   <DealershipRequestView 
                     b2bConfig={b2bConfig}
                     user={user}
+                    userCity={userCity}
+                    userProvince={userProvince}
                     onNavigateHome={() => {
                       setActiveTab('presentation');
                       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2860,6 +2883,35 @@ export default function App() {
                     }}
                   />
                 </FadeInContainer>
+              </Suspense>
+            </motion.div>
+          )}
+
+          {activeTab === 'error' && (
+            <motion.div
+              key="error-page"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Suspense fallback={<SectionSkeleton />}>
+                <ErrorPages 
+                  onNavigateHome={() => {
+                    setActiveTab('presentation');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onNavigateTab={(t) => {
+                    setActiveTab(t as any);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onOpenAuthModal={() => setShowAuthModal(true)}
+                  onSearch={(q) => {
+                    setSearchQuery(q);
+                    setActiveTab('order');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
               </Suspense>
             </motion.div>
           )}
@@ -3538,6 +3590,7 @@ export default function App() {
       <AuthModal 
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        b2bConfig={b2bConfig}
         onAuthSuccess={(loggedInUser) => {
           setUser(loggedInUser);
           if (loggedInUser.badge) {
@@ -3641,7 +3694,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToTop}
-            className="fixed bottom-24 left-6 lg:bottom-8 lg:left-8 z-[90] p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/50 flex items-center justify-center group"
+            className="fixed bottom-36 left-4 sm:bottom-24 sm:left-6 lg:bottom-8 lg:left-8 z-[90] p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/50 flex items-center justify-center group"
             title="بازگشت به بالای صفحه"
           >
             <ArrowUp size={22} className="group-hover:-translate-y-1 transition-transform" />

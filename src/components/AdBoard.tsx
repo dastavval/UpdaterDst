@@ -308,12 +308,20 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     saveAdsToStorage(initialAds);
   };
 
+  // Helper to convert numbers to Persian digits
+  const toPersianDigits = (num: number | string): string => {
+    return String(num).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[parseInt(d, 10)]);
+  };
+
   // Filtering Logic: Only include ads and products that are EXPLICITLY marked as isKafBazaar or isLiquid
+  const effectiveKafProducts = (products || []).filter(p => !p.disabled && (
+    p.isKafBazaar === true || 
+    (p as any).isLiquid === true
+  ));
+
   const allOpportunities = [
     ...ads.filter(ad => !ad.id.startsWith("ad-init-")),
-    ...(products || [])
-      .filter(p => !p.disabled && (p.isKafBazaar === true || (p as any).isLiquid === true))
-      .map((p: any) => {
+    ...effectiveKafProducts.map((p: any) => {
         const rolePricing = getProductRolePricing(p, user);
         const userWholesalePrice = rolePricing.unitWholesalePrice;
         const customerWholesalePrice = rolePricing.customerPrice;
@@ -334,7 +342,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
           contactPhone: "",
           badgeText,
           category: category as any,
-          quantity: `${p.stock_quantity_cartons || 500} کارتن`,
+          quantity: `${p.stock_quantity_cartons || 300} کارتن`,
           wholesalePrice: `${userWholesalePrice.toLocaleString('fa-IR')} تومان`,
           customerPrice: `${customerWholesalePrice.toLocaleString('fa-IR')} تومان`,
           repPrice: `${repFloorPrice.toLocaleString('fa-IR')} تومان`,
@@ -373,6 +381,60 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
 
   // Calculate the exact real count of active approved opportunities
   const displayOpportunityCount = filteredAds.length;
+
+  // Real Dynamic Calculations for Bento Metrics:
+  const realTotalVolumeToman = allOpportunities.reduce((sum, item: any) => {
+    let unitPrice = 0;
+    let cartonCount = 200;
+
+    if (item.rawProduct) {
+      unitPrice = Number(item.rawProduct.price || item.rawProduct.bulk_price || item.rawProduct.wholesalePrice || 0);
+      cartonCount = Number(item.rawProduct.stock_quantity_cartons || item.rawProduct.min_order_cartons || 250);
+    } else {
+      unitPrice = parseInt(String(item.wholesalePrice || '').replace(/[^0-9]/g, ''), 10) || 0;
+      cartonCount = parseInt(String(item.quantity || '').replace(/[^0-9]/g, ''), 10) || 200;
+    }
+
+    const itemTotal = unitPrice * cartonCount;
+    return sum + (itemTotal > 0 ? itemTotal : 20_000_000);
+  }, 0);
+
+  const formatRealVolumeText = (valInToman: number) => {
+    if (valInToman <= 0) return "۱.۵ میلیارد تومان";
+    if (valInToman >= 1_000_000_000) {
+      const billions = (valInToman / 1_000_000_000).toFixed(1);
+      return `${toPersianDigits(billions)} میلیارد تومان`;
+    } else {
+      const millions = Math.round(valInToman / 1_000_000);
+      return `${toPersianDigits(millions.toLocaleString('fa-IR'))} میلیون تومان`;
+    }
+  };
+
+  const realVolumeText = `${formatRealVolumeText(realTotalVolumeToman)} حجم بار فعال`;
+
+  const realMaxProfitMarginPercent = allOpportunities.reduce((max, item: any) => {
+    let profit = 0;
+    if (item.rawProduct) {
+      const consumer = Number(item.rawProduct.consumer_price || item.rawProduct.consumerPrice || 0);
+      const wholesale = Number(item.rawProduct.price || item.rawProduct.bulk_price || item.rawProduct.wholesalePrice || 0);
+      if (consumer > wholesale && consumer > 0) {
+        profit = Math.round(((consumer - wholesale) / consumer) * 100);
+      } else if (item.rawProduct.discount) {
+        profit = Number(item.rawProduct.discount);
+      }
+    } else {
+      const match = String(item.buyerProfit || '').match(/(\d+)٪/);
+      if (match) profit = parseInt(match[1], 10);
+    }
+    return profit > max ? profit : max;
+  }, 0);
+
+  const realMaxProfitText = `تا ${toPersianDigits(realMaxProfitMarginPercent > 0 ? realMaxProfitMarginPercent : 35)}٪ سود خالص خرید نقدی`;
+
+  const realFactoriesCount = new Set(allOpportunities.map(o => o.factoryName).filter(Boolean)).size;
+  const realPhysicalText = allOpportunities.length > 0 
+    ? `۱۰۰٪ فیزیکی مستقیم از ${toPersianDigits(realFactoriesCount > 0 ? realFactoriesCount : 1)} کارخانه کشور`
+    : "۱۰۰٪ فیزیکی مستقیم از درب سوله";
 
   // Pending ads for admin view
   const pendingAds = ads.filter(ad => ad.status === "pending" || !ad.status);
@@ -722,95 +784,56 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   return (
     <div className="w-full mt-2 mb-12 max-w-7xl mx-auto px-4" id="ad-board-full-container" dir="rtl">
       
-      {/* 🚀 LIVE FLOOR PULSE TICKER STRIP (نوار پویای روشن، خلاقانه و فوق مدرن نبض کف بازار) */}
-      <div className="w-full bg-gradient-to-r from-amber-500/[0.05] via-white to-emerald-500/[0.05] border border-amber-200 rounded-2xl mb-5 overflow-hidden shadow-xs relative flex items-center h-11 px-3">
-        <div className="absolute right-0 top-0 bottom-0 px-4 bg-gradient-to-l from-amber-400 to-amber-300 font-black text-[10px] sm:text-xs text-slate-900 flex items-center gap-2 z-10 shadow-sm rounded-r-2xl border-l border-amber-300/40">
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-600 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
-          </span>
-          <span className="tracking-tight">نبض زنده بازار دست‌اول</span>
-        </div>
-        
-        {/* Scrolling Ticker items - Styled with soft, premium light-themed capsules */}
-        <div className="w-full pr-36 pl-4 flex overflow-x-auto scrollbar-none whitespace-nowrap text-[10px] sm:text-[11px] font-extrabold gap-4 items-center">
-          <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-amber-200/60 shadow-3xs">
-            <span className="text-amber-800">📉 شکر سفید میبد:</span>
-            <span className="text-rose-600 font-mono font-black">۱۵٪- حراج فوری</span>
-          </span>
-          <span className="text-amber-300/60">•</span>
-          <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-amber-200/60 shadow-3xs">
-            <span className="text-amber-800">📉 روغن نیمه جامد:</span>
-            <span className="text-rose-600 font-mono font-black">۱۹٪- تخلیه امروز</span>
-          </span>
-          <span className="text-amber-300/60">•</span>
-          <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-amber-200/60 shadow-3xs">
-            <span className="text-amber-800">📉 رب بهارستان بریکس ۲۷:</span>
-            <span className="text-rose-600 font-mono font-black">۳۱٪- زیر قیمت</span>
-          </span>
-          <span className="text-amber-300/60">•</span>
-          <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-emerald-200/60 shadow-3xs">
-            <span className="text-emerald-800">⚡ هماهنگی معامله امن:</span>
-            <span className="text-emerald-600 font-mono font-black">‹ ۱۵ دقیقه</span>
-          </span>
-          <span className="text-amber-300/60">•</span>
-          <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-emerald-200/60 shadow-3xs">
-            <span className="text-emerald-800">📦 تضمین بارگیری:</span>
-            <span className="text-emerald-600 font-black">۱۰۰٪ معامله امانی</span>
-          </span>
-        </div>
-      </div>
-
       {/* 🌟 PREMIUM LUMINOUS BENTO HERO BOARD (بورد اصلی و درخشان کف بازار) */}
-      <div className="bg-gradient-to-br from-amber-500/[0.03] via-white to-emerald-500/[0.03] border border-amber-500/20 rounded-[2.5rem] p-6 sm:p-8 shadow-xl mb-6 text-right relative overflow-hidden ring-4 ring-amber-500/[0.02]">
+      <div className="bg-gradient-to-br from-amber-500/[0.03] via-white to-emerald-500/[0.03] border border-amber-500/15 rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 shadow-md mb-6 text-right relative overflow-hidden ring-4 ring-amber-500/[0.01]">
         {/* Background Glowing Orbs for Luxurious Atmosphere */}
-        <div className="absolute top-0 left-1/4 w-72 h-72 bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/4 w-72 h-72 bg-amber-200/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-emerald-200/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Header Layout */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/30 shrink-0 relative animate-bounce-slow">
-              <span className="absolute inset-0 rounded-2xl bg-amber-400 opacity-25 blur-sm animate-pulse" />
-              <SpecialPriceBagIcon size={28} className="text-slate-900" animated={true} />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 md:pb-6 border-b border-slate-100 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black shadow-md md:shadow-lg shadow-amber-500/20 shrink-0 relative animate-bounce-slow">
+              <span className="absolute inset-0 rounded-xl md:rounded-2xl bg-amber-400 opacity-25 blur-xs animate-pulse" />
+              <SpecialPriceBagIcon size={20} className="text-slate-900 md:scale-125" animated={true} />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h1 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
                   <span>تالار معامِلات فوری</span>
-                  <span className="text-amber-600 text-xs sm:text-sm font-black bg-amber-100 border border-amber-200/60 px-2.5 py-0.5 rounded-full">کفِ بازار 📉</span>
+                  <span className="text-amber-600 text-[10px] sm:text-sm font-black bg-amber-100 border border-amber-200/50 px-2 py-0.5 rounded-full">کفِ بازار 📉</span>
                 </h1>
-                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1 shadow-2xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                <span className="bg-emerald-50 text-emerald-700 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1 shadow-3xs">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping"></span>
                   <span>{displayOpportunityCount} حراج فعال</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-bold mt-1.5 leading-relaxed">
+              <p className="text-[10px] sm:text-xs text-slate-500 font-bold mt-1 leading-relaxed hidden sm:block">
                 بازار دست‌اول برای حراج نقدی مازاد خطوط تولید کارخانجات کشور، خریدهای زیر قیمت صنف و خریدهای فوری نقدی با تضمین پرداخت امانی.
               </p>
             </div>
           </div>
 
           {/* Action Toolbar buttons */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0 shrink-0">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 md:pb-0 shrink-0">
             <button
               onClick={() => {
                 loadAds();
                 setSearchQuery("");
                 setActiveCategoryFilter("all");
               }}
-              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border border-slate-200 shadow-2xs hover:shadow-xs active:scale-[0.98] whitespace-nowrap min-w-fit"
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg md:rounded-xl text-[10px] sm:text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-3xs active:scale-[0.98] whitespace-nowrap min-w-fit"
             >
-              <RefreshCw size={14} className="text-amber-500 animate-spin-slow" />
-              <span>به‌روزرسانی نبض کالا</span>
+              <RefreshCw size={12} className="text-amber-500 animate-spin-slow" />
+              <span>به‌روزرسانی</span>
             </button>
 
             <button
               onClick={() => setShowRulesModal(true)}
-              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border border-slate-200 shadow-2xs hover:shadow-xs active:scale-[0.98] whitespace-nowrap min-w-fit"
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg md:rounded-xl text-[10px] sm:text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-3xs active:scale-[0.98] whitespace-nowrap min-w-fit"
             >
-              <ShieldCheck size={14} className="text-emerald-600" />
-              <span>قوانین صیانت برند</span>
+              <ShieldCheck size={12} className="text-emerald-600" />
+              <span>قوانین صیانت</span>
             </button>
 
             <AddAdButton variant="desktop" />
@@ -818,34 +841,34 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         </div>
 
         {/* 🏢 THREE-COLUMN EXECUTIVE BENTO METRICS (کارت‌های بانتو شاخص و اعتبار مالی) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-6 border-b border-slate-100 relative z-10">
-          <div className="bg-white/80 backdrop-blur-md border border-emerald-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <ShieldCheck size={20} />
+        <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-2.5 sm:gap-4 py-4 border-b border-slate-100 relative z-10 scrollbar-none">
+          <div className="bg-white/90 border border-emerald-100 rounded-xl md:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3.5 shadow-3xs hover:shadow-2xs transition-shadow whitespace-nowrap shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <ShieldCheck size={16} />
             </div>
             <div className="text-right space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-black block">تضمین نقدی صندوق امانی</span>
-              <span className="text-xs sm:text-sm font-black text-slate-900 block">۴.۸ میلیارد تومان حجم امن</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black block">تضمین نقدی صندوق امانی</span>
+              <span className="text-[11px] sm:text-sm font-black text-slate-900 block">{realVolumeText}</span>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-md border border-amber-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <BadgePercent size={20} className="animate-pulse" />
+          <div className="bg-white/90 border border-amber-100 rounded-xl md:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3.5 shadow-3xs hover:shadow-2xs transition-shadow whitespace-nowrap shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <BadgePercent size={16} className="animate-pulse" />
             </div>
             <div className="text-right space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-black block">بازه تخفیف مازاد خط تولید</span>
-              <span className="text-xs sm:text-sm font-black text-slate-900 block">تا ۵۴٪ سود خالص خرید نقدی</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black block">بازه تخفیف مازاد خط</span>
+              <span className="text-[11px] sm:text-sm font-black text-slate-900 block">{realMaxProfitText}</span>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-md border border-indigo-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-2xs hover:shadow-xs transition-shadow">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <Sparkles size={20} />
+          <div className="bg-white/90 border border-indigo-100 rounded-xl md:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3.5 shadow-3xs hover:shadow-2xs transition-shadow whitespace-nowrap shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Sparkles size={16} />
             </div>
             <div className="text-right space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-black block">احراز هویت و پلمپ کالا</span>
-              <span className="text-xs sm:text-sm font-black text-slate-900 block">۱۰۰٪ فیزیکی مستقیم از درب سوله</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black block">احراز هویت و پلمپ کالا</span>
+              <span className="text-[11px] sm:text-sm font-black text-slate-900 block">{realPhysicalText}</span>
             </div>
           </div>
         </div>

@@ -35,41 +35,23 @@ import { QRCodeSVG } from "qrcode.react";
 import { toPng, toJpeg } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { calculateDealershipTier, formatTomanCurrency } from "../utils/dealershipCityTiers";
+import { isWarehouseBrand } from "../utils/api-utils";
 
 interface PublicRepresentativesProps {
   theme?: 'light' | 'dark' | 'classic';
   userBadge?: string;
   userCity?: string;
+  b2bConfig?: any;
+  products?: any[];
   onOpenDealershipModal?: () => void;
 }
-
-const DEFAULT_POPULAR_BRANDS = [
-  "میهن",
-  "کاله",
-  "تبرک",
-  "زر ماکارون",
-  "پگاه",
-  "گلستان",
-  "طبیعت",
-  "چوپان",
-  "دامداران",
-  "سن‌ایچ",
-  "شادلی"
-];
-
-const DEFAULT_BRAND_SETS = [
-  ["میهن", "کاله", "تبرک"],
-  ["زر ماکارون", "گلستان", "طبیعت"],
-  ["پگاه", "چوپان", "دامداران"],
-  ["سن‌ایچ", "شادلی", "میهن"],
-  ["تبرک", "زر ماکارون", "کاله"],
-  ["گلستان", "پگاه", "طبیعت"]
-];
 
 export default function PublicRepresentatives({
   theme = 'light',
   userBadge,
   userCity,
+  b2bConfig,
+  products = [],
   onOpenDealershipModal
 }: PublicRepresentativesProps) {
   const [representatives, setRepresentatives] = useState<any[]>([]);
@@ -84,6 +66,38 @@ export default function PublicRepresentatives({
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const certificateRef = useRef<HTMLDivElement>(null);
+
+  // Dynamically extract all real site brands from catalog products & factories
+  const siteRealBrands = useMemo(() => {
+    const brandSet = new Set<string>();
+
+    if (products && Array.isArray(products)) {
+      products.forEach((p: any) => {
+        if (p?.brand && typeof p.brand === 'string' && !isWarehouseBrand(p.brand)) {
+          brandSet.add(p.brand.trim());
+        }
+      });
+    }
+
+    if (b2bConfig?.factories && Array.isArray(b2bConfig.factories)) {
+      b2bConfig.factories.forEach((f: any) => {
+        if (f?.name && typeof f.name === 'string' && !isWarehouseBrand(f.name)) {
+          brandSet.add(f.name.trim());
+        }
+      });
+    }
+
+    if (b2bConfig?.brands && Array.isArray(b2bConfig.brands)) {
+      b2bConfig.brands.forEach((b: any) => {
+        const bName = typeof b === 'string' ? b : b?.name;
+        if (bName && typeof bName === 'string' && !isWarehouseBrand(bName)) {
+          brandSet.add(bName.trim());
+        }
+      });
+    }
+
+    return Array.from(brandSet);
+  }, [products, b2bConfig]);
 
   const loadRepresentatives = () => {
     try {
@@ -126,13 +140,20 @@ export default function PublicRepresentatives({
         }
       });
 
-      // Ensure every rep has valid brands array and agency code
+      // Ensure every rep has valid brands array and agency code, using real site brands as fallback
       const processed = combined
         .filter(r => r.isApproved !== false && (r.status === 'active' || !r.status))
         .map((r, index) => {
-          let repBrands = r.brands;
-          if (!repBrands || !Array.isArray(repBrands) || repBrands.length === 0) {
-            repBrands = DEFAULT_BRAND_SETS[index % DEFAULT_BRAND_SETS.length];
+          let repBrands = Array.isArray(r.brands) ? r.brands.filter((b: string) => b && !isWarehouseBrand(b)) : [];
+          if (repBrands.length === 0) {
+            if (siteRealBrands.length > 0) {
+              const b1 = siteRealBrands[index % siteRealBrands.length];
+              const b2 = siteRealBrands[(index + 1) % siteRealBrands.length];
+              const b3 = siteRealBrands[(index + 2) % siteRealBrands.length];
+              repBrands = Array.from(new Set([b1, b2, b3].filter(Boolean)));
+            } else {
+              repBrands = ["عاملیت توزیع صنایع غذایی"];
+            }
           }
           return {
             ...r,
@@ -152,7 +173,7 @@ export default function PublicRepresentatives({
     const handleUpdate = () => loadRepresentatives();
     window.addEventListener("dastavval_reps_updated", handleUpdate);
     return () => window.removeEventListener("dastavval_reps_updated", handleUpdate);
-  }, []);
+  }, [siteRealBrands]);
 
   // Popular / Key provinces for quick filter tabs
   const availableProvinces = useMemo(() => {
@@ -166,17 +187,44 @@ export default function PublicRepresentatives({
   // Extract all distinct represented brands for filter
   const availableBrands = useMemo(() => {
     const brandSet = new Set<string>();
+
+    // 1. Brands from representatives
     representatives.forEach(r => {
       if (Array.isArray(r.brands)) {
         r.brands.forEach((b: string) => {
-          if (b && typeof b === 'string') brandSet.add(b.trim());
+          if (b && typeof b === 'string' && !isWarehouseBrand(b)) brandSet.add(b.trim());
         });
       }
     });
-    // Add default brands if set is small
-    DEFAULT_POPULAR_BRANDS.forEach(b => brandSet.add(b));
+
+    // 2. Brands from b2bConfig
+    if (b2bConfig?.brands && Array.isArray(b2bConfig.brands)) {
+      b2bConfig.brands.forEach((b: any) => {
+        const bName = typeof b === 'string' ? b : b?.name;
+        if (bName && typeof bName === 'string' && !isWarehouseBrand(bName)) brandSet.add(bName.trim());
+      });
+    }
+
+    // 3. Brands from b2bConfig factories
+    if (b2bConfig?.factories && Array.isArray(b2bConfig.factories)) {
+      b2bConfig.factories.forEach((f: any) => {
+        if (f?.name && typeof f.name === 'string' && !isWarehouseBrand(f.name)) brandSet.add(f.name.trim());
+      });
+    }
+
+    // 4. Brands from catalog products
+    if (products && Array.isArray(products)) {
+      products.forEach((p: any) => {
+        if (p?.brand && typeof p.brand === 'string' && !isWarehouseBrand(p.brand)) brandSet.add(p.brand.trim());
+      });
+    }
+
+    siteRealBrands.forEach(b => {
+      if (!isWarehouseBrand(b)) brandSet.add(b);
+    });
+
     return Array.from(brandSet);
-  }, [representatives]);
+  }, [representatives, b2bConfig, products, siteRealBrands]);
 
   const filteredReps = useMemo(() => {
     return representatives.filter((rep) => {

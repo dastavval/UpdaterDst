@@ -57,6 +57,56 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
+function isWarehouseBrandServer(b: string): boolean {
+  if (!b) return true;
+  const clean = b.trim().toLowerCase();
+  if (clean.length < 2) return true;
+  return clean.includes("انبار") || 
+         clean.includes("سوله") || 
+         clean.includes("باربری") || 
+         clean.includes("پخش") || 
+         clean.includes("توزیع") || 
+         clean.includes("ترانزیت") || 
+         clean.includes("parspack") || 
+         clean.includes("پارس پک") || 
+         clean.includes("قفسه") || 
+         clean.includes("عمومی") || 
+         clean.includes("متفرقه") || 
+         clean.includes("بی برند") || 
+         clean.includes("بدون برند") || 
+         clean.includes("no brand") || 
+         clean.includes("nobrand") || 
+         clean.includes("دفتر") || 
+         clean.includes("نامشخص") || 
+         clean.includes("غیر مشخص") || 
+         clean.includes("تولیدکننده") || 
+         clean.includes("تولید کننده") || 
+         clean.includes("تولیدکنندگان") || 
+         clean.includes("بازرگانی جلفا") || 
+         clean.includes("بازرگانی") || 
+         clean.includes("جلفا") || 
+         clean.includes("تامین‌کننده") || 
+         clean.includes("تامین کننده") || 
+         clean.includes("واردکننده") || 
+         clean.includes("صادرکننده") || 
+         clean.includes("عمده‌فروش") || 
+         clean.includes("بنکداری") || 
+         clean.includes("بنکدار") || 
+         clean.includes("جیبون") || 
+         clean.includes("جیبتون") || 
+         clean.includes("آدرس انبار");
+}
+
+function cleanBrandNameServer(p: any): string {
+  if (p.brand && typeof p.brand === 'string' && !isWarehouseBrandServer(p.brand)) {
+    return p.brand.trim();
+  }
+  if (p.factory_name && typeof p.factory_name === 'string' && !isWarehouseBrandServer(p.factory_name)) {
+    return p.factory_name.trim();
+  }
+  return "";
+}
+
 /**
  * Express middleware for rate limiting sensitive endpoints
  */
@@ -295,7 +345,26 @@ const DEFAULT_B2B_CONFIG = {
   storageRegion: "us-east-1",
   storagePublicUrl: "http://c102393.parspack.net/c102393",
   storageForcePathStyle: true,
-  storageEnabled: true
+  storageEnabled: true,
+  // Melipayamak SMS Gateway & Pattern IDs
+  smsUsername: "",
+  smsPassword: "",
+  smsFromNumber: "5000400075",
+  smsEnabled: true,
+  smsOtpPatternId: "",
+  smsWelcomePatternId: "",
+  smsOrderRegisteredPatternId: "",
+  smsOrderStatusChangedPatternId: "",
+  smsProductApprovedPatternId: "",
+  smsProductRejectedPatternId: "",
+  smsAccountActivatedPatternId: "",
+  smsAccountRejectedPatternId: "",
+  smsRepNotificationPatternId: "",
+  smsInvoiceIssuedPatternId: "",
+  smsAbandonedOrderPatternId: "",
+  smsStockAlertPatternId: "",
+  smsLogisticsPatternId: "",
+  smsFactoryProductionPatternId: ""
 };
 
 let b2bConfig = { ...DEFAULT_B2B_CONFIG };
@@ -1081,7 +1150,7 @@ app.post("/api/admin/sync-catalog", async (req, res) => {
           id: finalId,
           sku: String(p.sku || p.id || finalId),
           name: p.name || "محصول بدون نام",
-          brand: p.brand || p.location || p.factory_name || "تولیدکننده",
+          brand: cleanBrandNameServer(p),
           price: Number(p.price || p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
           bulk_price: Number(p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
           consumer_price: Number(p.consumer_price || p.consumerPrice || 0),
@@ -2731,6 +2800,46 @@ app.get("/api/b2b/products", (req, res) => {
 
 app.post("/api/b2b/products", (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: "Expected an array of products" });
+  
+  // Background trigger: notify product status changes
+  try {
+    const existingProducts = loadProducts();
+    const incomingProducts = req.body;
+    for (const incoming of incomingProducts) {
+      if (!incoming.id) continue;
+      const existing = existingProducts.find(p => p.id === incoming.id);
+      if (existing && existing.approvalStatus !== incoming.approvalStatus) {
+        // Status changed
+        const sellerPhone = incoming.sellerPhone || incoming.phone || "";
+        const sellerName = incoming.sellerName || "تولیدکننده گرامی";
+        let phoneToSend = sellerPhone;
+
+        if (!phoneToSend && incoming.sellerId) {
+          const localUsers = loadUsers();
+          const sellerObj = Object.values(localUsers).find((u: any) => u.id === incoming.sellerId || u.userCode === incoming.sellerId);
+          if (sellerObj && sellerObj.phone) {
+            phoneToSend = sellerObj.phone;
+          }
+        }
+
+        if (phoneToSend) {
+          if (incoming.approvalStatus === "approved") {
+            const text = `جناب ${sellerName}، محصول ثبت شده شما با عنوان «${incoming.name}» با موفقیت توسط مدیریت تأیید و در معرض دید خریداران عمده سراسر کشور قرار گرفت.\nسامانه ملّی دست اول\ndastavval.com\nلغو11`;
+            const patternId = b2bConfig.smsProductApprovedPatternId || null;
+            sendMeliPayamakSms(phoneToSend, text, patternId ? Number(patternId) : undefined, `${sellerName};${incoming.name}`);
+          } else if (incoming.approvalStatus === "rejected") {
+            const reason = incoming.rejectionReason || "عدم تطابق با استانداردهای کیفی اطلاعات";
+            const text = `جناب ${sellerName}، اطلاعات محصول «${incoming.name}» مورد تأیید قرار نگرفت.\nعلت رد: ${reason}\nلطفاً پس از ویرایش، مجدداً ارسال فرمایید.\nسامانه ملّی دست اول\ndastavval.com\nلغو11`;
+            const patternId = b2bConfig.smsProductRejectedPatternId || null;
+            sendMeliPayamakSms(phoneToSend, text, patternId ? Number(patternId) : undefined, `${sellerName};${incoming.name};${reason}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error sending product status SMS:", err);
+  }
+
   productSaveQueue.push(req.body);
   processProductQueue();
   res.json({ success: true, count: req.body.length, status: "queued" });
@@ -2742,6 +2851,72 @@ app.get("/api/b2b/orders", (req, res) => {
 
 app.post("/api/b2b/orders", (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: "Expected an array of orders" });
+  
+  // Background trigger: notify order placement and status changes
+  try {
+    const existingOrders = loadOrders();
+    const incomingOrders = req.body;
+    for (const incoming of incomingOrders) {
+      if (!incoming.id) continue;
+      const existing = existingOrders.find(o => o.id === incoming.id);
+      
+      const buyerPhone = incoming.buyerPhone || incoming.buyerInfo?.phone;
+      const buyerName = incoming.buyerName || incoming.buyerInfo?.name || "خریدار گرامی";
+      
+      if (!existing) {
+        // NEW ORDER PLACEMENT
+        if (buyerPhone) {
+          const text = `جناب ${buyerName}، سفارش جدید شما با کد پیگیری ${incoming.id} در سامانه ملّی دست اول ثبت گردید و جهت تأیید نهایی کالا به واحد بازرگانی کارخانه ارسال شد.\ndastavval.com\nلغو11`;
+          const patternId = b2bConfig.smsOrderRegisteredPatternId || null;
+          sendMeliPayamakSms(buyerPhone, text, patternId ? Number(patternId) : undefined, `${buyerName};${incoming.id}`);
+        }
+        
+        // Also notify Regional Representative if assigned
+        if (incoming.regionalRepresentativeId) {
+          const localUsers = loadUsers();
+          const repObj = Object.values(localUsers).find((u: any) => u.id === incoming.regionalRepresentativeId || u.userCode === incoming.regionalRepresentativeId);
+          if (repObj && repObj.phone) {
+            const repName = repObj.name || "نماینده گرامی";
+            const textRep = `جناب ${repName}، سفارش جدیدی با شماره ${incoming.id} در حوزه نمایندگی شما ثبت شد. سامانه دست اول\ndastavval.com\nلغو11`;
+            const patternId = b2bConfig.smsRepNotificationPatternId || null;
+            sendMeliPayamakSms(repObj.phone, textRep, patternId ? Number(patternId) : undefined, `${repName};${incoming.id}`);
+          }
+        }
+      } else if (existing.status !== incoming.status) {
+        // ORDER STATUS CHANGE
+        if (buyerPhone) {
+          let statusLabel = "";
+          switch(incoming.status) {
+            case "payment_verified": statusLabel = "تأیید پرداخت و واریز مالی"; break;
+            case "production_line": statusLabel = "ارسال به خط تولید کارخانه"; break;
+            case "factory_packaging": statusLabel = "بسته‌بندی نهایی و پلمپ بار"; break;
+            case "quality_assurance": statusLabel = "تأیید نهایی واحد کنترل کیفیت (QC)"; break;
+            case "logistic_shipping": statusLabel = "بارگیری و تحویل به ناوگان ترانزیت"; break;
+            case "delivered": statusLabel = "تحویل نهایی کالا به خریدار"; break;
+            case "cancelled": statusLabel = "لغو سفارش"; break;
+            default: statusLabel = String(incoming.status);
+          }
+
+          // Check if specific specialized pattern applies (e.g. logistics or factory production)
+          if (incoming.status === "logistic_shipping" && b2bConfig.smsLogisticsPatternId) {
+            const waybill = incoming.trackingCode || incoming.waybillNumber || "بارنامه مستقیم کارخانه";
+            const textLogistics = `جناب ${buyerName}، بار سفارش ${incoming.id} با شماره بارنامه ${waybill} بارگیری شد.\ndastavval.com\nلغو11`;
+            sendMeliPayamakSms(buyerPhone, textLogistics, Number(b2bConfig.smsLogisticsPatternId), `${buyerName};${incoming.id};${waybill}`);
+          } else if (incoming.status === "factory_packaging" && b2bConfig.smsFactoryProductionPatternId) {
+            const textProd = `جناب ${buyerName}، سفارش ${incoming.id} از خط تولید کارخانه خارج و بسته‌بندی شد.\ndastavval.com\nلغو11`;
+            sendMeliPayamakSms(buyerPhone, textProd, Number(b2bConfig.smsFactoryProductionPatternId), `${buyerName};${incoming.id}`);
+          } else {
+            const text = `جناب ${buyerName}، وضعیت سفارش ${incoming.id} شما در سامانه ملّی دست اول به «${statusLabel}» تغییر یافت.\ndastavval.com\nلغو11`;
+            const patternId = b2bConfig.smsOrderStatusChangedPatternId || null;
+            sendMeliPayamakSms(buyerPhone, text, patternId ? Number(patternId) : undefined, `${buyerName};${incoming.id};${statusLabel}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error sending order status SMS:", err);
+  }
+
   saveOrders(req.body);
   res.json({ success: true, count: req.body.length });
 });
@@ -2751,6 +2926,33 @@ app.get("/api/b2b/users", (req, res) => {
 });
 
 app.post("/api/b2b/users", (req, res) => {
+  // Background trigger: notify user account status activation or rejection
+  try {
+    const existingUsers = loadUsers();
+    const incomingUsers = req.body;
+    for (const key of Object.keys(incomingUsers)) {
+      const incoming = incomingUsers[key];
+      const existing = existingUsers[key];
+      if (existing && existing.status !== incoming.status) {
+        const userPhone = incoming.phone;
+        const userName = incoming.name || "همکار گرامی";
+        if (userPhone) {
+          if (incoming.status === "active") {
+            const text = `جناب ${userName}، مدارک و حساب شما در سامانه ملّی دست اول تایید و فعال شد.\ndastavval.com\nلغو11`;
+            const patternId = b2bConfig.smsAccountActivatedPatternId || null;
+            sendMeliPayamakSms(userPhone, text, patternId ? Number(patternId) : undefined, `${userName}`);
+          } else if (incoming.status === "rejected") {
+            const text = `جناب ${userName}، مدارک هویتی شما تایید نشد. جهت تکمیل وارد پنل دست اول شوید.\ndastavval.com\nلغو11`;
+            const patternId = b2bConfig.smsAccountRejectedPatternId || null;
+            sendMeliPayamakSms(userPhone, text, patternId ? Number(patternId) : undefined, `${userName}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error sending user status SMS:", err);
+  }
+
   saveUsers(req.body);
   res.json({ success: true });
 });
@@ -2765,6 +2967,343 @@ app.post("/api/b2b/config", (req, res) => {
   } catch (error: any) {
     console.error("Failed to save config:", error);
     res.status(500).json({ error: "خطا در ذخیره تنظیمات: " + error.message });
+  }
+});
+
+// ==========================================
+// 📱 MELIPAYAMAK SMS API INTEGRATION & OTP HANDLERS
+// ==========================================
+
+const SMS_HISTORY_FILE = path.join(DATA_DIR, "sms-history.json");
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+function loadSmsHistory(): any[] {
+  try {
+    if (fs.existsSync(SMS_HISTORY_FILE)) {
+      return JSON.parse(fs.readFileSync(SMS_HISTORY_FILE, "utf-8"));
+    }
+  } catch (e) {
+    console.error("Error loading sms history:", e);
+  }
+  return [];
+}
+
+function saveSmsHistory(history: any[]) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SMS_HISTORY_FILE, JSON.stringify(history, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Error saving sms history:", e);
+  }
+}
+
+async function sendMeliPayamakSms(to: string, text: string, patternId?: number, patternArgs?: string): Promise<{ success: boolean; status: string; message: string; payload?: any }> {
+  const username = b2bConfig.smsUsername || process.env.MELIPAYAMAK_USERNAME || "";
+  const password = b2bConfig.smsPassword || process.env.MELIPAYAMAK_PASSWORD || "";
+  const fromNum = b2bConfig.smsFromNumber || process.env.MELIPAYAMAK_FROM_NUMBER || "5000400075"; 
+  
+  const timestamp = new Date().toISOString();
+  const mode = (username && password) ? "real" : "demo";
+
+  let success = false;
+  let responseText = "";
+  let apiType = patternId ? "BaseServiceNumber (Pattern)" : "SendSMS (Regular)";
+
+  if (mode === "real") {
+    try {
+      if (patternId) {
+        // Send by Pattern (BaseServiceNumber)
+        const response = await fetch("https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username,
+            password,
+            to,
+            bodyId: Number(patternId),
+            text: patternArgs || text
+          })
+        });
+        const resJson: any = await response.json();
+        responseText = JSON.stringify(resJson);
+        
+        if (resJson && resJson.Value && String(resJson.Value).length > 3) {
+          success = true;
+        } else if (resJson && (resJson.RetVal || resJson.status === "ok" || resJson.Success === true || Number(resJson.Value) > 100)) {
+          success = true;
+        }
+      } else {
+        // Send Regular SMS (SendSMS)
+        const response = await fetch("https://rest.payamak-panel.com/api/SendSMS/SendSMS", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username,
+            password,
+            to,
+            from: fromNum,
+            text,
+            isFlash: false
+          })
+        });
+        const resJson: any = await response.json();
+        responseText = JSON.stringify(resJson);
+        if (resJson && (resJson.RetVal || resJson.status === "ok" || resJson.Success === true || Number(resJson.Value) > 100)) {
+          success = true;
+        }
+      }
+    } catch (apiErr: any) {
+      responseText = `API Error: ${apiErr.message}`;
+      success = false;
+    }
+  } else {
+    // Sandbox simulation mode
+    success = true;
+    responseText = "Simulated successfully in Sandbox (Demo Mode). Set Melipayamak Username/Password in B2B Panel to use live delivery.";
+  }
+
+  // Record in SMS Log History
+  const history = loadSmsHistory();
+  const logRecord = {
+    id: "sms_log_" + Math.floor(100000 + Math.random() * 900000),
+    to,
+    text: patternId ? `[الگو ${patternId}] مقادیر: ${patternArgs}` : text,
+    patternId: patternId || null,
+    patternArgs: patternArgs || null,
+    apiType,
+    mode,
+    success,
+    responseText,
+    timestamp
+  };
+  history.unshift(logRecord);
+  saveSmsHistory(history.slice(0, 300)); 
+
+  return {
+    success,
+    status: success ? "success" : "failed",
+    message: success 
+      ? `پیامک با موفقیت ارسال شد (حالت: ${mode === "real" ? "واقعی" : "شبیه‌ساز دمو"})` 
+      : `خطا در ارسال پیامک: ${responseText}`,
+    payload: logRecord
+  };
+}
+
+// REST routes for SMS
+app.get("/api/sms/history", (req, res) => {
+  res.json({ history: loadSmsHistory() });
+});
+
+app.post("/api/sms/history/clear", (req, res) => {
+  saveSmsHistory([]);
+  res.json({ success: true, message: "تاریخچه پیامک‌ها با موفقیت پاک شد." });
+});
+
+app.post("/api/sms/send", async (req, res) => {
+  const { to, text } = req.body;
+  if (!to || !text) {
+    return res.status(400).json({ error: "شماره همراه و متن پیام الزامی است." });
+  }
+  const result = await sendMeliPayamakSms(to, text);
+  res.json(result);
+});
+
+app.post("/api/sms/send-pattern", async (req, res) => {
+  const { to, patternId, patternArgs } = req.body;
+  if (!to || !patternId) {
+    return res.status(400).json({ error: "شماره همراه و کد الگو (bodyId) الزامی است." });
+  }
+  const result = await sendMeliPayamakSms(to, "", Number(patternId), patternArgs);
+  res.json(result);
+});
+
+app.post("/api/sms/send-otp", async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    return res.status(400).json({ error: "شماره همراه الزامی است." });
+  }
+
+  const cleanPhone = phone.trim();
+  const code = Math.floor(10000 + Math.random() * 90000).toString(); // 5 digit random code
+  
+  // Store code in OTP memory for 2 minutes
+  otpStore.set(cleanPhone, {
+    code,
+    expiresAt: Date.now() + 2 * 60 * 1000
+  });
+
+  const text = `کد تایید ورود شما به سامانه ملّی دست اول: ${code}\ndastavval.com\nلغو11`;
+  const otpPatternId = b2bConfig.smsOtpPatternId || null;
+  const result = await sendMeliPayamakSms(cleanPhone, text, otpPatternId ? Number(otpPatternId) : undefined, code);
+  
+  res.json({
+    success: result.success,
+    status: result.status,
+    message: result.success ? "کد تایید ارسال شد." : result.message,
+    // Provide OTP code back in response ONLY if we are in demo mode so user can verify easily
+    code: (b2bConfig.smsUsername && b2bConfig.smsPassword) ? undefined : code
+  });
+});
+
+// Endpoint to send Invoice issued SMS with Parspack storage bucket link or portal link, with graceful fallback
+app.post("/api/sms/send-invoice-sms", async (req, res) => {
+  const { phone, buyerName, orderId, invoiceUrl } = req.body;
+  if (!phone || !orderId) {
+    return res.status(400).json({ error: "شماره همراه و کد سفارش الزامی است." });
+  }
+
+  const cleanPhone = phone.trim();
+  const name = buyerName || "خریدار گرامی";
+  const link = invoiceUrl || `https://dastavval.com/orders?id=${orderId}`;
+
+  const textWithLink = `جناب ${name}، پیش‌فاکتور سفارش ${orderId} در سامانه دست اول صادر شد.\nمشاهده: ${link}\ndastavval.com\nلغو11`;
+  const textFallback = `جناب ${name}، پیش‌فاکتور سفارش ${orderId} در سامانه دست اول صادر شد. جهت مشاهده فاکتور وارد حساب کاربری خود شوید.\ndastavval.com\nلغو11`;
+  const patternId = b2bConfig.smsInvoiceIssuedPatternId || null;
+  
+  // 1. Try sending by registered pattern with link parameter
+  let result = await sendMeliPayamakSms(
+    cleanPhone, 
+    textWithLink, 
+    patternId ? Number(patternId) : undefined, 
+    `${name};${orderId};${link}`
+  );
+
+  // 2. If pattern sending failed (e.g. pattern only has 2 variables or link format rejected by operator), fallback
+  if (!result.success && b2bConfig.smsUsername && b2bConfig.smsPassword) {
+    console.warn("Retrying invoice SMS with 2-variable notification pattern...");
+    result = await sendMeliPayamakSms(
+      cleanPhone,
+      textFallback,
+      patternId ? Number(patternId) : undefined,
+      `${name};${orderId}`
+    );
+    
+    // 3. If still unsuccessful, send direct standard SMS notification
+    if (!result.success) {
+      console.warn("Retrying invoice SMS as direct regular notification...");
+      result = await sendMeliPayamakSms(cleanPhone, textWithLink);
+    }
+  }
+
+  res.json(result);
+});
+
+// Endpoint to send Abandoned Cart / Pending Unpaid Order reminder SMS
+app.post("/api/sms/send-abandoned-order-sms", async (req, res) => {
+  const { phone, buyerName, orderId } = req.body;
+  if (!phone || !orderId) {
+    return res.status(400).json({ error: "شماره همراه و کد سفارش الزامی است." });
+  }
+
+  const cleanPhone = phone.trim();
+  const name = buyerName || "خریدار گرامی";
+  const text = `جناب ${name}، سفارش عمده شما به شماره ${orderId} در انتظار واریز است. جهت رزرو بار کارخانه و عدم لغو سفارش اقدام فرمایید.\ndastavval.com\nلغو11`;
+  const patternId = b2bConfig.smsAbandonedOrderPatternId || null;
+
+  const result = await sendMeliPayamakSms(
+    cleanPhone,
+    text,
+    patternId ? Number(patternId) : undefined,
+    `${name};${orderId}`
+  );
+
+  res.json(result);
+});
+
+// Endpoint to send Product Back in Stock Notification SMS
+app.post("/api/sms/send-stock-alert-sms", async (req, res) => {
+  const { phone, buyerName, productName, newPrice } = req.body;
+  if (!phone || !productName) {
+    return res.status(400).json({ error: "شماره همراه و عنوان کالا الزامی است." });
+  }
+
+  const cleanPhone = phone.trim();
+  const name = buyerName || "همکار گرامی";
+  const price = newPrice || "نرخ کارخانه";
+  const text = `جناب ${name}، کالای درخواستی «${productName}» مجدداً در انبار کارخانه موجود شد. قیمت جدید: ${price}\ndastavval.com\nلغو11`;
+  const patternId = b2bConfig.smsStockAlertPatternId || null;
+
+  const result = await sendMeliPayamakSms(
+    cleanPhone,
+    text,
+    patternId ? Number(patternId) : undefined,
+    `${name};${productName};${price}`
+  );
+
+  res.json(result);
+});
+
+app.post("/api/sms/verify-otp", async (req, res) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) {
+    return res.status(400).json({ error: "شماره همراه و کد تایید الزامی است." });
+  }
+
+  const cleanPhone = phone.trim();
+  const record = otpStore.get(cleanPhone);
+
+  if (!record) {
+    return res.status(400).json({ error: "کد تاییدی صادر نشده یا منقضی شده است." });
+  }
+
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(cleanPhone);
+    return res.status(400).json({ error: "کد تایید منقضی شده است. مجددا تلاش کنید." });
+  }
+
+  if (record.code !== code.trim()) {
+    return res.status(400).json({ error: "کد تایید وارد شده اشتباه است." });
+  }
+
+  // Successful verification
+  otpStore.delete(cleanPhone);
+
+  const localUsers = loadUsers();
+  let matchedUser = Object.values(localUsers).find((u: any) => u.phone === cleanPhone);
+
+  if (matchedUser) {
+    return res.json({
+      success: true,
+      message: "ورود موفقیت‌آمیز بود.",
+      user: matchedUser
+    });
+  } else {
+    // Auto registration as dynamic buyer
+    const uId = "usr_" + Math.floor(100000 + Math.random() * 900000);
+    const uCode = `CST-${Math.floor(1000 + Math.random() * 9000)}`;
+    const emailStr = `${cleanPhone}@dastavval.com`;
+    
+    const newUserObj = {
+      id: uId,
+      name: `خریدار عمده (${cleanPhone.slice(-4)})`,
+      email: emailStr,
+      password: cleanPhone,
+      company: "فروشگاه همکار (ثبت نام آنی)",
+      city: "تهران",
+      phone: cleanPhone,
+      badge: "bronze",
+      role: "customer",
+      userCode: uCode,
+      customerCode: uCode,
+      status: "active",
+      createdAt: new Date().toISOString()
+    };
+
+    localUsers[emailStr] = newUserObj;
+    localUsers[cleanPhone] = newUserObj; // Index by phone
+    saveUsers(localUsers);
+
+    // Dynamic Welcome text
+    const welcomeMsg = `همکار گرامی، ثبت‌نام آنی شما در سامانه ملّی دست اول با موفقیت انجام شد.\nکد کاربری شما: ${uCode}\nبا تشکر از اعتماد شما.`;
+    const patternId = b2bConfig.smsWelcomePatternId || null;
+    sendMeliPayamakSms(cleanPhone, welcomeMsg, patternId ? Number(patternId) : undefined, `${uCode}`);
+
+    return res.json({
+      success: true,
+      message: "ثبت‌نام و ورود با موفقیت انجام شد.",
+      user: newUserObj,
+      isNew: true
+    });
   }
 });
 
@@ -3565,7 +4104,7 @@ async function autoSyncCatalog() {
           id: finalId,
           sku: String(p.sku || p.id || finalId),
           name: p.name || "محصول بدون نام",
-          brand: p.brand || p.location || p.factory_name || "تولیدکننده",
+          brand: cleanBrandNameServer(p),
           price: Number(p.price || p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
           bulk_price: Number(p.bulk_price || p.wholesalePrice || p.marketPrice || 0),
           consumer_price: Number(p.consumer_price || p.consumerPrice || 0),

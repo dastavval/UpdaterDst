@@ -33,6 +33,14 @@ import {
   Plus,
   Globe,
   MapPin,
+  Gift,
+  Radio,
+  MessageCircle,
+  Coins,
+  BrainCircuit,
+  MessageSquare,
+  Send,
+  Share2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -236,9 +244,12 @@ export default function DynamicPresentation({
     return products.filter((p) => {
       if (p.disabled) return false;
       const matchesCategory = isCategoryMatch(p, selectedCategory);
+      const q = searchQuery.toLowerCase();
       const matchesSearch = searchQuery === "" || 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+        p.name.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q) ||
+        (p.tags && Array.isArray(p.tags) && p.tags.some(t => typeof t === 'string' && t.toLowerCase().includes(q))) ||
+        (p.category && p.category.toLowerCase().includes(q));
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, searchQuery]);
@@ -671,12 +682,13 @@ export default function DynamicPresentation({
                     <h3 className={`text-[11px] font-black truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                       {cat.label}
                     </h3>
-                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-block ${
+                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 ${
                       isSelected 
                         ? "bg-white/25 text-white border border-white/20" 
-                        : "bg-slate-100 text-slate-600 border border-slate-200/60"
+                        : "bg-slate-100 text-slate-700 border border-slate-200/60"
                     }`}>
-                      {toPersianNum(itemCount)} کالا
+                      <Package size={10} className="shrink-0" />
+                      <span>{toPersianNum(itemCount)} کالا</span>
                     </div>
                   </div>
                 </motion.button>
@@ -884,56 +896,101 @@ export default function DynamicPresentation({
       {/* --- REFERRAL & REWARD B2B BANNER --- */}
       <section>
         <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: 1.005, y: -1 }}
+          whileTap={{ scale: 0.985 }}
           onClick={() => setIsReferralOpen(true)}
-          className="w-full bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-600 hover:from-amber-600 hover:to-teal-700 text-white rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-sm hover:shadow-md cursor-pointer border border-amber-300/40 relative overflow-hidden transition-all"
+          className="w-full bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-700 hover:from-amber-600 hover:to-teal-800 text-white rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm hover:shadow-md cursor-pointer border border-amber-300/40 relative overflow-hidden transition-all"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-base shrink-0 border border-white/30">
-              🎁
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 border border-white/30 shadow-xs">
+              <Gift size={20} className="animate-pulse" />
             </div>
             <div className="text-right min-w-0">
-              <div className="font-black text-xs sm:text-sm text-white flex items-center gap-1.5 truncate">
-                <span>سیستم دعوت از همکاران و پاداش خرید عمده</span>
-                <span className="bg-amber-300 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-md hidden sm:inline-block">ویژه بنکداران</span>
+              <div className="font-black text-xs sm:text-sm text-white flex items-center gap-2 truncate">
+                <span>سامانه دعوت از همکاران و پاداش نقدی خرید عمده</span>
+                <span className="bg-amber-300 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md hidden sm:inline-block shadow-2xs">
+                  ویژه فعالان صنعت غذا و بهداشت
+                </span>
               </div>
-              <div className="text-[10px] text-amber-100 font-extrabold truncate mt-0.5">
-                ۱,۰۰۰,۰۰۰ تومان اعتبار هدیه به ازای معرفی هر همکار + ۵٪ تخفیف برای او
+              <div className="text-[10.5px] text-amber-100 font-bold truncate mt-0.5 flex items-center gap-1.5">
+                <Coins size={12} className="text-amber-200 shrink-0" />
+                <span>۱,۰۰۰,۰۰۰ تومان اعتبار هدیه به ازای معرفی هر همکار + ۵٪ تخفیف فاکتور اول برای او</span>
               </div>
             </div>
           </div>
           
-          <div className="bg-white/15 hover:bg-white/25 border border-white/30 px-3 py-1.5 rounded-xl text-xs font-black shrink-0 flex items-center gap-1 transition-all">
+          <div className="bg-white/20 hover:bg-white/30 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs font-black shrink-0 flex items-center gap-1.5 transition-all shadow-2xs">
             <span>دریافت کد پاداش</span>
-            <span>←</span>
+            <ArrowLeft size={14} />
           </div>
         </motion.button>
       </section>
 
       {/* --- TOP ACTIVE FACTORIES & PRODUCTION LINES (CREATIVE & FULLY RESPONSIVE) --- */}
       {(() => {
-        const configFactories = b2bConfig?.factories && b2bConfig.factories.length > 0
-          ? b2bConfig.factories.map((f: any, idx: number) => ({
-              id: f.id || `fac-custom-${idx}`,
-              name: f.name || "کارخانه همکار",
-              rating: f.rating || 4.9,
-              reviewsCount: f.reviewsCount || 54,
-              location: f.location || f.address || f.hqAddress || "ایران، خط تولید",
-              logo: f.logo || "🏭",
-              logoUrl: f.logoUrl || f.image_url,
-              category: f.category || "صنایع تولیدی و پخش عمده",
-              tag: f.establishedYear ? `تاسیس ${f.establishedYear}` : "تامین‌کننده تایید شده",
-              description: f.description || f.desc || "",
-              contactPhone: f.contactPhone || f.phone || "",
-              capacity: f.capacity || "ظرفیت تامین نامحدود",
-              mainProducts: f.mainProducts || [],
-            }))
+        let approvedRepsList: any[] = [];
+        try {
+          if (typeof window !== "undefined") {
+            const local = localStorage.getItem("dastavval_representatives");
+            if (local) approvedRepsList = JSON.parse(local);
+          }
+          if ((!approvedRepsList || approvedRepsList.length === 0) && (b2bConfig as any)?.representatives) {
+            approvedRepsList = (b2bConfig as any).representatives;
+          }
+          approvedRepsList = approvedRepsList.filter((r: any) => r && r.isApproved !== false && (r.status === 'active' || !r.status));
+        } catch {
+          approvedRepsList = [];
+        }
+
+        let rawFactoriesList = b2bConfig?.factories && b2bConfig.factories.length > 0
+          ? b2bConfig.factories
           : [];
 
-        const displayFactories = configFactories.length > 0
-          ? configFactories.sort((a, b) => (b.rating || 0) - (a.rating || 0))
-          : [];
+        // If no explicit factories in config, derive factories dynamically from product brands
+        if (rawFactoriesList.length === 0 && products && products.length > 0) {
+          const validBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)))
+            .filter(b => !isWarehouseBrand(b));
+
+          rawFactoriesList = validBrands.map((bName, idx) => {
+            const sample = products.find(p => p.brand === bName);
+            const fullName = bName.startsWith("صنایع") || bName.startsWith("گروه") || bName.startsWith("کارخانه")
+              ? bName
+              : `گروه صنایع غذایی ${bName}`;
+            return {
+              id: `fac-auto-${idx}`,
+              name: fullName,
+              rating: 4.9,
+              reviewsCount: 42 + (idx * 9) % 50,
+              location: sample?.shipping_origin || "ایران، خط تولید و بسته بندی",
+              logo: "🏭",
+              logoUrl: sample?.brandLogoUrl || sample?.image_url,
+              category: sample?.category || "صنایع غذایی و بهداشتی",
+              establishedYear: 1380 + (idx * 3) % 40,
+              description: `تولیدکننده رسمی محصولات ${bName} با تضمین اصالت و تامین مستقیم از درب کارخانه.`,
+              contactPhone: "021-88889999",
+              capacity: "ظرفیت تامین کامل",
+              mainProducts: products.filter(p => p.brand === bName).map(p => p.name).slice(0, 3)
+            };
+          });
+        }
+
+        const configFactories = rawFactoriesList.map((f: any, idx: number) => ({
+          id: f.id || `fac-custom-${idx}`,
+          name: f.name || "کارخانه همکار",
+          rating: f.rating || 4.9,
+          reviewsCount: f.reviewsCount || 54,
+          location: f.location || f.address || f.hqAddress || "ایران، خط تولید",
+          logo: f.logo || "🏭",
+          logoUrl: f.logoUrl || f.image_url,
+          category: f.category || "صنایع تولیدی و پخش عمده",
+          tag: f.establishedYear ? `تاسیس ${f.establishedYear}` : "تامین‌کننده تایید شده",
+          description: f.description || f.desc || "",
+          contactPhone: f.contactPhone || f.phone || "",
+          capacity: f.capacity || "ظرفیت تامین نامحدود",
+          mainProducts: f.mainProducts || [],
+        }));
+
+        const displayFactories = configFactories.sort((a, b) => (b.rating || 0) - (a.rating || 0));
 
         return (
           <section id="homepage-factories-section" className="space-y-5 relative text-right py-3" dir="rtl">
@@ -989,7 +1046,7 @@ export default function DynamicPresentation({
                   }}
                   className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
-                  <span>تالار کارخانجات ({toPersianNum(configFactories.length || 12)})</span>
+                  <span>تالار کارخانجات ({toPersianNum(displayFactories.length)})</span>
                   <ArrowLeft size={13} />
                 </button>
               </div>
@@ -1012,7 +1069,20 @@ export default function DynamicPresentation({
                 {displayFactories.map((factory, idx) => {
                   const badges = ["تامین دست اول", "کیفیت صادراتی", "تضمین قیمت پایه", "ظرفیت بالا", "زنجیره تامین فعال", "تسویه اعتباری"];
                   const badge = badges[idx % badges.length];
-                  const dealershipCount = (idx % 4 + 3) * 3 + 2;
+
+                  // Calculate actual count of approved representatives associated with this factory or its brands
+                  const matchingReps = approvedRepsList.filter((rep: any) => {
+                    const repBrands = Array.isArray(rep.brands) ? rep.brands.filter((b: string) => b && !isWarehouseBrand(b)) : [];
+                    if (repBrands.length === 0) return true; // general distribution representative
+                    const facName = (factory.name || "").toLowerCase();
+                    const facBrand = ((factory as any).brand || "").toLowerCase();
+                    return repBrands.some((b: string) => {
+                      const cleanB = b.toLowerCase().trim();
+                      return facName.includes(cleanB) || cleanB.includes(facName) || (facBrand && (facBrand.includes(cleanB) || cleanB.includes(facBrand)));
+                    });
+                  });
+
+                  const realDealershipCount = (factory as any).repCount ?? (factory as any).dealershipCount ?? matchingReps.length;
 
                   return (
                     <motion.div
@@ -1067,7 +1137,9 @@ export default function DynamicPresentation({
                         <div className="grid grid-cols-2 gap-2 text-[10px] font-bold bg-slate-50/80 p-2.5 rounded-2xl border border-slate-100">
                           <div className="space-y-0.5">
                             <span className="text-slate-400 text-[9px] block">نمایندگان فعال</span>
-                            <span className="font-black text-slate-800">{toPersianNum(dealershipCount)} عاملیت رسمی</span>
+                            <span className="font-black text-slate-800">
+                              {realDealershipCount > 0 ? `${toPersianNum(realDealershipCount)} عاملیت رسمی` : "بدون نماینده ثبت‌شده"}
+                            </span>
                           </div>
                           <div className="space-y-0.5 text-left" dir="ltr">
                             <span className="text-slate-400 text-[9px] block text-right">وضعیت خط</span>
@@ -1132,95 +1204,100 @@ export default function DynamicPresentation({
       })()}
 
       {/* --- OFFICIAL SOCIAL CHANNELS (FRAMED CARD CONTAINER) --- */}
-      <section className="bg-gradient-to-r from-slate-50 via-purple-50/20 to-slate-50 border-2 border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200/70">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
-              📡
+      <section className="bg-gradient-to-r from-slate-50 via-purple-50/20 to-slate-50 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-xs">
+        <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-200/70">
+          <div className="flex items-center gap-2.5">
+            <span className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+              <Radio size={15} className="animate-pulse" />
             </span>
-            <h4 className="text-xs sm:text-sm font-black text-slate-800">
-              شبکه‌های اجتماعی و کانال‌های رسمی دست اول
-            </h4>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-slate-850">
+                شبکه‌های اجتماعی و کانال‌های رسمی دست اول
+              </h4>
+              <p className="text-[10px] text-slate-500 font-bold hidden sm:block">
+                کانال رسمی اطلاع‌رسانی تخفیف‌های پالتی، جشنواره‌ها و اخبار زنجیره تامین
+              </p>
+            </div>
           </div>
-          <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
-            ارتباط زنده و اطلاع‌رسانی آنلاین
+          <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 shadow-2xs">
+            پشتیبانی و ارتباط مستقیم
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
           {/* Rubika */}
           <motion.a
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -2, scale: 1.015 }}
+            whileTap={{ scale: 0.97 }}
             href={rubikaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-purple-50/70 hover:border-purple-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+            className="group relative overflow-hidden bg-white hover:bg-purple-50/60 hover:border-purple-300 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
-                💎
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                <Send size={16} />
               </div>
               <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-purple-700 block truncate">
-                  روبیکا
+                <span className="text-xs sm:text-[13px] font-black text-slate-850 group-hover:text-purple-700 block truncate">
+                  کانال روبیکا
                 </span>
-                <span className="text-[10px] text-purple-600 font-extrabold block truncate">
-                  کانال 📢
+                <span className="text-[10px] text-purple-600 font-black block truncate mt-0.5">
+                  اطلاع‌رسانی بار کارخانه
                 </span>
               </div>
             </div>
-            <span className="text-slate-300 group-hover:text-purple-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+            <ChevronLeft size={16} className="text-slate-300 group-hover:text-purple-600 transition-colors hidden sm:block shrink-0" />
           </motion.a>
 
           {/* WhatsApp */}
           <motion.a
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -2, scale: 1.015 }}
+            whileTap={{ scale: 0.97 }}
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-emerald-50/70 hover:border-emerald-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+            className="group relative overflow-hidden bg-white hover:bg-emerald-50/60 hover:border-emerald-300 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
-                💬
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                <MessageCircle size={16} />
               </div>
               <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-emerald-700 block truncate">
-                  واتساپ
+                <span className="text-xs sm:text-[13px] font-black text-slate-850 group-hover:text-emerald-700 block truncate">
+                  واتساپ پشتیبانی
                 </span>
-                <span className="text-[10px] text-emerald-600 font-extrabold block truncate">
-                  پشتیبانی 🗣️
+                <span className="text-[10px] text-emerald-600 font-black block truncate mt-0.5">
+                  پاسخگویی سریع سفارشات
                 </span>
               </div>
             </div>
-            <span className="text-slate-300 group-hover:text-emerald-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+            <ChevronLeft size={16} className="text-slate-300 group-hover:text-emerald-600 transition-colors hidden sm:block shrink-0" />
           </motion.a>
 
           {/* Instagram */}
           <motion.a
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -2, scale: 1.015 }}
+            whileTap={{ scale: 0.97 }}
             href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-pink-50/70 hover:border-pink-300 border border-slate-200/80 rounded-2xl p-2 sm:p-2.5 flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-md"
+            className="group relative overflow-hidden bg-white hover:bg-pink-50/60 hover:border-pink-300 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-110 transition-transform">
-                📸
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                <Share2 size={16} />
               </div>
               <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 group-hover:text-pink-700 block truncate">
-                  اینستاگرام
+                <span className="text-xs sm:text-[13px] font-black text-slate-850 group-hover:text-pink-700 block truncate">
+                  اینستاگرام رسمی
                 </span>
-                <span className="text-[10px] text-pink-600 font-extrabold block truncate">
-                  آفر 🎁
+                <span className="text-[10px] text-pink-600 font-black block truncate mt-0.5">
+                  آفرهای ویژه و ویدیو خطوط
                 </span>
               </div>
             </div>
-            <span className="text-slate-300 group-hover:text-pink-500 text-xs font-bold transition-colors hidden sm:block shrink-0">←</span>
+            <ChevronLeft size={16} className="text-slate-300 group-hover:text-pink-600 transition-colors hidden sm:block shrink-0" />
           </motion.a>
         </div>
       </section>
@@ -1308,44 +1385,44 @@ export default function DynamicPresentation({
       })()}
 
       {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-b border-slate-100/60 mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-slate-100 text-slate-800 rounded-lg flex items-center justify-center shrink-0">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3.5 border-b border-slate-100/80 mb-2">
+        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/70 border border-slate-200/60">
+          <div className="w-9 h-9 bg-slate-200/80 text-slate-850 rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
             <Factory size={18} />
           </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">تامین مستقیم</h4>
-            <p className="text-[10px] text-slate-400 font-bold">ثبت سفارش خط تولید</p>
+          <div className="min-w-0">
+            <h4 className="text-xs font-black text-slate-850 truncate">تامین مستقیم کارخانه</h4>
+            <p className="text-[10px] text-slate-500 font-bold truncate">ثبت مستقیم در خط تولید</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-emerald-50 text-emerald-800 rounded-lg flex items-center justify-center shrink-0">
+        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-emerald-50/50 border border-emerald-200/60">
+          <div className="w-9 h-9 bg-emerald-600 text-white rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
             <Truck size={18} />
           </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">لجستیک سراسری</h4>
-            <p className="text-[10px] text-slate-400 font-bold">ارسال بیمه‌شده</p>
+          <div className="min-w-0">
+            <h4 className="text-xs font-black text-slate-850 truncate">ترابری هوشمند جاده‌ای</h4>
+            <p className="text-[10px] text-slate-500 font-bold truncate">ارسال بیمه‌شده سراسری</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className={`w-9 h-9 ${activeColors.iconBg} ${activeColors.iconText} rounded-lg flex items-center justify-center shrink-0`}>
+        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-indigo-50/50 border border-indigo-200/60">
+          <div className="w-9 h-9 bg-indigo-600 text-white rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
             <ShieldCheck size={18} />
           </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">فاکتور کارخانه‌ای</h4>
-            <p className="text-[10px] text-slate-400 font-bold">صدور بر اساس ضوابط کارخانه</p>
+          <div className="min-w-0">
+            <h4 className="text-xs font-black text-slate-850 truncate">فاکتور رسمی و معتبر</h4>
+            <p className="text-[10px] text-slate-500 font-bold truncate">با سیب سلامت و استاندارد</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-teal-50 text-teal-800 rounded-lg flex items-center justify-center shrink-0">
-            <Zap size={18} />
+        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-amber-50/50 border border-amber-200/60">
+          <div className="w-9 h-9 bg-amber-500 text-slate-950 rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
+            <Coins size={18} />
           </div>
-          <div>
-            <h4 className="text-xs font-black text-slate-800">سود بنکدار</h4>
-            <p className="text-[10px] text-slate-400 font-bold">قیمت کف کارخانه</p>
+          <div className="min-w-0">
+            <h4 className="text-xs font-black text-slate-850 truncate">تضمین سود بنکداری</h4>
+            <p className="text-[10px] text-slate-500 font-bold truncate">پایین‌ترین نرخ خروجی کارخانه</p>
           </div>
         </div>
       </section>
@@ -1553,21 +1630,29 @@ export default function DynamicPresentation({
       />
 
       {/* --- AI ADVISOR BANNER --- */}
-      <section className="bg-white text-slate-900 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm border border-slate-200">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 font-black shadow-xs">
-            <Sparkles size={18} />
+      <section className="bg-white text-slate-900 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3.5 shadow-sm border border-slate-200/90">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shrink-0 font-black shadow-xs">
+            <BrainCircuit size={20} className="animate-pulse" />
           </div>
           <div className="text-right">
-            <h3 className="text-xs font-black text-slate-900">مشاور هوشمند بنکداری و تحلیل بازار 🤖</h3>
-            <p className="text-[11px] text-slate-500 font-bold mt-0.5">مشاوره مستقیم چیدمان و تحلیل حاشیه سود عمده</p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-black text-slate-900">دستیار هوشمند تحلیل بازار و حاشیه سود</h3>
+              <span className="text-[9px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
+                برخط و داده‌محور
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+              محاسبه آنی کرایه جاده‌ای، سود ناخالص سبد کالا و تخفیفات پلکانی کارخانجات
+            </p>
           </div>
         </div>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-black text-xs transition-all shadow-xs shrink-0 cursor-pointer"
+          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-xs shrink-0 cursor-pointer flex items-center justify-center gap-2"
         >
-          گفتگو با مشاور هوشمند 💬
+          <MessageSquare size={14} />
+          <span>شروع گفتگو و تحلیل سبد کالا</span>
         </button>
       </section>
 
