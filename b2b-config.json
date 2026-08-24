@@ -1,17 +1,17 @@
 {
-  "githubRepoUrl": "https://github.com/dastavval/UpdaterDst",
+  "githubRepoUrl": "https://github.com/dastavval/UpdaterDst.git",
   "githubBranch": "main",
-  "primaryColor": "indigo",
+  "primaryColor": "emerald",
   "appName": "دست اول",
-  "appSub": "مرجع مبادلات مستقیم و تامین کالای عمده",
-  "logoUrl": "/assets/logo.svg",
+  "appSub": "سامانه ملی استعلام و مبادلات مستقیم تولیدات کارخانه",
+  "logoUrl": "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
   "mascotUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
   "categories": [
     {
       "id": "cat-1",
       "name": "تنقلات و شکلات",
       "label": "تنقلات و شکلات",
-      "image": "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=600"
+      "image": "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600"
     },
     {
       "id": "cat-2",
@@ -36,39 +36,33 @@
       "name": "شوینده و بهداشتی",
       "label": "شوینده و بهداشتی",
       "image": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600"
-    },
-    {
-      "id": "cat-6",
-      "name": "مواد اولیه کارخانجات",
-      "label": "مواد اولیه کارخانجات",
-      "image": "https://images.unsplash.com/photo-1615483609341-fa02d4534ac0?auto=format&fit=crop&q=80&w=600"
     }
   ],
   "brands": [
     {
       "id": "b-1",
       "name": "چی‌توز (به‌آرا)",
-      "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiNkYzI2MjYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjZjU5ZTBiIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEwIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjMyIiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7Yp9uM4oCMiniqm9mI2r08L3RleHQ+PHRleHQgeD0iMTAwIiB5PSIxNDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzc4MzUwZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Q0hFVE9aIEJSQU5EPC90ZXh0Pjwvc3ZnPg=="
+      "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23dc2626'/><circle cx='100' cy='100' r='76' fill='%23f59e0b' stroke='%23ffffff' stroke-width='6'/><text x='100' y='110' font-family='Tahoma, sans-serif' font-weight='900' font-size='32' fill='%23ffffff' text-anchor='middle'>چی‌توز</text><text x='100' y='140' font-family='sans-serif' font-weight='bold' font-size='12' fill='%2378350f' text-anchor='middle'>CHETOZ BRAND</text></svg>"
     },
     {
       "id": "b-2",
       "name": "مزمز",
-      "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiMxZDRlZDgiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjM2I4MmY2IiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEyIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjM2IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7Zhdiy2YXYsjwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTQyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNkYmVhZmUi text-anchor="middle">MAZMAZ FOODS</text></svg>"
+      "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%231d4ed8'/><circle cx='100' cy='100' r='76' fill='%233b82f6' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='36' fill='%23ffffff' text-anchor='middle'>مزمز</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23dbeafe' text-anchor='middle'>MAZMAZ FOODS</text></svg>"
     },
     {
       "id": "b-3",
       "name": "شیرین عسل",
-      "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiM4MzE4NDMiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjYmUxODVkIiBzdHJva2U9IiNmZWYwOGEiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTA4IiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI4IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7YtNuM2LHbjNmGINi52LPZhDwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTM4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiNmZWYwOGEiIHN0cm9rZS13aWR0aD0ibWlkZGxlIj5TSElSSU4gFTNBTDwvdex0Pjwvc3ZnPg=="
+      "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23831843'/><circle cx='100' cy='100' r='76' fill='%23be185d' stroke='%23fef08a' stroke-width='6'/><text x='100' y='108' font-family='Tahoma, sans-serif' font-weight='900' font-size='28' fill='%23ffffff' text-anchor='middle'>شیرین عسل</text><text x='100' y='138' font-family='sans-serif' font-weight='bold' font-size='11' fill='%23fef08a' text-anchor='middle'>SHIRIN ASAL</text></svg>"
     },
     {
       "id": "b-4",
       "name": "رانی",
-      "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiNjMjQxMGMiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjZWE1ODBjIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEyIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjM4IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7Ysdin2YbbjDwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTQyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNmZmVkZDUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJBTkkgSlVJQ0U8L3RleHQ+PC9zdmc+"
+      "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23c2410c'/><circle cx='100' cy='100' r='76' fill='%23ea580c' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='38' fill='%23ffffff' text-anchor='middle'>رانی</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23ffedd5' text-anchor='middle'>RANI JUICE</text></svg>"
     },
     {
       "id": "b-5",
       "name": "کاله",
-      "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiMxNTgwM2QiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjMTZhMzRhIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEyIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjM4IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7aq9in2YTZhDwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTQyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNkY2ZjZTciIHRleHQtYW5jaG9yPSJtaWRkbGUiPktBTExFSCBCUkFORDwvdex0Pjwvc3ZnPg=="
+      "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%2315803d'/><circle cx='100' cy='100' r='76' fill='%2316a34a' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='38' fill='%23ffffff' text-anchor='middle'>کاله</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23dcfce7' text-anchor='middle'>KALLEH BRAND</text></svg>"
     }
   ],
   "factories": [
@@ -81,7 +75,7 @@
       "establishedYear": 1372,
       "badge": "gold",
       "isVerified": true,
-      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiNkYzI2MjYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjZjU5ZTBiIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEwIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjMyIiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7Yp9uM4oCMiniqm9mI2r08L3RleHQ+PHRleHQgeD0iMTAwIiB5PSIxNDAiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzc4MzUwZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Q0hFVE9aIEJSQU5EPC90ZXh0Pjwvc3ZnPg==",
+      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMDAgMjAwJz48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyByeD0nNDAnIGZpbGw9JyNkYzI2MjYnLz48Y2lyY2xlIGN4PScxMDAnIGN5PScxMDAnIHI9Jzc2JyBmaWxsPScjZjs5ZTBiJyBzdHJva2U9JyNmZmZmZmYnIHN0cm9rZS13aWR0aD0nNicvPjx0ZXh0IHg9JzEwMCcgeT0nMTEwJyBmb250LWZhbWlseT0nVGFob21hLCBzYW5zLXNlcmlmJyBmb250LXdlaWdodD0nOTAwJyBmb250LXNpemU9JzMyJyBmaWxsPScjZmZmZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz7Yp9uM49iq2YjYsuKAmDwvdGV4dD48dGV4dCB4=100' y='140' font-family='sans-serif' font-weight='bold' font-size='12' fill='%2378350f' text-anchor='middle'>CHETOZ BRAND</text></svg>",
       "coverUrl": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80",
       "category": "تنقلات و شکلات",
       "mainProducts": [
@@ -96,7 +90,7 @@
       "rating": 4.9,
       "reviewsCount": 142,
       "capacityPerMonth": "۸۰۰ تن در ماه",
-      "description": "گروه صنایع غذایی به آرا با نام تجاری چی‌توز، پیشرو در تولید انواع چیپس، اسنک، پفک و فرآورده‌های حجیم شده بر پایه سیب‌زمینی و ذرت با بالاترین استانداردهای جهانی.",
+      "description": "گروه صنایع غذایی به آرا با نام تجاری چی‌توز، پیشرو در تولید انواع چیپس، اسنک، پفک و فرآورده‌های حجیم شده بر پایه سیب‌زمینی و ذرت.",
       "profileDesignMode": "simple"
     },
     {
@@ -108,7 +102,7 @@
       "establishedYear": 1374,
       "badge": "vip",
       "isVerified": true,
-      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiMxZDRlZDgiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjM2I4MmY2IiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEyIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjM2IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7Zhdiy2YXYsjwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTQyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNkYmVhZmUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk1BWk1BWiBGT09EUzwvdex0Pjwvc3ZnPg==",
+      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMDAgMjAwJz48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyByeD0nNDAnIGZpbGw9JyMxZDRlZDgnLz48Y2lyY2xlIGN4PScxMDAnIGN5PScxMDAnIHI9Jzc2JyBmaWxsPScjM2I4MmY2JyBzdHJva2U9JyNmZmZmZmYnIHN0cm9rZS13aWR0aD0nNicvPjx0ZXh0IHg9JzEwMCcgeT0nMTEyJyBmb250LWZhbWlseT0nVGFob21hLCBzYW5zLXNlcmlmJyBmb250LXdlaWdodD0nOTAwJyBmb250LXNpemU9JzM2JyBmaWxsPScjZmZmZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz7ZhdiyZhdiyPC90ZXh0Pjx0ZXh0IHg9JzEwMCcgeT0nMTQyJyBmb250LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC13ZWlnaHQ9J2JvbGQnIGZvbnQtc2l6ZT0nMTInIGZpbGw9JyNkYmVhZmUnIHRleHQtYW5jaG9yPSdtaWRkbGUnPk1BWk1BWiBGT09EUzwvdGV4dD48L3N2Zz4=",
       "coverUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
       "category": "تنقلات و شکلات",
       "mainProducts": [
@@ -123,124 +117,94 @@
       "rating": 4.8,
       "reviewsCount": 118,
       "capacityPerMonth": "۶۵۰ تن در ماه",
-      "description": "مجموعه مزمز اولین تولیدکننده تخمه و آجیل بسته‌بندی بهداشتی و چیپس‌های ترد فرآوری‌شده در ایران با ارسال مستقیم به سراسر کشور.",
-      "profileDesignMode": "simple"
-    },
-    {
-      "id": "fac-3",
-      "factoryCode": "FAC-1003",
-      "name": "صنایع غذایی شیرین عسل",
-      "city": "تبریز",
-      "province": "آذربایجان شرقی",
-      "establishedYear": 1371,
-      "badge": "gold",
-      "isVerified": true,
-      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiM4MzE4NDMiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjYmUxODVkIiBzdHJva2U9IiNmZWYwOGEiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTA4IiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI4IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7YtNuM2LHbjNmGINi52LPZhDwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTM4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiNmZWYwOGEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNISVJJTiBBU0FMPC90ZXh0Pjwvc3ZnPg==",
-      "coverUrl": "https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=1200&q=80",
-      "category": "کیک، کلوچه و بیسکویت",
-      "mainProducts": [
-        "بیسکویت بیسکولات",
-        "کیک هیت شیرین عسل",
-        "شکلات تلخ شیرین عسل"
-      ],
-      "minOrderAmount": "۲۵,۰۰۰,۰۰۰ تومان",
-      "address": "شهرک صنعتی سلیمی، تبریز",
-      "phone": "۰۴۱-۳۴۳۲۰۰۰۰",
-      "managerName": "مهندس ژائله",
-      "rating": 4.95,
-      "reviewsCount": 230,
-      "capacityPerMonth": "۱۲۰۰ تن در ماه",
-      "description": "بزرگترین گروه شیرینی و شکلات کشور با بیش از ۶۰ خط تولید پیشرفته کاملاً اتوماتیک و صادرات به بیش از ۶۰ کشور جهان.",
-      "profileDesignMode": "simple"
-    },
-    {
-      "id": "fac-4",
-      "factoryCode": "FAC-1004",
-      "name": "صنایع غذایی کاله (گروه سولیکو)",
-      "city": "آمل",
-      "province": "مازندران",
-      "establishedYear": 1370,
-      "badge": "vip",
-      "isVerified": true,
-      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iNDAiIGZpbGw9IiMxNTgwM2QiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9Ijc2IiBmaWxsPSIjMTZhMzRhIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNiIvPjx0ZXh0IHg9IjEwMCIgeT0iMTEyIiBmb250LWZhbWlseT0iVGFob21hLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjM4IiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7aq9in2YTZhDwvdex0Pjx0ZXh0IHg9IjEwMCIgeT0iMTQyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNkY2ZjZTciIHRleHQtYW5jaG9yPSJtaWRkbGUiPktBTExFSCBCUkFORDwvdex0Pjwvc3ZnPg==",
-      "coverUrl": "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=1200&q=80",
-      "category": "نوشیدنی‌ها",
-      "mainProducts": [
-        "نوشیدنی شمس",
-        "پنیر آمل",
-        "دوغ کاله"
-      ],
-      "minOrderAmount": "۳۰,۰۰۰,۰۰۰ تومان",
-      "address": "آمل، کیلومتر ۳ جاده بابل",
-      "phone": "۰۱۱-۴۴۲۱۰۰۰۰",
-      "managerName": "مهندس سلیمانی",
-      "rating": 4.9,
-      "reviewsCount": 310,
-      "capacityPerMonth": "۲۰۰۰۰ تن در ماه",
-      "description": "از پیشگامان صنعت لبنیات و نوشیدنی ایران با تکنولوژی نوین بسته‌بندی استریل و توزیع مویرگی کشوری.",
+      "description": "مجموعه مزمز اولین تولیدکننده تخمه و آجیل بسته‌بندی بهداشتی و چیپس‌های ترد فرآوری‌شده در ایران.",
       "profileDesignMode": "simple"
     }
   ],
   "gallery": [
     "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
-    "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1000",
-    "https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&q=80&w=1000"
+    "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1000"
   ],
   "githubToken": "",
-  "lastGithubUpdate": 1786535405400,
+  "lastGithubUpdate": 1787567671488,
   "storageEndpoint": "c102393.parspack.net",
   "storageAccessKey": "xt3cR9wHHoATuXS3",
   "storageSecretKey": "4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b",
   "storageBucket": "c102393",
   "storageRegion": "us-east-1",
-  "storagePublicUrl": "https://c102393.parspack.net/c102393",
+  "storagePublicUrl": "http://c102393.parspack.net/c102393",
   "storageForcePathStyle": true,
   "storageEnabled": true,
+  "smsUsername": "09999123001",
+  "smsPassword": "a46eb23a-43ff-4786-8931-ac9966fd56fc",
+  "smsFromNumber": "50004001123001",
+  "smsEnabled": true,
+  "smsOtpPatternId": "523040",
+  "smsWelcomePatternId": "523043",
+  "smsOrderRegisteredPatternId": "523045",
+  "smsOrderStatusChangedPatternId": "523048",
+  "smsProductApprovedPatternId": "523050",
+  "smsProductRejectedPatternId": "523052",
+  "smsAccountActivatedPatternId": "523053",
+  "smsAccountRejectedPatternId": "523054",
+  "smsRepNotificationPatternId": "523055",
+  "smsInvoiceIssuedPatternId": "",
+  "smsAbandonedOrderPatternId": "",
+  "smsStockAlertPatternId": "",
+  "smsLogisticsPatternId": "",
+  "smsFactoryProductionPatternId": "",
+  "supportPhone": "09999123001",
   "buyerCredit": 250000000,
   "minOrderAmount": 3000000,
   "minOrderCartons": 3,
-  "topAnnouncement": "سامانه ملی دست اول: تمامی سفارشات بنکداری با تضمین اصالت و بارنامه رسمی ارسال می‌گردند.",
-  "showTopAnnouncement": true,
-  "zarinpalMerchantCode": "",
-  "transitRoutes": [],
-  "brandImages": [],
-  "catalogPdfUrl": "",
-  "topAnnouncementPopupTitle": "جزئیات جشنواره تابستانه دست اول",
-  "topAnnouncementPopupContent": "همکار گرامی، با ثبت سفارشات بالای ۵۰ کارتن از هر کالا، هزینه حمل و نقل تا باربری شهر مقصد به عهده کارخانه خواهد بود.",
-  "slides": [
-    {
-      "id": "rsfns9d9l",
-      "title": "عنوان اسلاید جدید",
-      "subtitle": "توضیحات کوتاه اسلاید را اینجا بنویسید",
-      "badge": "ویژه",
-      "imageUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1200",
-      "ctaText": "مشاهده محصولات",
-      "ctaAction": "order",
-      "accentColor": "bg-purple-600"
-    }
-  ],
-  "officialSealUrl": "",
-  "hqAddress": "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد",
-  "supportPhone": "09999123001",
-  "hideHqAddress": false,
-  "hideSupportPhone": false,
-  "termsAndConditions": "هزینه های حمل و نقل به عهده خریدار میباشد ",
   "commissionRate": 5,
-  "userLevels": [],
-  "enamadCode": "",
-  "enamadUrl": "https://trustseal.enamad.ir",
-  "samandehiCode": "",
-  "samandehiUrl": "https://logo.samandehi.ir",
+  "enamadCode": "ENAMAD-99887766",
+  "enamadUrl": "https://trustseal.enamad.ir/?id=321456&Code=xyz",
+  "samandehiCode": "SAMAN-445566",
+  "samandehiUrl": "https://logo.samandehi.ir/verify.aspx?id=123456",
   "tradeUnionCode": "IR-9044502",
-  "exploreItems": [],
-  "enamadImage": "",
-  "samandehiImage": "",
   "tradeUnionUrl": "https://dastavval.com/license",
-  "lastCommitInfo": {
-    "sha": "a4a9e2d",
-    "author": "dastavval",
-    "date": "۱۴۰۵/۵/۲۱",
-    "message": "feat: improve GitHub update reliability and repo defaults"
+  "invoiceSettings": {
+    "sellerTitle": "سامانه مبادلات مستقیم کالای دست اول",
+    "sellerPhone": "021-88889999",
+    "sellerMobile": "09999123001",
+    "hqAddress": "تهران، خیابان ولیعصر، برج تجارت الکترونیک دست اول",
+    "bankAccounts": [
+      {
+        "bankName": "بانک ملی ایران",
+        "ownerName": "سامانه مبادلات دست اول",
+        "cardNumber": "۶۰۳۷-۹۹۱۸-۹۹۸۸-۱۲۳۴",
+        "shabaNumber": "IR420190000000102938475661"
+      },
+      {
+        "bankName": "بانک ملت",
+        "ownerName": "شرکت بازرگانی و تامین کالای دست اول",
+        "cardNumber": "۶۱۰۴-۳۳۷۹-۸۸۱۲-۳۴۵۶",
+        "shabaNumber": "IR190120000000001234567890"
+      },
+      {
+        "bankName": "بانک صادرات ایران",
+        "ownerName": "حساب امانی تسویه وجوه عمده",
+        "cardNumber": "۶۰۳۷-۶۹۱۱-۴۴۵۵-۶۶۷۷",
+        "shabaNumber": "IR920180000000005544332211"
+      }
+    ]
   },
-  "githubAutoDeploy": true
+  "quantityDiscountTiers": [
+    { "threshold": 10, "discountPercent": 3 },
+    { "threshold": 25, "discountPercent": 6 },
+    { "threshold": 50, "discountPercent": 10 }
+  ],
+  "volumeDiscountTiers": [
+    { "threshold": 10000000, "discountPercent": 2 },
+    { "threshold": 50000000, "discountPercent": 5 },
+    { "threshold": 150000000, "discountPercent": 8 },
+    { "threshold": 500000000, "discountPercent": 12 }
+  ],
+  "lastCommitInfo": {
+    "sha": "ee3cebc",
+    "author": "dastavval",
+    "date": "۱۴۰۵/۶/۲",
+    "message": "feat(sms): improve MeliPayamak integration and utility"
+  }
 }

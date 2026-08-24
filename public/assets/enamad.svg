@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="enamadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle/shield -->
+  <rect width="160" height="160" rx="28" fill="#ffffff" />
+  <!-- Enamad Emblem stylized 'e' -->
+  <circle cx="80" cy="72" r="48" fill="none" stroke="url(#enamadGrad)" stroke-width="11" />
+  <!-- Central Swoosh -->
+  <path d="M 44 72 Q 80 34 116 72 Q 80 110 44 72 Z" fill="url(#enamadGrad)" opacity="0.9" />
+  <circle cx="80" cy="72" r="14" fill="#ffffff" />
+  <circle cx="80" cy="72" r="8" fill="url(#enamadGrad)" />
+  <!-- 5 Gold Stars at bottom -->
+  <g fill="url(#goldGrad)" transform="translate(0, 128)">
+    <!-- Star 1 -->
+    <path d="M 36 0 L 38 6 L 44 6 L 39 10 L 41 16 L 36 12 L 31 16 L 33 10 L 28 6 L 34 6 Z" />
+    <!-- Star 2 -->
+    <path d="M 58 0 L 60 6 L 66 6 L 61 10 L 63 16 L 58 12 L 53 16 L 55 10 L 50 6 L 56 6 Z" />
+    <!-- Star 3 (Center) -->
+    <path d="M 80 -3 L 82 4 L 89 4 L 83 8 L 86 15 L 80 10 L 74 15 L 77 8 L 71 4 L 78 4 Z" />
+    <!-- Star 4 -->
+    <path d="M 102 0 L 104 6 L 110 6 L 105 10 L 107 16 L 102 12 L 97 16 L 99 10 L 94 6 L 100 6 Z" />
+    <!-- Star 5 -->
+    <path d="M 124 0 L 126 6 L 132 6 L 127 10 L 129 16 L 124 12 L 119 16 L 121 10 L 116 6 L 122 6 Z" />
+  </g>
+</svg>

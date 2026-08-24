@@ -364,7 +364,55 @@ const DEFAULT_B2B_CONFIG = {
   smsAbandonedOrderPatternId: "",
   smsStockAlertPatternId: "",
   smsLogisticsPatternId: "",
-  smsFactoryProductionPatternId: ""
+  smsFactoryProductionPatternId: "",
+  supportPhone: "09999123001",
+  buyerCredit: 250000000,
+  minOrderAmount: 3000000,
+  minOrderCartons: 3,
+  commissionRate: 5,
+  enamadCode: "ENAMAD-99887766",
+  enamadUrl: "https://trustseal.enamad.ir/?id=321456&Code=xyz",
+  samandehiCode: "SAMAN-445566",
+  samandehiUrl: "https://logo.samandehi.ir/verify.aspx?id=123456",
+  tradeUnionCode: "IR-9044502",
+  tradeUnionUrl: "https://dastavval.com/license",
+  invoiceSettings: {
+    sellerTitle: "سامانه مبادلات مستقیم کالای دست اول",
+    sellerPhone: "021-88889999",
+    sellerMobile: "09999123001",
+    hqAddress: "تهران، خیابان ولیعصر، برج تجارت الکترونیک دست اول",
+    bankAccounts: [
+      {
+        bankName: "بانک ملی ایران",
+        ownerName: "سامانه مبادلات دست اول",
+        cardNumber: "۶۰۳۷-۹۹۱۸-۹۹۸۸-۱۲۳۴",
+        shabaNumber: "IR420190000000102938475661"
+      },
+      {
+        bankName: "بانک ملت",
+        ownerName: "شرکت بازرگانی و تامین کالای دست اول",
+        cardNumber: "۶۱۰۴-۳۳۷۹-۸۸۱۲-۳۴۵۶",
+        shabaNumber: "IR190120000000001234567890"
+      },
+      {
+        bankName: "بانک صادرات ایران",
+        ownerName: "حساب امانی تسویه وجوه عمده",
+        cardNumber: "۶۰۳۷-۶۹۱۱-۴۴۵۵-۶۶۷۷",
+        shabaNumber: "IR920180000000005544332211"
+      }
+    ]
+  },
+  quantityDiscountTiers: [
+    { threshold: 10, discountPercent: 3 },
+    { threshold: 25, discountPercent: 6 },
+    { threshold: 50, discountPercent: 10 }
+  ],
+  volumeDiscountTiers: [
+    { threshold: 10000000, discountPercent: 2 },
+    { threshold: 50000000, discountPercent: 5 },
+    { threshold: 150000000, discountPercent: 8 },
+    { threshold: 500000000, discountPercent: 12 }
+  ]
 };
 
 let b2bConfig = { ...DEFAULT_B2B_CONFIG };
@@ -2961,7 +3009,26 @@ app.get("/api/b2b/config", (req, res) => res.json(b2bConfig));
 
 app.post("/api/b2b/config", (req, res) => {
   try {
-    b2bConfig = { ...b2bConfig, ...req.body };
+    const incoming = req.body || {};
+    b2bConfig = {
+      ...DEFAULT_B2B_CONFIG,
+      ...b2bConfig,
+      ...incoming,
+      invoiceSettings: {
+        ...(DEFAULT_B2B_CONFIG.invoiceSettings || {}),
+        ...(b2bConfig.invoiceSettings || {}),
+        ...(incoming.invoiceSettings || {})
+      },
+      categories: (incoming.categories && incoming.categories.length > 0)
+        ? incoming.categories 
+        : (b2bConfig.categories || DEFAULT_B2B_CONFIG.categories),
+      factories: (incoming.factories && incoming.factories.length > 0)
+        ? incoming.factories 
+        : (b2bConfig.factories || DEFAULT_B2B_CONFIG.factories),
+      brands: (incoming.brands && incoming.brands.length > 0)
+        ? incoming.brands 
+        : (b2bConfig.brands || DEFAULT_B2B_CONFIG.brands)
+    };
     fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
     res.json({ success: true, config: b2bConfig });
   } catch (error: any) {

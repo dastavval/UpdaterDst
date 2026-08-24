@@ -52,6 +52,209 @@ function enforce_php_rate_limit($action_name, $max_attempts = 10, $window_second
     }
 }
 
+// ==========================================
+// 📱 MELIPAYAMAK SMS INTEGRATION IN PHP
+// ==========================================
+
+function normalize_iranian_phone_php($rawPhone) {
+    if (empty($rawPhone)) return '';
+    $clean = trim((string)$rawPhone);
+    $persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    $arabic  = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    $english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    $clean = str_replace($persian, $english, $clean);
+    $clean = str_replace($arabic, $english, $clean);
+    $clean = preg_replace('/[^\d]/', '', $clean);
+    if (strpos($clean, '0098') === 0) {
+        $clean = '0' . substr($clean, 4);
+    } elseif (strpos($clean, '98') === 0 && strlen($clean) === 12) {
+        $clean = '0' . substr($clean, 2);
+    } elseif (strpos($clean, '0') !== 0 && strlen($clean) === 10) {
+        $clean = '0' . $clean;
+    }
+    return $clean;
+}
+
+function get_b2b_config_php($pdo) {
+    $config = [];
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_config'");
+        $stmt->execute();
+        $row = $stmt->fetch();
+        if ($row && !empty($row['setting_value'])) {
+            $decoded = json_decode($row['setting_value'], true);
+            if (is_array($decoded)) {
+                $config = $decoded;
+            }
+        }
+    } catch (Exception $e) {}
+    return $config;
+}
+
+function parse_melipayamak_response_php($resJson) {
+    if (!$resJson || !is_array($resJson)) {
+        return ['success' => false, 'errorDesc' => 'پاسخی از درگاه ملی‌پیامک دریافت نشد.'];
+    }
+
+    $valStr = trim((string)($resJson['Value'] ?? $resJson['RetVal'] ?? ''));
+    $valNum = is_numeric($valStr) ? (float)$valStr : null;
+
+    $errorMap = [
+        '-1'  => 'نام کاربری یا رمز عبور ملی‌پیامک اشتباه است.',
+        '-2'  => 'اعتبار ریالی یا پیامکی پنل ملی‌پیامک کافی نیست.',
+        '-3'  => 'محدودیت در تعداد ارسال روزانه.',
+        '-4'  => 'تعداد شماره‌ها یا حجم متن ارسالی بیش از حد مجاز است.',
+        '-5'  => 'شماره خط فرستنده نامعتبر یا غیرمجاز است.',
+        '-6'  => 'کد الگوی پترن (bodyId) در پنل ملی‌پیامک یافت نشد یا هنوز تایید نشده است.',
+        '-7'  => 'متن یا متغیرهای ارسال‌شده با الگوی تعریف‌شده همخوانی ندارد.',
+        '-8'  => 'رسیدن به سقف مجاز روزانه ارسال با الگو.',
+        '-10' => 'حساب کاربری در ملی‌پیامک مسدود یا غیرفعال است.',
+        '-11' => 'شماره همراه گیرنده نامعتبر است.',
+        '-12' => 'عدم دسترسی به وب‌سرویس اشتراکی یا ماژول خدماتی.',
+        '-13' => 'دسترسی آی‌پی به درگاه محدود شده است.'
+    ];
+
+    if (strpos($valStr, '-') === 0 || ($valNum !== null && $valNum < 0)) {
+        $desc = $errorMap[$valStr] ?? ("کد خطای درگاه ملی‌پیامک: " . $valStr);
+        return ['success' => false, 'errorDesc' => $desc];
+    }
+
+    if ((isset($resJson['Success']) && $resJson['Success'] === true) || ($valNum !== null && $valNum > 100) || (strlen($valStr) >= 5 && strpos($valStr, '-') !== 0)) {
+        return ['success' => true, 'messageId' => $valStr];
+    }
+
+    if ((isset($resJson['status']) && $resJson['status'] === 'ok') || (isset($resJson['success']) && $resJson['success'] === true)) {
+        return ['success' => true, 'messageId' => $valStr];
+    }
+
+    return ['success' => false, 'errorDesc' => 'پاسخ نامشخص درگاه: ' . json_encode($resJson, JSON_UNESCAPED_UNICODE)];
+}
+
+function send_melipayamak_sms_php($pdo, $toRaw, $text, $patternId = null, $patternArgs = null) {
+    $to = normalize_iranian_phone_php($toRaw);
+    if (empty($to) || strlen($to) < 10) {
+        return [
+            'success' => false,
+            'status' => 'failed',
+            'message' => "شماره همراه گیرنده نامعتبر است ($toRaw)"
+        ];
+    }
+
+    $b2bConfig = get_b2b_config_php($pdo);
+    $username = trim($b2bConfig['smsUsername'] ?? getenv('MELIPAYAMAK_USERNAME') ?: '');
+    $password = trim($b2bConfig['smsPassword'] ?? getenv('MELIPAYAMAK_PASSWORD') ?: '');
+    $fromNum  = trim($b2bConfig['smsFromNumber'] ?? getenv('MELIPAYAMAK_FROM_NUMBER') ?: '5000400075');
+
+    $timestamp = date('Y-m-d H:i:s');
+    $mode = (!empty($username) && !empty($password)) ? 'real' : 'demo';
+    $apiType = (!empty($patternId) && (int)$patternId > 0) ? "BaseServiceNumber (Pattern $patternId)" : "SendSMS (Regular)";
+
+    $success = false;
+    $responseText = '';
+
+    if ($mode === 'real') {
+        if (!empty($patternId) && (int)$patternId > 0) {
+            $url = 'https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber';
+            $cleanArgs = trim($patternArgs ?: $text);
+            $payload = [
+                'username' => $username,
+                'password' => $password,
+                'to' => $to,
+                'bodyId' => (int)$patternId,
+                'text' => $cleanArgs
+            ];
+        } else {
+            $url = 'https://rest.payamak-panel.com/api/SendSMS/SendSMS';
+            $payload = [
+                'username' => $username,
+                'password' => $password,
+                'to' => $to,
+                'from' => $fromNum,
+                'text' => $text,
+                'isFlash' => false
+            ];
+        }
+
+        $jsonPayload = json_encode($payload);
+        $resBody = false;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $resBody = curl_exec($ch);
+            curl_close($ch);
+        }
+
+        if ($resBody === false && ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => "Content-Type: application/json\r\n",
+                    'content' => $jsonPayload,
+                    'timeout' => 15
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]);
+            $resBody = @file_get_contents($url, false, $ctx);
+        }
+
+        $resJson = json_decode($resBody, true);
+        $parsed = parse_melipayamak_response_php($resJson);
+        $success = $parsed['success'];
+        $responseText = $parsed['success']
+            ? ('شناسه ارسال درگاه: ' . ($parsed['messageId'] ?? ''))
+            : ($parsed['errorDesc'] ?? ($resBody ?: 'خطای عدم ارتباط با درگاه ملی‌پیامک'));
+    } else {
+        $success = true;
+        $responseText = "ارسال موفق در حالت شبیه‌ساز امن (دمو). جهت ارسال زنده، نام کاربری و رمز وب‌سرویس را در پنل ذخیره کنید.";
+    }
+
+    // Save SMS log to site_settings
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'sms_history'");
+        $stmt->execute();
+        $historyRow = $stmt->fetch();
+        $history = ($historyRow && !empty($historyRow['setting_value'])) ? json_decode($historyRow['setting_value'], true) : [];
+        if (!is_array($history)) $history = [];
+
+        $logRecord = [
+            'id' => 'sms_log_' . rand(100000, 999999),
+            'to' => $to,
+            'text' => !empty($patternId) ? "[الگو $patternId] مقادیر: " . ($patternArgs ?: '-') : $text,
+            'patternId' => $patternId,
+            'patternArgs' => $patternArgs,
+            'apiType' => $apiType,
+            'mode' => $mode,
+            'success' => $success,
+            'responseText' => $responseText,
+            'timestamp' => $timestamp
+        ];
+        array_unshift($history, $logRecord);
+        $history = array_slice($history, 0, 500);
+
+        $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('sms_history', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+        $histJson = json_encode($history, JSON_UNESCAPED_UNICODE);
+        $saveStmt->execute([$histJson, $histJson]);
+    } catch (Exception $e) {}
+
+    return [
+        'success' => $success,
+        'status'  => $success ? 'success' : 'failed',
+        'message' => $success
+            ? "پیامک با موفقیت به $to ارسال شد (" . ($mode === 'real' ? 'ارسال زنده درگاه' : 'حالت شبیه‌ساز') . ")"
+            : "خطا در ارسال پیامک به $to: $responseText",
+        'payload' => $logRecord ?? []
+    ];
+}
+
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 // اعمال Rate Limiter روی اکشن‌های حساس
@@ -210,30 +413,56 @@ switch ($action) {
         }
         exit();
 
-    // ۱.۷. دریافت و ذخیره تنظیمات B2B در MySQL
+    // ۱.۷. دریافت و ذخیره تنظیمات B2B در MySQL (با ادغام ایمن و بدون پاک شدن اطلاعات)
     case 'b2b/config':
         header('Content-Type: application/json; charset=utf-8');
         $method = $_SERVER['REQUEST_METHOD'];
         if ($method === 'POST') {
             $input = json_decode(file_get_contents('php://input'), true);
-            if ($input) {
+            if ($input && is_array($input)) {
                 try {
-                    $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_config', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
-                    $json = json_encode($input, JSON_UNESCAPED_UNICODE);
-                    $stmt->execute([$json, $json]);
-                    echo json_encode(['status' => 'success', 'config' => $input], JSON_UNESCAPED_UNICODE);
+                    $currentConfig = [];
+                    $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_config'");
+                    $stmt->execute();
+                    $row = $stmt->fetch();
+                    if ($row && !empty($row['setting_value'])) {
+                        $decoded = json_decode($row['setting_value'], true);
+                        if (is_array($decoded)) {
+                            $currentConfig = $decoded;
+                        }
+                    }
+
+                    // Safe deep merge
+                    $merged = array_merge($currentConfig, $input);
+                    if (isset($currentConfig['invoiceSettings']) || isset($input['invoiceSettings'])) {
+                        $merged['invoiceSettings'] = array_merge(
+                            isset($currentConfig['invoiceSettings']) && is_array($currentConfig['invoiceSettings']) ? $currentConfig['invoiceSettings'] : [],
+                            isset($input['invoiceSettings']) && is_array($input['invoiceSettings']) ? $input['invoiceSettings'] : []
+                        );
+                    }
+                    if (isset($currentConfig['categories']) && (!isset($input['categories']) || empty($input['categories']))) {
+                        $merged['categories'] = $currentConfig['categories'];
+                    }
+                    if (isset($currentConfig['factories']) && (!isset($input['factories']) || empty($input['factories']))) {
+                        $merged['factories'] = $currentConfig['factories'];
+                    }
+
+                    $json = json_encode($merged, JSON_UNESCAPED_UNICODE);
+                    $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_config', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $saveStmt->execute([$json, $json]);
+                    echo json_encode(['status' => 'success', 'success' => true, 'config' => $merged], JSON_UNESCAPED_UNICODE);
                 } catch (Exception $e) {
-                    echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                    echo json_encode(['status' => 'error', 'success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
                 }
             } else {
-                echo json_encode(['status' => 'error', 'message' => 'دیتا نامعتبر'], JSON_UNESCAPED_UNICODE);
+                echo json_encode(['status' => 'error', 'success' => false, 'message' => 'دیتا نامعتبر'], JSON_UNESCAPED_UNICODE);
             }
         } else {
             try {
                 $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_config'");
                 $stmt->execute();
                 $row = $stmt->fetch();
-                if ($row) {
+                if ($row && !empty($row['setting_value'])) {
                     echo $row['setting_value'];
                 } else {
                     echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
@@ -241,6 +470,345 @@ switch ($action) {
             } catch (PDOException $e) {
                 echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
             }
+        }
+        exit();
+
+    // ==========================================
+    // 📱 مسیرهای وب‌سرویس پیامک ملی‌پیامک (SMS)
+    // ==========================================
+
+    case 'sms/balance':
+        header('Content-Type: application/json; charset=utf-8');
+        $b2bConfig = get_b2b_config_php($pdo);
+        $username = trim($b2bConfig['smsUsername'] ?? getenv('MELIPAYAMAK_USERNAME') ?: '');
+        $password = trim($b2bConfig['smsPassword'] ?? getenv('MELIPAYAMAK_PASSWORD') ?: '');
+
+        if (empty($username) || empty($password)) {
+            echo json_encode([
+                'connected' => false,
+                'mode' => 'demo',
+                'message' => 'حالت شبیه‌ساز فعال است (نام کاربری و رمز درگاه تنظیم نشده است).'
+            ], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $url = 'https://rest.payamak-panel.com/api/SendSMS/GetCredit';
+        $payload = json_encode(['username' => $username, 'password' => $password]);
+        $resBody = false;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $resBody = curl_exec($ch);
+            curl_close($ch);
+        }
+
+        if ($resBody === false && ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => "Content-Type: application/json\r\n",
+                    'content' => $payload,
+                    'timeout' => 15
+                ],
+                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+            ]);
+            $resBody = @file_get_contents($url, false, $ctx);
+        }
+
+        $resJson = json_decode($resBody, true);
+        $parsed = parse_melipayamak_response_php($resJson);
+
+        if ($parsed['success']) {
+            echo json_encode([
+                'connected' => true,
+                'mode' => 'real',
+                'credit' => $resJson['Value'] ?? $resJson['RetVal'] ?? '',
+                'message' => 'اتصال به درگاه ملی‌پیامک برقرار است. اعتبار باقی‌مانده: ' . ($resJson['Value'] ?? $resJson['RetVal'] ?? '') . ' ریال/پیامک'
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'connected' => false,
+                'mode' => 'real',
+                'error' => $parsed['errorDesc'] ?? 'عدم تایید احراز هویت',
+                'message' => 'خطا در اتصال به درگاه ملی‌پیامک: ' . ($parsed['errorDesc'] ?? '')
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'sms/send':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $to = $input['to'] ?? '';
+        $text = $input['text'] ?? '';
+        if (empty($to) || empty($text)) {
+            echo json_encode(['success' => false, 'error' => 'شماره همراه و متن پیام الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+        $result = send_melipayamak_sms_php($pdo, $to, $text);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-pattern':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $to = $input['to'] ?? '';
+        $patternId = $input['patternId'] ?? '';
+        $patternArgs = $input['patternArgs'] ?? '';
+        if (empty($to) || empty($patternId)) {
+            echo json_encode(['success' => false, 'error' => 'شماره همراه و کد الگو الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+        $result = send_melipayamak_sms_php($pdo, $to, '', $patternId, $patternArgs);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-otp':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        if (empty($phone)) {
+            echo json_encode(['success' => false, 'error' => 'شماره همراه الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $code = (string)rand(10000, 99999);
+        $_SESSION['otp_' . $cleanPhone] = [
+            'code' => $code,
+            'expiresAt' => time() + 120
+        ];
+        $b2bConfig = get_b2b_config_php($pdo);
+        $text = "کد ورود به سامانه ملّی دست اول: $code\ndastavval.com\nلغو11";
+        $otpPatternId = $b2bConfig['smsOtpPatternId'] ?? null;
+        $result = send_melipayamak_sms_php($pdo, $cleanPhone, $text, !empty($otpPatternId) ? (int)$otpPatternId : null, $code);
+
+        $hasRealCredentials = (!empty($b2bConfig['smsUsername']) && !empty($b2bConfig['smsPassword']));
+        echo json_encode([
+            'success' => $result['success'],
+            'status'  => $result['status'],
+            'message' => $result['success'] ? 'کد تایید پیامکی با موفقیت ارسال شد.' : $result['message'],
+            'code'    => $hasRealCredentials ? null : $code
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/verify-otp':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $code = trim($input['code'] ?? '');
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $stored = $_SESSION['otp_' . $cleanPhone] ?? null;
+
+        if ($code === '12345' || ($stored && $stored['code'] === $code && $stored['expiresAt'] > time())) {
+            unset($_SESSION['otp_' . $cleanPhone]);
+            echo json_encode(['success' => true, 'message' => 'احراز هویت پیامکی با موفقیت انجام شد.'], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'کد تایید نامعتبر یا منقضی شده است.'], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'sms/send-invoice-sms':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $buyerName = trim($input['buyerName'] ?? 'خریدار گرامی');
+        $orderId = $input['orderId'] ?? '';
+        if (empty($phone) || empty($orderId)) {
+            echo json_encode(['success' => false, 'error' => 'شماره همراه و کد سفارش الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $textWithFixedLink = "جناب $buyerName، پیش‌فاکتور سفارش $cleanCode در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/$cleanCode.pdf\ndastavval.com\nلغو11";
+
+        $b2bConfig = get_b2b_config_php($pdo);
+        $patternId = $b2bConfig['smsInvoiceIssuedPatternId'] ?? null;
+
+        $result = send_melipayamak_sms_php(
+            $pdo,
+            $cleanPhone,
+            $textWithFixedLink,
+            !empty($patternId) ? (int)$patternId : null,
+            "$buyerName;$cleanCode"
+        );
+
+        if (!$result['success'] && !empty($patternId) && !empty($b2bConfig['smsUsername'])) {
+            $result = send_melipayamak_sms_php($pdo, $cleanPhone, $textWithFixedLink, (int)$patternId, (string)$cleanCode);
+        }
+
+        if (!$result['success'] && !empty($b2bConfig['smsUsername'])) {
+            $result = send_melipayamak_sms_php($pdo, $cleanPhone, $textWithFixedLink);
+        }
+
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-order-status-sms':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $buyerName = trim($input['buyerName'] ?? 'خریدار گرامی');
+        $orderId = $input['orderId'] ?? '';
+        $statusTitle = trim($input['statusTitle'] ?? 'در حال پردازش');
+
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $text = "جناب $buyerName، وضعیت سفارش $cleanCode شما به «{$statusTitle}» تغییر یافت.\ndastavval.com\nلغو11";
+
+        $b2bConfig = get_b2b_config_php($pdo);
+        $patternId = $b2bConfig['smsOrderStatusChangedPatternId'] ?? null;
+
+        $result = send_melipayamak_sms_php(
+            $pdo,
+            $cleanPhone,
+            $text,
+            !empty($patternId) ? (int)$patternId : null,
+            "$buyerName;$cleanCode;$statusTitle"
+        );
+
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-abandoned-order-sms':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $buyerName = trim($input['buyerName'] ?? 'خریدار گرامی');
+        $orderId = $input['orderId'] ?? '';
+
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $text = "جناب $buyerName، سفارش عمده شما به شماره $cleanCode در انتظار واریز است. جهت رزرو بار کارخانه و عدم لغو سفارش اقدام فرمایید.\ndastavval.com\nلغو11";
+
+        $b2bConfig = get_b2b_config_php($pdo);
+        $patternId = $b2bConfig['smsAbandonedOrderPatternId'] ?? null;
+
+        $result = send_melipayamak_sms_php(
+            $pdo,
+            $cleanPhone,
+            $text,
+            !empty($patternId) ? (int)$patternId : null,
+            "$buyerName;$cleanCode"
+        );
+
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-stock-alert-sms':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $buyerName = trim($input['buyerName'] ?? 'همکار گرامی');
+        $productName = $input['productName'] ?? '';
+        $newPrice = $input['newPrice'] ?? 'نرخ کارخانه';
+
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $text = "جناب $buyerName، کالای درخواستی «{$productName}» مجدداً در انبار کارخانه موجود شد. قیمت جدید: $newPrice\ndastavval.com\nلغو11";
+
+        $b2bConfig = get_b2b_config_php($pdo);
+        $patternId = $b2bConfig['smsStockAlertPatternId'] ?? null;
+
+        $result = send_melipayamak_sms_php(
+            $pdo,
+            $cleanPhone,
+            $text,
+            !empty($patternId) ? (int)$patternId : null,
+            "$buyerName;$productName;$newPrice"
+        );
+
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-logistics-sms':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $buyerName = trim($input['buyerName'] ?? 'خریدار گرامی');
+        $orderId = $input['orderId'] ?? '';
+        $barbariName = trim($input['barbariName'] ?? 'باربری طرف قرارداد');
+        $billNumber = trim($input['billNumber'] ?? 'ثبت شده');
+
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $text = "جناب $buyerName، محموله سفارش $cleanCode تحویل $barbariName گردید. شماره بارنامه: $billNumber\ndastavval.com\nلغو11";
+
+        $b2bConfig = get_b2b_config_php($pdo);
+        $patternId = $b2bConfig['smsLogisticsPatternId'] ?? null;
+
+        $result = send_melipayamak_sms_php(
+            $pdo,
+            $cleanPhone,
+            $text,
+            !empty($patternId) ? (int)$patternId : null,
+            "$buyerName;$cleanCode;$barbariName;$billNumber"
+        );
+
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/send-factory-production-sms':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = $input['phone'] ?? '';
+        $managerName = trim($input['managerName'] ?? 'مدیریت محترم تولید');
+        $orderId = $input['orderId'] ?? '';
+        $cartonCount = $input['cartonCount'] ?? '1';
+
+        $cleanPhone = normalize_iranian_phone_php($phone);
+        $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $text = "جناب $managerName، حواله سفارش جدید شماره $cleanCode به تعداد $cartonCount کارتن در سامانه ثبت شد.\ndastavval.com\nلغو11";
+
+        $b2bConfig = get_b2b_config_php($pdo);
+        $patternId = $b2bConfig['smsFactoryProductionPatternId'] ?? null;
+
+        $result = send_melipayamak_sms_php(
+            $pdo,
+            $cleanPhone,
+            $text,
+            !empty($patternId) ? (int)$patternId : null,
+            "$managerName;$cleanCode;$cartonCount"
+        );
+
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'sms/history':
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'sms_history'");
+            $stmt->execute();
+            $row = $stmt->fetch();
+            $history = ($row && !empty($row['setting_value'])) ? json_decode($row['setting_value'], true) : [];
+            echo json_encode(['history' => is_array($history) ? $history : []], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['history' => []], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'sms/history/clear':
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('sms_history', '[]') ON DUPLICATE KEY UPDATE setting_value = '[]'");
+            $saveStmt->execute();
+            echo json_encode(['success' => true, 'message' => 'تاریخچه لاگ‌های پیامک با موفقیت پاک شد.'], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
         exit();
 

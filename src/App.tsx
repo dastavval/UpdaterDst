@@ -846,25 +846,32 @@ export default function App() {
       if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
         if (data && typeof data === 'object') {
-          // Merge logic
-          const prev = JSON.parse(localStorage.getItem("dastavval_b2b_config") || "{}");
-          const factories = (data.factories && data.factories.length > 0) ? data.factories : (prev.factories?.length > 0 ? prev.factories : INITIAL_FACTORIES);
-          const categories = (data.categories && data.categories.length > 0) ? data.categories : (prev.categories?.length > 0 ? prev.categories : INITIAL_CATEGORIES);
-          const logoUrl = data.logoUrl || prev.logoUrl || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
-          
-          const merged = { 
-            ...prev, 
-            ...data,
-            factories,
-            categories,
-            logoUrl
-          };
-          
-          setB2bConfig(merged);
-          try {
-            localStorage.setItem("dastavval_b2b_config", JSON.stringify(merged));
-            await cacheB2bConfig(merged);
-          } catch (e) {}
+          setB2bConfig((prev: any) => {
+            const factories = (data.factories && data.factories.length > 0) ? data.factories : (prev.factories?.length > 0 ? prev.factories : INITIAL_FACTORIES);
+            const categories = (data.categories && data.categories.length > 0) ? data.categories : (prev.categories?.length > 0 ? prev.categories : INITIAL_CATEGORIES);
+            const logoUrl = data.logoUrl || prev.logoUrl || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
+            
+            const merged = { 
+              ...prev, 
+              ...data,
+              factories,
+              categories,
+              logoUrl,
+              invoiceSettings: {
+                ...(prev.invoiceSettings || {}),
+                ...(data.invoiceSettings || {}),
+                bankAccounts: (data.invoiceSettings?.bankAccounts && data.invoiceSettings.bankAccounts.length > 0)
+                  ? data.invoiceSettings.bankAccounts
+                  : (prev.invoiceSettings?.bankAccounts || [])
+              }
+            };
+            
+            try {
+              localStorage.setItem("dastavval_b2b_config", JSON.stringify(merged));
+              cacheB2bConfig(merged).catch(() => {});
+            } catch (e) {}
+            return merged;
+          });
         }
       }
     } catch (e) {
@@ -873,25 +880,53 @@ export default function App() {
   };
 
   const handleUpdateB2bConfig = async (updatedConfig: any) => {
-    setB2bConfig(updatedConfig);
-    try {
-      localStorage.setItem("dastavval_b2b_config", JSON.stringify(updatedConfig));
-      cacheB2bConfig(updatedConfig).catch(() => {});
-    } catch (e) {}
+    let fullMergedConfig: any = null;
+    setB2bConfig((prev: any) => {
+      fullMergedConfig = {
+        ...prev,
+        ...updatedConfig,
+        invoiceSettings: {
+          ...(prev.invoiceSettings || {}),
+          ...(updatedConfig.invoiceSettings || {}),
+          bankAccounts: (updatedConfig.invoiceSettings?.bankAccounts && updatedConfig.invoiceSettings.bankAccounts.length > 0)
+            ? updatedConfig.invoiceSettings.bankAccounts
+            : (prev.invoiceSettings?.bankAccounts || [])
+        }
+      };
+      try {
+        localStorage.setItem("dastavval_b2b_config", JSON.stringify(fullMergedConfig));
+        cacheB2bConfig(fullMergedConfig).catch(() => {});
+      } catch (e) {}
+      return fullMergedConfig;
+    });
 
     try {
+      const configToSend = fullMergedConfig || updatedConfig;
       const res = await fetch(getApiUrl("/api/b2b/config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedConfig)
+        body: JSON.stringify(configToSend)
       });
       if (res.ok) {
         const data = await res.json();
         if (data && data.config) {
-          setB2bConfig(data.config);
-          try {
-            localStorage.setItem("dastavval_b2b_config", JSON.stringify(data.config));
-          } catch (e) {}
+          setB2bConfig((prev: any) => {
+            const nextMerged = {
+              ...prev,
+              ...data.config,
+              invoiceSettings: {
+                ...(prev.invoiceSettings || {}),
+                ...(data.config.invoiceSettings || {}),
+                bankAccounts: (data.config.invoiceSettings?.bankAccounts && data.config.invoiceSettings.bankAccounts.length > 0)
+                  ? data.config.invoiceSettings.bankAccounts
+                  : (prev.invoiceSettings?.bankAccounts || [])
+              }
+            };
+            try {
+              localStorage.setItem("dastavval_b2b_config", JSON.stringify(nextMerged));
+            } catch (e) {}
+            return nextMerged;
+          });
         }
       }
     } catch (e) {
