@@ -3362,6 +3362,11 @@ app.post("/api/sms/send-otp", async (req, res) => {
 // مشاهده: dastavval.com/factors/{1}.pdf
 // dastavval.com
 // لغو11
+// Endpoint to send Invoice issued SMS with Fixed Static Factor Link
+// Compliance with Iran Telecom & MeliPayamak rules: No variable URLs permitted in pattern parameters!
+// Pattern Format:
+// 1-Var Pattern: پیش‌فاکتور سفارش {0} در سامانه دست اول صادر شد:\ndastavval.com/factors/{0}.pdf
+// 2-Var Pattern: جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/{1}.pdf
 app.post("/api/sms/send-invoice-sms", async (req, res) => {
   const { phone, buyerName, orderId } = req.body;
   if (!phone || !orderId) {
@@ -3370,27 +3375,24 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
 
   const cleanPhone = normalizeIranianPhone(phone);
   const name = (buyerName || "خریدار گرامی").trim();
-  // Extract clean order code e.g. 3360 and convert Farsi/Arabic digits to English
-  const cleanCode = String(orderId)
+  
+  // Extract strictly numeric digits from orderId e.g. "خریدار عمده (3001)" -> "3001"
+  let cleanCode = String(orderId)
     .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
     .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
-    .replace(/^[^\d]*/, "") || String(orderId);
+    .replace(/\D/g, "");
+  if (!cleanCode) {
+    cleanCode = String(orderId).trim().replace(/\s+/g, "").replace(/[^\w-]/g, "") || "1001";
+  }
 
   const textWithFixedLink = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/${cleanCode}.pdf\ndastavval.com\nلغو11`;
-  const textFallback = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد. جهت مشاهده وارد حساب کاربری خود شوید.\ndastavval.com\nلغو11`;
   const patternId = b2bConfig.smsInvoiceIssuedPatternId || null;
   
-  // 1. Try sending by registered 2-variable pattern: `${name};${cleanCode}` (Notice: only variables name and code, NO URL in arguments)
-  let result = await sendMeliPayamakSms(
-    cleanPhone, 
-    textWithFixedLink, 
-    patternId ? Number(patternId) : undefined, 
-    `${name};${cleanCode}`
-  );
+  let result: any = { success: false, message: "" };
 
-  // 2. If pattern sending failed (e.g. pattern has only 1 variable {0}=code), retry with 1 variable
-  if (!result.success && patternId && b2bConfig.smsUsername && b2bConfig.smsPassword) {
-    console.warn("Retrying invoice SMS with 1-variable pattern ({0}=code)...");
+  // 1. Try sending by 1-variable pattern ({0}=cleanCode e.g. 3001) first!
+  // This matches 1-variable MeliPayamak patterns and populates {0} with ONLY the numeric order code 3001.
+  if (patternId && Number(patternId) > 0) {
     result = await sendMeliPayamakSms(
       cleanPhone,
       textWithFixedLink,
@@ -3399,7 +3401,18 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
     );
   }
 
-  // 3. If pattern sending still failed and we have live credentials, send as regular SMS
+  // 2. If 1-variable pattern attempt failed (e.g., pattern on MeliPayamak requires 2 variables {0}=name;{1}=code), retry with `${name};${cleanCode}`
+  if (!result.success && patternId && Number(patternId) > 0 && b2bConfig.smsUsername && b2bConfig.smsPassword) {
+    console.warn("Retrying invoice SMS with 2-variable pattern ({0}=name; {1}=cleanCode)...");
+    result = await sendMeliPayamakSms(
+      cleanPhone, 
+      textWithFixedLink, 
+      Number(patternId), 
+      `${name};${cleanCode}`
+    );
+  }
+
+  // 3. If pattern sending still failed and we have live credentials, send as direct regular SMS
   if (!result.success && b2bConfig.smsUsername && b2bConfig.smsPassword) {
     console.warn("Retrying invoice SMS as direct regular notification...");
     result = await sendMeliPayamakSms(cleanPhone, textWithFixedLink);
@@ -3528,21 +3541,38 @@ app.post("/api/sms/send-factory-production-sms", async (req, res) => {
 // Dedicated Public View & Printable PDF Route for Invoices (/factors/:id, /factors/:id.pdf, or /invoice/:id)
 app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
   const rawParam = req.params.id || "";
-  let factorId = rawParam.replace(/\.pdf$/i, "").trim();
-  // Convert Persian/Arabic digits to English digits for matching
-  factorId = factorId
+  let decoded = rawParam;
+  try {
+    decoded = decodeURIComponent(rawParam);
+  } catch (e) {
+    decoded = rawParam;
+  }
+  let factorId = decoded.replace(/\.pdf$/i, "").trim();
+  
+  // Extract strictly numeric code (e.g., "خریدار عمده (3001)" -> "3001")
+  let cleanNumericCode = factorId
     .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
-    .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)]);
+    .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
+    .replace(/\D/g, "");
 
   const orders = loadOrders();
-  const matchedOrder = orders.find((o: any) => 
-    String(o.id) === factorId || 
-    String(o.trackingNumber) === factorId || 
-    String(o.orderId) === factorId ||
-    String(o.id).includes(factorId)
-  ) || {
-    id: factorId,
-    trackingNumber: factorId,
+  const matchedOrder = orders.find((o: any) => {
+    const oIdStr = String(o.id || "");
+    const oTrackStr = String(o.trackingNumber || "");
+    const oOrderStr = String(o.orderId || "");
+    return (
+      oIdStr === factorId ||
+      oTrackStr === factorId ||
+      oOrderStr === factorId ||
+      (cleanNumericCode && (
+        oIdStr.includes(cleanNumericCode) ||
+        oTrackStr.includes(cleanNumericCode) ||
+        oOrderStr.includes(cleanNumericCode)
+      ))
+    );
+  }) || {
+    id: cleanNumericCode || factorId,
+    trackingNumber: cleanNumericCode ? `DO-${cleanNumericCode}` : factorId,
     buyerName: "مشتری سازمانی سامانه دست اول",
     buyerCompany: "پخش عمده و زنجیره تامین",
     buyerPhone: "09*********",

@@ -380,6 +380,7 @@ export default function App() {
   const [lastOrderTracking, setLastOrderTracking] = useState("");
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
+  const [directUrlInvoiceOrder, setDirectUrlInvoiceOrder] = useState<any | null>(null);
 
   // Real Zarinpal online payment gateway orchestration engine
   const [zarinpalOpen, setZarinpalOpen] = useState(false);
@@ -585,9 +586,37 @@ export default function App() {
     return () => window.removeEventListener("open-dealership-request", handleOpenDealership);
   }, []);
 
-  // Read URL query parameter for direct factory or article links
+  // Read URL query parameter for direct factory or article links or factor URLs
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.includes('/invoice/') || path.includes('/factors/')) {
+        let decoded = path;
+        try { decoded = decodeURIComponent(path); } catch (e) {}
+        const match = decoded.match(/(?:factors|invoice)\/([^/]+)/i);
+        if (match && match[1]) {
+          const rawId = match[1].replace(/\.pdf$/i, '').trim();
+          const cleanNumeric = rawId.replace(/\D/g, '') || rawId;
+          if (cleanNumeric) {
+            setDirectUrlInvoiceOrder({
+              id: cleanNumeric,
+              trackingNumber: `DO-${cleanNumeric}`,
+              buyerName: "خریدار گرامی",
+              buyerCompany: "پخش عمده و زنجیره تامین",
+              buyerPhone: "09*********",
+              createdAt: new Date().toISOString(),
+              totalAmount: 185000000,
+              items: [
+                { name: "روغن مایع خوراکی آفتابگردان ۱.۵ لیتری (کارتن ۶ عددی)", quantity: 50, price: 420000, brand: "کارخانه کشت و صنعت" },
+                { name: "تن ماهی ۱۸۰ گرمی قوطی آسان بازشو (کارتن ۲۴ عددی)", quantity: 30, price: 2900000, brand: "صنایع غذایی شیلات" }
+              ],
+              paymentStatus: "paid",
+              status: "confirmed"
+            });
+          }
+        }
+      }
+
       const params = new URLSearchParams(window.location.search);
       const isCatalogView = params.get('catalog-view') === 'true' || params.get('view') === 'catalog-view' || window.location.pathname.includes('/catalog-view') || params.get('agent') !== null;
       if (isCatalogView) {
@@ -3091,6 +3120,25 @@ export default function App() {
               order={lastCreatedOrder}
               b2bConfig={b2bConfig}
               onClose={() => setLastCreatedOrder(null)}
+              isBuyer={true}
+            />
+          </FadeInContainer>
+        </Suspense>
+      )}
+
+      {/* Direct URL Invoice Modal (/factors/:id or /invoice/:id) */}
+      {directUrlInvoiceOrder && (
+        <Suspense fallback={<ModalSkeleton />}>
+          <FadeInContainer>
+            <WholesaleInvoiceView
+              order={directUrlInvoiceOrder}
+              b2bConfig={b2bConfig}
+              onClose={() => {
+                setDirectUrlInvoiceOrder(null);
+                try {
+                  window.history.replaceState({}, document.title, window.location.origin);
+                } catch (e) {}
+              }}
               isBuyer={true}
             />
           </FadeInContainer>
