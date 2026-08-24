@@ -135,6 +135,8 @@ export default function AdminSystemConfig({
   const [loadingSmsLogs, setLoadingSmsLogs] = useState(false);
   const [smsFilterQuery, setSmsFilterQuery] = useState("");
   const [copiedPatternKey, setCopiedPatternKey] = useState<string | null>(null);
+  const [smsBalance, setSmsBalance] = useState<string | null>(null);
+  const [checkingBalance, setCheckingBalance] = useState(false);
 
   const handleCopyPatternText = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -749,6 +751,31 @@ export default function AdminSystemConfig({
       console.error("Error fetching SMS logs:", e);
     } finally {
       setLoadingSmsLogs(false);
+    }
+  };
+
+  const handleCheckSmsBalance = async () => {
+    setCheckingBalance(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    addLog("بررسی وضعیت اتصال و استعلام اعتبار درگاه ملی‌پیامک...");
+    try {
+      const res = await fetch("/api/sms/balance");
+      const data = await res.json();
+      if (data.connected) {
+        setSmsBalance(data.credit ? `${Number(data.credit).toLocaleString("fa-IR")} ریال/پیامک` : "متصل");
+        setSuccessMsg(data.message);
+        addLog(`نتیجه استعلام ملی‌پیامک: ${data.message}`);
+      } else {
+        setSmsBalance(null);
+        setErrorMsg(data.message || "خطا در اتصال به درگاه ملی‌پیامک");
+        addLog(`خطای اتصال به ملی‌پیامک: ${data.message}`);
+      }
+    } catch (err: any) {
+      setErrorMsg("خطا در بررسی وضعیت درگاه: " + err.message);
+      addLog(`خطا در بررسی وب‌سرویس: ${err.message}`);
+    } finally {
+      setCheckingBalance(false);
     }
   };
 
@@ -4711,7 +4738,22 @@ export default function AdminSystemConfig({
                     تنظیمات وب‌سرویس و احراز هویت درگاه ملی‌پیامک
                   </h4>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCheckSmsBalance}
+                    disabled={checkingBalance}
+                    className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black rounded-xl flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Activity size={14} className={checkingBalance ? "animate-spin" : ""} />
+                    <span>{checkingBalance ? "در حال استعلام..." : "استعلام اعتبار و تست اتصال"}</span>
+                  </button>
+                  {smsBalance && (
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold rounded-xl flex items-center gap-1">
+                      <CheckCircle2 size={13} />
+                      <span>موجودی: {smsBalance}</span>
+                    </span>
+                  )}
                   <label className="text-xs font-bold text-slate-600 cursor-pointer flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -4860,20 +4902,20 @@ export default function AdminSystemConfig({
                   </div>
                 </div>
 
-                {/* 2. Invoice Issued with Bucket Link */}
-                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                {/* 2. Invoice Issued with Static URL Structure */}
+                <div className="p-4 bg-white border border-blue-200 ring-2 ring-blue-500/10 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-blue-600">
                         <FileText size={16} />
-                        <span className="text-xs font-black">۲. صدور پیش‌فاکتور + لینک باکت</span>
+                        <span className="text-xs font-black">۲. صدور پیش‌فاکتور (لینک ثابت فاکتور)</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleCopyPatternText('invoiceWithLink', "جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: {2}\ndastavval.com\nلغو11")}
+                          onClick={() => handleCopyPatternText('invoiceWithLink', "جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/{1}.pdf\ndastavval.com\nلغو11")}
                           className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                          title="نسخه همراه با لینک فاکتور"
+                          title="الگوی ۲ متغیره استاندارد با لینک فاکتور ثابت"
                         >
                           {copiedPatternKey === 'invoiceWithLink' ? (
                             <>
@@ -4883,7 +4925,25 @@ export default function AdminSystemConfig({
                           ) : (
                             <>
                               <Copy size={11} />
-                              <span>با لینک باکت</span>
+                              <span>الگوی ۲ متغیره</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPatternText('invoiceOneVar', "پیش‌فاکتور سفارش {0} در سامانه دست اول صادر شد:\ndastavval.com/factors/{0}.pdf\ndastavval.com\nلغو11")}
+                          className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          title="الگوی ۱ متغیره (فقط شماره فاکتور)"
+                        >
+                          {copiedPatternKey === 'invoiceOneVar' ? (
+                            <>
+                              <Check size={11} className="text-emerald-600" />
+                              <span className="text-emerald-700">کپی شد</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} />
+                              <span>الگوی ۱ متغیره</span>
                             </>
                           )}
                         </button>
@@ -4891,7 +4951,7 @@ export default function AdminSystemConfig({
                           type="button"
                           onClick={() => handleCopyPatternText('invoiceFallback', "جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد. جهت مشاهده وارد حساب کاربری شوید.\ndastavval.com\nلغو11")}
                           className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                          title="نسخه بدون لینک (در صورت عدم پذیرش لینک متغیر توسط اپراتور)"
+                          title="نسخه بدون لینک فاکتور"
                         >
                           {copiedPatternKey === 'invoiceFallback' ? (
                             <>
@@ -4910,18 +4970,24 @@ export default function AdminSystemConfig({
 
                     <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
                       جناب <span className="text-blue-600 font-bold">{"{0}"}</span>، پیش‌فاکتور سفارش <span className="text-blue-600 font-bold">{"{1}"}</span> در سامانه دست اول صادر شد.<br />
-                      مشاهده: <span className="text-blue-600 font-bold">{"{2}"}</span><br />
+                      مشاهده: dastavval.com/factors/<span className="text-blue-600 font-bold">{"{1}"}</span>.pdf<br />
                       dastavval.com<br />
                       لغو11
                     </div>
 
-                    <p className="text-[10px] text-slate-400 font-bold">
-                      متغیرها: <code className="text-blue-600 font-bold">{"{0}"}</code> = نام خریدار | <code className="text-blue-600 font-bold">{"{1}"}</code> = شماره سفارش | <code className="text-blue-600 font-bold">{"{2}"}</code> = لینک امن باکت فاکتور
-                    </p>
+                    <div className="p-2 bg-blue-50/70 border border-blue-100 rounded-xl text-[10px] text-blue-900 font-bold space-y-1">
+                      <p className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        <span><b>متغیرها:</b> <code className="text-blue-700 font-black">{"{0}"}</code> = نام خریدار | <code className="text-blue-700 font-black">{"{1}"}</code> = شماره فاکتور (مانند 3360)</span>
+                      </p>
+                      <p className="text-slate-500 font-medium leading-relaxed">
+                        💡 طبق قوانین مخابرات و ملی‌پیامک، ارسال URL در متغیرها ممنوع است. ساختار لینک فاکتور (<code className="font-mono text-indigo-700">dastavval.com/factors/...pdf</code>) به صورت ثابت در متن الگو تعریف شده و فقط شماره سفارش به عنوان متغیر ارسال می‌گردد.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-1 pt-2 border-t border-slate-100">
-                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده در ملی‌پیامک (bodyId):</label>
                     <input
                       type="text"
                       value={smsInvoiceIssuedPatternId}
@@ -5632,11 +5698,11 @@ export default function AdminSystemConfig({
                       type="button"
                       onClick={() => {
                         setTestPatternId(smsInvoiceIssuedPatternId || "");
-                        setTestPatternArgs("محمدحسین احمدی;10452;https://storage.dastavval.com/invoices/inv-10452.pdf");
+                        setTestPatternArgs("محمدحسین احمدی;3360");
                       }}
                       className="px-2 py-1 bg-white hover:bg-blue-50 border border-slate-200 text-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-all"
                     >
-                      📄 تست صدور فاکتور (با لینک باکت)
+                      📄 تست صدور فاکتور (با لینک ثابت)
                     </button>
                     <button
                       type="button"

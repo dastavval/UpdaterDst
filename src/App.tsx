@@ -1553,7 +1553,7 @@ export default function App() {
       // Sync with B2B CRM System
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalAmount);
 
-      // Trigger automatic Invoice SMS with Bucket / tracking link to buyer
+      // Trigger automatic Invoice SMS with static factor path to buyer
       try {
         fetch("/api/sms/send-invoice-sms", {
           method: "POST",
@@ -1561,8 +1561,7 @@ export default function App() {
           body: JSON.stringify({
             phone: buyerPhone,
             buyerName: buyerName || "خریدار گرامی",
-            orderId: trackingNumber,
-            invoiceUrl: `https://dastavval.com/orders?id=${trackingNumber}`
+            orderId: trackingNumber
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger:", err));
       } catch (e) {
