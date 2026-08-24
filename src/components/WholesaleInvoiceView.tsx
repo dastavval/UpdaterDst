@@ -10,6 +10,8 @@ import {
 import { generateInvoiceUrl } from "../lib/invoice-url-helper";
 import { toJpeg, toPng } from "html-to-image";
 import jsPDF from "jspdf";
+//@ts-ignore
+import html2pdf from "html2pdf.js";
 import { OfficialUnifiedSealSignature } from "./OfficialDigitalStamp";
 
 interface WholesaleInvoiceViewProps {
@@ -338,6 +340,25 @@ export default function WholesaleInvoiceView({
     setDownloadSuccessMessage(null);
 
     try {
+      if (invoiceRef.current) {
+        const element = invoiceRef.current;
+        const opt: any = {
+          margin:       5,
+          filename:     `Pishfaktor-${invoiceSerial}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, letterRendering: true, logging: false },
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        await html2pdf().from(element).set(opt).save();
+        setDownloadSuccessMessage("فایل PDF پیش‌فاکتور با بالاترین کیفیت دانلود شد.");
+        setTimeout(() => setDownloadSuccessMessage(null), 4000);
+        return;
+      }
+    } catch (err) {
+      console.warn("html2pdf download attempt failed, trying fallback:", err);
+    }
+
+    try {
       const imgData = await captureInvoiceDataUrl('png', 3.5);
       if (!imgData) throw new Error("Canvas rendering failed");
 
@@ -376,8 +397,6 @@ export default function WholesaleInvoiceView({
           position = margin; // Reset position for new page
         }
         
-        // Add only the segment of the image that fits on this page
-        // Use sX, sY, sW, sH if possible, but jsPDF.addImage with position works by overlapping
         pdf.addImage(imgData, "PNG", margin, position - (availableHeight * (page - 1)), imgWidth, totalImgHeight, undefined, 'FAST');
         
         heightLeft -= availableHeight;

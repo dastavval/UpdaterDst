@@ -277,10 +277,15 @@ function saveProducts(products: any[]) {
 function loadOrders(): any[] {
   try {
     if (fs.existsSync(ORDERS_FILE)) {
-      return JSON.parse(fs.readFileSync(ORDERS_FILE, "utf-8"));
+      const parsed = JSON.parse(fs.readFileSync(ORDERS_FILE, "utf-8"));
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
     console.error("Error loading orders.json:", e);
+  }
+  const configAny = b2bConfig as any;
+  if (configAny && Array.isArray(configAny.orders) && configAny.orders.length > 0) {
+    return configAny.orders;
   }
   return [];
 }
@@ -3650,6 +3655,9 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
   const tax = Math.round(total * 0.10); // 10% VAT
   const grandTotal = total + tax;
 
+  const isPdfRequest = req.originalUrl.includes('.pdf');
+  const autoPrintScript = isPdfRequest ? `<script>window.addEventListener('DOMContentLoaded', () => { setTimeout(() => window.print(), 800); });</script>` : '';
+
   const html = `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -3666,6 +3674,7 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
       .print-container { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
     }
   </style>
+  ${autoPrintScript}
 </head>
 <body class="p-4 sm:p-8 text-slate-800">
   <!-- Action Bar -->
