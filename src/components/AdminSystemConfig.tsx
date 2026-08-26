@@ -551,6 +551,9 @@ export default function AdminSystemConfig({
   const [showTopSocialBar, setShowTopSocialBar] = useState(
     b2bConfig.showTopSocialBar ?? false
   );
+  const [showMarketTicker, setShowMarketTicker] = useState(
+    b2bConfig.showMarketTicker !== false
+  );
 
   // --- PARSPACK S3 OBJECT STORAGE STATES ---
   const [storageEndpoint, setStorageEndpoint] = useState(
@@ -921,7 +924,8 @@ export default function AdminSystemConfig({
         socialChannelsTitle,
         socialChannelsSubtitle,
         pwaPromptDelaySeconds,
-        showTopSocialBar
+        showTopSocialBar,
+        showMarketTicker
       } as any);
       addLog("تنظیمات کانال‌های اجتماعی با موفقیت ذخیره شد.");
       setSuccessMsg("لینک کانال‌ها و وضعیت نمایش نوار هدر با موفقیت ذخیره شد.");
@@ -2693,6 +2697,32 @@ export default function AdminSystemConfig({
             </label>
           </div>
 
+          {/* Wholesale Market Ticker Bar Toggle Banner */}
+          <div className="bg-amber-50/60 text-slate-900 p-5 rounded-2xl border border-amber-200/80 flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black border border-amber-300">
+                  نوار زنده نبض بازار عمده
+                </span>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${showMarketTicker ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-slate-200 text-slate-600"}`}>
+                  {showMarketTicker ? "فعال (نمایش بالای هدر)" : "غیرفعال"}
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-slate-900">نمایش نوار متحرک قیمت‌های زنده و تخفیف‌های محصولات بالای هدر (Ticker Bar)</h4>
+              <p className="text-[11px] text-slate-600 font-bold">نمایش قیمت کارتنی، درصد تخفیف واقعی کالاهای موجود در کاتالوگ و استعلام کرایه حمل باربری به صورت متحرک در بالاترین نقطه سایت.</p>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                checked={showMarketTicker}
+                onChange={(e) => setShowMarketTicker(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-14 h-8 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-amber-500"></div>
+            </label>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Rubika URL */}
             <div className="space-y-2 bg-purple-50/50 p-4 rounded-2xl border border-purple-200/80">
@@ -4181,17 +4211,19 @@ export default function AdminSystemConfig({
         </div>
       )}
 
-      {/* --- TAB: SEO & DYNAMIC SITEMAP MANAGER --- */}
+      {/* --- TAB: SEO & TOROB INTEGRATION MANAGER --- */}
       {activeTab === "seo" && (
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
+          
+          {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
                 <Globe size={24} />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">مدیریت سئو (SEO) و تولید خودکار فایل پویا sitemap.xml</h3>
-                <p className="text-[11px] text-slate-400 font-bold">معرفی خودکار روزانه تمامی محصولات جدید، کارخانجات و دسته‌بندی‌ها به خزنده‌های گوگل و موتورهای جستجو</p>
+                <h3 className="text-sm font-black text-slate-800">مدیریت سئو (SEO)، ایندکس گوگل و اتصال به ترب (Torob)</h3>
+                <p className="text-[11px] text-slate-400 font-bold">معرفی خودکار روزانه محصولات، کارخانجات و دسته‌بندی‌ها به خزنده‌های گوگل و موتور مقایسه قیمت ترب</p>
               </div>
             </div>
 
@@ -4203,11 +4235,21 @@ export default function AdminSystemConfig({
                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-2 transition-all"
               >
                 <ExternalLink size={14} />
-                <span>مشاهده زنده sitemap.xml</span>
+                <span>مشاهده sitemap.xml</span>
+              </a>
+              <a
+                href="/api/torob/products"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-black flex items-center gap-2 transition-all"
+              >
+                <ExternalLink size={14} />
+                <span>مشاهده API ترب</span>
               </a>
             </div>
           </div>
 
+          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
@@ -4231,6 +4273,169 @@ export default function AdminSystemConfig({
             </div>
           </div>
 
+          {/* --- TOROB INTEGRATION SECTION --- */}
+          <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-black text-lg border border-red-500/30">
+                  ت
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-white flex items-center gap-2">
+                    تنظیمات و آدرس‌های اختصاصی فید ترب (Torob Integration Feed)
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    این آدرس‌ها را به عنوان لینک وب‌سرویس یا فید محصولات در پنل فروشندگان ترب (panel.torob.com) وارد نمایید.
+                  </p>
+                </div>
+              </div>
+
+              <span className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[11px] font-black flex items-center gap-1.5 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                اتصال آماده و استاندارد ترب
+              </span>
+            </div>
+
+            {/* Endpoints List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              
+              <div className="p-4 bg-slate-800/80 border border-slate-700/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-slate-200">۱. آدرس API محصولات (فرمت JSON):</span>
+                  <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-mono">JSON Feed</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-slate-300 font-mono dir-ltr overflow-x-auto text-[11px]">
+                  <span className="truncate flex-1">https://dastavval.com/api/torob/products</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://dastavval.com/api/torob/products");
+                      setSuccessMsg("آدرس API ترب با موفقیت کپی شد.");
+                    }}
+                    className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="کپی آدرس"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-800/80 border border-slate-700/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-slate-200">۲. فید RSS / XML ترب:</span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono">XML Feed</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-slate-300 font-mono dir-ltr overflow-x-auto text-[11px]">
+                  <span className="truncate flex-1">https://dastavval.com/api/torob/feed.xml</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://dastavval.com/api/torob/feed.xml");
+                      setSuccessMsg("آدرس فید XML ترب با موفقیت کپی شد.");
+                    }}
+                    className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="کپی آدرس"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-800/80 border border-slate-700/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-slate-200">۳. وب‌سرویس استعلام قیمت لحظه‌ای:</span>
+                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">Instant Check API</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-slate-300 font-mono dir-ltr overflow-x-auto text-[11px]">
+                  <span className="truncate flex-1">https://dastavval.com/api/torob/product-check?id=PRD-1001</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://dastavval.com/api/torob/product-check");
+                      setSuccessMsg("آدرس استعلام آنی ترب کپی شد.");
+                    }}
+                    className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="کپی آدرس"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-800/80 border border-slate-700/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-slate-200">۴. نقشه سایت برای ربات‌های ترب و گوگل:</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono">Sitemap.xml</span>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-slate-300 font-mono dir-ltr overflow-x-auto text-[11px]">
+                  <span className="truncate flex-1">https://dastavval.com/sitemap.xml</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("https://dastavval.com/sitemap.xml");
+                      setSuccessMsg("آدرس نقشه سایت کپی شد.");
+                    }}
+                    className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="کپی آدرس"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Torob Live Test Section */}
+            <div className="p-4 bg-slate-800/40 border border-slate-700/50 rounded-2xl space-y-3">
+              <h5 className="text-xs font-black text-slate-300 flex items-center gap-2">
+                <Zap size={15} className="text-amber-400" />
+                تست زنده پاسخ‌دهی خزنده‌های ترب (Torob Crawler Test Tool):
+              </h5>
+              <p className="text-[11px] text-slate-400">
+                جهت اطمینان از عملکرد صحیح خزنده‌های ترب، یک شناسه محصول (مانند PRD-1001) وارد کرده و پاسخ زنده سرور را مشاهده کنید:
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="شناسه محصول (مثلا PRD-1001)"
+                  defaultValue="PRD-1001"
+                  id="torobTestInput"
+                  className="w-full sm:w-64 px-4 py-2 bg-slate-950 border border-slate-700 text-white text-xs rounded-xl focus:outline-none focus:border-red-500 font-mono dir-ltr"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const inputEl = document.getElementById("torobTestInput") as HTMLInputElement;
+                    const testId = inputEl?.value?.trim() || "PRD-1001";
+                    try {
+                      setLoading(true);
+                      const res = await fetch(`/api/torob/product-check?id=${testId}`);
+                      const data = await res.json();
+                      if (data.exists) {
+                        setSuccessMsg(`تست موفق! محصول "${data.title}" با قیمت ${toPersianNum(data.price?.toLocaleString('fa-IR'))} تومان و وضعیت ${data.availability} در ترب آماده خواندن است.`);
+                      } else {
+                        setErrorMsg("محصول مورد نظر یافت نشد یا غیرفعال است.");
+                      }
+                    } catch (e: any) {
+                      setErrorMsg("خطا در ارسال درخواست به API ترب: " + e.message);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 shrink-0"
+                >
+                  <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                  <span>تست خزنده‌های ترب</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Regenerate Sitemap Box */}
           <div className="p-6 bg-amber-50 text-slate-900 rounded-3xl space-y-4 border border-amber-200">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
@@ -4239,7 +4444,7 @@ export default function AdminSystemConfig({
                   تولید و ثبت خودکار فایل فیزیکی sitemap.xml
                 </h4>
                 <p className="text-xs text-slate-600 font-bold mt-1">
-                  این دکمه آخرین لیست محصولات، کارخانجات و دسته‌بندی‌ها را استخراج کرده و فایل فیزیکی /sitemap.xml را بازنویسی می‌کند.
+                  این دکمه آخرین لیست محصولات، کارخانجات و دسته‌بندی‌ها را استخراج کرده و فایل‌های sitemap.xml در ریشه و پوشه‌های سرور را بروزرسانی می‌کند.
                 </p>
               </div>
               <button
@@ -5005,10 +5210,10 @@ export default function AdminSystemConfig({
                     <div className="p-2 bg-blue-50/70 border border-blue-100 rounded-xl text-[10px] text-blue-900 font-bold space-y-1">
                       <p className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                        <span><b>متغیرها:</b> <code className="text-blue-700 font-black">{"{0}"}</code> = نام خریدار | <code className="text-blue-700 font-black">{"{1}"}</code> = شماره فاکتور (مانند 3360)</span>
+                        <span><b>متغیرها:</b> <code className="text-blue-700 font-black">{"{0}"}</code> = کد انگلیسی/عددی فاکتور (مانند 3360) | در الگوی ۲متغیره: <code className="text-blue-700 font-black">{"{0}"}</code> = نام خریدار و <code className="text-blue-700 font-black">{"{1}"}</code> = کد عددی</span>
                       </p>
                       <p className="text-slate-500 font-medium leading-relaxed">
-                        💡 طبق قوانین مخابرات و ملی‌پیامک، ارسال URL در متغیرها ممنوع است. ساختار لینک فاکتور (<code className="font-mono text-indigo-700">https://dastavval.com/factors/...</code>) به صورت ثابت در متن الگو تعریف شده و فقط شماره سفارش به عنوان متغیر ارسال می‌گردد.
+                        💡 جهت جلوگیری از خراب شدن لینک در گوشی خریداران، متغیر لینک فاکتور (<code className="font-mono text-indigo-700">dastavval.com/factors/...</code>) همیشه فقط حاوی شماره عددی انگلیسی فاکتور (بدون حروف فارسی) خواهد بود.
                       </p>
                     </div>
                   </div>

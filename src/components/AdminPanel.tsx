@@ -15,11 +15,18 @@ import AdminInvoiceSettings from "./AdminInvoiceSettings";
 import AdminSystemConfig from "./AdminSystemConfig";
 import AdminPendingApprovals from "./AdminPendingApprovals";
 import AdminFactoryProductAudit from "./AdminFactoryProductAudit";
+import AdminChannelPosts from "./AdminChannelPosts";
+import AdminSafeBuy from "./AdminSafeBuy";
+import AdminOrders from "./AdminOrders";
+import AdminCRM from "./AdminCRM";
+import AdminArticles from "./AdminArticles";
+import AdminRepresentatives from "./AdminRepresentatives";
 import ProgressIndicator from "./ProgressIndicator";
 import ConfirmModal from "./ConfirmModal";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "../lib/id-utils";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { getApiUrl, isWarehouseBrand, getEffectiveProductTags } from "../utils/api-utils";
+import { toPersianNum, toEnglishNum } from "../utils/persian-utils";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
 import { 
@@ -80,6 +87,7 @@ export default function AdminPanel({
   language,
   onLogout
 }: AdminPanelProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('dashboard');
 
   useEffect(() => {
@@ -330,153 +338,141 @@ export default function AdminPanel({
   };
 
   // Orders states
+  const [editingOrder, setEditingOrder] = useState<any | null>(null);
+  const [editBuyerName, setEditBuyerName] = useState("");
+  const [editBuyerPhone, setEditBuyerPhone] = useState("");
+  const [editBuyerCompany, setEditBuyerCompany] = useState("");
+  const [editBuyerAddress, setEditBuyerAddress] = useState("");
+  const [editTotalAmount, setEditTotalAmount] = useState<number | string>("");
+  const [editPaymentStatus, setEditPaymentStatus] = useState("");
+  const [showDirectInvoiceModal, setShowDirectInvoiceModal] = useState<any | null>(null);
+  const [directPaymentStatus, setDirectPaymentStatus] = useState("naghdi");
+  const [directShippingMethod, setDirectShippingMethod] = useState("peyk");
+  const [directAddress, setDirectAddress] = useState("");
+  const [directInvoiceItems, setDirectInvoiceItems] = useState<any[]>([]);
+  const handleCreateDirectInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSuccessMsg("فاکتور با موفقیت ایجاد شد.");
+    setShowDirectInvoiceModal(null);
+  };
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [crmLoading, setCrmLoading] = useState(false);
   const [ordersSearch, setOrdersSearch] = useState("");
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
+    const orderMap: Record<string, any> = {};
+
+    // 1. Try backend PHP/MySQL API first
+    try {
+      const apiEndpoints = ['/api/b2b/orders', '/php/api.php?action=b2b/orders'];
+      for (const endpoint of apiEndpoints) {
+        try {
+          const res = await fetch(endpoint);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              data.forEach((item: any) => {
+                const key = String(item.id || item.tracking_number || item.trackingNumber || Math.random());
+                orderMap[key] = {
+                  id: item.id || item.tracking_number,
+                  trackingNumber: item.tracking_number || item.trackingNumber || `DO-${String(item.id || '').slice(-6)}`,
+                  buyerName: item.buyer_name || item.buyerName || "مشتری همکار",
+                  buyerPhone: item.buyer_phone || item.buyerPhone || item.phone || item.mobile || "ثبت نشده",
+                  buyerCompany: item.buyer_company || item.buyerCompany || "",
+                  buyerAddress: item.buyer_address || item.buyerAddress || "",
+                  totalAmount: Number(item.total_amount || item.totalAmount || 0),
+                  items: Array.isArray(item.items) ? item.items : (typeof item.items_json === 'string' ? JSON.parse(item.items_json || '[]') : []),
+                  status: item.status || 'pending',
+                  createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+                  ...item
+                };
+              });
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn("Backend API orders fetch notice:", err);
+    }
+
+    // 2. Try Firestore live collection
     try {
       const ordersQuery = query(collection(db, "orders"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(ordersQuery);
-      const fetchedOrders: any[] = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        fetchedOrders.push({
-          id: docSnap.id,
-          trackingNumber: data.trackingNumber || `DO-${docSnap.id.slice(-6)}`,
-          buyerName: data.buyerName || data.buyer || "مشتری سازمانی",
-          buyerPhone: data.buyerPhone || data.customerPhone || data.phone || data.buyerInfo?.phone || data.buyerInfo?.mobile || "09*********",
-          buyerCompany: data.buyerCompany || "",
-          totalAmount: Number(data.totalAmount || data.amount || 0),
-          items: Array.isArray(data.items) ? data.items : [],
-          status: data.status || 'pending',
-          createdAt: data.createdAt || new Date().toISOString(),
-          ...data
-        });
+        const key = String(docSnap.id || data.trackingNumber || Math.random());
+        if (!orderMap[key]) {
+          orderMap[key] = {
+            id: docSnap.id,
+            trackingNumber: data.trackingNumber || `DO-${docSnap.id.slice(-6)}`,
+            buyerName: data.buyerName || data.buyer || "مشتری سازمانی",
+            buyerPhone: data.buyerPhone || data.customerPhone || data.phone || data.mobile || data.userPhone || data.buyerInfo?.phone || data.buyerInfo?.mobile || "ثبت نشده",
+            buyerCompany: data.buyerCompany || "",
+            buyerAddress: data.buyerAddress || data.buyerInfo?.address || "",
+            totalAmount: Number(data.totalAmount || data.amount || 0),
+            items: Array.isArray(data.items) ? data.items : [],
+            status: data.status || 'pending',
+            createdAt: data.createdAt || new Date().toISOString(),
+            ...data
+          };
+        }
       });
-      if (fetchedOrders.length > 0) {
-        setOrders(fetchedOrders);
-        localStorage.setItem("dastavval_orders_cache", JSON.stringify(fetchedOrders));
-        setOrdersLoading(false);
-        return;
-      }
     } catch (e) {
       console.warn("Firestore orders fetch notice:", e);
     }
 
+    // 3. Merge with localStorage cache
     try {
       const local = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
       const raw = JSON.parse(localStorage.getItem("dastavval_raw_orders") || "[]");
       const combined = [...local, ...raw];
-      if (combined.length > 0) {
-        setOrders(combined);
-        setOrdersLoading(false);
-        return;
-      }
+      combined.forEach((item: any) => {
+        const key = String(item.id || item.trackingNumber || Math.random());
+        if (!orderMap[key]) {
+          orderMap[key] = item;
+        }
+      });
     } catch (err) {}
 
-    setOrders([
-      {
-        id: "3001",
-        trackingNumber: "DO-3001",
-        buyerName: "شرکت پخش مواد غذایی پاک",
-        buyerPhone: "09123456789",
-        buyerCompany: "پخش پاک",
-        totalAmount: 185000000,
-        items: [
-          { name: "روغن مایع آفتابگردان ۱.۵ لیتری", quantity: 50, price: 420000, brand: "کارخانه کشت و صنعت" },
-          { name: "تن ماهی ۱۸۰ گرمی", quantity: 30, price: 2900000, brand: "صنایع غذایی شیلات" }
-        ],
-        status: "confirmed",
-        createdAt: new Date().toISOString()
-      }
-    ]);
+    const finalOrders: any[] = Object.values(orderMap);
+
+    if (finalOrders.length > 0) {
+      // Sort newest first
+      finalOrders.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+      setOrders(finalOrders);
+      localStorage.setItem("dastavval_orders_cache", JSON.stringify(finalOrders));
+    } else {
+      // Sample fallback order
+      setOrders([
+        {
+          id: "3001",
+          trackingNumber: "DO-3001",
+          buyerName: "شرکت پخش مواد غذایی پاک",
+          buyerPhone: "09123456789",
+          buyerCompany: "پخش پاک",
+          totalAmount: 185000000,
+          items: [
+            { name: "روغن مایع آفتابگردان ۱.۵ لیتری", quantityCartons: 50, pricePerCarton: 420000, brand: "کارخانه کشت و صنعت" },
+            { name: "تن ماهی ۱۸۰ گرمی", quantityCartons: 30, pricePerCarton: 2900000, brand: "صنایع غذایی شیلات" }
+          ],
+          status: "confirmed",
+          createdAt: new Date().toISOString()
+        }
+      ]);
+    }
+
     setOrdersLoading(false);
   };
 
-  const fetchSafeBuyRequests = async () => {
-    try {
-      const q = query(collection(db, "safe_buy_requests"));
-      const querySnapshot = await getDocs(q);
-      const fetched: any[] = [];
-      querySnapshot.forEach((docSnap) => {
-        fetched.push({ firebaseId: docSnap.id, ...docSnap.data() });
-      });
-      
-      if (fetched.length > 0) {
-        fetched.sort((a, b) => {
-          const idA = a.id || '';
-          const idB = b.id || '';
-          return idB.localeCompare(idA);
-        });
-        setSafeBuyRequests(fetched);
-        localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(fetched));
-      } else {
-        const local = localStorage.getItem("dastavval_safe_buy_requests");
-        if (local) {
-          const parsed = JSON.parse(local);
-          setSafeBuyRequests(parsed);
-          for (const req of parsed) {
-            await addDoc(collection(db, "safe_buy_requests"), req);
-          }
-        } else {
-          const defaultRequests: any[] = [];
-          setSafeBuyRequests(defaultRequests);
-          localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(defaultRequests));
-          for (const req of defaultRequests) {
-            await addDoc(collection(db, "safe_buy_requests"), req);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error fetching safe buy requests:", e);
-      const local = localStorage.getItem("dastavval_safe_buy_requests");
-      if (local) {
-        try { setSafeBuyRequests(JSON.parse(local)); } catch (err) {}
-      }
-    }
-  };
 
-  const handleUpdateSafeBuyStatus = async (reqId: string, firebaseId: string | undefined, nextStatus: 'approved' | 'rejected' | 'pending') => {
-    try {
-      const updated = safeBuyRequests.map(item => item.id === reqId ? { ...item, status: nextStatus } : item);
-      setSafeBuyRequests(updated);
-      localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify(updated));
-
-      if (firebaseId) {
-        const docRef = doc(db, "safe_buy_requests", firebaseId);
-        await updateDoc(docRef, { status: nextStatus });
-      } else {
-        const q = query(collection(db, "safe_buy_requests"));
-        const snapshot = await getDocs(q);
-        let foundAndUpdated = false;
-        snapshot.forEach(async (docSnap) => {
-          const data = docSnap.data();
-          if (data.id === reqId) {
-            const docRef = doc(db, "safe_buy_requests", docSnap.id);
-            await updateDoc(docRef, { status: nextStatus });
-            foundAndUpdated = true;
-          }
-        });
-        
-        // If it wasn't found in mock firestore, we can add it or let it persist locally
-        if (!foundAndUpdated) {
-          const match = updated.find(item => item.id === reqId);
-          if (match) {
-            await addDoc(collection(db, "safe_buy_requests"), match);
-          }
-        }
-      }
-
-      setSuccessMsg(nextStatus === 'approved' ? "درخواست خرید امن تایید شد." : "درخواست خرید امن رد شد.");
-      setTimeout(() => setSuccessMsg(null), 2500);
-    } catch (e) {
-      console.error("Error updating safe buy status:", e);
-      setErrorMsg("خطا در به روز رسانی وضعیت در دیتابیس.");
-      setTimeout(() => setErrorMsg(null), 2500);
-    }
-  };
 
   const loadCrmCustomers = async () => {
     setCrmLoading(true);
@@ -498,10 +494,9 @@ export default function AdminPanel({
       loadCallbackRequests();
       loadSupportTickets();
     } else if (activeSubTab === 'safe_buy') {
-      fetchSafeBuyRequests();
+      // Handled by AdminSafeBuy component
     } else if (activeSubTab === 'dashboard' || activeSubTab === 'approvals') {
       fetchOrders();
-      fetchSafeBuyRequests();
       loadCallbackRequests();
       loadSupportTickets();
     }
@@ -596,14 +591,6 @@ export default function AdminPanel({
 
   // CRM states
   const [crmCustomers, setCrmCustomers] = useState<CRMCustomer[]>([]);
-  const [crmSearch, setCrmSearch] = useState("");
-  const [crmBadgeFilter, setCrmBadgeFilter] = useState<string>("all");
-  const [crmLoading, setCrmLoading] = useState(false);
-  const [selectedCrmIds, setSelectedCrmIds] = useState<string[]>([]);
-  const [showCrmBatchEditModal, setShowCrmBatchEditModal] = useState(false);
-  const [batchCrmBadge, setBatchCrmBadge] = useState<string>("");
-  const [batchCrmStatus, setBatchCrmStatus] = useState<string>("");
-  const [batchCrmCity, setBatchCrmCity] = useState<string>("");
 
   // Callbacks and Tickets state
   const [callbackRequests, setCallbackRequests] = useState<any[]>([]);
@@ -810,6 +797,43 @@ export default function AdminPanel({
   const [zarinpalMerchantCode, setZarinpalMerchantCode] = useState("");
   const [officialSealUrl, setOfficialSealUrl] = useState("");
   const [brandImages, setBrandImages] = useState<any[]>([]);
+  const [adsMainTab, setAdsMainTab] = useState<'billboard' | 'equipment' | 'services' | 'raw_materials'>('billboard');
+
+  const [equipmentAds, setEquipmentAds] = useState<any[]>(() => {
+    if (b2bConfig?.equipmentAds && Array.isArray(b2bConfig.equipmentAds)) {
+      return b2bConfig.equipmentAds;
+    }
+    try {
+      const saved = localStorage.getItem("dastavval_industrial_equipment");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  const [serviceAds, setServiceAds] = useState<any[]>(() => {
+    if (b2bConfig?.serviceAds && Array.isArray(b2bConfig.serviceAds)) {
+      return b2bConfig.serviceAds;
+    }
+    try {
+      const saved = localStorage.getItem("dastavval_industrial_services");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  const [rawMaterialAds, setRawMaterialAds] = useState<any[]>(() => {
+    if (b2bConfig?.rawMaterialAds && Array.isArray(b2bConfig.rawMaterialAds)) {
+      return b2bConfig.rawMaterialAds;
+    }
+    try {
+      const saved = localStorage.getItem("dastavval_raw_materials");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  const [editingAdItem, setEditingAdItem] = useState<{ type: 'equipment' | 'service' | 'raw_material'; data: any } | null>(null);
+
   const [sponsoredAds, setSponsoredAds] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem("dastavval_sponsored_ads_v2");
@@ -830,19 +854,24 @@ export default function AdminPanel({
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) setSponsoredAds(parsed);
         }
+        const savedEq = localStorage.getItem("dastavval_industrial_equipment");
+        if (savedEq) setEquipmentAds(JSON.parse(savedEq));
+        const savedSrv = localStorage.getItem("dastavval_industrial_services");
+        if (savedSrv) setServiceAds(JSON.parse(savedSrv));
+        const savedRaw = localStorage.getItem("dastavval_raw_materials");
+        if (savedRaw) setRawMaterialAds(JSON.parse(savedRaw));
       } catch (e) {}
     };
     loadAds();
     window.addEventListener("storage", loadAds);
     window.addEventListener("dastavval_ads_updated", loadAds);
+    window.addEventListener("dastavval-ads-sync", loadAds);
     return () => {
       window.removeEventListener("storage", loadAds);
       window.removeEventListener("dastavval_ads_updated", loadAds);
+      window.removeEventListener("dastavval-ads-sync", loadAds);
     };
   }, []);
-  const [safeBuyRequests, setSafeBuyRequests] = useState<any[]>([]);
-  const [safeBuyFilter, setSafeBuyFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
-  const [selectedSafeBuyDetail, setSelectedSafeBuyDetail] = useState<any | null>(null);
 
   const getProductDetailsForSafeBuy = (req: any) => {
     if (!req) return {
@@ -1104,47 +1133,8 @@ export default function AdminPanel({
   const [backupText, setBackupText] = useState("");
 
   // Order/Invoice editing states
-  const [editingOrder, setEditingOrder] = useState<any | null>(null);
-  const [editBuyerName, setEditBuyerName] = useState("");
-  const [editBuyerPhone, setEditBuyerPhone] = useState("");
-  const [editBuyerCompany, setEditBuyerCompany] = useState("");
-  const [editBuyerAddress, setEditBuyerAddress] = useState("");
-  const [editTotalAmount, setEditTotalAmount] = useState<number>(0);
-  const [editPaymentStatus, setEditPaymentStatus] = useState("paid");
-  const [editOrderItems, setEditOrderItems] = useState<OrderItem[]>([]);
   const [showPrintInvoice, setShowPrintInvoice] = useState<any | null>(null);
 
-  const handleStartEditOrder = (order: any) => {
-    if (!order) return;
-    setEditingOrder(order);
-    setEditBuyerName(order.buyerName || order.customerName || order.userFullName || "");
-    setEditBuyerPhone(order.buyerPhone || order.customerPhone || order.phone || "");
-    setEditBuyerCompany(order.buyerCompany || order.storeName || order.companyName || "");
-    setEditBuyerAddress(order.buyerAddress || order.shippingAddress || "");
-    setEditTotalAmount(Number(order.totalAmount || order.finalTotal || order.total || 0));
-    setEditPaymentStatus(order.paymentStatus || order.status || "pending");
-
-    const rawItems = order.items || [];
-    const mapped = rawItems.map((it: any, i: number) => ({
-      productId: it.productId || it.id || `item_${i}_${Date.now()}`,
-      name: it.name || it.productName || it.title || "کالای سفارشی",
-      quantityCartons: Number(it.quantityCartons || it.quantity || it.cartonsCount || 1),
-      pricePerCarton: Number(it.pricePerCarton || it.bulk_price || it.price || it.unitPrice || 0),
-      totalItems: Number(it.totalItems || 0)
-    }));
-
-    if (mapped.length === 0) {
-      mapped.push({
-        productId: `manual_${Date.now()}`,
-        name: "کالای سفارشی دستی",
-        quantityCartons: 1,
-        pricePerCarton: 0,
-        totalItems: 0
-      });
-    }
-
-    setEditOrderItems(mapped);
-  };
 
   const handleBackupSite = () => {
     const backupData = {
@@ -1227,20 +1217,9 @@ export default function AdminPanel({
   const [selectedFactoryForProducts, setSelectedFactoryForProducts] = useState<any | null>(null);
 
   // CRM expanded states
-  const [showCrmModal, setShowCrmModal] = useState(false);
-  const [editingCrmCustomer, setEditingCrmCustomer] = useState<any | null>(null);
-  const [crmName, setCrmName] = useState("");
-  const [crmPhone, setCrmPhone] = useState("");
-  const [crmCompany, setCrmCompany] = useState("");
-  const [crmCity, setCrmCity] = useState("");
-  const [crmYear, setCrmYear] = useState(1400);
-  const [crmBadge, setCrmBadge] = useState<'bronze' | 'silver' | 'gold' | 'vip'>("bronze");
-  const [crmStatus, setCrmStatus] = useState<'active' | 'pending_verification' | 'suspended' | 'vip_candidate'>("active");
-  const [crmNotes, setCrmNotes] = useState("");
-  const [crmTotalOrders, setCrmTotalOrders] = useState(0);
-  const [crmTotalPurchase, setCrmTotalPurchase] = useState(0);
-  const [crmRole, setCrmRole] = useState<'customer' | 'representative' | 'marketer' | 'factory'>("customer");
-  const [crmRoleFilter, setCrmRoleFilter] = useState<'all' | 'customer' | 'representative' | 'marketer' | 'factory'>("all");
+
+  // Safe Buy state
+  const [safeBuyRequests, setSafeBuyRequests] = useState<any[]>([]);
 
   // Representatives Management state
   const [representativesList, setRepresentativesList] = useState<any[]>(() => {
@@ -1254,18 +1233,6 @@ export default function AdminPanel({
     return [];
   });
   const [suppliersList, setSuppliersList] = useState<any[]>([]);
-  const [showRepModal, setShowRepModal] = useState(false);
-  const [editingRep, setEditingRep] = useState<any | null>(null);
-  const [repCity, setRepCity] = useState("");
-  const [repName, setRepName] = useState("");
-  const [repPhone, setRepPhone] = useState("");
-  const [repTel, setRepTel] = useState("");
-  const [repAddress, setRepAddress] = useState("");
-  const [repBadge, setRepBadge] = useState("نماینده فعال");
-  const [repIsApproved, setRepIsApproved] = useState(true);
-  const [repAgencyCode, setRepAgencyCode] = useState("");
-  const [repBrands, setRepBrands] = useState<string[]>([]);
-  const [newRepBrandInput, setNewRepBrandInput] = useState("");
   const [selectedRepForCertificate, setSelectedRepForCertificate] = useState<any | null>(null);
 
   // Categories Management (Enhanced)
@@ -1306,13 +1273,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const [importSummary, setImportSummary] = useState<{ imported: number; updated: number; newCats: number; total: number } | null>(null);
 
   // Send Notification States
-  const [showNotificationModal, setShowNotificationModal] = useState<any | null>(null);
-  const [notificationTitle, setNotificationTitle] = useState("");
-  const [notificationBody, setNotificationBody] = useState("");
 
   // Create Direct Invoice States
-  const [showDirectInvoiceModal, setShowDirectInvoiceModal] = useState<any | null>(null);
-  const [directInvoiceItems, setDirectInvoiceItems] = useState<{ product: any; quantity: number }[]>([]);
 
   useEffect(() => {
     if (activeSubTab === 'dashboard' || activeSubTab === 'reports') {
@@ -1393,9 +1355,6 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       }
     );
   };
-  const [directPaymentStatus, setDirectPaymentStatus] = useState("pending");
-  const [directShippingMethod, setDirectShippingMethod] = useState("barbari");
-  const [directAddress, setDirectAddress] = useState("");
 
   // Dynamically compute all real site brands across products, factories, and brand config
   const allAvailableBrandsList = useMemo(() => {
@@ -1415,36 +1374,14 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         if (f?.name && !isWarehouseBrand(f.name)) set.add(f.name.trim());
       });
     }
-    return Array.from(set).map(name => ({ id: `brand-${name}`, name }));
+    return Array.from(set);
   }, [brands, products, b2bConfig]);
 
   // News & Articles States
-  const [isAddingNews, setIsAddingNews] = useState(false);
-  const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
-  const [newsTitle, setNewsTitle] = useState("");
-  const [newsSummary, setNewsSummary] = useState("");
-  const [newsContent, setNewsContent] = useState("");
-  const [newsCategory, setNewsCategory] = useState<any>("راهنمای خرید عمده");
-  const [newsImage, setNewsImage] = useState("");
-  const [newsSource, setNewsSource] = useState("مدیریت سامانه");
 
   // GapGPT AI Article Generator States
-  const [gapGptTopicType, setGapGptTopicType] = useState<'wholesale' | 'product' | 'factory' | 'billboard' | 'custom'>('wholesale');
-  const [gapGptProductId, setGapGptProductId] = useState<string>('');
-  const [gapGptFactoryId, setGapGptFactoryId] = useState<string>('');
-  const [gapGptCategory, setGapGptCategory] = useState<string>('راهنمای خرید عمده');
-  const [gapGptCustomPrompt, setGapGptCustomPrompt] = useState<string>('');
-  const [gapGptTone, setGapGptTone] = useState<string>('رسمی و بنکداری');
-  const [isGeneratingWithGapGpt, setIsGeneratingWithGapGpt] = useState<boolean>(false);
-  const [gapGptStatusMsg, setGapGptStatusMsg] = useState<string | null>(null);
 
   // Channel Posts States
-  const [editingChannelPostId, setEditingChannelPostId] = useState<string | null>(null);
-  const [channelPostTitle, setChannelPostTitle] = useState("");
-  const [channelPostContent, setChannelPostContent] = useState("");
-  const [channelPostCategory, setChannelPostCategory] = useState("info");
-  const [channelPostActionLabel, setChannelPostActionLabel] = useState("");
-  const [channelPostActionUrl, setChannelPostActionUrl] = useState("");
 
   const [autoPostSettings, setAutoPostSettings] = useState<{
     new_product: boolean;
@@ -1620,6 +1557,15 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       setRequireAdminApprovalForRep(b2bConfig.requireAdminApprovalForRep !== undefined ? b2bConfig.requireAdminApprovalForRep : true);
       setCategories((b2bConfig as any).categories || []);
       setBrands(b2bConfig.brands || []);
+      if (Array.isArray(b2bConfig.equipmentAds)) {
+        setEquipmentAds(b2bConfig.equipmentAds);
+      }
+      if (Array.isArray(b2bConfig.serviceAds)) {
+        setServiceAds(b2bConfig.serviceAds);
+      }
+      if (Array.isArray(b2bConfig.rawMaterialAds)) {
+        setRawMaterialAds(b2bConfig.rawMaterialAds);
+      }
       setUserLevels((b2bConfig as any).userLevels || []);
       setCustomRubikaUrl(b2bConfig.rubikaChannelUrl || "https://rubika.ir/dastavval_official");
       setCustomTelegramUrl(b2bConfig.telegramChannelUrl || "https://t.me/dastavval_official");
@@ -1676,6 +1622,32 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       }
     } catch (err: any) {
       setAiConfigMsg("خطای نامشخص در ارتباط با پایگاه داده ادمین.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleTestAiConnection = async () => {
+    setAiLoading(true);
+    setAiConfigMsg("در حال ارسال درخواست تست به درگاه هوش مصنوعی (GapGPT / Gemini)...");
+    try {
+      const res = await fetch("/api/admin/ai-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: aiProvider,
+          apiKey: aiApiKey,
+          endpointUrl: aiEndpointUrl
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiConfigMsg(`✅ ${data.message} | پاسخ زنده درگاه: "${data.reply}"`);
+      } else {
+        setAiConfigMsg(`❌ ${data.error || "تست اتصال ناموفق بود."}`);
+      }
+    } catch (err: any) {
+      setAiConfigMsg("❌ خطا در ارتباط با سرور تست: " + err.message);
     } finally {
       setAiLoading(false);
     }
@@ -3350,6 +3322,92 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     setShowFactoryForm(true);
   };
 
+  const fetchSafeBuyRequests = async () => {
+    try {
+      const q = query(collection(db, "safe_buy_requests"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetched: any[] = [];
+      querySnapshot.forEach((docSnap) => {
+        fetched.push({ firebaseId: docSnap.id, ...docSnap.data() });
+      });
+      setSafeBuyRequests(fetched);
+    } catch (e) {
+      console.warn("Failed to fetch safe buy requests in AdminPanel:", e);
+    }
+  };
+
+  const handleUpdateSafeBuyStatus = async (reqId: string, firebaseId: string | undefined, nextStatus: 'approved' | 'rejected' | 'pending') => {
+    setLoading(true);
+    try {
+      if (firebaseId) {
+        await updateDoc(doc(db, "safe_buy_requests", firebaseId), { status: nextStatus });
+      } else {
+        const q = query(collection(db, "safe_buy_requests"), where("id", "==", reqId));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          await updateDoc(doc(db, "safe_buy_requests", snap.docs[0].id), { status: nextStatus });
+        }
+      }
+      setSuccessMsg(`وضعیت درخواست خرید امن بروزرسانی شد.`);
+      fetchSafeBuyRequests();
+    } catch (e) {
+      setErrorMsg("خطا در بروزرسانی وضعیت خرید امن.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartEditOrder = (order: any) => {
+    // Jump to orders tab and potentially set a filter
+    setOrdersSearch(order.trackingNumber || "");
+    setActiveSubTab('orders');
+  };
+
+  const onUpdateOrders = async () => {
+    await fetchOrders();
+  };
+
+  const onUpdateReps = async () => {
+    try {
+      let firestoreReps: any[] = [];
+      try {
+        const repsSnapshot = await getDocs(collection(db, "representatives"));
+        if (repsSnapshot && !repsSnapshot.empty) {
+          firestoreReps = repsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+      } catch (e) {
+        console.warn("Firestore reps fetch error:", e);
+      }
+
+      let savedLocal: any[] = [];
+      try {
+        savedLocal = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+      } catch (e) {
+        savedLocal = [];
+      }
+
+      const map = new globalThis.Map<string, any>();
+      [...savedLocal, ...firestoreReps].forEach(r => {
+        if (r && (r.id || r.phone || r.agencyCode)) {
+          const key = r.id || r.agencyCode || r.phone;
+          map.set(key, { ...map.get(key), ...r });
+        }
+      });
+      const combined = Array.from(map.values());
+
+      setRepresentativesList(combined);
+      localStorage.setItem("dastavval_representatives", JSON.stringify(combined));
+
+      const updatedConfig = {
+        ...b2bConfig,
+        representatives: combined
+      };
+      await onUpdateB2bConfig(updatedConfig);
+    } catch (err) {
+      console.warn("Error in onUpdateReps:", err);
+    }
+  };
+
   const handleToggleFactoryActive = async (factoryId: string) => {
     setLoading(true);
     try {
@@ -3371,751 +3429,45 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const handleToggleFactoryFeatured = async (factoryId: string) => {
     setLoading(true);
     try {
-      const updatedFactories = factories.map(f => f.id === factoryId ? { ...f, isFeatured: !f.isFeatured, isPinned: !f.isFeatured } : f);
-      const updatedConfig = {
-        ...b2bConfig,
-        factories: updatedFactories
-      };
+      const updatedFactories = factories.map(f => f.id === factoryId ? { ...f, isFeatured: !f.isFeatured } : f);
+      const updatedConfig = { ...b2bConfig, factories: updatedFactories };
       await onUpdateB2bConfig(updatedConfig);
       setFactories(updatedFactories);
-      setSuccessMsg("وضعیت نشان ویژه/سنجاق کارخانه با موفقیت تغییر یافت.");
-    } catch (err: any) {
-      setErrorMsg("خطا در تغییر نشان ویژه کارخانه.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteFactory = async (id: string) => {
-    confirmAction(
-      "حذف کارخانه",
-      "آیا از حذف این کارخانه اطمینان دارید؟",
-      async () => {
-        setLoading(true);
-        try {
-          const updatedFactories = factories.filter(f => f.id !== id);
-          const updatedConfig = {
-            ...b2bConfig,
-            factories: updatedFactories
-          };
-          await onUpdateB2bConfig(updatedConfig);
-          setFactories(updatedFactories);
-          setSuccessMsg("کارخانه با موفقیت حذف شد.");
-        } catch (err: any) {
-          setErrorMsg("خطا در حذف کارخانه.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    );
-  };
-
-  // --- CRM & Notification Handlers ---
-  const handleCreateOrUpdateNews = async () => {
-    if (!newsTitle || !newsContent) {
-      setErrorMsg("لطفاً عنوان و متن خبر را وارد کنید.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newId = editingNewsId || `news-${Date.now()}`;
-      const payload = {
-        id: newId,
-        title: newsTitle,
-        summary: newsSummary,
-        content: newsContent,
-        category: newsCategory,
-        imageUrl: newsImage || "https://images.unsplash.com/photo-1504711432869-efd5973e8a48?auto=format&fit=crop&q=80&w=1000",
-        source: newsSource,
-        date: new Date().toLocaleDateString('fa-IR'),
-        createdAt: new Date().toISOString()
-      };
-
-      try {
-        if (editingNewsId) {
-          await updateDoc(doc(db, "news", editingNewsId), payload);
-        } else {
-          await addDoc(collection(db, "news"), {
-            ...payload,
-            createdAt: serverTimestamp()
-          });
-        }
-      } catch (e) {
-        console.warn("Firestore news update failed, saving locally:", e);
-      }
-
-      // Update local storage articles
-      const saved = localStorage.getItem("dastavval_news_articles");
-      let currentArticles: any[] = saved !== null ? JSON.parse(saved) : (articles || []);
-      if (editingNewsId) {
-        currentArticles = currentArticles.map(a => a.id === editingNewsId ? { ...a, ...payload } : a);
-      } else {
-        currentArticles.unshift(payload);
-      }
-      localStorage.setItem("dastavval_news_articles", JSON.stringify(currentArticles));
-
-      setSuccessMsg(editingNewsId ? "خبر با موفقیت بروزرسانی شد." : "خبر جدید با موفقیت منتشر شد.");
-      setIsAddingNews(false);
-      setEditingNewsId(null);
-      setNewsTitle("");
-      setNewsSummary("");
-      setNewsContent("");
-      setNewsImage("");
-      
-      if (onUpdateArticles) await onUpdateArticles();
-      setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err: any) {
-      setErrorMsg("خطا در انتشار خبر: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditNewsClick = (article: any) => {
-    setIsAddingNews(true);
-    setEditingNewsId(article.id);
-    setNewsTitle(article.title || "");
-    setNewsSummary(article.summary || "");
-    setNewsContent(article.content || "");
-    setNewsCategory(article.category || "اطلاعیه تامین");
-    setNewsImage(article.imageUrl || "");
-    setNewsSource(article.source || "مدیریت سامانه");
-  };
-
-  const handleDeleteNews = async (id: string, index?: number) => {
-    confirmAction(
-      "حذف خبر",
-      "آیا از حذف این خبر اطمینان دارید؟",
-      async () => {
-        setLoading(true);
-        try {
-          if (id) {
-            try {
-              await deleteDoc(doc(db, "news", id));
-            } catch (e) {
-              console.warn("Firestore delete failed, deleting locally:", e);
-            }
-          }
-
-          const saved = localStorage.getItem("dastavval_news_articles");
-          let currentArticles: any[] = saved !== null ? JSON.parse(saved) : (articles || []);
-          currentArticles = currentArticles.filter((a, idx) => a.id ? a.id !== id : idx !== index);
-          localStorage.setItem("dastavval_news_articles", JSON.stringify(currentArticles));
-
-          setSuccessMsg("خبر با موفقیت حذف شد.");
-          if (onUpdateArticles) await onUpdateArticles();
-          setTimeout(() => setSuccessMsg(null), 3000);
-        } catch (err: any) {
-          setErrorMsg("خطا در حذف خبر.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    );
-  };
-
-  // GapGPT AI Article Generator Handlers
-  const handleGenerateSingleGapGptArticle = async () => {
-    setIsGeneratingWithGapGpt(true);
-    setGapGptStatusMsg("در حال تولید و نگارش مقاله تخصصی با هوش مصنوعی GapGPT و لینک‌دهی سئو...");
-    try {
-      const res = await fetch("/api/ai/generate-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topicType: gapGptTopicType,
-          targetId: gapGptTopicType === 'product' ? gapGptProductId : (gapGptTopicType === 'factory' ? gapGptFactoryId : undefined),
-          customPrompt: gapGptCustomPrompt,
-          category: gapGptCategory,
-          tone: gapGptTone
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.article) {
-        setNewsTitle(data.article.title || "");
-        setNewsSummary(data.article.summary || "");
-        setNewsContent(data.article.content || "");
-        setNewsCategory(data.article.category || gapGptCategory);
-        setNewsImage(data.article.imageUrl || "");
-        setNewsSource(data.article.source || "تحریریه هوش مصنوعی GapGPT");
-        setGapGptStatusMsg("✅ مقاله هوشمند با موفقیت تولید گردید! اطلاعات فرم زیر تکمیل شد؛ می‌توانید بررسی و منتشر کنید.");
-        setIsAddingNews(true);
-        if (onUpdateArticles) await onUpdateArticles();
-      } else {
-        setGapGptStatusMsg("❌ خطا در دریافت پاسخ از سرویس GapGPT: " + (data.error || "خطای ناشناخته"));
-      }
-    } catch (err: any) {
-      setGapGptStatusMsg("❌ خطا در ارتباط با سرویس GapGPT: " + err.message);
-    } finally {
-      setIsGeneratingWithGapGpt(false);
-    }
-  };
-
-  const handleGenerateDailyBatchGapGpt = async () => {
-    setIsGeneratingWithGapGpt(true);
-    setGapGptStatusMsg("در حال تولید گروهی ۴ مقاله تخصصی برای مجله خبری با GapGPT...");
-    try {
-      const res = await fetch("/api/ai/generate-daily-batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: 4 })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setGapGptStatusMsg(`✅ تعداد ${data.generatedCount || 4} مقاله جدید با موفقیت تولید و به مجله افزوده شد.`);
-        if (onUpdateArticles) await onUpdateArticles();
-      } else {
-        setGapGptStatusMsg("❌ خطا در تولید روزانه مقالات: " + (data.error || "خطا"));
-      }
-    } catch (err: any) {
-      setGapGptStatusMsg("❌ خطا در ساخت گروهی مقالات.");
-    } finally {
-      setIsGeneratingWithGapGpt(false);
-    }
-  };
-
-  // Representative Management Handlers
-  const handleOpenRepModal = (rep?: any) => {
-    if (rep) {
-      setEditingRep(rep);
-      setRepCity(rep.city || "");
-      setRepName(rep.name || "");
-      setRepPhone(rep.phone || "");
-      setRepTel(rep.tel || "");
-      setRepAddress(rep.address || "");
-      setRepBadge(rep.badge || "نماینده فعال");
-      setRepIsApproved(rep.isApproved !== false);
-      setRepAgencyCode(rep.agencyCode || "");
-      setRepBrands(Array.isArray(rep.brands) ? rep.brands : (typeof rep.brands === 'string' ? rep.brands.split(',').map((s: string) => s.trim()).filter(Boolean) : []));
-    } else {
-      setEditingRep(null);
-      setRepCity("");
-      setRepName("");
-      setRepPhone("");
-      setRepTel("");
-      setRepAddress("");
-      setRepBadge("نماینده فعال");
-      setRepIsApproved(true);
-      setRepAgencyCode("");
-      setRepBrands([]);
-    }
-    setNewRepBrandInput("");
-    setShowRepModal(true);
-  };
-
-  const handleSaveRepresentative = () => {
-    if (!repCity || !repName || !repPhone) {
-      setErrorMsg("لطفاً شهر، نام مدیر و شماره تماس نماینده را وارد کنید.");
-      return;
-    }
-
-    let updated: any[];
-    if (editingRep) {
-      updated = representativesList.map(r => r.id === editingRep.id ? {
-        ...r,
-        city: repCity,
-        name: repName,
-        phone: repPhone,
-        tel: repTel,
-        address: repAddress,
-        badge: repBadge,
-        isApproved: repIsApproved,
-        agencyCode: repAgencyCode || r.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`,
-        brands: repBrands
-      } : r);
-      setSuccessMsg("مشخصات نماینده با موفقیت بروزرسانی شد.");
-    } else {
-      const newRep = {
-        id: `rep-${Date.now()}`,
-        city: repCity,
-        name: repName,
-        phone: repPhone,
-        tel: repTel,
-        address: repAddress,
-        badge: repBadge,
-        isApproved: repIsApproved,
-        agencyCode: repAgencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`,
-        brands: repBrands
-      };
-      updated = [newRep, ...representativesList];
-      setSuccessMsg("نماینده جدید با موفقیت اضافه شد.");
-    }
-
-    setRepresentativesList(updated);
-    localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
-    window.dispatchEvent(new Event("dastavval_reps_updated"));
-    setShowRepModal(false);
-    setTimeout(() => setSuccessMsg(null), 3000);
-  };
-
-  const handleDeleteRepresentative = (id: string) => {
-    confirmAction(
-      "حذف نماینده",
-      "آیا از حذف این دفتر/نماینده اطمینان دارید؟",
-      () => {
-        const updated = representativesList.filter(r => r.id !== id);
-        setRepresentativesList(updated);
-        localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
-        window.dispatchEvent(new Event("dastavval_reps_updated"));
-        setSuccessMsg("نماینده با موفقیت حذف شد.");
-        setTimeout(() => setSuccessMsg(null), 3000);
-      }
-    );
-  };
-
-  const handleFastApproveRep = (rep: any) => {
-    const updated = representativesList.map(r => r.id === rep.id ? {
-      ...r,
-      isApproved: true,
-      agencyCode: r.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`
-    } : r);
-    setRepresentativesList(updated);
-    localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
-    
-    // Core synchronizations for representative portal
-    if (rep.phone) {
-      localStorage.setItem(`dastavval_rep_approved_${rep.phone}`, "true");
-    }
-    if (rep.id) {
-      localStorage.setItem(`dastavval_rep_approved_${rep.id}`, "true");
-    }
-    if (rep.agencyCode) {
-      localStorage.setItem(`dastavval_rep_approved_${rep.agencyCode}`, "true");
-    }
-    
-    // Update the actual registered user in "dastavval_local_users" and the current logged-in user if they are the one
-    try {
-      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
-      let userUpdated = false;
-      Object.keys(localUsers).forEach(key => {
-        if (localUsers[key].phone === rep.phone || localUsers[key].email === rep.email) {
-          localUsers[key].isRepresentativeApproved = true;
-          localUsers[key].agencyApproved = true;
-          localUsers[key].agencyCode = rep.agencyCode || localUsers[key].agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`;
-          userUpdated = true;
-        }
-      });
-      if (userUpdated) {
-        localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
-      }
-      
-      const currentUserStr = localStorage.getItem("dastavval_user");
-      if (currentUserStr) {
-        const currentUser = JSON.parse(currentUserStr);
-        if (currentUser.phone === rep.phone || currentUser.email === rep.email) {
-          currentUser.isRepresentativeApproved = true;
-          currentUser.agencyApproved = true;
-          currentUser.agencyCode = rep.agencyCode || currentUser.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`;
-          localStorage.setItem("dastavval_user", JSON.stringify(currentUser));
-        }
-      }
+      setSuccessMsg("وضعیت ویژه کارخانه بروزرسانی شد.");
     } catch (err) {
-      console.error("Failed to sync approved rep in admin", err);
-    }
-    
-    window.dispatchEvent(new Event("dastavval_reps_updated"));
-    setSuccessMsg("دفتر نمایندگی با موفقیت تایید و گواهی رسمی صادر شد.");
-    setTimeout(() => setSuccessMsg(null), 3000);
-  };
-
-  const handleAddCrmClick = () => {
-    setEditingCrmCustomer(null);
-    setCrmName("");
-    setCrmPhone("");
-    setCrmCompany("");
-    setCrmCity("تهران");
-    setCrmYear(1400);
-    setCrmBadge("bronze");
-    setCrmStatus("active");
-    setCrmNotes("");
-    setCrmTotalOrders(0);
-    setCrmTotalPurchase(0);
-    setCrmRole("customer");
-    setShowCrmModal(true);
-  };
-
-  const handleEditCrmClick = (c: any) => {
-    setEditingCrmCustomer(c);
-    setCrmName(c.name || "");
-    setCrmPhone(c.phone || "");
-    setCrmCompany(c.company || "");
-    setCrmCity(c.city || "تهران");
-    setCrmYear(c.establishedYear || 1400);
-    setCrmBadge(c.badge || "bronze");
-    setCrmStatus(c.status || "active");
-    setCrmNotes(c.notes || "");
-    setCrmTotalOrders(c.totalOrdersCount || 0);
-    setCrmTotalPurchase(c.totalPurchaseValue || 0);
-    setCrmRole(c.role || "customer");
-    setShowCrmModal(true);
-  };
-
-  const handleCrmSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const payload = {
-        name: crmName,
-        phone: crmPhone,
-        company: crmCompany,
-        city: crmCity,
-        establishedYear: Number(crmYear),
-        badge: crmBadge,
-        status: crmStatus,
-        notes: crmNotes,
-        totalOrdersCount: Number(crmTotalOrders),
-        totalPurchaseValue: Number(crmTotalPurchase),
-        role: crmRole
-      };
-
-      if (editingCrmCustomer) {
-        await updateCRMCustomer(editingCrmCustomer.id, payload);
-        setSuccessMsg("اطلاعات کاربر با موفقیت بروزرسانی شد.");
-      } else {
-        await addCRMCustomer(payload);
-        setSuccessMsg("کاربر جدید با موفقیت اضافه شد.");
-      }
-      setShowCrmModal(false);
-      setEditingCrmCustomer(null);
-      loadCrmCustomers();
-      setTimeout(() => setSuccessMsg(null), 4000);
-    } catch (err: any) {
-      setErrorMsg("خطا در ذخیره اطلاعات مشتری.");
+      setErrorMsg("خطا در تغییر وضعیت ویژه.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteCrmCustomer = async (id: string) => {
-    confirmAction(
-      "حذف بنکدار",
-      "آیا از حذف این بنکدار از باشگاه مشتریان اطمینان دارید؟",
-      async () => {
-        setLoading(true);
-        try {
-          await deleteCRMCustomer(id);
-          setSuccessMsg("بنکدار با موفقیت از سیستم حذف شد.");
-          loadCrmCustomers();
-          setTimeout(() => setSuccessMsg(null), 4000);
-        } catch (err: any) {
-          setErrorMsg("خطا در حذف بنکدار.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    );
-  };
-
-  const handleToggleSelectCrm = (id: string) => {
-    setSelectedCrmIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleToggleSelectAllCrm = (filteredCustomers: CRMCustomer[]) => {
-    const filteredIds = filteredCustomers.map(c => c.id);
-    const allSelected = filteredIds.every(id => selectedCrmIds.includes(id));
-    if (allSelected) {
-      setSelectedCrmIds(prev => prev.filter(id => !filteredIds.includes(id)));
-    } else {
-      setSelectedCrmIds(prev => Array.from(new Set([...prev, ...filteredIds])));
-    }
-  };
-
-  const handleBatchDeleteCrm = async () => {
-    if (selectedCrmIds.length === 0) return;
-    confirmAction(
-      "حذف گروهی بنکداران",
-      `آیا از حذف ${selectedCrmIds.length} بنکدار انتخاب شده از باشگاه مشتریان اطمینان دارید؟ این عمل غیرقابل بازگشت است.`,
-      async () => {
-        setLoading(true);
-        try {
-          for (const id of selectedCrmIds) {
-            await deleteCRMCustomer(id);
-          }
-          setSuccessMsg(`تعداد ${selectedCrmIds.length} بنکدار با موفقیت حذف شدند.`);
-          setSelectedCrmIds([]);
-          loadCrmCustomers();
-          setTimeout(() => setSuccessMsg(null), 4000);
-        } catch (err) {
-          setErrorMsg("خطا در حذف گروهی بنکداران.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    );
-  };
-
-  const handleBatchUpdateCrm = async () => {
-    if (selectedCrmIds.length === 0) return;
-    setLoading(true);
-    try {
-      const updates: Partial<CRMCustomer> = {};
-      if (batchCrmBadge) updates.badge = batchCrmBadge as any;
-      if (batchCrmStatus) updates.status = batchCrmStatus as any;
-      if (batchCrmCity) updates.city = batchCrmCity;
-
-      for (const id of selectedCrmIds) {
-        await updateCRMCustomer(id, updates);
-      }
-
-      setSuccessMsg(`اطلاعات ${selectedCrmIds.length} بنکدار با موفقیت ویرایش گروهی شد.`);
-      setSelectedCrmIds([]);
-      setShowCrmBatchEditModal(false);
-      setBatchCrmBadge("");
-      setBatchCrmStatus("");
-      setBatchCrmCity("");
-      loadCrmCustomers();
-      setTimeout(() => setSuccessMsg(null), 4000);
-    } catch (err) {
-      setErrorMsg("خطا در ویرایش گروهی بنکداران.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExportCrmCsv = (listToExport: CRMCustomer[]) => {
-    if (listToExport.length === 0) {
-      alert("هیچ بنکداری برای خروجی گرفتن وجود ندارد.");
-      return;
-    }
-    const headers = ["نام بنکدار", "نام شرکت / فروشگاه", "شماره تماس", "شهر", "وضعیت", "رتبه/نشان", "تعداد سفارشات", "مجموع خرید (تومان)"];
-    const rows = listToExport.map(c => [
-      `"${c.name || ''}"`,
-      `"${c.company || ''}"`,
-      `"${c.phone || ''}"`,
-      `"${c.city || ''}"`,
-      `"${c.status === 'active' ? 'فعال' : c.status === 'pending_verification' ? 'در انتظار تایید' : c.status === 'vip_candidate' ? 'کاندید VIP' : 'تعلیق شده'}"`,
-      `"${c.badge === 'vip' ? 'ویژه VIP' : c.badge === 'gold' ? 'طلایی' : c.badge === 'silver' ? 'نقره‌ای' : 'برنزی'}"`,
-      c.totalOrdersCount || 0,
-      c.totalPurchaseValue || 0
-    ]);
-
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `DastAvval_CRM_Customers_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleSendNotificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!notificationTitle || !notificationBody) {
-      alert("لطفا عنوان و متن اعلان را وارد کنید.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await addDoc(collection(db, "notifications"), {
-        customerId: showNotificationModal.id,
-        customerName: showNotificationModal.name,
-        company: showNotificationModal.company,
-        title: notificationTitle,
-        body: notificationBody,
-        createdAt: new Date(),
-        isRead: false
-      });
-      setSuccessMsg(`اعلان با موفقیت برای شرکت «${showNotificationModal.company}» ارسال و ثبت شد.`);
-      setShowNotificationModal(null);
-      setNotificationTitle("");
-      setNotificationBody("");
-      setTimeout(() => setSuccessMsg(null), 4000);
-    } catch (err: any) {
-      setErrorMsg("خطا در ارسال اعلان.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateDirectInvoice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (directInvoiceItems.length === 0) {
-      alert("لطفا حداقل یک کالا به فاکتور اضافه کنید.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const orderItems = directInvoiceItems.map(item => ({
-        productId: item.product.id,
-        name: item.product.name,
-        quantityCartons: item.quantity,
-        pricePerCarton: item.product.bulkPrice || item.product.price,
-        totalItems: item.quantity * (item.product.cartonPackCount || 24)
-      }));
-
-      const totalSum = orderItems.reduce((sum, item) => sum + (item.pricePerCarton * item.quantityCartons), 0);
-      const firstProduct = directInvoiceItems[0].product;
-
-      const newOrder = {
-        trackingNumber: `DO-${Math.floor(100000 + Math.random() * 900000)}`,
-        buyerName: showDirectInvoiceModal.name,
-        buyerPhone: showDirectInvoiceModal.phone,
-        buyerCompany: showDirectInvoiceModal.company,
-        buyerAddress: directAddress || showDirectInvoiceModal.city,
-        sellerName: firstProduct.sellerName || "دفتر فروش مرکزی",
-        sellerId: firstProduct.sellerId || "factory_direct",
-        items: orderItems,
-        totalAmount: totalSum,
-        status: 'order_received',
-        paymentStatus: directPaymentStatus,
-        shippingMethod: directShippingMethod,
-        createdAt: new Date()
-      };
-
-      await addDoc(collection(db, "orders"), newOrder);
-
-      // Trigger automatic Invoice SMS with static factor path to buyer immediately
+  const handleDeleteFactory = async (factoryId: string) => {
+    confirmAction("حذف کارخانه", "آیا از حذف این کارخانه اطمینان دارید؟", async () => {
+      setLoading(true);
       try {
-        fetch(getApiUrl("/api/sms/send-invoice-sms"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: showDirectInvoiceModal.phone,
-            buyerName: showDirectInvoiceModal.name || "خریدار گرامی",
-            orderId: newOrder.trackingNumber
-          })
-        }).catch(err => console.warn("Auto direct invoice SMS notification trigger:", err));
-      } catch (e) {
-        console.warn("Could not dispatch direct invoice SMS:", e);
+        const updatedFactories = factories.filter(f => f.id !== factoryId);
+        const updatedConfig = { ...b2bConfig, factories: updatedFactories };
+        await onUpdateB2bConfig(updatedConfig);
+        setFactories(updatedFactories);
+        setSuccessMsg("کارخانه با موفقیت حذف شد.");
+      } catch (err) {
+        setErrorMsg("خطا در حذف کارخانه.");
+      } finally {
+        setLoading(false);
       }
-
-      setSuccessMsg(`فاکتور رسمی با موفقیت برای شرکت «${showDirectInvoiceModal.company}» صادر شد و پیامک فاکتور ارسال گردید.`);
-      setShowDirectInvoiceModal(null);
-      setDirectInvoiceItems([]);
-      setDirectAddress("");
-      fetchOrders();
-      setTimeout(() => setSuccessMsg(null), 4000);
-    } catch (err: any) {
-      setErrorMsg("خطا در صدور مستقیم فاکتور.");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
-
-  const toPersianNum = (num: number | string) => {
-    if (num === undefined || num === null) return "";
-    const persian: Record<string, string> = {
-      "0": "۰", "1": "۱", "2": "۲", "3": "۳", "4": "۴", "5": "۵", "6": "۶", "7": "۷", "8": "۸", "9": "۹"
-    };
-    return num.toString().replace(/[0-9]/g, (w) => persian[w] || w);
-  };
-
-  const toEnglishNum = (str: string | number): string => {
-    if (str === undefined || str === null) return "";
-    const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
-    const arabicDigits = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
-    let cleaned = str.toString();
-    for (let i = 0; i < 10; i++) {
-      cleaned = cleaned.replace(persianDigits[i], i.toString()).replace(arabicDigits[i], i.toString());
-    }
-    return cleaned;
-  };
-
-  // Color classes for active visual settings indicators
-  const borderColors: Record<string, string> = {
-    emerald: "border-emerald-500",
-    indigo: "border-indigo-500",
-    amber: "border-amber-500",
-    sky: "border-sky-500",
-    violet: "border-violet-500"
-  };
-
-  const textColors: Record<string, string> = {
-    emerald: "text-emerald-600",
-    indigo: "text-indigo-600",
-    amber: "text-amber-600",
-    sky: "text-sky-600",
-    violet: "text-violet-600"
-  };
-
-  const activeText = textColors[selectedColor] || textColors.emerald;
-  const activeBorder = borderColors[selectedColor] || borderColors.emerald;
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <>
-    <ConfirmModal 
-      isOpen={confirmDialog.isOpen}
-      title={confirmDialog.title}
-      message={confirmDialog.message}
-      onConfirm={confirmDialog.onConfirm}
-      onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
-    />
-    <div className="flex min-h-screen bg-slate-50 text-right font-vazir relative overflow-hidden selection selection" dir="rtl">
-      
-      {/* MOBILE OVERLAY */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-white/60 backdrop-blur-sm z-30 lg:hidden"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* PROFESSIONAL DASHBOARD SIDEBAR */}
-      <aside className={`
-        fixed inset-y-0 right-0 z-40 w-72 bg-white border-l border-slate-200 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen
-        ${isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
-      `}>
-        <div className="p-8 pb-4 flex-1 overflow-y-auto custom-scrollbar">
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-3 group cursor-pointer">
-              <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-600/30 group-hover:rotate-6 transition-transform">
-                <Layers2 className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-xl font-black text-slate-800 leading-tight">پنل ادمین توزیع</h1>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-0.5 opacity-80 font-sans">Distribution Hub</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-2 text-slate-400 hover transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="space-y-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row rtl overflow-hidden font-sans">
+      <aside className="hidden md:flex w-64 bg-white border-l border-slate-100 flex-col h-screen sticky top-0 shrink-0">
+        <div className="p-6 flex flex-col h-full overflow-y-auto custom-scrollbar">
+          <div className="space-y-6">
             <section>
-              <p className="text-[10px] font-black text-slate-400 mb-4 px-2 uppercase tracking-tighter opacity-60 font-sans">CORE MANAGEMENT</p>
+              <p className="text-[10px] font-black text-slate-400 mb-4 px-2 uppercase tracking-tighter opacity-60 font-sans">SALES & ORDERS</p>
               <nav className="space-y-1.5">
                 <button
-                  onClick={() => { setActiveSubTab('dashboard'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
-                    activeSubTab === 'dashboard' && !showImporterDashboard
-                      ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25 animate-pulse"
-                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                  }`}
-                >
-                  <Activity size={18} />
-                  میزکار مانیتورینگ
-                </button>
-
-                <button
-                  onClick={() => { setActiveSubTab('products'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
-                    activeSubTab === 'products'
-                      ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25"
-                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                  }`}
-                >
-                  <Package size={18} />
-                  کاتالوگ و انبار کالا
-                </button>
-                
-                <button
-                  onClick={() => { setActiveSubTab('orders'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
+                  onClick={() => setActiveSubTab('orders')}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
                     activeSubTab === 'orders'
                       ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/25"
@@ -4954,11 +4306,20 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={handleTestAiConnection}
+                  disabled={aiLoading}
+                  className="px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black text-xs rounded-xl flex items-center gap-2 cursor-pointer transition-all"
+                >
+                  <Wand2 size={14} className="text-indigo-600" />
+                  <span>تست زنده درگاه GapGPT / هوش مصنوعی</span>
+                </button>
                 <button
                   type="submit"
                   disabled={aiLoading}
-                  className="px-6 py-2 bg-amber-600 hover text-white font-black text-xs rounded-xl flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl flex items-center gap-2 cursor-pointer transition-all shadow-md"
                 >
                   {aiLoading && <RefreshCw className="animate-spin" size={12} />}
                   بروزرسانی درگاه هوش مصنوعی
@@ -5341,7 +4702,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
                         <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} />
-                        <Tooltip formatter={(value: any) => toPersianNum(value.toLocaleString()) + " تومان"} />
+                        <Tooltip formatter={(value: any) => toPersianNum((value ?? 0).toLocaleString()) + " تومان"} />
                         <Legend verticalAlign="top" height={36} iconType="circle" />
                         <Area type="monotone" name="ارزش معاملات (تومان)" dataKey="sales" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
                         <Area type="monotone" name="سود تجمعی" dataKey="profit" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" />
@@ -5435,7 +4796,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                         <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} />
                         <YAxis stroke="#94a3b8" fontSize={10} />
-                        <Tooltip formatter={(value: any) => toPersianNum(value.toString()) + " کالا"} />
+                        <Tooltip formatter={(value: any) => toPersianNum(value ?? 0) + " کالا"} />
                         <Bar name="تعداد اقلام ثبت شده" dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -6718,1016 +6079,42 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                     <span className="text-[10px] text-emerald-300 font-bold">دسترسی سریع و امن با ضمانت واسطه‌گری</span>
                     <button
                       onClick={() => setActiveSubTab('ads')}
-                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md cursor-pointer"
+                      className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black hover transition-all shadow-lg shadow-emerald-600/10 cursor-pointer"
                     >
-                      مدیریت و تایید آگهی‌های کف قیمت
+                      ورود به تالار آگهی‌ها
                     </button>
                   </div>
                 </div>
-
-                {/* VIP WALLET CHARGER */}
-                <div className="lg:col-span-1 bg-white border border-slate-100 p-6 sm:p-8 rounded-[2.5rem] shadow-xl space-y-6">
-                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-50 pb-2">افزایش اعتبار فوری کیف‌پول VIP</h4>
-                  
-                  <div className="space-y-4">
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed">افزایش فوری موجودی جهت سفارش‌گذاری بدون محدودیت سقفی فاکتورها</p>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBuyerCredit(prev => prev + 50000000);
-                          setSuccessMsg("مبلغ ۵۰,۰۰۰,۰۰۰ ریال به کیف‌پول شما اضافه شد (محیط شبیه‌ساز پرداخت).");
-                        }}
-                        className="p-3 bg-slate-50 border border-slate-200/50 hover hover rounded-2xl text-[10px] font-black transition-all cursor-pointer"
-                      >
-                        + ۵ میلیون تومان
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBuyerCredit(prev => prev + 200000000);
-                          setSuccessMsg("مبلغ ۲۰۰,۰۰۰,۰۰۰ ریال به کیف‌پول شما اضافه شد (محیط شبیه‌ساز پرداخت).");
-                        }}
-                        className="p-3 bg-slate-50 border border-slate-200/50 hover hover rounded-2xl text-[10px] font-black transition-all cursor-pointer"
-                      >
-                        + ۲۰ میلیون تومان
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const amount = prompt("لطفا مبلغ شارژ سفارشی را به ریال وارد کنید:");
-                        if (amount) {
-                          setBuyerCredit(prev => prev + (Number(amount) || 0));
-                          setSuccessMsg(`اعتبار با موفقیت به میزان ${toPersianNum(Number(amount).toLocaleString())} ریال افزایش یافت.`);
-                        }
-                      }}
-                      className="w-full bg-indigo-600 hover text-white font-black text-xs py-3 rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <Plus size={14} />
-                      افزایش اعتبار با مبالغ دیگر
-                    </button>
-                  </div>
-                </div>
-
               </div>
             )}
-
-          </div>
-
-        </div>
-      )}
-
-      {/* --- TAB: FACTORY PRODUCT AUDIT (ممیزی و تایید کالای کارخانه) --- */}
-      {(activeSubTab as any) === 'factory_audit' && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <AdminFactoryProductAudit
-            products={products}
-            onUpdateProduct={async (productId, updatedFields) => {
-              await onUpdateProduct(productId, updatedFields);
-              if (onRefreshProducts) await onRefreshProducts();
-            }}
-            onDeleteProduct={async (productId) => {
-              await onDeleteProduct(productId);
-              if (onRefreshProducts) await onRefreshProducts();
-            }}
-          />
-        </div>
-      )}
-
-      {/* --- TAB: BARTER SYSTEM (تهاتر) --- */}
-      {activeSubTab === 'barter' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 text-right" dir="rtl">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-teal-500 rounded-3xl text-white shadow-material-lg">
-                <RefreshCw size={28} className="animate-spin-slow" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 font-sans tracking-tight">پیشخوان مدیریت تهاتر (پایاپای)</h3>
-                <p className="text-xs text-slate-400 font-bold mt-1">مدیریت تبادل مواد اولیه کارخانجات در ازای محصولات نهایی (B2B Barter)</p>
-              </div>
-            </div>
-            
-            <button 
-              onClick={() => { setIsAddingBarter(!isAddingBarter); setEditingBarterId(null); }}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 hover text-white rounded-2xl text-xs font-black transition-all shadow-material-md hover active:scale-95"
-            >
-              {isAddingBarter ? <X size={16} /> : <PlusCircle size={16} />}
-              {isAddingBarter ? "انصراف از ثبت" : "ثبت قرارداد تهاتر جدید"}
-            </button>
-          </div>
-
-          {isAddingBarter && (
-            <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-material-xl animate-in zoom-in-95 duration-300">
-              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-50">
-                <div className="w-2 h-8 bg-teal-500 rounded-full" />
-                <h4 className="text-base font-black text-slate-800">
-                  {editingBarterId ? "ویرایش جزئیات قرارداد تهاتر" : "تعریف فرآیند تهاتر جدید"}
-                </h4>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">کارخانه مقصد (تولیدکننده)</label>
-                  <input 
-                    type="text"
-                    value={bFormFactory}
-                    onChange={(e) => setBFormFactory(e.target.value)}
-                    placeholder="نام کارخانه یا واحد صنعتی..."
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold placeholder"
-                  />
-                </div>
-                
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">تأمین‌کننده مواد اولیه</label>
-                  <input 
-                    type="text"
-                    value={bFormSupplier}
-                    onChange={(e) => setBFormSupplier(e.target.value)}
-                    placeholder="نام شرکت بازرگانی یا تأمین‌کننده..."
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold placeholder"
-                  />
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">نوع ماده اولیه ورودی</label>
-                  <select 
-                    value={bFormMaterialId}
-                    onChange={(e) => setBFormMaterialId(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
-                  >
-                    {rawMaterials.map((rm, idx) => (
-                      <option key={`rm-opt-${rm.id || idx}-${idx}`} value={rm.id}>{rm.name} ({rm.unit})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">مقدار عددی ماده اولیه</label>
-                  <input 
-                    type="number"
-                    value={bFormMaterialQty}
-                    onChange={(e) => setBFormMaterialQty(Number(e.target.value))}
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
-                  />
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">کالا/محصول خروجی (جهت تسویه)</label>
-                  <select 
-                    value={bFormProductId}
-                    onChange={(e) => setBFormProductId(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
-                  >
-                    <option value="">انتخاب محصول نهایی...</option>
-                    {products.map((p, idx) => (
-                      <option key={`prod-opt-barter-${p.id || idx}-${idx}`} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">وضعیت فعلی قرارداد</label>
-                  <select 
-                    value={bFormStatus}
-                    onChange={(e) => setBFormStatus(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
-                  >
-                    <option value="در انتظار تایید مدارک">در انتظار تایید مدارک</option>
-                    <option value="تایید نهایی شده">تایید نهایی شده</option>
-                    <option value="در حال لجستیک">در حال لجستیک</option>
-                    <option value="اتمام فرآیند و تسویه">اتمام فرآیند و تسویه</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-8 space-y-2 text-right">
-                <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">توضیحات و شروط اختصاصی تهاتر</label>
-                <textarea 
-                  value={bFormDesc}
-                  onChange={(e) => setBFormDesc(e.target.value)}
-                  placeholder="مثال: نرخ تبدیل بر اساس قیمت روز بورس کالا محاسبه می‌گردد..."
-                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold h-32 placeholder"
-                />
-              </div>
-
-              <div className="mt-10 flex justify-start">
-                <button 
-                  onClick={handleCreateOrUpdateBarter}
-                  className="px-10 py-4 bg-teal-600 hover text-white rounded-2xl text-sm font-black transition-all shadow-material-lg hover:-translate-y-1"
-                >
-                  {editingBarterId ? "بروزرسانی نهایی قرارداد" : "ثبت و ارسال به کارتابل تهاتر"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {barterDeals.map((deal, idx) => (
-              <div 
-                key={`barter-deal-${deal.id || idx}-${idx}`} 
-                className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-material-md hover transition-all duration-500 group relative overflow-hidden"
-              >
-                <div className="absolute top-0 left-0 w-32 h-32 bg-teal-50 rounded-full -ml-16 -mt-16 group-hover:scale-150 transition-transform duration-700 opacity-50" />
-                
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center shadow-inner">
-                        <Package size={24} />
-                      </div>
-                      <div>
-                        <h5 className="text-sm font-black text-slate-900 mb-1">{deal.factoryName}</h5>
-                        <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                          <Calendar size={10} />
-                          ثبت شده در: {deal.dealDate}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black ${
-                      deal.status === 'اتمام فرآیند و تسویه' ? 'bg-emerald-100 text-emerald-700' :
-                      deal.status === 'در حال لجستیک' ? 'bg-blue-100 text-blue-700' :
-                      deal.status === 'تایید نهایی شده' ? 'bg-teal-100 text-teal-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {deal.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
-                      <p className="text-[9px] font-black text-slate-400 mb-2 uppercase tracking-tighter">ورودی (ماده اولیه)</p>
-                      <p className="text-xs font-black text-slate-800 mb-1">{deal.materialName}</p>
-                      <p className="text-[11px] font-bold text-teal-600">{deal.materialQty} {deal.materialUnit}</p>
-                    </div>
-                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
-                      <p className="text-[9px] font-black text-slate-400 mb-2 uppercase tracking-tighter">خروجی (کالا جهت تسویه)</p>
-                      <p className="text-xs font-black text-slate-800 mb-1">{deal.requestedProductName}</p>
-                      <p className="text-[11px] font-bold text-teal-600">{deal.requestedQtyCartons.toLocaleString()} کارتن</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEditBarterClick(deal)}
-                        className="p-3 bg-slate-50 text-slate-500 hover hover rounded-xl transition-colors"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteBarter(deal.id)}
-                        className="p-3 bg-slate-50 text-slate-500 hover hover rounded-xl transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                    
-                    <div className="text-right">
-                      <p className="text-[9px] font-black text-slate-400 mb-1">ارزش کل مبادله (برآوردی)</p>
-                      <p className="text-sm font-black text-slate-900">
-                        {deal.totalMaterialValue.toLocaleString()} <span className="text-[10px] text-slate-400 mr-1">ریال</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex gap-4 items-start shadow-material-sm">
-            <div className="p-2 bg-white rounded-xl text-amber-600 shadow-sm">
-              <Zap size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-amber-900 mb-1">راهنمای هوشمند تهاتر:</p>
-              <p className="text-[11px] text-amber-800/80 font-bold leading-relaxed">
-                در سیستم تهاتر، کارخانجات می‌توانند مواد اولیه مورد نیاز خود را از تأمین‌کنندگان سامانه دریافت کرده و هزینه آن را از طریق واگذاری محصولات تولیدی خود (فاکتور عمده) تسویه نمایند. سامانه بصورت هوشمند نرخ تبدیل و ارزش افزوده مبادله را بر اساس قیمت‌های مصوب کاتالوگ محاسبه می‌کند.
-              </p>
-            </div>
           </div>
         </div>
       )}
-
-      {/* --- TAB: DEDICATED REAL-TIME PRIORITIZED APPROVALS QUEUE --- */}
-      {activeSubTab === 'approvals' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 text-right" dir="rtl">
-          <AdminPendingApprovals
-            orders={orders}
-            onEditOrder={handleStartEditOrder}
-            safeBuyRequests={safeBuyRequests}
-            sponsoredAds={sponsoredAds}
-            barterDeals={barterDeals}
-            representativesList={representativesList}
-            onUpdateRepStatus={handleUpdateRepStatus}
-            suppliersList={suppliersList}
-            onUpdateSupplierStatus={handleUpdateSupplierStatus}
-            callbackRequests={callbackRequests}
-            supportTickets={supportTickets}
-            onUpdateOrderStatus={handleUpdateOrderStatus}
-            onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
-            onUpdateAdStatus={handleUpdateAdStatus}
-            onUpdateBarterStatus={handleUpdateBarterStatus}
-            onUpdateCallback={handleUpdateCallback}
-            onUpdateTicketStatus={handleUpdateTicketStatus}
-            onNavigateTab={(tab) => {
-              setActiveSubTab(tab as any);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        </div>
-      )}
-
-      {/* --- TAB: NEWS & ARTICLES MANAGEMENT --- */}
       {activeSubTab === 'news' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 text-right" dir="rtl">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-rose-500 rounded-3xl text-white shadow-material-lg">
-                <Newspaper size={28} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 font-sans tracking-tight">مدیریت اخبار و مقالات سامانه</h3>
-                <p className="text-xs text-slate-400 font-bold mt-1">انتشار اطلاعیه‌ها، اخبار بازار، راهنماهای آموزشی با دستیار GapGPT</p>
-              </div>
-            </div>
-            
-            <button 
-              onClick={() => { setIsAddingNews(!isAddingNews); setEditingNewsId(null); }}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black transition-all shadow-material-md hover active:scale-95 cursor-pointer"
-            >
-              {isAddingNews ? <X size={16} /> : <PlusCircle size={16} />}
-              {isAddingNews ? "انصراف از ثبت" : "ثبت/ویرایش دستی مقاله"}
-            </button>
-          </div>
-
-          {/* GapGPT Intelligent Content Generation Control Panel */}
-          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-2xl border border-indigo-500/20 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 space-y-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-5">
-                <div className="flex items-center gap-3.5">
-                  <div className="p-3 bg-gradient-to-tr from-amber-400 to-emerald-400 text-slate-950 rounded-2xl shadow-lg">
-                    <Sparkles size={24} />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-black text-white flex items-center gap-2">
-                      <span>تولید محتوای هوشمند مجله با GapGPT</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">موتور نویسنده B2B</span>
-                    </h4>
-                    <p className="text-xs text-slate-300 font-medium mt-1">نگارش خودکار مقاله تحلیلی، استعلام قیمت، راهنمای خرید عمده و اخبار خط تولید با لینک‌دهی تعاملی سئو</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={handleGenerateDailyBatchGapGpt}
-                    disabled={isGeneratingWithGapGpt}
-                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
-                  >
-                    {isGeneratingWithGapGpt ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                    <span>تولید روزانه ۴ مقاله (دسته‌ای)</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Controls Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Topic Type Selector */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">نوع مقاله / موضوع تولیدی:</label>
-                  <select
-                    value={gapGptTopicType}
-                    onChange={(e: any) => setGapGptTopicType(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
-                  >
-                    <option value="wholesale">📦 راهنمای خرید عمده و تحلیل حاشیه سود</option>
-                    <option value="product">🛍️ بررسی تخصصی محصول ویژه</option>
-                    <option value="factory">🏭 معرفی خط تولید کارخانه</option>
-                    <option value="billboard">⚡ فرصت‌های حراج کف بازار</option>
-                    <option value="custom">✍️ موضوع سفارشی با پرامپت دلخواه</option>
-                  </select>
-                </div>
-
-                {/* Target Product Selection */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">کالای مرتبط (جهت لینک‌دهی سئو):</label>
-                  <select
-                    value={gapGptProductId}
-                    onChange={(e) => setGapGptProductId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
-                  >
-                    <option value="">انتخاب خودکار توسط GapGPT</option>
-                    {products.map((p, pIdx) => (
-                      <option key={`gapgpt-prd-${p.id || pIdx}-${pIdx}`} value={p.id}>
-                        {p.name} ({p.brand || 'معتبر'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Target Factory Selection */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">کارخانه مرتبط (جهت لینک‌دهی سئو):</label>
-                  <select
-                    value={gapGptFactoryId}
-                    onChange={(e) => setGapGptFactoryId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
-                  >
-                    <option value="">انتخاب خودکار توسط GapGPT</option>
-                    {(b2bConfig?.factories || []).map((f: any, fIdx: number) => (
-                      <option key={`gapgpt-fac-${f.id || fIdx}-${fIdx}`} value={f.id}>
-                        {f.name} ({f.city || 'ایران'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Custom Prompt & Options */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">پرامپت اختصاصی / کلمات کلیدی مد نظر سئو:</label>
-                  <input
-                    type="text"
-                    value={gapGptCustomPrompt}
-                    onChange={(e) => setGapGptCustomPrompt(e.target.value)}
-                    placeholder="مثال: وضعیت حاشیه سود پخش عمده تن ماهی ۱۸۰ گرمی در بنکداری‌های تهران و اصفهان..."
-                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white placeholder-slate-400 focus:border-amber-400 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">دسته‌بندی موضوعی:</label>
-                  <select
-                    value={gapGptCategory}
-                    onChange={(e) => setGapGptCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
-                  >
-                    <option value="راهنمای خرید عمده">راهنمای خرید عمده</option>
-                    <option value="تحلیل خط تولید">تحلیل خط تولید</option>
-                    <option value="اخبار کف بازار">اخبار کف بازار</option>
-                    <option value="تنظیم بازار">تنظیم بازار و سهمیه</option>
-                    <option value="تامین مواد اولیه">تامین مواد اولیه</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Status Message */}
-              {gapGptStatusMsg && (
-                <div className="p-3.5 rounded-xl bg-indigo-900/80 border border-indigo-400/30 text-emerald-300 text-xs font-bold flex items-center justify-between">
-                  <span>{gapGptStatusMsg}</span>
-                  <button onClick={() => setGapGptStatusMsg(null)} className="text-slate-400 hover:text-white cursor-pointer">✕</button>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  onClick={handleGenerateSingleGapGptArticle}
-                  disabled={isGeneratingWithGapGpt}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg cursor-pointer disabled:opacity-50"
-                >
-                  {isGeneratingWithGapGpt ? <RefreshCw size={16} className="animate-spin" /> : <Bot size={16} />}
-                  <span>تولید و نگارش مقاله کامل با GapGPT</span>
-                </button>
-
-                <span className="text-[11px] text-slate-400 font-bold hidden sm:inline">موتور فعال: GapGPT (هوش مصنوعی تحلیلی مجله دست اول)</span>
-              </div>
-            </div>
-          </div>
-
-          {isAddingNews && (
-            <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-material-xl animate-in zoom-in-95 duration-300">
-              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-50">
-                <div className="w-2 h-8 bg-rose-500 rounded-full" />
-                <h4 className="text-base font-black text-slate-800">
-                  {editingNewsId ? "ویرایش مقاله / خبر" : "ایجاد محتوای جدید"}
-                </h4>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">عنوان اصلی خبر</label>
-                  <input 
-                    type="text"
-                    value={newsTitle}
-                    onChange={(e) => setNewsTitle(e.target.value)}
-                    placeholder="تیتر جذاب خبری..."
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold placeholder"
-                  />
-                </div>
-                
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">دسته موضوعی</label>
-                  <select 
-                    value={newsCategory}
-                    onChange={(e) => setNewsCategory(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold"
-                  >
-                    <option value="تنظیم بازار">تنظیم بازار و سهمیه</option>
-                    <option value="خط تولید">اخبار خط تولید</option>
-                    <option value="توزیع">لجستیک و توزیع</option>
-                    <option value="گزارش مالی">گزارشات مالی و سود</option>
-                    <option value="تخفیف ویژه">جشنواره و تخفیفات</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2 text-right md:col-span-2">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">خلاصه کوتاه (جهت نمایش در کارت)</label>
-                  <input 
-                    type="text"
-                    value={newsSummary}
-                    onChange={(e) => setNewsSummary(e.target.value)}
-                    placeholder="یک یا دو جمله توضیح کوتاه..."
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold placeholder"
-                  />
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">تصویر شاخص (URL)</label>
-                  <input 
-                    type="text"
-                    value={newsImage}
-                    onChange={(e) => setNewsImage(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold placeholder"
-                  />
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">منبع خبر</label>
-                  <input 
-                    type="text"
-                    value={newsSource}
-                    onChange={(e) => setNewsSource(e.target.value)}
-                    placeholder="مثال: روابط عمومی دست اول"
-                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold placeholder"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-8 space-y-2 text-right">
-                <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">متن کامل مقاله / خبر</label>
-                <textarea 
-                  value={newsContent}
-                  onChange={(e) => setNewsContent(e.target.value)}
-                  placeholder="محتوای اصلی را اینجا بنویسید..."
-                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm focus focus transition-all font-bold h-64 placeholder"
-                />
-              </div>
-
-              <div className="mt-10 flex justify-start">
-                <button 
-                  onClick={handleCreateOrUpdateNews}
-                  className="px-10 py-4 bg-rose-600 hover text-white rounded-2xl text-sm font-black transition-all shadow-material-lg hover:-translate-y-1"
-                >
-                  {editingNewsId ? "بروزرسانی نهایی مطلب" : "انتشار و نمایش"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {articles.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-sm">
-              <Newspaper className="mx-auto text-slate-300 mb-3" size={40} />
-              <p className="text-sm font-black text-slate-700">هیچ خبری یا مقاله‌ای ثبت نشده است</p>
-              <p className="text-xs text-slate-400 font-bold mt-1">جهت افزودن خبر جدید روی دکمه «افزودن خبر جدید» کلیک کنید.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {articles.map((article, idx) => (
-                <div 
-                  key={article.id || `news-${idx}`} 
-                  className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-material-md hover transition-all duration-500 group flex gap-6"
-                >
-                  <div className="w-32 h-32 rounded-2xl overflow-hidden shrink-0 shadow-inner border border-slate-50">
-                    <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
-                  </div>
-                  
-                  <div className="flex flex-col justify-between flex-1">
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-[9px] font-black uppercase tracking-tighter">
-                          {article.category}
-                        </span>
-                        <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                          <Calendar size={10} />
-                          {article.date}
-                        </p>
-                      </div>
-                      <h5 className="text-sm font-black text-slate-900 mb-2 line-clamp-1">{article.title}</h5>
-                      <p className="text-[11px] text-slate-500 font-bold line-clamp-2 leading-relaxed">{article.summary}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-50">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleEditNewsClick(article)}
-                          className="p-2.5 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
-                          title="ویرایش مطلب"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteNews(article.id, idx)}
-                          className="p-2.5 bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                          title="حذف مطلب"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="text-[9px] font-black text-slate-400">منبع: {article.source}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="bg-rose-50 border border-rose-100 p-6 rounded-3xl flex gap-4 items-start shadow-material-sm">
-            <div className="p-2 bg-white rounded-xl text-rose-600 shadow-sm">
-              <Zap size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-rose-900 mb-1">راهنمای تولید محتوا:</p>
-              <p className="text-[11px] text-rose-800/80 font-bold leading-relaxed">
-                انتشار اخبار و مقالات آموزشی باعث افزایش درگیری بنکداران با سامانه می‌شود. مطالبی در مورد تغییرات قیمت، تخفیفات دوره‌ای کارخانجات و راهنماهای سودآوری بیشترین بازدید را دارند.
-              </p>
-            </div>
-          </div>
-        </div>
+        <AdminArticles
+          articles={articles}
+          products={products}
+          b2bConfig={b2bConfig}
+          setLoading={setLoading}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          confirmAction={confirmAction}
+          onUpdateArticles={onUpdateArticles}
+        />
       )}
 
       {/* --- TAB: REPRESENTATIVES MANAGEMENT --- */}
       {activeSubTab === 'representatives' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-right" dir="rtl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/15 text-teal-600 flex items-center justify-center shrink-0">
-                <Building2 size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900">مدیریت دفاتر و نمایندگان سراسری</h3>
-                <p className="text-xs text-slate-400 font-bold mt-0.5">مشخصات، تلفن و آدرس نمایندگان رسمی توزیع در استان‌های کشور را ویرایش و مدیریت کنید.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleAuditReps}
-                className="px-5 py-3 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 border border-amber-200"
-              >
-                <ShieldAlert size={16} />
-                <span>حسابرسی ۳ ماهه خریدها</span>
-              </button>
-
-              <button
-                onClick={() => handleOpenRepModal()}
-                className="px-5 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-600/20 cursor-pointer shrink-0"
-              >
-                <Plus size={16} />
-                <span>افزودن نماینده جدید</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Representatives Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {representativesList.map((rep, idx) => (
-              <div
-                key={`rep-card-${rep.id || idx}-${idx}`}
-                className="bg-white rounded-3xl border border-slate-150 p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-700 text-[9px] font-black border border-teal-500/15">
-                        {rep.badge || "نماینده فعال"}
-                      </span>
-                      {rep.isApproved !== false ? (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[9px] font-black border border-emerald-100">
-                          تایید شده
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-black border border-amber-100 animate-pulse">
-                          در انتظار تایید
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs font-black text-slate-800 flex items-center gap-1">
-                      <MapPin size={13} className="text-teal-600" />
-                      {rep.city}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 pt-1">
-                    <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                      <Users size={14} className="text-slate-400" />
-                      {rep.name}
-                    </h4>
-                    {rep.agencyCode && (
-                      <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
-                        <span className="text-slate-400">کد نمایندگی:</span>
-                        <span className="font-mono bg-slate-50 px-2 py-0.5 rounded border border-slate-100 font-black text-indigo-700">{rep.agencyCode}</span>
-                      </p>
-                    )}
-                    <p className="text-xs font-mono font-black text-emerald-600 flex items-center gap-1.5">
-                      <Phone size={13} className="text-emerald-500" />
-                      {rep.phone}
-                    </p>
-                    {rep.address && (
-                      <p className="text-[11px] font-bold text-slate-500 leading-relaxed pt-1">
-                        آدرس: {rep.address}
-                      </p>
-                    )}
-                    {/* Represented Brands in Admin Card */}
-                    {rep.brands && Array.isArray(rep.brands) && rep.brands.length > 0 && (
-                      <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-1">
-                        <span className="text-[10px] text-slate-400 font-bold block w-full">برندهای تحت عاملیت:</span>
-                        {rep.brands.map((b: string, bIdx: number) => (
-                          <span key={`rep-admin-brand-${b}-${bIdx}`} className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                            {b}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 gap-2">
-                  <div className="flex items-center gap-1">
-                    {rep.isApproved !== false ? (
-                      <button
-                        onClick={() => setSelectedRepForCertificate(rep)}
-                        className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
-                      >
-                        <Award size={13} />
-                        <span>برگه نمایندگی</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleFastApproveRep(rep)}
-                        className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
-                      >
-                        <Check size={13} />
-                        <span>تایید فوری</span>
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenRepModal(rep)}
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
-                    >
-                      <Edit3 size={13} />
-                      <span>ویرایش</span>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRepresentative(rep.id)}
-                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
-                    >
-                      <Trash2 size={13} />
-                      <span>حذف</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Add / Edit Modal */}
-          <AnimatePresence>
-            {showRepModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/60 backdrop-blur-sm">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white w-full max-w-lg rounded-3xl p-6 border border-slate-100 shadow-2xl space-y-5 text-right"
-                  dir="rtl"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                    <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <Building2 size={18} className="text-teal-600" />
-                      {editingRep ? "ویرایش مشخصات نماینده" : "افزودن نماینده جدید"}
-                    </h4>
-                    <button
-                      onClick={() => setShowRepModal(false)}
-                      className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">استان و شهر:</label>
-                        <input
-                          type="text"
-                          value={repCity}
-                          onChange={(e) => setRepCity(e.target.value)}
-                          placeholder="مثال: اصفهان"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">نام مدیر دفتر / نماینده:</label>
-                        <input
-                          type="text"
-                          value={repName}
-                          onChange={(e) => setRepName(e.target.value)}
-                          placeholder="مثال: حاج رضا مهدوی"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">شماره همراه / پشتیبانی:</label>
-                        <input
-                          type="text"
-                          value={repPhone}
-                          onChange={(e) => setRepPhone(e.target.value)}
-                          placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold font-mono focus:border-teal-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">نوع نمایندگی / نشان:</label>
-                        <select
-                          value={repBadge}
-                          onChange={(e) => setRepBadge(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
-                        >
-                          <option value="نماینده فعال">نماینده فعال</option>
-                          <option value="دفتر مرکزی">دفتر مرکزی</option>
-                          <option value="نماینده انحصاری">نماینده انحصاری</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">آدرس کامل دفتر / انبار پخش:</label>
-                      <textarea
-                        rows={3}
-                        value={repAddress}
-                        onChange={(e) => setRepAddress(e.target.value)}
-                        placeholder="خیابان، میدان، مجتمع، پلاک..."
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">وضعیت تایید نمایندگی:</label>
-                        <select
-                          value={repIsApproved ? "approved" : "pending"}
-                          onChange={(e) => setRepIsApproved(e.target.value === "approved")}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
-                        >
-                          <option value="approved">تایید شده رسمی</option>
-                          <option value="pending">در انتظار تایید مدارک</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 mb-1">کد رسمی نمایندگی:</label>
-                        <input
-                          type="text"
-                          value={repAgencyCode}
-                          onChange={(e) => setRepAgencyCode(e.target.value)}
-                          placeholder="مثال: AGN-1405-5001"
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold font-mono focus:border-teal-500 outline-none"
-                        />
-                        <span className="text-[9px] text-slate-400 font-bold block mt-1">در صورت خالی بودن، به صورت خودکار صادر می‌شود.</span>
-                      </div>
-                    </div>
-
-                    {/* Brand Allocation for Representative */}
-                    <div className="pt-2 border-t border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-700 mb-1.5 flex items-center justify-between">
-                        <span>برندهای تحت عاملیت این نماینده:</span>
-                        <span className="text-[10px] text-emerald-600 font-bold">{repBrands.length} برند انتخاب شده</span>
-                      </label>
-                      
-                      {/* Active Assigned Brand Badges */}
-                      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[32px] p-2 bg-slate-50 rounded-xl border border-slate-200">
-                        {repBrands.length === 0 ? (
-                          <span className="text-[10px] text-slate-400 font-bold">هیچ برندی انتخاب نشده (عاملیت جامع تمامی کارخانجات)</span>
-                        ) : (
-                          repBrands.map((b, idx) => (
-                            <span key={`sel-rep-brand-${b}-${idx}`} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 text-[10px] font-black flex items-center gap-1.5">
-                              <span>{b}</span>
-                              <button
-                                type="button"
-                                onClick={() => setRepBrands(repBrands.filter(item => item !== b))}
-                                className="text-emerald-700 hover:text-rose-600 font-bold text-xs"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))
-                        )}
-                      </div>
-
-                      {/* Quick Add from Available Brands */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={newRepBrandInput}
-                            onChange={(e) => setNewRepBrandInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newRepBrandInput.trim()) {
-                                e.preventDefault();
-                                if (!repBrands.includes(newRepBrandInput.trim())) {
-                                  setRepBrands([...repBrands, newRepBrandInput.trim()]);
-                                }
-                                setNewRepBrandInput("");
-                              }
-                            }}
-                            placeholder="افزودن نام برند جدید و زدن اینتر..."
-                            className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-teal-500 outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (newRepBrandInput.trim() && !repBrands.includes(newRepBrandInput.trim())) {
-                                setRepBrands([...repBrands, newRepBrandInput.trim()]);
-                                setNewRepBrandInput("");
-                              }
-                            }}
-                            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                          >
-                            افزودن
-                          </button>
-                        </div>
-
-                        {/* Quick Available Brands Chips */}
-                        {allAvailableBrandsList && allAvailableBrandsList.length > 0 && (
-                          <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto p-1.5 bg-slate-50/80 rounded-xl border border-slate-200">
-                            {allAvailableBrandsList.map((brandObj, idx) => {
-                              const isSelected = repBrands.includes(brandObj.name);
-                              return (
-                                <button
-                                  type="button"
-                                  key={`quick-brand-pick-${brandObj.id || brandObj.name}-${idx}`}
-                                  onClick={() => {
-                                    if (isSelected) {
-                                      setRepBrands(repBrands.filter(b => b !== brandObj.name));
-                                    } else {
-                                      setRepBrands([...repBrands, brandObj.name]);
-                                    }
-                                  }}
-                                  className={`px-2 py-0.5 rounded-md text-[9.5px] font-black transition-all cursor-pointer border ${
-                                    isSelected 
-                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs" 
-                                      : "bg-white text-slate-700 hover:bg-slate-100 border-slate-200"
-                                  }`}
-                                >
-                                  {isSelected ? "✓ " : "+ "}{brandObj.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                    <button
-                      onClick={() => setShowRepModal(false)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200 transition-all cursor-pointer"
-                    >
-                      انصراف
-                    </button>
-                    <button
-                      onClick={handleSaveRepresentative}
-                      className="px-6 py-2.5 rounded-xl bg-teal-600 text-white text-xs font-black hover:bg-teal-700 transition-all shadow-md shadow-teal-600/20 cursor-pointer"
-                    >
-                      ذخیره اطلاعات
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
+        <AdminRepresentatives
+          representativesList={representativesList}
+          allAvailableBrandsList={allAvailableBrandsList}
+          setLoading={setLoading}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          confirmAction={confirmAction}
+          setSelectedRepForCertificate={setSelectedRepForCertificate}
+          onUpdateReps={onUpdateReps}
+        />
       )}
 
       {/* --- TAB 1: PRODUCT CATALOG & STOCK --- */}
@@ -8087,7 +6474,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 className="bg-white rounded-[2rem] border border-gray-100 shadow-lg p-6 sm:p-8 overflow-hidden"
               >
                 <h3 className="text-base font-black text-slate-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
-                  <Layers2 className={activeText} size={18} />
+                  <Layers2 className="text-indigo-600" size={18} />
                   {isEditing ? "ویرایش مشخصات فنی و بسته‌بندی کالا" : "افزودن کالای عمده جدید به انبار دست اول"}
                 </h3>
 
@@ -8583,7 +6970,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           {/* Catalog active view list */}
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-md p-6 overflow-hidden">
             <h3 className="text-sm sm font-black text-slate-900 mb-6 flex items-center gap-2">
-              <Layers size={16} className={activeText} />
+              <Layers size={16} className="text-indigo-600" />
               کاتالوگ کالاهای تجاری عضو سامانه ({toPersianNum(products.length)} کالا)
             </h3>
 
@@ -9215,7 +7602,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-md p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-2">
               <div className="flex items-center gap-3">
-                <Palette className={activeText} size={20} />
+                <Palette className="text-indigo-600" size={20} />
                 <div>
                   <h3 className="text-sm sm font-black text-slate-900">تنظیمات تم رنگی و سفارشی‌سازی برندینگ</h3>
                   <p className="text-[10px] text-gray-400 font-bold">رنگ‌های شاخص کل سایت، دکمه‌ها و نشان‌واره را از این بخش مدیریت کنید.</p>
@@ -11004,614 +9391,37 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
       {/* --- TAB: CRM --- */}
       {activeSubTab === 'crm' && (
-        <div className="space-y-6" dir="rtl">
-          {/* CRM Quick Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-0.5">کل بنکداران ثبت‌شده</span>
-                <span className="text-xl font-black text-slate-900">{toPersianNum(crmCustomers.length)} نفر</span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
-                <Users size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-0.5">اعضای ویژه & طلایی</span>
-                <span className="text-xl font-black text-amber-600">
-                  {toPersianNum(crmCustomers.filter(c => c.badge === 'vip' || c.badge === 'gold').length)} نفر
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
-                ⭐
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-0.5">وضعیت فعال تاییدشده</span>
-                <span className="text-xl font-black text-emerald-600">
-                  {toPersianNum(crmCustomers.filter(c => c.status === 'active').length)} نفر
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
-                <ShieldCheck size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-0.5">شهرهای فعال شبکه</span>
-                <span className="text-xl font-black text-sky-600">
-                  {toPersianNum(new Set(crmCustomers.map(c => c.city).filter(Boolean)).size)} شهر
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-black">
-                <MapPin size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-              <button 
-                onClick={handleAddCrmClick}
-                className="px-5 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
-              >
-                <Plus size={16} />
-                افزودن مشتری (بنکدار) جدید
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => handleExportCrmCsv(crmCustomers)}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                title="دانلود خروجی فایل اکسل/CSV"
-              >
-                <Download size={16} />
-                خروجی CSV/اکسل
-              </button>
-            </div>
-
-            <div className="relative w-full md:w-80">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text"
-                placeholder="جستجوی نام بنکدار، شرکت پخش یا شماره..."
-                value={crmSearch}
-                onChange={e => setCrmSearch(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl pr-12 pl-4 py-3 text-xs text-slate-800 focus:bg-white transition-all outline-none text-right font-bold"
-              />
-            </div>
-
-            <div className="space-y-1 text-right">
-              <h3 className="text-xl font-black text-slate-900 flex items-center gap-2 justify-end">
-                باشگاه مشتریان و مدیریت بنکداران
-                <Users className="text-indigo-600" size={22} />
-              </h3>
-              <p className="text-[11px] text-slate-400 font-bold">تحلیل رفتار خرید، دسته‌بندی هوشمند و خروجی لیست عمده‌فروشان کشور</p>
-            </div>
-          </div>
-
-          {/* CRM Filter Pills */}
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-2xl shadow-sm">
-              <span className="text-xs font-black text-slate-500 ml-2">فیلتر بر اساس نشان:</span>
-              {[
-                { id: 'all', label: 'همه نشان‌ها' },
-                { id: 'vip', label: '👑 ویژه VIP' },
-                { id: 'gold', label: '🥇 طلایی' },
-                { id: 'silver', label: '🥈 نقره‌ای' },
-                { id: 'bronze', label: '🥉 برنزی' }
-              ].map((pill, pIdx) => (
-                <button
-                  key={`crm-badge-pill-${pill.id}-${pIdx}`}
-                  type="button"
-                  onClick={() => setCrmBadgeFilter(pill.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                    crmBadgeFilter === pill.id
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
-                  }`}
-                >
-                  {pill.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-2xl shadow-sm">
-              <span className="text-xs font-black text-slate-500 ml-2">فیلتر بر اساس نقش کاربر:</span>
-              {[
-                { id: 'all', label: 'همه نقش‌ها' },
-                { id: 'customer', label: '👥 مشتری' },
-                { id: 'representative', label: '🛡️ نماینده' },
-                { id: 'marketer', label: '📣 بازاریاب' },
-                { id: 'factory', label: '🏭 کارخانه' }
-              ].map((pill, pIdx) => {
-                const count = crmCustomers.filter(c => pill.id === 'all' || c.role === pill.id || (!c.role && pill.id === 'customer')).length;
-                return (
-                  <button
-                    key={`crm-role-pill-${pill.id}-${pIdx}`}
-                    type="button"
-                    onClick={() => setCrmRoleFilter(pill.id as any)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      crmRoleFilter === pill.id
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
-                    }`}
-                  >
-                    {pill.label} ({toPersianNum(count)})
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {crmLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <RefreshCw className="animate-spin text-indigo-500" size={40} />
-                <span className="text-xs font-black text-slate-400">در حال فراخوانی پایگاه داده کاربران...</span>
-              </div>
-            ) : (() => {
-              const filteredCrmList = crmCustomers.filter(c => {
-                const matchesSearch = 
-                  (c.name || '').toLowerCase().includes(crmSearch.toLowerCase()) || 
-                  (c.company || '').toLowerCase().includes(crmSearch.toLowerCase()) || 
-                  (c.phone || '').toLowerCase().includes(crmSearch.toLowerCase()) ||
-                  (c.city || '').toLowerCase().includes(crmSearch.toLowerCase());
-                
-                const matchesBadge = crmBadgeFilter === 'all' || c.badge === crmBadgeFilter;
-                const matchesRole = crmRoleFilter === 'all' || c.role === crmRoleFilter || (!c.role && crmRoleFilter === 'customer');
-                return matchesSearch && matchesBadge && matchesRole;
-              });
-              return (
-                <>
-                  {/* CRM Batch Actions Toolbar */}
-                  {filteredCrmList.length > 0 && (
-                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 animate-fade-in">
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleSelectAllCrm(filteredCrmList)}
-                          className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            className="rounded border-slate-300 pointer-events-none cursor-pointer"
-                            checked={filteredCrmList.length > 0 && filteredCrmList.every(c => selectedCrmIds.includes(c.id))}
-                            readOnly
-                          />
-                          <span>
-                            {filteredCrmList.every(c => selectedCrmIds.includes(c.id)) ? "لغو انتخاب همه" : "انتخاب همه این لیست"}
-                          </span>
-                        </button>
-
-                        {selectedCrmIds.length > 0 && (
-                          <span className="text-xs text-indigo-700 font-black">
-                            {toPersianNum(selectedCrmIds.length)} بنکدار انتخاب شده است
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {selectedCrmIds.length > 0 && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setShowCrmBatchEditModal(true)}
-                              className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-black border border-indigo-200/50 rounded-xl text-[10px] sm:text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Edit3 size={14} />
-                              ویرایش گروهی ({toPersianNum(selectedCrmIds.length)})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleExportCrmCsv(crmCustomers.filter(c => selectedCrmIds.includes(c.id)))}
-                              className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-black border border-emerald-200/50 rounded-xl text-[10px] sm:text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Download size={14} />
-                              خروجی اکسل انتخاب‌شده‌ها
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleBatchDeleteCrm}
-                              className="px-4 py-2 bg-red-50 text-red-700 hover:bg-red-100 font-black border border-red-200/50 rounded-xl text-[10px] sm:text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Trash2 size={14} />
-                              حذف گروهی ({toPersianNum(selectedCrmIds.length)})
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {filteredCrmList.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400 font-bold text-xs">
-                      هیچ بنکداری با این مشخصات یافت نشد.
-                    </div>
-                  ) : (
-                    filteredCrmList.map((customer, idx) => {
-                      const isSelected = selectedCrmIds.includes(customer.id);
-                      return (
-                        <motion.div 
-                          layout
-                          key={`cust-item-${customer.id || idx}-${idx}`}
-                          className={`border rounded-[2.5rem] p-5 sm:p-6 hover transition-all group shadow-sm text-right ${
-                            isSelected ? 'border-indigo-400 bg-indigo-50/10' : 'bg-white border-gray-100'
-                          }`}
-                        >
-                          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                            <div className="flex items-center gap-3 sm:gap-4 w-full lg:w-auto">
-                              {/* Checkbox selector */}
-                              <div 
-                                onClick={() => handleToggleSelectCrm(customer.id)}
-                                className="w-10 h-10 flex items-center justify-center cursor-pointer hover:bg-slate-100 rounded-xl shrink-0"
-                              >
-                                <input 
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {}}
-                                  className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                />
-                              </div>
-
-                              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center text-xl sm shadow-xl shrink-0 ${
-                                customer.badge === 'vip' ? 'bg-purple-100 text-purple-600 shadow-purple-500/10' :
-                                customer.badge === 'gold' ? 'bg-amber-100 text-amber-600 shadow-amber-500/10' :
-                                customer.badge === 'silver' ? 'bg-slate-100 text-slate-600 shadow-slate-500/10' :
-                                'bg-orange-100 text-orange-600 shadow-orange-500/10'
-                              }`}>
-                                {customer.badge === 'vip' ? '👑' : customer.badge === 'gold' ? '🥇' : customer.badge === 'silver' ? '🥈' : '🥉'}
-                              </div>
-                              <div className="space-y-1 text-right overflow-hidden">
-                                <div className="flex items-center gap-2 justify-end">
-                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${
-                                    customer.role === 'representative' ? 'bg-indigo-100 text-indigo-700' :
-                                    customer.role === 'marketer' ? 'bg-amber-100 text-amber-700' :
-                                    customer.role === 'factory' ? 'bg-pink-100 text-pink-700' :
-                                    'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {customer.role === 'representative' ? '🛡️ نماینده' :
-                                     customer.role === 'marketer' ? '📣 بازاریاب' :
-                                     customer.role === 'factory' ? '🏭 کارخانه' :
-                                     '👥 مشتری'}
-                                  </span>
-                                  <h4 className="text-sm font-black text-slate-800 group-hover transition-colors truncate">{customer.company}</h4>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold justify-end">
-                                   <span className="flex items-center gap-1">{customer.city} <MapPin size={10} /></span>
-                                   <span className="flex items-center gap-1" dir="ltr">{customer.phone} <Phone size={10} /></span>
-                                   <span className="flex items-center gap-1">{customer.name} <Users size={10} /></span>
-                                </div>
-                              </div>
-                            </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-8 w-full lg:w-auto border-t lg border-gray-100 pt-4 lg:pt-0">
-                      <div className="text-center lg">
-                        <span className="block text-[9px] text-slate-400 font-black mb-1">تعداد سفارشات</span>
-                        <span className="text-[10px] sm font-black text-indigo-600 bg-indigo-50 px-2 sm:px-3 py-1 rounded-lg">{toPersianNum(customer.totalOrdersCount)} فاکتور</span>
-                      </div>
-                      <div className="text-center lg">
-                        <span className="block text-[9px] text-slate-400 font-black mb-1">حجم مبادلات</span>
-                        <span className="text-[10px] sm font-black text-emerald-600 truncate">{toPersianNum((customer.totalPurchaseValue || 0).toLocaleString())} ت</span>
-                      </div>
-                      <div className="hidden sm:block text-center lg">
-                        <span className="block text-[9px] text-slate-400 font-black mb-1">وضعیت حساب</span>
-                        <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${
-                          customer.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 
-                          customer.status === 'pending_verification' ? 'bg-amber-50 text-amber-600' :
-                          'bg-red-50 text-red-600'
-                        }`}>
-                          {customer.status === 'active' ? 'تایید شده' : 
-                           customer.status === 'pending_verification' ? 'در انتظار' : 'مسدود'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0">
-                      <button 
-                        onClick={() => handleEditCrmClick(customer)}
-                        className="flex-1 lg:flex-none px-3 py-2 bg-slate-50 hover hover text-slate-600 rounded-xl text-[9px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Edit3 size={12} />
-                        ویرایش
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setShowDirectInvoiceModal(customer);
-                          setDirectInvoiceItems([]);
-                          setDirectAddress(customer.city || "");
-                        }}
-                        className="flex-1 lg:flex-none px-3 py-2 bg-white hover text-white rounded-xl text-[9px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
-                      >
-                        <FileText size={12} />
-                        صدور فاکتور
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteCrmCustomer(customer.id)}
-                        className="p-2 bg-red-50 text-red-600 hover hover rounded-xl transition-all cursor-pointer"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {customer.notes && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                      <p className="text-[10px] text-slate-500 leading-relaxed font-bold italic text-right">
-                        📝 یادداشت سیستمی ادمین: {customer.notes}
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
-                      );
-                    })
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
+        <AdminCRM
+          crmCustomers={crmCustomers}
+          crmLoading={crmLoading}
+          products={products}
+          setLoading={setLoading}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          confirmAction={confirmAction}
+          loadCrmCustomers={loadCrmCustomers}
+          onUpdateOrders={onUpdateOrders}
+        />
       )}
 
       {/* --- TAB: ORDERS MANAGEMENT --- */}
       {activeSubTab === 'orders' && (
-        <div className="space-y-8" dir="rtl">
-          {/* Stat Cards Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm text-right flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-black">کل فاکتورهای عمده دریافتی</span>
-                <h4 className="text-2xl font-black text-slate-800">{toPersianNum(orders.length)} فاکتور</h4>
-              </div>
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl">
-                📋
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm text-right flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-black">کل ارزش مبادلات (تومان)</span>
-                <h4 className="text-xl font-black text-emerald-600">
-                  {toPersianNum(orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0).toLocaleString())} تومان
-                </h4>
-              </div>
-              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl">
-                💰
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm text-right flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-black">سفارشات در حال انتقال و تحویل</span>
-                <h4 className="text-2xl font-black text-amber-600">
-                  {toPersianNum(orders.filter(o => o.status !== 'delivered').length)} سفارش فعال
-                </h4>
-              </div>
-              <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center text-xl">
-                🚚
-              </div>
-            </div>
-          </div>
-
-          {/* Search Header */}
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl p-6 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="space-y-2 text-right">
-              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2 justify-end">
-                مدیریت فاکتورهای عمده و رهگیری تولید
-                <ClipboardList className="text-emerald-600 animate-pulse" />
-              </h3>
-              <p className="text-xs text-slate-400 font-bold">تغییر وضعیت زنجیره تامین کالا، کنترل پرداخت‌ها و هماهنگی ترابری جاده‌ای کارخانه</p>
-            </div>
-            <div className="relative w-full md:w-96">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text"
-                placeholder="جستجوی کد رهگیری، نام بنکدار یا شماره تماس..."
-                value={ordersSearch}
-                onChange={e => setOrdersSearch(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl pr-12 pl-4 py-3.5 text-xs text-slate-800 focus focus transition-all outline-none text-right"
-              />
-            </div>
-          </div>
-
-          {/* Orders list container */}
-          <div className="space-y-6">
-            {ordersLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <RefreshCw className="animate-spin text-emerald-600" size={40} />
-                <span className="text-xs font-black text-slate-400">در حال دریافت لیست فاکتورها از سرور ابر...</span>
-              </div>
-            ) : orders.length === 0 ? (
-              <div className="bg-white rounded-[2.5rem] p-16 text-center border border-gray-100 shadow-sm">
-                <ShoppingBag className="mx-auto text-gray-300 mb-4" size={48} />
-                <h3 className="text-base font-black text-gray-850">هنوز سفارشی ثبت نشده است</h3>
-                <p className="text-xs text-gray-400 font-bold mt-2">سفارشاتی که بنکداران و خریداران از پرتال ثبت کنند در این بخش نمایش داده می‌شود.</p>
-              </div>
-            ) : (
-              orders
-                .filter(o => 
-                  o.trackingNumber?.includes(ordersSearch) || 
-                  o.buyerName?.includes(ordersSearch) || 
-                  o.buyerPhone?.includes(ordersSearch) ||
-                  o.buyerCompany?.includes(ordersSearch)
-                )
-                .map((order, idx) => {
-                  const statusInfo = getStatusLabel(order.status);
-                  const isDelivered = order.status === 'delivered';
-
-                  return (
-                    <motion.div 
-                      layout
-                      key={`admin-order-card-${order.id || idx}-${idx}`}
-                      className="bg-white border border-gray-100 rounded-[2.5rem] p-6 sm:p-8 hover transition-all shadow-md text-right relative overflow-hidden"
-                    >
-                      {/* Top Bar inside Invoice Card */}
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-100 pb-5 mb-5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-black text-slate-800 bg-slate-100 px-3.5 py-1.5 rounded-xl">
-                            کد رهگیری فاکتور: <span className="font-mono text-emerald-600 font-black">{order.trackingNumber}</span>
-                          </span>
-                          <span className="text-xs font-bold text-slate-400">
-                            {formatOrderDate(order.createdAt)}
-                          </span>
-                        </div>
-                        <div className={`text-xs font-black px-4 py-2 rounded-xl border ${statusInfo.color}`}>
-                          {statusInfo.text}
-                        </div>
-                      </div>
-
-                      {/* Customer Info Box */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/60 p-5 rounded-[1.5rem] border border-slate-100 mb-6">
-                        <div className="space-y-2">
-                          <div className="text-xs font-black text-slate-500 flex items-center gap-1.5 flex-wrap">
-                            <span>🏢 اطلاعات بنکدار / خریدار عمده</span>
-                            {panelRole === 'suppliers' && (
-                              <span className="text-[9px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-200">🔒 مخفی از تامین‌کننده</span>
-                            )}
-                          </div>
-                          <div className="text-sm font-black text-slate-800">{order.buyerCompany || "فروشگاه / پخش عمده"}</div>
-                          <div className="text-xs font-bold text-slate-600 flex items-center gap-2">
-                            <span>{order.buyerName}</span>
-                            <span>•</span>
-                            <span className="font-mono text-emerald-700 select-all">{order.buyerPhone}</span>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="text-xs font-black text-slate-500">📍 مقصد بارگیری و ارسال باربری</div>
-                          <div className="text-xs font-bold text-slate-700 leading-relaxed">
-                            {order.buyerAddress || 'تحویل باربری مرکزی'}
-                          </div>
-                          <div className="text-[10px] text-emerald-600 font-bold">🏢 تولیدکننده: {order.sellerName}</div>
-                        </div>
-                      </div>
-
-                      {/* Items Ordered */}
-                      <div className="space-y-3 mb-6">
-                        <div className="text-xs font-black text-slate-500">🛒 جزئیات اقلام فاکتور عمده</div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-right text-xs min-w-[500px]">
-                            <thead>
-                              <tr className="border-b border-gray-100 text-slate-400 font-black pb-2">
-                                <th className="pb-2 text-right">نام کالا / محصول کارخانه‌ای</th>
-                                <th className="pb-2 text-center">تعداد</th>
-                                <th className="pb-2 text-center">قیمت واحد</th>
-                                <th className="pb-2 text-left">جمع کل (تومان)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                              {order.items?.map((item: any, idx: number) => (
-                                <tr key={`admin-panel-order-item-${item.id || item.productId || idx}-${idx}`} className="text-slate-800 font-bold">
-                                  <td className="py-2.5 text-right font-black text-[10px] sm">{item.name}</td>
-                                  <td className="py-2.5 text-center font-mono text-emerald-600">{toPersianNum(item.quantityCartons)} ک</td>
-                                  <td className="py-2.5 text-center font-mono">{(item.pricePerCarton || 0).toLocaleString()}</td>
-                                  <td className="py-2.5 text-left font-mono text-slate-900">
-                                    {((item.pricePerCarton || 0) * (item.quantityCartons || 0)).toLocaleString()}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Financial summary breakdown */}
-                      <div className="border-t border-gray-100 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <div className="flex flex-wrap gap-4 text-[10px] font-bold text-slate-400">
-                          {order.discountBreakdown?.badge > 0 && (
-                            <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg">
-                              تخفیف وفاداری مشتری: {toPersianNum(order.discountBreakdown.badge.toLocaleString())} تومان
-                            </span>
-                          )}
-                          {order.discountBreakdown?.bulk > 0 && (
-                            <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg">
-                              تخفیف حجم خرید ({toPersianNum(order.discountBreakdown.bulkPercent)}٪): {toPersianNum(order.discountBreakdown.bulk.toLocaleString())} تومان
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs text-slate-400 font-black ml-2">مبلغ پرداختی نهایی فاکتور:</span>
-                          <span className="text-lg font-black text-emerald-600 font-mono">
-                            {toPersianNum((order.totalAmount || 0).toLocaleString())} تومان
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Status Management Quick-buttons */}
-                      <div className="bg-slate-50 rounded-2xl p-4 border border-gray-100 mb-6">
-                        <div className="text-xs font-black text-slate-500 mb-3 flex items-center gap-1">
-                          <Activity size={12} className="text-emerald-600" />
-                          <span>مدیریت وضعیت و پردازش فاکتور:</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {[
-                            { key: 'order_received', label: "۱. در انتظار بررسی", color: "bg-blue-600" },
-                            { key: 'payment_verified', label: "۲. تایید مالی", color: "bg-indigo-600" },
-                            { key: 'warehouse_packing', label: "۳. بسته‌بندی انبار", color: "bg-amber-600" },
-                            { key: 'loading_freight', label: "۴. بارگیری باربری", color: "bg-purple-600" },
-                            { key: 'in_transit', label: "۵. در حال ارسال", color: "bg-teal-600" },
-                            { key: 'delivered', label: "۶. تحویل شد", color: "bg-emerald-600" },
-                            { key: 'cancelled', label: "لغو فاکتور", color: "bg-rose-600" }
-                          ].map((step, idx) => (
-                            <button
-                              key={`admin-panel-order-step-${step.key}-${idx}`}
-                              onClick={() => handleUpdateOrderStatus(order.id, step.key)}
-                              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border ${
-                                order.status === step.key 
-                                  ? `${step.color} text-white border-transparent shadow-sm` 
-                                  : "bg-white text-slate-600 border-gray-200 hover"
-                              }`}
-                            >
-                              {step.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Action quick-buttons */}
-                      <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleStartEditOrder(order)}
-                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            <Edit3 size={14} />
-                            ویرایش دستی فاکتور
-                          </button>
-                          <button
-                            onClick={() => setShowPrintInvoice(order)}
-                            className="px-4 py-2 bg-slate-100 hover text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 shadow-md"
-                          >
-                            <Printer size={14} />
-                            چاپ فاکتور رسمی (مهر و امضا)
-                          </button>
-                        </div>
-                        <div className="flex gap-2">
-                          {order.paymentStatus !== 'paid' && (
-                            <button
-                              onClick={async () => {
-                                const orderRef = doc(db, "orders", order.id);
-                                await updateDoc(orderRef, { paymentStatus: 'paid' });
-                                fetchOrders();
-                              }}
-                              className="px-4 py-2 bg-emerald-600 hover text-white font-black text-xs rounded-xl transition-all shadow-md flex items-center gap-1"
-                            >
-                              <CheckCircle size={14} />
-                              تایید تسویه مالی
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })
-            )}
-          </div>
-        </div>
+        <AdminOrders
+          orders={orders}
+          ordersLoading={ordersLoading}
+          ordersSearch={ordersSearch}
+          setOrdersSearch={setOrdersSearch}
+          fetchOrders={fetchOrders}
+          handleUpdateOrderStatus={handleUpdateOrderStatus}
+          panelRole={panelRole}
+          formatOrderDate={formatOrderDate}
+          getStatusLabel={getStatusLabel}
+          setLoading={setLoading}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          confirmAction={confirmAction}
+          setShowPrintInvoice={setShowPrintInvoice}
+        />
       )}
 
       {/* Invoice & Seal Settings Tab */}
@@ -12798,6 +10608,35 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
       {activeSubTab === 'ads' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
+          {/* Ad Sections Navigation Tabs */}
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl flex-wrap gap-2 mb-2">
+            {[
+              { id: 'billboard', label: '📢 بیلبورد و آگهی‌های عمومی', count: sponsoredAds.length },
+              { id: 'equipment', label: '⚙️ ماشین‌آلات و تجهیزات', count: equipmentAds.length },
+              { id: 'services', label: '🛠️ خدمات صنعتی و بازرگانی', count: serviceAds.length },
+              { id: 'raw_materials', label: '🌾 تامین مواد اولیه و ملزومات', count: rawMaterialAds.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setAdsMainTab(tab.id as any)}
+                className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  adsMainTab === tab.id
+                    ? "bg-white text-indigo-700 shadow-md border border-slate-200/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  adsMainTab === tab.id ? "bg-indigo-100 text-indigo-800" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {adsMainTab === 'billboard' && (
+          <>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl shadow-inner">
@@ -13132,8 +10971,339 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        </>
+        )}
+
+        {/* Equipment Tab */}
+        {adsMainTab === 'equipment' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h4 className="text-base font-black text-slate-900">مدیریت آگهی‌های ماشین‌آلات و تجهیزات صنعتی</h4>
+                <p className="text-xs text-slate-500 font-bold mt-1">بررسی، تایید، ویرایش و حذف آگهی‌های دستگاه‌ها و ماشین‌آلات تولیدی.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-50 text-amber-800 text-xs font-black px-3 py-1.5 rounded-xl border border-amber-200">
+                  تعداد کل: {equipmentAds.length} دستگاه
+                </span>
+              </div>
+            </div>
+
+            {equipmentAds.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Cpu className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-xs font-bold text-slate-500">هیچ آگهی ماشین‌آلاتی ثبت نشده است.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {equipmentAds.map((item) => (
+                  <div key={item.id} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all">
+                    <div className="flex items-start gap-3">
+                      <img src={item.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400"} alt={item.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">{item.category || "تجهیزات صنعتی"}</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
+                            item.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                            item.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {item.status === 'approved' ? 'تایید شده' : item.status === 'rejected' ? 'رد شده' : 'در انتظار تایید'}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-black text-slate-900 line-clamp-1 mb-1">{item.title}</h5>
+                        <p className="text-[11px] font-bold text-slate-600 line-clamp-2 mb-2">{item.description}</p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500">
+                          <span>🏭 {item.factoryName || "نامشخص"}</span>
+                          <span>📍 {item.location || "نامشخص"}</span>
+                          <span>📞 {item.contactPhone || "نامشخص"}</span>
+                          <span className="text-emerald-700 font-black">💰 {item.wholesalePrice || "توافقی"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
+                      <button
+                        onClick={() => {
+                          const updated = equipmentAds.map(e => e.id === item.id ? { ...e, status: 'approved', isPendingApproval: false } : e);
+                          setEquipmentAds(updated);
+                          localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
+                          window.dispatchEvent(new Event("dastavval-ads-sync"));
+                          setSuccessMsg("آگهی تایید شد.");
+                          setTimeout(() => setSuccessMsg(null), 3000);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckCircle size={13} />
+                        <span>تایید</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = equipmentAds.map(e => e.id === item.id ? { ...e, status: 'rejected', isPendingApproval: true } : e);
+                          setEquipmentAds(updated);
+                          localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
+                          window.dispatchEvent(new Event("dastavval-ads-sync"));
+                          setSuccessMsg("آگهی رد شد.");
+                          setTimeout(() => setSuccessMsg(null), 3000);
+                        }}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <XCircle size={13} />
+                        <span>رد</span>
+                      </button>
+                      <button
+                        onClick={() => setEditingAdItem({ type: 'equipment', data: { ...item } })}
+                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit2 size={13} />
+                        <span>ویرایش</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          confirmAction("حذف آگهی", "آیا از حذف این آگهی ماشین‌آلات اطمینان دارید؟", async () => {
+                            const updated = equipmentAds.filter(e => e.id !== item.id);
+                            setEquipmentAds(updated);
+                            localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
+                            if (onUpdateB2bConfig) {
+                              await onUpdateB2bConfig({ ...b2bConfig, equipmentAds: updated });
+                            }
+                            window.dispatchEvent(new Event("dastavval-ads-sync"));
+                            window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                            setSuccessMsg("آگهی حذف شد.");
+                            setTimeout(() => setSuccessMsg(null), 3000);
+                          });
+                        }}
+                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-black rounded-lg transition-colors cursor-pointer"
+                        title="حذف"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Services Tab */}
+        {adsMainTab === 'services' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h4 className="text-base font-black text-slate-900">مدیریت آگهی‌های خدمات صنعتی و بازرگانی</h4>
+                <p className="text-xs text-slate-500 font-bold mt-1">بررسی و مدیریت خدمات بسته‌بندی، ترخیص، طراحی و آزمایشگاهی.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-50 text-amber-800 text-xs font-black px-3 py-1.5 rounded-xl border border-amber-200">
+                  تعداد کل: {serviceAds.length} خدمت
+                </span>
+              </div>
+            </div>
+
+            {serviceAds.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Layers className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-xs font-bold text-slate-500">هیچ آگهی خدماتی ثبت نشده است.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {serviceAds.map((item) => (
+                  <div key={item.id} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all">
+                    <div className="flex items-start gap-3">
+                      <img src={item.imageUrl || "https://images.unsplash.com/photo-1542744094-3a31b272c490?auto=format&fit=crop&q=80&w=400"} alt={item.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">{item.category || "خدمات صنعتی"}</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
+                            item.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                            item.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {item.status === 'approved' ? 'تایید شده' : item.status === 'rejected' ? 'رد شده' : 'در انتظار تایید'}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-black text-slate-900 line-clamp-1 mb-1">{item.title}</h5>
+                        <p className="text-[11px] font-bold text-slate-600 line-clamp-2 mb-2">{item.description}</p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500">
+                          <span>🛠️ {item.providerName || "نامشخص"}</span>
+                          <span>📍 {item.location || "نامشخص"}</span>
+                          <span className="text-indigo-700 font-black">🏷️ {item.rate || "توافقی"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
+                      <button
+                        onClick={() => {
+                          const updated = serviceAds.map(s => s.id === item.id ? { ...s, status: 'approved', isPendingApproval: false } : s);
+                          setServiceAds(updated);
+                          localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
+                          window.dispatchEvent(new Event("dastavval-ads-sync"));
+                          setSuccessMsg("خدمت تایید شد.");
+                          setTimeout(() => setSuccessMsg(null), 3000);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckCircle size={13} />
+                        <span>تایید</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = serviceAds.map(s => s.id === item.id ? { ...s, status: 'rejected', isPendingApproval: true } : s);
+                          setServiceAds(updated);
+                          localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
+                          window.dispatchEvent(new Event("dastavval-ads-sync"));
+                          setSuccessMsg("خدمت رد شد.");
+                          setTimeout(() => setSuccessMsg(null), 3000);
+                        }}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <XCircle size={13} />
+                        <span>رد</span>
+                      </button>
+                      <button
+                        onClick={() => setEditingAdItem({ type: 'service', data: { ...item } })}
+                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit2 size={13} />
+                        <span>ویرایش</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          confirmAction("حذف آگهی خدمات", "آیا از حذف این آگهی خدمات اطمینان دارید؟", async () => {
+                            const updated = serviceAds.filter(s => s.id !== item.id);
+                            setServiceAds(updated);
+                            localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
+                            if (onUpdateB2bConfig) {
+                              await onUpdateB2bConfig({ ...b2bConfig, serviceAds: updated });
+                            }
+                            window.dispatchEvent(new Event("dastavval-ads-sync"));
+                            window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                            setSuccessMsg("آگهی خدمات حذف شد.");
+                            setTimeout(() => setSuccessMsg(null), 3000);
+                          });
+                        }}
+                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-black rounded-lg transition-colors cursor-pointer"
+                        title="حذف"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Raw Materials Tab */}
+        {adsMainTab === 'raw_materials' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h4 className="text-base font-black text-slate-900">مدیریت آگهی‌های تامین مواد اولیه و ملزومات</h4>
+                <p className="text-xs text-slate-500 font-bold mt-1">بررسی آگهی‌های تامین شکر، روغن، آرد و سایر مواد اولیه کارخانجات.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-50 text-amber-800 text-xs font-black px-3 py-1.5 rounded-xl border border-amber-200">
+                  تعداد کل: {rawMaterialAds.length} آگهی
+                </span>
+              </div>
+            </div>
+
+            {rawMaterialAds.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Package className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-xs font-bold text-slate-500">هیچ آگهی مواد اولیه‌ای ثبت نشده است.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {rawMaterialAds.map((item) => (
+                  <div key={item.id} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all">
+                    <div className="flex items-start gap-3">
+                      <img src={item.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400"} alt={item.name || item.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">{item.category || "مواد اولیه"}</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
+                            item.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                            item.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {item.status === 'approved' ? 'تایید شده' : item.status === 'rejected' ? 'رد شده' : 'در انتظار تایید'}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-black text-slate-900 line-clamp-1 mb-1">{item.name || item.title}</h5>
+                        <p className="text-[11px] font-bold text-slate-600 line-clamp-2 mb-2">{item.description}</p>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500">
+                          <span>🌾 {item.supplierName || "تامین‌کننده"}</span>
+                          <span>📍 {item.supplierLocation || item.location || "نامشخص"}</span>
+                          <span className="text-emerald-700 font-black">💰 {item.priceEstimate || "قیمت روز"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
+                      <button
+                        onClick={() => {
+                          const updated = rawMaterialAds.map(r => r.id === item.id ? { ...r, status: 'approved', isPendingApproval: false } : r);
+                          setRawMaterialAds(updated);
+                          localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
+                          window.dispatchEvent(new Event("dastavval-ads-sync"));
+                          setSuccessMsg("آگهی مواد اولیه تایید شد.");
+                          setTimeout(() => setSuccessMsg(null), 3000);
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckCircle size={13} />
+                        <span>تایید</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = rawMaterialAds.map(r => r.id === item.id ? { ...r, status: 'rejected', isPendingApproval: true } : r);
+                          setRawMaterialAds(updated);
+                          localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
+                          window.dispatchEvent(new Event("dastavval-ads-sync"));
+                          setSuccessMsg("آگهی مواد اولیه رد شد.");
+                          setTimeout(() => setSuccessMsg(null), 3000);
+                        }}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <XCircle size={13} />
+                        <span>رد</span>
+                      </button>
+                      <button
+                        onClick={() => setEditingAdItem({ type: 'raw_material', data: { ...item } })}
+                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit2 size={13} />
+                        <span>ویرایش</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          confirmAction("حذف آگهی مواد اولیه", "آیا از حذف این آگهی مواد اولیه اطمینان دارید؟", async () => {
+                            const updated = rawMaterialAds.filter(r => r.id !== item.id);
+                            setRawMaterialAds(updated);
+                            localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
+                            if (onUpdateB2bConfig) {
+                              await onUpdateB2bConfig({ ...b2bConfig, rawMaterialAds: updated });
+                            }
+                            window.dispatchEvent(new Event("dastavval-ads-sync"));
+                            window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+                            setSuccessMsg("آگهی مواد اولیه حذف شد.");
+                            setTimeout(() => setSuccessMsg(null), 3000);
+                          });
+                        }}
+                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-black rounded-lg transition-colors cursor-pointer"
+                        title="حذف"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Edit Ad Modal */}
       {adToEdit && editAdForm && (
@@ -13457,6 +11627,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </motion.div>
         </div>
       )}
+      </div>
+      )}
 
       {/* Representative Certificate Print View */}
       {selectedRepForCertificate && (
@@ -13513,295 +11685,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         )}
 
-        {showCrmModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden text-right font-sans"
-              dir="rtl"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                <button onClick={() => setShowCrmModal(false)} className="p-2 hover rounded-full transition-all cursor-pointer">
-                  <X size={20} className="text-slate-500" />
-                </button>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  👤 {editingCrmCustomer ? "ویرایش اطلاعات بنکدار" : "افزودن بنکدار به باشگاه مشتریان"}
-                </h3>
-              </div>
-              <form onSubmit={handleCrmSubmit} className="p-8 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">نام کامل بنکدار / نماینده:</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={crmName} 
-                      onChange={e => setCrmName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">نام شرکت / پخش:</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={crmCompany} 
-                      onChange={e => setCrmCompany(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">شماره تلفن همراه:</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={crmPhone} 
-                      onChange={e => setCrmPhone(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono outline-none focus focus" 
-                      placeholder="0912..."
-                      dir="ltr"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">شهر محل فعالیت:</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={crmCity} 
-                      onChange={e => setCrmCity(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">سال تاسیس کسب و کار:</label>
-                    <input 
-                      type="number" 
-                      required 
-                      value={crmYear} 
-                      onChange={e => setCrmYear(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">نقش کاربر:</label>
-                    <select 
-                      value={crmRole} 
-                      onChange={e => setCrmRole(e.target.value as any)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus"
-                    >
-                      <option value="customer">👥 مشتری (بنکدار)</option>
-                      <option value="representative">🛡️ نماینده رسمی فروش</option>
-                      <option value="marketer">📣 بازاریاب و معرف</option>
-                      <option value="factory">🏭 کارخانه / تولیدکننده</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">سطح وفاداری بنکدار:</label>
-                    <select 
-                      value={crmBadge} 
-                      onChange={e => setCrmBadge(e.target.value as any)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus"
-                    >
-                      <option value="vip">تاج طلایی (VIP)</option>
-                      <option value="gold">رتبه عالی (طلا)</option>
-                      <option value="silver">رتبه همکار (نقره)</option>
-                      <option value="bronze">عضو جدید (برنز)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">وضعیت حساب:</label>
-                    <select 
-                      value={crmStatus} 
-                      onChange={e => setCrmStatus(e.target.value as any)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus"
-                    >
-                      <option value="active">فعال و مورد تایید سیستم</option>
-                      <option value="pending_verification">در انتظار احراز مدارک</option>
-                      <option value="blocked">مسدود به علت بدهی</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">تعداد کل فاکتورها:</label>
-                    <input 
-                      type="number" 
-                      value={crmTotalOrders} 
-                      onChange={e => setCrmTotalOrders(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <label className="text-[10px] font-black text-slate-400">حجم مبادلات کل (تومان):</label>
-                    <input 
-                      type="number" 
-                      value={crmTotalPurchase} 
-                      onChange={e => setCrmTotalPurchase(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400">یادداشت اداری / سوابق اعتباری:</label>
-                  <textarea 
-                    rows={3} 
-                    value={crmNotes} 
-                    onChange={e => setCrmNotes(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
-                  />
-                </div>
-                <div className="flex gap-2 pt-4">
-                  <button 
-                    type="submit" 
-                    className="flex-1 bg-indigo-600 hover text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer"
-                  >
-                    ثبت نهایی بنکدار
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowCrmModal(false)}
-                    className="px-6 bg-slate-100 hover text-slate-600 font-bold py-3 rounded-xl text-xs transition-all cursor-pointer"
-                  >
-                    انصراف
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
 
-        {showNotificationModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden text-right font-sans"
-              dir="rtl"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                <button onClick={() => setShowNotificationModal(null)} className="p-2 hover rounded-full transition-all cursor-pointer">
-                  <X size={20} className="text-slate-500" />
-                </button>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  🔔 ارسال اعلان اختصاصی به {showNotificationModal.company}
-                </h3>
-              </div>
-              <form onSubmit={handleSendNotificationSubmit} className="p-8 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400">عنوان پیام اعلان:</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={notificationTitle} 
-                    onChange={e => setNotificationTitle(e.target.value)}
-                    placeholder="مثال: کد تخفیف ویژه خریدهای نقدی خط تولید"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus" 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400">متن تفصیلی پیام:</label>
-                  <textarea 
-                    rows={4} 
-                    required 
-                    value={notificationBody} 
-                    onChange={e => setNotificationBody(e.target.value)}
-                    placeholder="متن پیام شما به بنکدار در پنل کاربری وی ظاهر خواهد شد..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
-                  />
-                </div>
-                <button 
-                  type="submit" 
-                  className="w-full bg-amber-500 hover text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-lg shadow-amber-500/10"
-                >
-                  ارسال سریع اعلان
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
 
-        {showCrmBatchEditModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden text-right font-sans"
-              dir="rtl"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                <button onClick={() => setShowCrmBatchEditModal(false)} className="p-2 hover rounded-full transition-all cursor-pointer">
-                  <X size={20} className="text-slate-500" />
-                </button>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  ✏️ ویرایش گروهی ({toPersianNum(selectedCrmIds.length)} بنکدار)
-                </h3>
-              </div>
-              <div className="p-8 space-y-5">
-                <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                  تغییرات زیر به صورت همزمان روی کل {toPersianNum(selectedCrmIds.length)} بنکدار انتخاب شده اعمال خواهد شد. فیلدهایی که خالی رها شوند تغییری نخواهند کرد.
-                </p>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400">نشان بنکداری (Badge):</label>
-                  <select 
-                    value={batchCrmBadge} 
-                    onChange={e => setBatchCrmBadge(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus"
-                  >
-                    <option value="">-- بدون تغییر --</option>
-                    <option value="bronze">🥉 نشان برنزی</option>
-                    <option value="silver">🥈 نشان نقره‌ای</option>
-                    <option value="gold">🥇 نشان طلایی</option>
-                    <option value="vip">👑 نشان ویژه VIP</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400">وضعیت تایید حساب:</label>
-                  <select 
-                    value={batchCrmStatus} 
-                    onChange={e => setBatchCrmStatus(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus"
-                  >
-                    <option value="">-- بدون تغییر --</option>
-                    <option value="active">✅ فعال و تایید شده</option>
-                    <option value="pending_verification">⏳ در انتظار تایید</option>
-                    <option value="suspended">🚫 مسدود شده</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400">شهر محل فعالیت:</label>
-                  <input 
-                    type="text" 
-                    value={batchCrmCity} 
-                    onChange={e => setBatchCrmCity(e.target.value)}
-                    placeholder="مثال: تبریز (خالی رها کنید تا تغییر نکند)"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus" 
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    onClick={handleBatchUpdateCrm}
-                    disabled={!batchCrmBadge && !batchCrmStatus && !batchCrmCity}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-lg shadow-indigo-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ذخیره تغییرات گروهی
-                  </button>
-                  <button 
-                    onClick={() => setShowCrmBatchEditModal(false)}
-                    className="px-5 bg-slate-100 hover text-slate-600 font-bold py-3 rounded-xl text-xs transition-all cursor-pointer"
-                  >
-                    انصراف
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
 
         {showDirectInvoiceModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
@@ -13954,269 +11839,6 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         )}
 
-        {editingOrder && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden text-right border border-slate-100 flex flex-col max-h-[90vh]"
-            >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">
-                    <Edit3 size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">
-                      ویرایش و اصلاح فاکتور رسمی #{editingOrder.id?.slice(-6).toUpperCase()}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-bold">
-                      امکان تغییر نام کالا، تعداد، قیمت فی هر کارتن و مشخصات خریدار
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setEditingOrder(null)} 
-                  className="p-2 hover:bg-slate-200 rounded-2xl transition-all cursor-pointer text-slate-500"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 text-xs">
-                {/* Buyer Info Form */}
-                <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 space-y-4">
-                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                    <User size={15} className="text-blue-600" />
-                    <span>اطلاعات تحویل‌گیرنده و فاکتور:</span>
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">نام تحویل‌گیرنده / مدیر</label>
-                      <input 
-                        value={editBuyerName} 
-                        onChange={e => setEditBuyerName(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">نام فروشگاه / شرکت</label>
-                      <input 
-                        value={editBuyerCompany} 
-                        onChange={e => setEditBuyerCompany(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">شماره تماس مستقیم</label>
-                      <input 
-                        value={editBuyerPhone} 
-                        onChange={e => setEditBuyerPhone(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 mb-1">وضعیت تسویه مالی</label>
-                      <select
-                        value={editPaymentStatus}
-                        onChange={e => setEditPaymentStatus(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                      >
-                        <option value="pending">در انتظار پرداخت</option>
-                        <option value="paid">تسویه شده کامل</option>
-                        <option value="unpaid">پرداخت نشده / چک</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 mb-1">آدرس تحویل و تخلیه بار</label>
-                    <textarea 
-                      value={editBuyerAddress} 
-                      onChange={e => setEditBuyerAddress(e.target.value)}
-                      rows={2}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Editable Items Table Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                      <ShoppingCart size={15} className="text-emerald-600" />
-                      <span>ویرایش اقلام، تعداد و قیمت تک‌تک کالاهای فاکتور:</span>
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const total = editOrderItems.reduce((sum, it) => sum + ((Number(it.quantityCartons) || 0) * (Number(it.pricePerCarton) || 0)), 0);
-                        setEditTotalAmount(total);
-                      }}
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border border-emerald-200"
-                    >
-                      <RefreshCw size={12} />
-                      <span>محاسبه خودکار جمع فاکتور</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {editOrderItems.map((item, idx) => (
-                      <div 
-                        key={`admin-panel-edit-order-item-${item.productId || idx}-${idx}`} 
-                        className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5 sm:space-y-0 sm:flex sm:items-center sm:gap-3"
-                      >
-                        {/* Item Name Input */}
-                        <div className="flex-1">
-                          <label className="block text-[9px] font-black text-slate-400 mb-0.5 sm:hidden">نام کالا:</label>
-                          <input
-                            type="text"
-                            value={item.name || ""}
-                            placeholder="نام کامل محصول"
-                            onChange={e => {
-                              const next = [...editOrderItems];
-                              next[idx].name = e.target.value;
-                              setEditOrderItems(next);
-                            }}
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-800 outline-none focus:border-emerald-500"
-                          />
-                        </div>
-
-                        {/* Item Quantity Input */}
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">تعداد:</span>
-                          <input 
-                            type="number" 
-                            min={1}
-                            value={item.quantityCartons || 1} 
-                            onChange={e => {
-                              const next = [...editOrderItems];
-                              next[idx].quantityCartons = Math.max(1, Number(e.target.value));
-                              setEditOrderItems(next);
-                            }}
-                            className="w-20 bg-white border border-slate-200 rounded-xl px-2 py-2 text-xs font-mono font-black text-center text-emerald-600 outline-none focus:border-emerald-500"
-                          />
-                          <span className="text-[10px] text-slate-500 font-bold">کارتن</span>
-                        </div>
-
-                        {/* Item Price Per Carton Input */}
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">فی (تومان):</span>
-                          <input 
-                            type="number" 
-                            min={0}
-                            step={1000}
-                            value={item.pricePerCarton || 0} 
-                            onChange={e => {
-                              const next = [...editOrderItems];
-                              next[idx].pricePerCarton = Number(e.target.value);
-                              setEditOrderItems(next);
-                            }}
-                            className="w-28 bg-white border border-slate-200 rounded-xl px-2 py-2 text-xs font-mono font-black text-center text-slate-900 outline-none focus:border-emerald-500"
-                          />
-                        </div>
-
-                        {/* Subtotal Row */}
-                        <div className="text-left min-w-[100px]">
-                          <span className="text-[9px] text-slate-400 block font-bold">جمع ردیف:</span>
-                          <span className="text-xs font-black text-emerald-600 font-mono">
-                            {toPersianNum(((Number(item.quantityCartons) || 0) * (Number(item.pricePerCarton) || 0)).toLocaleString())}
-                          </span>
-                        </div>
-
-                        {/* Delete button */}
-                        <button 
-                          type="button"
-                          onClick={() => setEditOrderItems(prev => prev.filter((_, i) => i !== idx))}
-                          className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-all cursor-pointer"
-                          title="حذف ردیف"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        setEditOrderItems(prev => [
-                          ...prev, 
-                          { productId: `manual_${Date.now()}`, name: 'کالای سفارشی جدید', quantityCartons: 1, pricePerCarton: 0, totalItems: 0 }
-                        ]);
-                      }}
-                      className="w-full py-3 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl text-xs font-black text-slate-500 hover:text-emerald-700 hover:bg-emerald-50/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Plus size={16} />
-                      <span>+ افزودن ردیف کالای جدید به فاکتور</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Total Amount Input */}
-                <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 mb-0.5">مبلغ نهایی قابل پرداخت فاکتور (تومان):</label>
-                    <p className="text-[10px] text-slate-500 font-bold">
-                      می‌توانید با دکمه محاسبه خودکار بالا جمع کالاها را قرار دهید یا مبلغ را دستی اصلاح کنید.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="number"
-                      value={editTotalAmount} 
-                      onChange={e => setEditTotalAmount(Number(e.target.value))}
-                      className="w-48 bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-black text-emerald-700 outline-none focus:border-emerald-600 font-mono text-center shadow-sm"
-                    />
-                    <span className="text-xs font-black text-slate-700">تومان</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <button
-                  onClick={async () => {
-                    setLoading(true);
-                    try {
-                      const { doc: orderDoc, updateDoc: orderUpdate } = await import("../lib/data-layer");
-                      const orderRef = orderDoc(db, "orders", editingOrder.id);
-                      await orderUpdate(orderRef, {
-                        buyerName: editBuyerName,
-                        buyerPhone: editBuyerPhone,
-                        buyerCompany: editBuyerCompany,
-                        buyerAddress: editBuyerAddress,
-                        totalAmount: Number(editTotalAmount),
-                        paymentStatus: editPaymentStatus,
-                        items: editOrderItems
-                      });
-                      setSuccessMsg("تغییرات فاکتور و اقلام با موفقیت در سیستم ذخیره شد.");
-                      setEditingOrder(null);
-                      fetchOrders();
-                      setTimeout(() => setSuccessMsg(null), 4000);
-                    } catch (e: any) {
-                      setErrorMsg("خطا در ذخیره فاکتور: " + (e.message || ""));
-                      setTimeout(() => setErrorMsg(null), 4000);
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer text-xs"
-                >
-                  {loading ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                  <span>ذخیره و اصلاح نهایی فاکتور</span>
-                </button>
-                <button
-                  onClick={() => setEditingOrder(null)}
-                  className="px-6 bg-white border border-slate-200 text-slate-600 font-black py-3.5 rounded-2xl hover:bg-slate-100 transition-all cursor-pointer text-xs"
-                >
-                  انصراف
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
         {/* IMPORT SUCCESS SUMMARY MODAL */}
         {showImportSuccessModal && importSummary && (
           <div className="fixed inset-0 bg-slate-50/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -14287,773 +11909,26 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
 
       {activeSubTab === 'safe_buy' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl shadow-inner">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت درخواست‌های خرید امن (Safe Buy / زیر قیمت کف)</h3>
-                <p className="text-[11px] text-slate-400 font-bold mt-1">بررسی، تایید یا رد درخواست‌های خرید ثبت‌شده توسط کاربران از طریق سیستم واسطه‌گری امن.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                {[
-                  { id: 'pending', label: 'در انتظار', count: safeBuyRequests.filter(r => (r.status || 'pending') === 'pending').length },
-                  { id: 'approved', label: 'تایید شده', count: safeBuyRequests.filter(r => r.status === 'approved').length },
-                  { id: 'rejected', label: 'رد شده', count: safeBuyRequests.filter(r => r.status === 'rejected').length },
-                  { id: 'all', label: 'همه', count: safeBuyRequests.length },
-                ].map((f, fIdx) => (
-                  <button
-                    key={`safebuy-filter-${f.id}-${fIdx}`}
-                    onClick={() => setSafeBuyFilter(f.id as any)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                      safeBuyFilter === f.id 
-                        ? "bg-white text-emerald-700 shadow-sm" 
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    {f.label} ({f.count})
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => {
-                  const saved = localStorage.getItem("dastavval_safe_buy_requests");
-                  if (saved) {
-                    try { setSafeBuyRequests(JSON.parse(saved)); } catch(e){}
-                    setSuccessMsg("درخواست‌ها مجدداً بارگیری شد.");
-                    setTimeout(() => setSuccessMsg(null), 2000);
-                  }
-                }}
-                className="p-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl cursor-pointer transition-all"
-                title="بروزرسانی"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-right border-separate border-spacing-y-2">
-              <thead>
-                <tr className="text-[10px] font-black text-slate-400">
-                  <th className="px-4 py-2 font-black text-right">شناسه / تاریخ</th>
-                  <th className="px-4 py-2 font-black text-right">عنوان کالا / قیمت پیشنهادی</th>
-                  <th className="px-4 py-2 font-black text-right">اطلاعات خریدار</th>
-                  <th className="px-4 py-2 font-black text-right">توضیحات خریدار</th>
-                  <th className="px-4 py-2 font-black text-right">وضعیت</th>
-                  <th className="px-4 py-2 font-black text-left">عملیات نظارت</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs">
-                {(() => {
-                  const filtered = safeBuyRequests.filter(r => safeBuyFilter === 'all' || (r.status || 'pending') === safeBuyFilter);
-                  if (filtered.length === 0) {
-                    return <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">هیچ درخواست خرید امنی در این وضعیت یافت نشد.</td></tr>;
-                  }
-                  return filtered.map((req: any, idx: number) => (
-                    <tr key={`safebuy-item-${req.id || idx}-${idx}`} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 rounded-r-2xl border-y border-r border-slate-100">
-                        <div className="font-mono font-black text-slate-800">{req.id}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{req.date}</div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <div className="font-black text-slate-900 text-sm">{req.productTitle}</div>
-                        <div className="text-[11px] text-emerald-700 font-black mt-1">قیمت کف: {req.wholesalePrice}</div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <div className="font-bold text-slate-800">📞 {req.buyerPhone}</div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <div className="text-[11px] text-slate-600 font-medium max-w-xs truncate">{req.buyerMessage || 'بدون توضیحات تکمیلی'}</div>
-                      </td>
-                      <td className="px-4 py-3 border-y border-slate-100">
-                        <span className={`inline-block px-3 py-1 rounded-xl text-[10px] font-black ${
-                          req.status === 'approved' ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" :
-                          req.status === 'rejected' ? "bg-rose-50 text-rose-700 border border-rose-200/50" :
-                          "bg-amber-50 text-amber-700 border border-amber-200/50"
-                        }`}>
-                          {req.status === 'approved' ? 'تایید شده' : req.status === 'rejected' ? 'رد شده' : 'در انتظار بررسی'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 rounded-l-2xl border-y border-l border-slate-100 text-left">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setSelectedSafeBuyDetail(req)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] rounded-xl transition-all cursor-pointer flex items-center gap-1"
-                          >
-                            <Eye size={12} /> جزئیات کالا
-                          </button>
-                          <button
-                            onClick={() => handleUpdateSafeBuyStatus(req.id, req.firebaseId, 'approved')}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
-                          >
-                            <Check size={12} /> تایید
-                          </button>
-                          <button
-                            onClick={() => handleUpdateSafeBuyStatus(req.id, req.firebaseId, 'rejected')}
-                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-[10px] rounded-xl transition-all cursor-pointer flex items-center gap-1"
-                          >
-                            <X size={12} /> رد
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ));
-                })()}
-              </tbody>
-            </table>
-          </div>
-
-          {/* SAFE BUY REQUEST DETAILS MODAL */}
-          <AnimatePresence>
-            {selectedSafeBuyDetail && (() => {
-              const details = getProductDetailsForSafeBuy(selectedSafeBuyDetail);
-              return (
-                <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="bg-white rounded-[2.5rem] w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-100 text-right space-y-6 relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-                    
-                    {/* Header */}
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                          <ShieldCheck size={20} />
-                        </div>
-                        <div>
-                          <h4 className="text-base font-black text-slate-800">جزئیات کامل درخواست خرید امن</h4>
-                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">شناسه معامله: {selectedSafeBuyDetail.id}</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => setSelectedSafeBuyDetail(null)}
-                        className="p-1.5 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-
-                    {/* Details List */}
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                      
-                      {/* CATEGORY 1: Product Specifications */}
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                        <div className="flex items-center gap-2 text-emerald-700 font-black text-[11px] uppercase tracking-wider">
-                          <Package size={14} />
-                          <span>مشخصات عمومی و برند کالا</span>
-                        </div>
-                        
-                        <div className="flex gap-4 items-start bg-white p-3 rounded-xl border border-slate-100/80">
-                          {details.imageUrl && (
-                            <img 
-                              src={details.imageUrl} 
-                              alt={details.title} 
-                              className="w-16 h-16 object-cover rounded-xl border border-slate-200 shrink-0 mt-0.5" 
-                              referrerPolicy="no-referrer"
-                            />
-                          )}
-                          <div className="space-y-1">
-                            <h5 className="font-black text-slate-800 text-xs leading-relaxed">{details.title}</h5>
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 mt-1">
-                              <Building2 size={12} className="text-slate-400" />
-                              <span>برند: {details.brand}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-xs space-y-2 mt-2 pt-2 border-t border-slate-200/40">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-slate-400 font-bold">توضیحات و مشخصات فنی کالا:</span>
-                            <span className="text-slate-600 leading-relaxed font-bold bg-white p-2.5 rounded-xl border border-slate-100/80 mt-1">
-                              {details.description}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CATEGORY 2: Financials & Conditions */}
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                        <div className="flex items-center gap-2 text-emerald-700 font-black text-[11px] uppercase tracking-wider">
-                          <DollarSign size={14} />
-                          <span>شرایط قیمت‌گذاری و تعداد درخواستی</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-400 block">قیمت پیشنهادی کاربر:</span>
-                            <span className="text-xs font-black text-emerald-600 block">{details.wholesalePrice}</span>
-                          </div>
-                          
-                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-400 block">تعداد درخواستی خریدار:</span>
-                            <span className="text-xs font-black text-slate-800 block">{details.quantity}</span>
-                          </div>
-
-                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-400 block">قیمت بازار آزاد (مصرف‌کننده):</span>
-                            <span className="text-xs font-bold text-slate-500 line-through block">{details.marketPrice || 'ثبت نشده'}</span>
-                          </div>
-
-                          <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-400 block">سود ناخالص خریدار:</span>
-                            <span className="text-xs font-black text-amber-600 block">{details.buyerProfit}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CATEGORY 3: Submission & Buyer Details */}
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                        <div className="flex items-center gap-2 text-emerald-700 font-black text-[11px] uppercase tracking-wider">
-                          <ClipboardList size={14} />
-                          <span>اطلاعات ثبت درخواست و متقاضی</span>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          <div className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                              <Calendar size={13} className="text-slate-400" />
-                              تاریخ ثبت تقاضا:
-                            </span>
-                            <span className="text-slate-800 font-black">{selectedSafeBuyDetail.date || '۱۴۰۵/۰۵/۲۴'}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                              <Phone size={13} className="text-slate-400" />
-                              شماره تماس خریدار:
-                            </span>
-                            <span className="text-slate-800 font-black select-all" dir="ltr">{selectedSafeBuyDetail.buyerPhone}</span>
-                          </div>
-
-                          <div className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-100">
-                            <span className="text-slate-400 font-bold flex items-center gap-1.5">
-                              <Activity size={13} className="text-slate-400" />
-                              وضعیت در سیستم:
-                            </span>
-                            <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[10px] font-black ${
-                              selectedSafeBuyDetail.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
-                              selectedSafeBuyDetail.status === 'rejected' ? 'bg-rose-50 text-rose-700' :
-                              'bg-amber-50 text-amber-700'
-                            }`}>
-                              {selectedSafeBuyDetail.status === 'approved' ? 'تایید شده' :
-                               selectedSafeBuyDetail.status === 'rejected' ? 'رد شده' : 'در انتظار بررسی'}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col gap-1 pt-2 border-t border-slate-200/40">
-                            <span className="text-slate-400 font-bold">پیام و توضیحات تکمیلی خریدار:</span>
-                            <p className="text-slate-700 leading-relaxed font-medium bg-white p-3 rounded-xl border border-slate-100 mt-1">
-                              {selectedSafeBuyDetail.buyerMessage || 'هیچ توضیحات یا پیامی توسط خریدار ثبت نشده است.'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* Action Controls */}
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        onClick={() => {
-                          handleUpdateSafeBuyStatus(selectedSafeBuyDetail.id, selectedSafeBuyDetail.firebaseId, 'approved');
-                          setSelectedSafeBuyDetail(null);
-                        }}
-                        className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Check size={14} /> تایید معامله امن
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleUpdateSafeBuyStatus(selectedSafeBuyDetail.id, selectedSafeBuyDetail.firebaseId, 'rejected');
-                          setSelectedSafeBuyDetail(null);
-                        }}
-                        className="flex-1 py-3.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <X size={14} /> رد درخواست
-                      </button>
-                    </div>
-                  </motion.div>
-                </div>
-              );
-            })()}
-          </AnimatePresence>
-        </div>
+        <AdminSafeBuy
+          products={products}
+          sponsoredAds={sponsoredAds}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          setLoading={setLoading}
+        />
       )}
 
       {activeSubTab === 'channel_posts' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right animate-fade-in" dir="rtl">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-100">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shadow-inner">
-                <Megaphone size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت کانال اطلاع‌رسانی دست اول</h3>
-                <p className="text-[11px] text-slate-400 font-bold mt-1">ایجاد، ویرایش و حذف اطلاعیه‌ها، اخبار فوری و فراخوان‌های ویژه کاربران سامانه.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Form and Channel List Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Form Column */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Manual Form */}
-              <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-150 space-y-4">
-                <h4 className="font-black text-xs text-slate-800 border-b border-slate-200 pb-2">
-                  {editingChannelPostId ? "📝 ویرایش اطلاعیه" : "✨ انتشار پیام جدید در کانال"}
-                </h4>
-                
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-black text-slate-500 block">عنوان پیام:</label>
-                  <input
-                    type="text"
-                    value={channelPostTitle}
-                    onChange={(e) => setChannelPostTitle(e.target.value)}
-                    placeholder="مثلاً: شروع فروش حراج زعفران قائنات"
-                    className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-black text-slate-500 block">دسته‌بندی:</label>
-                  <select
-                    value={channelPostCategory}
-                    onChange={(e) => setChannelPostCategory(e.target.value)}
-                    className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                  >
-                    <option value="info">📣 عمومی / اطلاع‌رسانی</option>
-                    <option value="urgent">🔴 فوری / حراج ویژه</option>
-                    <option value="festival">🎉 جشنواره تخفیف کارخانجات</option>
-                    <option value="system">⚙️ اطلاعیه فنی و سیستمی</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-black text-slate-500 block">متن کامل پیام:</label>
-                  <textarea
-                    rows={6}
-                    value={channelPostContent}
-                    onChange={(e) => setChannelPostContent(e.target.value)}
-                    placeholder="متن پیام خود را با جزئیات کامل، قیمت‌ها و نحوه سفارش وارد کنید..."
-                    className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none leading-relaxed focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1.5 border-t border-slate-200/50 pt-3 mt-2">
-                  <span className="text-[10px] font-black text-indigo-600 block mb-1">🔗 دکمه اکشن / پیوند دکمه (اختیاری)</span>
-                  
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 block">متن دکمه:</label>
-                    <input
-                      type="text"
-                      value={channelPostActionLabel}
-                      onChange={(e) => setChannelPostActionLabel(e.target.value)}
-                      placeholder="مثلاً: ورود به صفحه خرید ویژه"
-                      className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-1 pt-1">
-                    <label className="text-[10px] font-bold text-slate-400 block">لینک یا آدرس اینترنتی (URL):</label>
-                    <input
-                      type="text"
-                      value={channelPostActionUrl}
-                      onChange={(e) => setChannelPostActionUrl(e.target.value)}
-                      placeholder="مثلاً: https://dastavval.com/special"
-                      className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-700 outline-none focus:border-indigo-500 transition-all text-left"
-                      dir="ltr"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!channelPostTitle.trim() || !channelPostContent.trim()) {
-                        alert("لطفا عنوان و متن پیام را کامل کنید.");
-                        return;
-                      }
-
-                      const saved = localStorage.getItem("dastavval_announcements");
-                      let currentPosts = [];
-                      if (saved) {
-                        currentPosts = JSON.parse(saved);
-                      } else {
-                        currentPosts = [
-                          {
-                            id: "ann-1",
-                            title: "📣 راه‌اندازی کانال رسمی اطلاع‌رسانی دست اول",
-                            content: "به کانال رسمی دست اول خوش آمدید! از این پس کلیه حراج‌های کف بازار، جشنواره‌های تخفیف خط تولید کارخانجات، شرایط اعطای نمایندگی استانی و اطلاعیه‌های مهم صنف مواد غذایی و بهداشتی را به صورت مستقیم و آنی در این کانال دریافت خواهید کرد.",
-                            category: "system",
-                            createdAt: "۱۴۰۵/۰۵/۲۸"
-                          },
-                          {
-                            id: "ann-2",
-                            title: "🔥 جشنواره تخفیف ۲۲٪ ویژه محصولات شوینده",
-                            content: "جشنواره استثنایی فروش مستقیم از درب کارخانه برای انواع مایع دستشویی، ظرفشویی و پودرهای لباسشویی کلید خورد. تمامی بنکداران با سطح نقره‌ای به بالا می‌توانند سفارشات خود را با تخفیف مضاعف در سبد خرید ثبت نمایند.",
-                            category: "festival",
-                            createdAt: "۱۴۰۵/۰۵/۲۷"
-                          },
-                          {
-                            id: "ann-3",
-                            title: "⚡ اعلام شرایط دریافت نمایندگی شهر و شهرستان",
-                            content: "با توجه به درخواست‌های مکرر، جدول سطوح نمایندگی فعال شد. هر فرد با دستیابی به سقف فروش مشخص (۳۰۰ میلیون، ۱ میلیارد، ۲ میلیارد و ۵ میلیارد تومان) می‌تواند لوح تقدیر گرافیکی آنلاین دریافت کرده و مدارک خود را ثبت کند.",
-                            category: "urgent",
-                            createdAt: "۱۴۰۵/۰۵/۲۶"
-                          }
-                        ];
-                      }
-
-                      if (editingChannelPostId) {
-                        // Edit mode
-                        currentPosts = currentPosts.map((p: any) => p.id === editingChannelPostId ? {
-                          ...p,
-                          title: channelPostTitle.trim(),
-                          content: channelPostContent.trim(),
-                          category: channelPostCategory,
-                          actionLabel: channelPostActionLabel.trim() || undefined,
-                          actionUrl: channelPostActionUrl.trim() || undefined
-                        } : p);
-                        setEditingChannelPostId(null);
-                        setSuccessMsg("اطلاعیه با موفقیت ویرایش شد.");
-                      } else {
-                        // Add mode
-                        const newP = {
-                          id: `ann_${Date.now()}`,
-                          title: channelPostTitle.trim(),
-                          content: channelPostContent.trim(),
-                          category: channelPostCategory,
-                          actionLabel: channelPostActionLabel.trim() || undefined,
-                          actionUrl: channelPostActionUrl.trim() || undefined,
-                          createdAt: new Date().toLocaleDateString('fa-IR')
-                        };
-                        currentPosts = [newP, ...currentPosts];
-                        setSuccessMsg("پیام جدید با موفقیت در کانال اطلاع‌رسانی منتشر شد.");
-                      }
-
-                      localStorage.setItem("dastavval_announcements", JSON.stringify(currentPosts));
-                      window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
-                      
-                      // Reset fields
-                      setChannelPostTitle("");
-                      setChannelPostContent("");
-                      setChannelPostCategory("info");
-                      setChannelPostActionLabel("");
-                      setChannelPostActionUrl("");
-                      
-                      setTimeout(() => setSuccessMsg(null), 3000);
-                    }}
-                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Save size={14} />
-                    <span>{editingChannelPostId ? "ذخیره تغییرات" : "انتشار فوری در کانال"}</span>
-                  </button>
-                  
-                  {editingChannelPostId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingChannelPostId(null);
-                        setChannelPostTitle("");
-                        setChannelPostContent("");
-                        setChannelPostCategory("info");
-                        setChannelPostActionLabel("");
-                        setChannelPostActionUrl("");
-                      }}
-                      className="px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs rounded-xl transition-all cursor-pointer"
-                    >
-                      انصراف
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Auto-Post Settings Panel */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 text-right" dir="rtl">
-                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
-                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                    <Settings size={16} />
-                  </div>
-                  <div>
-                    <h4 className="font-black text-xs text-slate-800">تنظیمات انتشار خودکار کانال</h4>
-                    <p className="text-[10px] text-slate-400 font-bold">فعال/غیرفعال‌سازی ارسال پیام خودکار سیستم</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-1">
-                  {/* Toggle 1: New Product */}
-                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-black text-slate-700">📦 محصولات جدید</span>
-                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار با ثبت محصول جدید</span>
-                    </div>
-                    <button
-                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_product: !prev.new_product }))}
-                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        autoPostSettings.new_product ? "bg-indigo-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          autoPostSettings.new_product ? "-translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Toggle 2: New Discount */}
-                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-black text-slate-700">🔥 تخفیفات جدید</span>
-                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار کاهش قیمت‌های گروهی</span>
-                    </div>
-                    <button
-                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_discount: !prev.new_discount }))}
-                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        autoPostSettings.new_discount ? "bg-indigo-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          autoPostSettings.new_discount ? "-translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Toggle 3: New Ad */}
-                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-black text-slate-700">📢 آگهی‌های همکار</span>
-                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار تایید آگهی‌های بیلبورد</span>
-                    </div>
-                    <button
-                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_ad: !prev.new_ad }))}
-                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        autoPostSettings.new_ad ? "bg-indigo-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          autoPostSettings.new_ad ? "-translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Toggle 4: New Factory */}
-                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-black text-slate-700">🏭 کارخانجات جدید</span>
-                      <span className="text-[9px] text-slate-400 font-bold">انتشار خودکار عضویت کارخانه جدید</span>
-                    </div>
-                    <button
-                      onClick={() => setAutoPostSettings(prev => ({ ...prev, new_factory: !prev.new_factory }))}
-                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        autoPostSettings.new_factory ? "bg-indigo-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          autoPostSettings.new_factory ? "-translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* List and Statistics */}
-            <div className="lg:col-span-2 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="text-[11px] font-black text-slate-400">لیست آخرین پیام‌های منتشر شده در کانال</span>
-                <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-mono">
-                  {toPersianNum((() => {
-                    const saved = localStorage.getItem("dastavval_announcements");
-                    if (saved) {
-                      try { return JSON.parse(saved).length; } catch(e){}
-                    }
-                    return 3;
-                  })())} پیام فعال
-                </span>
-              </div>
-
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
-                {(() => {
-                  const saved = localStorage.getItem("dastavval_announcements");
-                  let posts = [];
-                  if (saved) {
-                    try { posts = JSON.parse(saved); } catch(e){}
-                  } else {
-                    posts = [
-                      {
-                        id: "ann-1",
-                        title: "📣 راه‌اندازی کانال رسمی اطلاع‌رسانی دست اول",
-                        content: "به کانال رسمی دست اول خوش آمدید! از این پس کلیه حراج‌های کف بازار، جشنواره‌های تخفیف خط تولید کارخانجات، شرایط اعطای نمایندگی استانی و اطلاعیه‌های مهم صنف مواد غذایی و بهداشتی را به صورت مستقیم و آنی در این کانال دریافت خواهید کرد.",
-                        category: "system",
-                        createdAt: "۱۴۰۵/۰۵/۲۸"
-                      },
-                      {
-                        id: "ann-2",
-                        title: "🔥 جشنواره تخفیف ۲۲٪ ویژه محصولات شوینده",
-                        content: "جشنواره استثنایی فروش مستقیم از درب کارخانه برای انواع مایع دستشویی، ظرفشویی و پودرهای لباسشویی کلید خورد. تمامی بنکداران با سطح نقره‌ای به بالا می‌توانند سفارشات خود را با تخفیف مضاعف در سبد خرید ثبت نمایند.",
-                        category: "festival",
-                        createdAt: "۱۴۰۵/۰۵/۲۷"
-                      },
-                      {
-                        id: "ann-3",
-                        title: "⚡ اعلام شرایط دریافت نمایندگی شهر و شهرستان",
-                        content: "با توجه به درخواست‌های مکرر، جدول سطوح نمایندگی فعال شد. هر فرد با دستیابی به سقف فروش مشخص (۳۰۰ میلیون، ۱ میلیارد، ۲ میلیارد و ۵ میلیارد تومان) می‌تواند لوح تقدیر گرافیکی آنلاین دریافت کرده و مدارک خود را ثبت کند.",
-                        category: "urgent",
-                        createdAt: "۱۴۰۵/۰۵/۲۶"
-                      }
-                    ];
-                  }
-
-                  // Sort: pinned first, then normal descending
-                  const sortedPosts = [...posts].sort((a: any, b: any) => {
-                    const aPinned = !!a.pinned;
-                    const bPinned = !!b.pinned;
-                    if (aPinned && !bPinned) return -1;
-                    if (!aPinned && bPinned) return 1;
-                    return 0; // maintain relative order
-                  });
-
-                  if (sortedPosts.length === 0) {
-                    return (
-                      <div className="text-center py-16 text-slate-400 font-bold text-xs space-y-2 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                        <Megaphone size={36} className="mx-auto text-slate-300" />
-                        <p>هیچ پیامی در کانال وجود ندارد. همین حالا اولین پیام خود را منتشر کنید.</p>
-                      </div>
-                    );
-                  }
-
-                  return sortedPosts.map((post: any, idx: number) => (
-                    <div 
-                      key={`community-post-${post.id || idx}-${idx}`} 
-                      className={`bg-white border transition-all p-5 rounded-2xl shadow-2xs space-y-3 relative overflow-hidden group text-right ${
-                        post.pinned ? 'border-amber-300/80 bg-amber-50/5 ring-1 ring-amber-200' : 'border-slate-150 hover:border-slate-250'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                            post.category === 'urgent' ? 'bg-red-100 text-red-750 border border-red-200/50' :
-                            post.category === 'festival' ? 'bg-amber-100 text-amber-800 border border-amber-200/50' :
-                            post.category === 'system' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/50' :
-                            'bg-slate-100 text-slate-750'
-                          }`}>
-                            {post.category === 'urgent' ? '🔴 فوری' :
-                             post.category === 'festival' ? '🎉 جشنواره' :
-                             post.category === 'system' ? '⚙️ سیستمی' :
-                             '📣 عمومی'}
-                          </span>
-                          
-                          {post.pinned && (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-850 border border-amber-250 flex items-center gap-1 shrink-0">
-                              <Pin size={9} className="fill-amber-600 text-amber-600" />
-                              <span>سنجاق شده</span>
-                            </span>
-                          )}
-
-                          <h5 className="font-black text-xs text-slate-900 leading-tight mr-1">{post.title}</h5>
-                        </div>
-                        <span className="text-[9px] font-bold text-slate-400 font-mono shrink-0">{toPersianNum(post.createdAt)}</span>
-                      </div>
-
-                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed whitespace-pre-line text-right">
-                        {post.content}
-                      </p>
-
-                      {post.actionUrl && (
-                        <div className="pt-1 text-left">
-                          <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg">
-                            🔗 دکمه اکشن: {post.actionLabel || "مشاهده پیوند"}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Controls on Hover */}
-                      <div className="flex justify-end gap-1.5 pt-2 border-t border-slate-50">
-                        <button
-                          onClick={() => {
-                            const updated = posts.map((p: any) => {
-                              if (p.id === post.id) {
-                                return { ...p, pinned: !p.pinned };
-                              }
-                              // Set other posts to unpinned if we're pinning this one
-                              return p.pinned && !post.pinned ? { ...p, pinned: false } : p;
-                            });
-                            localStorage.setItem("dastavval_announcements", JSON.stringify(updated));
-                            window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
-                            setSuccessMsg(post.pinned ? "پیام از حالت پین خارج شد." : "پیام با موفقیت به بالای کانال سنجاق شد.");
-                            setTimeout(() => setSuccessMsg(null), 3000);
-                          }}
-                          className={`px-2 py-1 bg-slate-50 hover:bg-slate-100 border text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
-                            post.pinned ? 'border-amber-200 text-amber-800' : 'border-slate-200 text-slate-600'
-                          }`}
-                        >
-                          <Pin size={11} className={post.pinned ? "fill-amber-600 text-amber-600" : ""} />
-                          <span>{post.pinned ? "برداشتن پین" : "سنجاق پیام"}</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setEditingChannelPostId(post.id);
-                            setChannelPostTitle(post.title);
-                            setChannelPostContent(post.content);
-                            setChannelPostCategory(post.category);
-                            setChannelPostActionLabel(post.actionLabel || "");
-                            setChannelPostActionUrl(post.actionUrl || "");
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                          className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[9px] font-black transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                        >
-                          <Edit2 size={11} />
-                          <span>ویرایش</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            if (window.confirm("آیا از حذف این اطلاعیه از کانال رسمی مطمئن هستید؟")) {
-                              const updated = posts.filter((p: any) => p.id !== post.id);
-                              localStorage.setItem("dastavval_announcements", JSON.stringify(updated));
-                              window.dispatchEvent(new CustomEvent("dastavval_announcements_updated"));
-                              setSuccessMsg("اطلاعیه با موفقیت حذف گردید.");
-                              setTimeout(() => setSuccessMsg(null), 3000);
-                            }
-                          }}
-                          className="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-[9px] font-black transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                        >
-                          <Trash2 size={11} />
-                          <span>حذف</span>
-                        </button>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          </div>
-        </div>
+        <AdminChannelPosts
+          autoPostSettings={autoPostSettings}
+          setAutoPostSettings={setAutoPostSettings}
+          setSuccessMsg={setSuccessMsg}
+        />
       )}
 
 
 
       </main>
     </div>
-    </>
   );
 }

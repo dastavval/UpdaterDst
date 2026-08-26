@@ -21,25 +21,40 @@ export function extractCleanNumericOrderCode(orderIdOrTracking: string | number 
 }
 
 /**
- * Generates clean static numeric URL for invoice view
- * e.g., https://dastavval.com/invoice/3360 or https://dastavval.com/factors/3360.pdf
+ * Generates clean URL for invoice view that works reliably on main domain,
+ * shared hosting subfolders, and SPA routers without causing 404 or redirect to home.
+ * e.g., https://mysite.com/?invoice=3360
  */
 export function generateInvoiceUrl(
   orderIdOrTracking: string | number | null | undefined, 
   options?: { format?: 'pdf' | 'html'; domain?: string }
 ): string {
   const code = extractCleanNumericOrderCode(orderIdOrTracking);
+  
+  if (typeof window !== 'undefined' && window.location) {
+    const origin = window.location.origin;
+    const pathname = window.location.pathname.replace(/\/invoice\/.*$/, '').replace(/\/factors\/.*$/, '');
+    const baseUrl = `${origin}${pathname === '/' ? '' : pathname}`;
+    
+    if (options?.format === 'pdf') {
+      return `${baseUrl}/php/api.php?action=invoice_pdf&id=${code}`;
+    }
+    // Using query parameter ensures standard shared hosts and SPAs load index.html without 404
+    return `${baseUrl}/?invoice=${code}`;
+  }
+
   const domain = options?.domain || 'dastavval.com';
   if (options?.format === 'pdf') {
-    return `https://${domain}/factors/${code}.pdf`;
+    return `https://${domain}/php/api.php?action=invoice_pdf&id=${code}`;
   }
-  return `https://${domain}/invoice/${code}`;
+  return `https://${domain}/?invoice=${code}`;
 }
 
 /**
- * Generates relative static factor link e.g. /invoice/3360
+ * Generates relative static factor link e.g. /?invoice=3360
  */
 export function generateRelativeInvoicePath(orderIdOrTracking: string | number | null | undefined): string {
   const code = extractCleanNumericOrderCode(orderIdOrTracking);
-  return `/invoice/${code}`;
+  return `/?invoice=${code}`;
 }
+

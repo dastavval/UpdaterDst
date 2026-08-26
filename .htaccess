@@ -3,26 +3,48 @@
 # پشتیبانی کامل از ساب‌دامنه (Subdomain)، دامنه اصلی و ساب‌دایرکتوری
 # ============================================================
 
-DirectoryIndex index.html index.php
+DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # ۱. هدایت درخواست‌های API به فایل PHP به صورت نسبی
+  # ۱. بررسی سرو مستقیم دارایی‌های کامپایل شده (Assets) در ریشه یا پوشه dist
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} ^.*/assets/(.*)$
+  RewriteCond dist/assets/%1 -f
+  RewriteRule ^(.*)assets/(.*)$ dist/assets/$2 [L]
+
+  # ۲. هدایت درخواست‌های وب‌سرویس و API به فایل PHP
   RewriteRule ^api/index\.php$ php/api.php [L,QSA]
   RewriteRule ^api/(.*)$ php/api.php?action=$1 [L,QSA]
+  RewriteRule ^php/api/(.*)$ php/api.php?action=$1 [L,QSA]
 
-  # ۲. اگر درخواست فایل یا پوشه واقعی بود، دست‌نخورده سرو شود
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  # ۳. اگر پوشه فیزیکی وجود دارد
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # ۳. هدایت مسیرها به index.html (React SPA entry point)
-  RewriteRule ^ index.html [L]
+  # ۴. در صورت عدم تطابق با فایل فیزیکی، تحویل به پردازشگر هوشمند PHP
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ index.php [L]
 </IfModule>
 
 # تنظیم کدرشتگی UTF-8 برای زبان فارسی
 AddDefaultCharset UTF-8
+
+# تنظیم MIME Types برای ماژول‌های جاوااسکریپت، استایل‌ها و فونت‌ها
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType application/json .json
+  AddType image/svg+xml .svg
+  AddType font/woff2 .woff2
+  AddType font/woff .woff
+  AddType font/ttf .ttf
+  AddType image/webp .webp
+</IfModule>
 
 # غیرفعال کردن نمایش پوشه‌ها جهت امنیت
 Options -Indexes
@@ -34,7 +56,7 @@ Options -Indexes
   Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 </IfModule>
 
-# جلوگیری از کش شدن فایل‌های حساس مانند index.html و version.json روی مرورگرها جهت اعمال آنی کدهای جدید گیت‌هاب
+# جلوگیری از کش شدن فایل‌های حساس مانند index.html و version.json روی مرورگرها جهت اعمال آنی کدهای جدید
 <FilesMatch "\.(html|json)$">
   <IfModule mod_headers.c>
     Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -47,3 +69,4 @@ Options -Indexes
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
 </IfModule>
+

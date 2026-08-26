@@ -37,6 +37,7 @@ export interface Product {
   disabled?: boolean; // New: to disable product from being listed
   chequeAllowed?: boolean; // New: whether cheque payment is allowed
   isKafBazaar?: boolean; // New: to show product in Kaf-e-Bazaar under-market section
+  discount_percent?: number; // New: discount percent for wholesale promotions
   commissionPercent?: number; // New: custom commission rate for DastAvval
   cartAddCount?: number; // New: number of times added to cart in last 48h
   updated_at?: string; // Last sync timestamp
@@ -306,7 +307,48 @@ export interface Order {
     chequeMonths?: number;
     chequeMarkupPercent?: number;
     totalDiscount?: number;
+    loyalty?: number;
   };
+  // Loyalty & Rewards Integration
+  loyaltyPointsEarned?: number;
+  loyaltyPointsUsed?: number;
+  loyaltyDiscountAmount?: number;
+}
+
+export type LoyaltyTier = 'bronze' | 'silver' | 'gold' | 'platinum';
+
+export interface LoyaltyTransaction {
+  id: string;
+  userId: string;
+  userPhone?: string;
+  points: number; // Positive for earned/bonus, negative for redeemed
+  type: 'earned_purchase' | 'redeemed_discount' | 'bonus_welcome' | 'bonus_referral' | 'bonus_prompt_payment' | 'admin_gift' | 'admin_deduct';
+  description: string;
+  orderTrackingNumber?: string;
+  orderAmount?: number;
+  discountAmount?: number;
+  createdAt: string;
+}
+
+export interface LoyaltySummary {
+  userId: string;
+  userPhone?: string;
+  currentPoints: number;
+  lifetimePoints: number;
+  totalSpent: number;
+  tier: LoyaltyTier;
+  tierLabel: string;
+  tierBadgeColor: string;
+  pointMultiplier: number;
+  redeemableTomanValue: number;
+  nextTier: {
+    tier: LoyaltyTier;
+    label: string;
+    requiredSpend: number;
+    currentProgressPercent: number;
+    remainingSpend: number;
+  } | null;
+  transactions: LoyaltyTransaction[];
 }
 
 export interface AccountingTransaction {
@@ -370,6 +412,7 @@ export interface B2BConfig {
   minOrderCartons?: number;
   topAnnouncement?: string;
   showTopAnnouncement?: boolean;
+  showMarketTicker?: boolean;
   topAnnouncementPopupTitle?: string;
   topAnnouncementPopupContent?: string;
   slides?: SlideItem[];
@@ -422,6 +465,10 @@ export interface B2BConfig {
   smsAdPatternId?: string | number;
   smsCallbackPatternId?: string | number;
   smsAdminNotificationPatternId?: string | number;
+  equipmentAds?: any[];
+  serviceAds?: any[];
+  rawMaterialAds?: any[];
+  sponsoredAds?: any[];
 }
 
 export type GuaranteeType = 'sayad_cheque' | 'promissory_note' | 'bank_guarantee' | 'cash_deposit';

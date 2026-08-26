@@ -37,7 +37,17 @@ import { recordCRMOrder } from '../lib/crm-helper';
 import { CartItem, Product, User } from '../types';
 import { getDisplayImageUrl } from '../lib/image-utils';
 import { getApiUrl } from '../utils/api-utils';
+import { isValidIranianMobile, toPersianNum } from '../utils/persian-utils';
 import ChequeCharterModal from './ChequeCharterModal';
+import { 
+  getLoyaltySummary, 
+  calculateMaxRedeemablePoints, 
+  calculateDiscountFromPoints, 
+  calculatePointsForOrder, 
+  awardLoyaltyPointsForOrder, 
+  redeemLoyaltyPoints,
+  LOYALTY_CONFIG 
+} from '../lib/loyalty-store';
 
 interface CheckoutWizardProps {
   isOpen: boolean;
@@ -89,6 +99,10 @@ export default function CheckoutWizard({
   const [buyerCompany, setBuyerCompany] = useState(user?.role !== 'admin' ? user?.company || "" : "");
   const [buyerAddress, setBuyerAddress] = useState(user?.role !== 'admin' ? user?.address || "" : "");
   const [shippingMethod, setShippingMethod] = useState("barbari");
+
+  // Loyalty & Rewards Points State
+  const [useLoyaltyDiscount, setUseLoyaltyDiscount] = useState(false);
+  const [pointsToRedeemInput, setPointsToRedeemInput] = useState<number | null>(null);
 
   // Auto-fill user profile and saved delivery info when wizard opens or user changes
   useEffect(() => {
@@ -254,12 +268,23 @@ export default function CheckoutWizard({
     return sum + Math.round(itemGross * (itemDiscountP / 100));
   }, 0);
 
+  // 3.8 Loyalty Points Discount (تبدیل امتیاز باشگاه مشتریان به تخفیف نقدی)
+  const userIdentifier = user?.phone || user?.mobile || buyerPhone || user?.id || "guest";
+  const loyaltySummary = getLoyaltySummary(userIdentifier);
+  const intermediateAmount = Math.max(0, totalAmount - (tierDiscountAmount + badgeDiscountAmount + sedimentDiscountAmount));
+  const maxRedeem = calculateMaxRedeemablePoints(loyaltySummary.currentPoints, intermediateAmount);
+  
+  const pointsToRedeem = useLoyaltyDiscount 
+    ? (pointsToRedeemInput !== null ? Math.min(Math.max(0, pointsToRedeemInput), maxRedeem.maxPoints) : maxRedeem.maxPoints)
+    : 0;
+  const loyaltyDiscountAmount = useLoyaltyDiscount ? calculateDiscountFromPoints(pointsToRedeem) : 0;
+
   // 4. Cheque & Split Calculations (حداقل ۵۰٪ نقد + ۵۰٪ چک صیادی جهت کاهش ریسک و تضمین کارخانه)
   const effectiveCashPercent = paymentMethod === 'cash' ? 100 : splitCashPercent;
   const effectiveChequePercent = paymentMethod === 'cash' ? 0 : (100 - splitCashPercent);
 
   // Total discounts applied
-  const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount + sedimentDiscountAmount;
+  const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount + sedimentDiscountAmount + loyaltyDiscountAmount;
   const basePayableAmount = Math.max(0, totalAmount - totalDiscounts);
 
   // Split Breakdown
@@ -271,6 +296,7 @@ export default function CheckoutWizard({
   const chequePortionAmount = chequeBasePortion + chequeMarkupAmount;
   
   const finalPayableAmount = cashPortionAmount + chequePortionAmount;
+  const projectedPointsEarned = calculatePointsForOrder(finalPayableAmount, loyaltySummary.tier);
 
   // Exact Persian Due Date
   const computedDueDate = new Date(Date.now() + chequeDays * 24 * 60 * 60 * 1000).toLocaleDateString('fa-IR');
@@ -312,8 +338,20 @@ export default function CheckoutWizard({
 
   const handleNextFromStep2 = () => {
     setErrorMessage("");
-    if (!buyerName.trim() || !buyerPhone.trim() || !buyerAddress.trim()) {
-      setErrorMessage("لطفاً نام تحویل‌گیرنده، شماره تماس و آدرس دقیق را وارد کنید.");
+    if (!buyerName.trim() || buyerName.trim().length < 2) {
+      setErrorMessage("لطفاً نام و نام‌خانوادگی تحویل‌گیرنده سفارش را وارد نمایید.");
+      return;
+    }
+    if (!buyerPhone.trim()) {
+      setErrorMessage("لطفاً شماره تماس تحویل‌گیرنده را وارد نمایید.");
+      return;
+    }
+    if (!isValidIranianMobile(buyerPhone)) {
+      setErrorMessage("لطفاً شماره موبایل معتبر ۱۱ رقمی (مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد فرمایید.");
+      return;
+    }
+    if (!buyerAddress.trim() || buyerAddress.trim().length < 5) {
+      setErrorMessage("لطفاً آدرس دقیق پستی جهت هماهنگی بارنامه کارخانه را وارد نمایید.");
       return;
     }
     setStep(3);
@@ -417,8 +455,12 @@ export default function CheckoutWizard({
           chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
           chequeDays: paymentMethod === 'cheque' ? chequeDays : 0,
           chequeMarkupPercent,
-          sediment: sedimentDiscountAmount
+          sediment: sedimentDiscountAmount,
+          loyalty: loyaltyDiscountAmount
         },
+        loyaltyPointsEarned: projectedPointsEarned,
+        loyaltyPointsUsed: useLoyaltyDiscount ? pointsToRedeem : 0,
+        loyaltyDiscountAmount: loyaltyDiscountAmount,
         paymentMethod,
         settlementBreakdown: {
           cashPercent: effectiveCashPercent,
@@ -452,7 +494,15 @@ export default function CheckoutWizard({
         sellerName,
         createdAt: serverTimestamp(),
         trackingNumber,
-        autoCreatedAccount
+        autoCreatedAccount,
+        customerPhone: buyerPhone,
+        phone: buyerPhone,
+        mobile: buyerPhone,
+        userPhone: buyerPhone,
+        customerName: buyerName,
+        userId: user?.id || null,
+        username: (user as any)?.username || (user as any)?.phoneNumber || (user as any)?.phone || buyerPhone,
+        buyerEmail: user?.email || null
       };
 
       const storedAffiliateRepId = typeof window !== 'undefined' ? localStorage.getItem('dastavval_affiliate_rep_id') : null;
@@ -479,23 +529,55 @@ export default function CheckoutWizard({
         }
       }
 
-      // Trigger automatic Invoice SMS with static factor path to buyer
+      const createdOrder = { 
+        ...orderData, 
+        id: docRef.id, 
+        createdAt: new Date().toISOString() 
+      };
+
+      // Instantly cache in localStorage so UserPanel and AdminPanel show it immediately
       try {
+        const cached = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
+        cached.unshift(createdOrder);
+        localStorage.setItem("dastavval_orders_cache", JSON.stringify(cached));
+        localStorage.setItem("dastavval_last_order_tracking", trackingNumber);
+        if (docRef.id) localStorage.setItem("dastavval_last_order_id", docRef.id);
+        window.dispatchEvent(new Event("dastavval-manual-sync"));
+      } catch (err) {}
+
+      // Loyalty Club Points Processing
+      try {
+        const customerIdentifier = buyerPhone || user?.phone || user?.mobile || user?.id || "guest";
+        if (useLoyaltyDiscount && pointsToRedeem > 0) {
+          await redeemLoyaltyPoints(customerIdentifier, pointsToRedeem, trackingNumber, loyaltyDiscountAmount);
+        }
+        if (projectedPointsEarned > 0) {
+          await awardLoyaltyPointsForOrder(customerIdentifier, trackingNumber, finalPayableAmount, projectedPointsEarned);
+        }
+      } catch (loyaltyErr) {
+        console.warn("Could not process loyalty points:", loyaltyErr);
+      }
+
+      // Trigger automatic Invoice SMS with clean numeric orderId to buyer
+      try {
+        const cleanTrackingCode = String(trackingNumber || '')
+          .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+          .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
+          .replace(/\D/g, '') || "3360";
+
         fetch(getApiUrl("/api/sms/send-invoice-sms"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: buyerPhone,
             buyerName: buyerName || "خریدار محترم (عامل توزیع)",
-            orderId: trackingNumber,
+            orderId: cleanTrackingCode,
             origin: window.location.origin
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger in checkout:", err));
       } catch (e) {
         console.warn("Could not dispatch invoice SMS in checkout:", e);
       }
-
-      const createdOrder = { ...orderData, id: docRef.id, createdAt: new Date() };
 
       setIsSubmitting(false);
       onOrderSuccess(createdOrder);
@@ -1563,6 +1645,96 @@ export default function CheckoutWizard({
                     </div>
                   </div>
                 )}
+
+                {/* LOYALTY CLUB POINTS REDEMPTION CARD */}
+                <div className="bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent border border-amber-300/60 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                        <Sparkles size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
+                          <span>باشگاه مشتریان و پاداش خرید</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold border border-amber-300">
+                            سطح {loyaltySummary.tierLabel}
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          موجودی فعال: <strong className="font-sans font-black text-amber-700">{loyaltySummary.currentPoints.toLocaleString('fa-IR')}</strong> امتیاز (معادل {loyaltySummary.redeemableTomanValue.toLocaleString('fa-IR')} تومان تخفیف)
+                        </p>
+                      </div>
+                    </div>
+
+                    {maxRedeem.maxPoints > 0 && (
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useLoyaltyDiscount}
+                          onChange={(e) => {
+                            setUseLoyaltyDiscount(e.target.checked);
+                            if (e.target.checked && pointsToRedeemInput === null) {
+                              setPointsToRedeemInput(maxRedeem.maxPoints);
+                            }
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                      </label>
+                    )}
+                  </div>
+
+                  {maxRedeem.maxPoints > 0 ? (
+                    useLoyaltyDiscount && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="pt-3 border-t border-amber-200/70 space-y-2 text-xs"
+                      >
+                        <div className="flex items-center justify-between font-bold text-slate-700">
+                          <span>تعداد امتیاز جهت تبدیل به تخفیف:</span>
+                          <span className="text-amber-800 font-black font-sans">
+                            {pointsToRedeem.toLocaleString('fa-IR')} امتیاز = -{loyaltyDiscountAmount.toLocaleString('fa-IR')} تومان
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="10"
+                            max={maxRedeem.maxPoints}
+                            step="5"
+                            value={pointsToRedeem}
+                            onChange={(e) => setPointsToRedeemInput(Number(e.target.value))}
+                            className="w-full accent-amber-600 cursor-pointer h-2 bg-amber-200/80 rounded-lg"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                          <span>حداقل ۱۰ امتیاز</span>
+                          <span>حداکثر سقف مجاز فاکتور: {maxRedeem.maxPoints.toLocaleString('fa-IR')} امتیاز ({maxRedeem.maxDiscountToman.toLocaleString('fa-IR')} تومان)</span>
+                        </div>
+                      </motion.div>
+                    )
+                  ) : (
+                    <div className="text-[11px] text-slate-500 font-bold bg-amber-50/50 p-2.5 rounded-xl border border-amber-200/50">
+                      ℹ️ حداقل امتیاز لازم جهت تبدیل به تخفیف در فاکتور ۱۰ امتیاز می‌باشد.
+                    </div>
+                  )}
+
+                  {/* Projected Points Award Badge */}
+                  <div className="flex items-center justify-between p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-900">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-emerald-600" />
+                      <span>پاداش وفاداری حاصل از ثبت این سفارش:</span>
+                    </span>
+                    <span className="font-black text-emerald-700 font-sans">
+                      +{projectedPointsEarned.toLocaleString('fa-IR')} امتیاز پاداش
+                    </span>
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -1630,6 +1802,16 @@ export default function CheckoutWizard({
                     <div className="flex justify-between items-center text-emerald-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
                       <span className="font-black">تخفیف تسویه نقدی ({cashDiscountPercent}٪):</span>
                       <span className="font-mono font-black">-{cashDiscountAmount.toLocaleString()} تومان</span>
+                    </div>
+                  )}
+
+                  {loyaltyDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-200">
+                      <span className="flex items-center gap-1 font-black">
+                        <Sparkles size={14} className="text-amber-600" />
+                        <span>تخفیف امتیاز باشگاه مشتریان ({pointsToRedeem.toLocaleString()} امتیاز):</span>
+                      </span>
+                      <span className="font-mono font-black text-amber-700">-{loyaltyDiscountAmount.toLocaleString()} تومان</span>
                     </div>
                   )}
 

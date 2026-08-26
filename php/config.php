@@ -20,6 +20,9 @@ $db_name = 'h353256_dast';  // نام دیتابیس cPanel
 $db_user = 'h353256_dst';   // نام کاربری دیتابیس cPanel
 $db_pass = '@Ali3360@Ali3360'; // رمز عبور دیتابیس
 
+$pdo = null;
+$db_error = null;
+
 try {
     $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -48,9 +51,13 @@ try {
         // Fallback or table doesn't exist yet (will be created or handled)
     }
 } catch (PDOException $e) {
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'خطا در اتصال به دیتابیس MySQL: ' . $e->getMessage()
-    ], JSON_UNESCAPED_UNICODE);
-    exit();
+    $db_error = $e->getMessage();
+    // Only exit if directly called or requested via an API endpoint that has no fallback
+    if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'config.php') {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'خطا در اتصال به دیتابیس MySQL: ' . $db_error
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
 }

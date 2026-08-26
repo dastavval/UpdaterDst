@@ -936,25 +936,34 @@ export default function Navbar({
                 <div className="space-y-2 pt-4 border-t border-slate-100">
                   <h4 className="text-[10px] text-slate-400 font-black tracking-wider uppercase">خدمات و مجله پلتفرم:</h4>
                   <button
+                    onClick={() => handleNavClick('learning')}
+                    className="w-full text-right p-3 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-950 border border-emerald-200 text-xs font-black flex items-center justify-between transition-all cursor-pointer shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                        <GraduationCap size={18} />
+                      </div>
+                      <div>
+                        <div className="font-black text-xs text-emerald-950">🎓 آموزش کامل و راهنمای سیستم</div>
+                        <div className="text-[9.5px] text-emerald-700 font-bold">راهنمای صفر تا صد خرید مستقیم، چک و تحویل بار</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">شروع</span>
+                  </button>
+
+                  <button
                     onClick={() => handleNavClick('news')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Newspaper size={18} className="text-rose-500 shrink-0" />
                     <span>مجله علمی و آخرین اخبار</span>
                   </button>
                   <button
                     onClick={() => handleNavClick('about')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
+                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Info size={18} className="text-blue-500 shrink-0" />
                     <span>درباره ما و ارتباط با ما</span>
-                  </button>
-                  <button
-                    onClick={() => handleNavClick('learning')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <GraduationCap size={18} className="text-amber-500 shrink-0" />
-                    <span>مرکز آموزش و راهنمایی</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1201,10 +1210,10 @@ export default function Navbar({
                   </button>
                   <button 
                     onClick={() => handleNavClick('learning')}
-                    className="flex items-center gap-2 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer transition-colors"
+                    className="flex items-center gap-2 p-2 bg-emerald-50/70 hover:bg-emerald-100/80 rounded-xl text-[10px] font-black text-emerald-900 cursor-pointer transition-colors"
                   >
-                    <ShieldCheck size={12} className="text-emerald-500" />
-                    شرایط ضمانت بازگشت
+                    <GraduationCap size={13} className="text-emerald-600" />
+                    راهنمای جامع کار با سامانه
                   </button>
                   <button 
                     onClick={() => handleNavClick('support')}

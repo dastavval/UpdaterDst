@@ -30,7 +30,15 @@ export function getApiUrl(path: string): string {
     cleanPath = "b2b/config";
   }
 
-  return `/php/api.php?action=${cleanPath}`;
+  // Detect base pathname if installed in a subdirectory (e.g. /app/ or /portal/)
+  let basePath = "";
+  if (typeof window !== "undefined" && window.location) {
+    const rawPathname = window.location.pathname || "";
+    // Remove filename like index.php or index.html if present
+    basePath = rawPathname.replace(/\/[^/]+\.(html|php)$/i, '').replace(/\/+$/, '');
+  }
+
+  return `${basePath}/php/api.php?action=${encodeURIComponent(cleanPath).replace(/%2F/g, '/')}`;
 }
 
 export function isWarehouseBrand(b: string): boolean {

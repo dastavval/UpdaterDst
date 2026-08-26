@@ -52,7 +52,7 @@ export interface ErrorPageProps {
   supportPhone?: string;
 }
 
-export default function ErrorPages({
+export default function SystemPages({
   type = '404',
   title,
   message,

@@ -41,6 +41,9 @@ import {
   MessageSquare,
   Send,
   Share2,
+  GraduationCap,
+  BookOpen,
+  CreditCard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
@@ -91,6 +94,8 @@ export default function DynamicPresentation({
   const [isReferralOpen, setIsReferralOpen] = useState(false);
   const [isCustomerJourneyOpen, setIsCustomerJourneyOpen] = useState(false);
   const [showcaseTab, setShowcaseTab] = useState<'all' | 'products' | 'raw_materials'>('all');
+  const [activeStep, setActiveStep] = useState(0);
+  const [simulateCartons, setSimulateCartons] = useState(50);
 
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
@@ -511,6 +516,260 @@ export default function DynamicPresentation({
         onSelectFactory={() => setActiveTab?.('factories')}
       />
 
+      {/* --- PROMINENT PURE-WHITE SYSTEM GUIDE & TRAINING CALLOUT (HIGH VISIBILITY FOR ALL USERS) --- */}
+      <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 text-right" dir="rtl">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black">
+              <GraduationCap size={15} />
+              <span>راهنمای جامع و آموزش گام‌به‌گام سامانه</span>
+            </div>
+            <h2 className="text-base sm:text-xl font-black text-slate-900">
+              چگونه در دست اول خرید کنیم یا نماینده شویم؟
+            </h2>
+            <p className="text-xs text-slate-500 font-bold leading-relaxed">
+              آموزش کامل ۴ مرحله اصلی: از انتخاب کالای کارتنی تا تسویه چکی و دریافت بار با بارنامه دولتی
+            </p>
+          </div>
+
+          <button
+            onClick={() => setActiveTab?.('learning')}
+            className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs shrink-0 self-stretch sm:self-auto justify-center"
+          >
+            <BookOpen size={16} />
+            <span>مشاهده آموزش کامل و جامع سیستم</span>
+            <ArrowLeft size={14} className="mr-1" />
+          </button>
+        </div>
+
+        {/* Interactive Steps Stepper (Compact & Gamified) */}
+        <div className="space-y-5">
+          {/* Tabs Stepper Header */}
+          <div className="flex overflow-x-auto scrollbar-none gap-2 pb-2.5 border-b border-slate-100 md:grid md:grid-cols-4 md:gap-3 md:pb-0 md:border-0" dir="rtl">
+            {[
+              { id: 0, title: "۱. انتخاب و سود کالا", icon: "📦" },
+              { id: 1, title: "۲. صندوق امن و چک", icon: "💳" },
+              { id: 2, title: "۳. باربری و بیمه جاده‌ای", icon: "🚚" },
+              { id: 3, title: "۴. عاملیت و رتبه‌بندی", icon: "📈" }
+            ].map((stepItem) => {
+              const isActive = activeStep === stepItem.id;
+              return (
+                <button
+                  key={stepItem.id}
+                  onClick={() => setActiveStep(stepItem.id)}
+                  className={`flex-none px-4 py-3 rounded-2xl border text-xs font-black transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap md:w-full ${
+                    isActive 
+                      ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/10 scale-[1.02]"
+                      : "bg-slate-50 hover:bg-slate-100/80 border-slate-200/60 text-slate-600"
+                  }`}
+                >
+                  <span className="text-sm">{stepItem.icon}</span>
+                  <span>{stepItem.title}</span>
+                  {isActive && (
+                    <motion.span 
+                      layoutId="activeStepDot" 
+                      className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" 
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Step Panel Content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeStep}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25 }}
+              className="grid grid-cols-1 md:grid-cols-12 gap-5 p-5 sm:p-6 rounded-2xl bg-slate-50/60 border border-slate-200/70 items-center text-right"
+              dir="rtl"
+            >
+              {/* Detailed Description */}
+              <div className="md:col-span-7 space-y-3.5 order-2 md:order-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-black">
+                  <span>مرحله {toPersianNum(activeStep + 1)} از ۴</span>
+                </div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900">
+                  {activeStep === 0 && "انتخاب تعداد کارتن و محاسبه هوشمند سود کالا"}
+                  {activeStep === 1 && "تسویه امن امانی یا ثبت چک صیادی آنلاین"}
+                  {activeStep === 2 && "باربری مستقیم جاده‌ای با بیمه‌نامه کامل دولتی"}
+                  {activeStep === 3 && "کسب امتیاز فعالیت، ارتقای رتبه و اخذ نمایندگی انحصاری"}
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-600 font-bold leading-relaxed">
+                  {activeStep === 0 && "در دست اول با خرید مستقیم، قیمت نهایی شما بر اساس میزان سفارش تغییر می‌کند. با تغییر تعداد کارتن در شبیه‌ساز روبه‌رو، به صورت زنده درصد تخفیف پلکانی و سود حاصل از فروش کالا را مشاهده کنید."}
+                  {activeStep === 1 && "امنیت خرید شما اولویت اصلی ماست. سرمایه شما در حساب امانی تا تحویل کامل بار نزد صندوق محافظت می‌شود؛ یا به راحتی و آنلاین بدون نیاز به سرمایه اولیه نقدی، چک صیادی بنفش خود را با کارمزد صفر ثبت کنید."}
+                  {activeStep === 2 && "ارسال مستقیم محصولات از درب کارخانه بدون هیچ انبار واسطه‌ای! تمام بارها پلمپ سربی شده و با بارنامه رسمی دولتی و بیمه‌نامه ۱۰۰٪ حوادث جاده‌ای تضمین سلامت فیزیکی به انبار شما هدایت می‌شوند."}
+                  {activeStep === 3 && "خرید مستمر از سامانه امتیاز شما را بالا می‌برد. با ارتقای رتبه به سطوح نقره‌ای، طلایی و VIP، تخفیف‌های ثابت فوق‌العاده روی سبدها گرفته و در اولویت دریافت حق عاملیت انحصاری شهر خود قرار می‌گیرید."}
+                </p>
+                <div className="pt-1.5 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setActiveTab?.('learning')}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>جزئیات و آموزش گام‌به‌گام</span>
+                    <ArrowLeft size={12} />
+                  </button>
+                  {activeStep === 0 && (
+                    <button
+                      onClick={() => setActiveTab?.('order')}
+                      className="px-4 py-2.5 bg-slate-200/80 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>ورود به ویترین کالاها</span>
+                      <ShoppingBag size={12} />
+                    </button>
+                  )}
+                  {activeStep === 3 && (
+                    <button
+                      onClick={() => setActiveTab?.('agency')}
+                      className="px-4 py-2.5 bg-slate-200/80 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>درخواست نمایندگی انحصاری</span>
+                      <Building2 size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Mini Interactive Playground / Visualizer */}
+              <div className="md:col-span-5 bg-white p-4 rounded-xl border border-slate-200/75 shadow-xs order-1 md:order-2 self-stretch flex flex-col justify-center">
+                {activeStep === 0 && (
+                  <div className="space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-500">حجم شبیه‌سازی خرید:</span>
+                      <span className="text-xs font-black text-emerald-600">{toPersianNum(simulateCartons)} کارتن عمده</span>
+                    </div>
+                    {/* Volume Slider */}
+                    <div className="relative">
+                      <input 
+                        type="range" 
+                        min="5" 
+                        max="200" 
+                        value={simulateCartons} 
+                        onChange={(e) => setSimulateCartons(Number(e.target.value))}
+                        className="w-full accent-emerald-600 h-1.5 bg-slate-100 rounded-lg cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[8px] text-slate-400 font-bold mt-1">
+                        <span>خرید تست (۵)</span>
+                        <span>متوسط (۱۰۰)</span>
+                        <span>تیراژ بالا (۲۰۰)</span>
+                      </div>
+                    </div>
+                    {/* Calculated Outcome Alert */}
+                    <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-3 text-center space-y-1">
+                      <div className="text-[9px] font-black text-slate-400">سود و حاشیه تخفیف پلکانی:</div>
+                      <div className="text-sm font-black text-emerald-700 animate-pulse">
+                        {simulateCartons < 30 ? "۵٪ تخفیف (کف قیمت بازار)" : 
+                         simulateCartons < 100 ? "۱۵٪ سود خالص کارخانه‌ای" : "۲۵٪ تخفیف طلایی VIP درب کارخانه"}
+                      </div>
+                      <p className="text-[8px] text-slate-500 font-bold">
+                        {simulateCartons < 30 ? "مناسب تست اولیه و تامین مستقیم" : 
+                         simulateCartons < 100 ? "حاشیه سود فوق‌العاده برای بنکداران" : "بهترین قیمت ویژه توزیع‌کنندگان کلان"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 1 && (
+                  <div className="space-y-3 text-center py-1">
+                    <div className="mx-auto w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg shadow-2xs">
+                      🔒
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs font-black text-slate-800">حساب امانی و چک آنلاین صیادی</div>
+                      <p className="text-[9px] text-slate-500 font-bold leading-normal">
+                        تسویه فاکتور به محض تحویل و تایید کیفیت بار در مقصد
+                      </p>
+                    </div>
+                    {/* Compact Interactive Options */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-right">
+                        <div className="text-[8px] font-black text-slate-400">صندوق امانی دست اول</div>
+                        <div className="text-[9px] font-black text-emerald-600 mt-0.5">✓ پول شما امن است</div>
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-right">
+                        <div className="text-[8px] font-black text-slate-400">سامانه چک صیادی بنفش</div>
+                        <div className="text-[9px] font-black text-indigo-600 mt-0.5">✓ استعلام آنی صادرکننده</div>
+                      </div>
+                    </div>
+                    <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[8px] font-bold text-slate-600">
+                      <span>بدون دریافت هرگونه بهره یا کارمزد واسطه</span>
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 2 && (
+                  <div className="space-y-3 py-1">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-black text-slate-500">وضعیت لجستیک جاده‌ای:</span>
+                      <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">بارنامه دولتی</span>
+                    </div>
+                    {/* Shipping Visualizer Map */}
+                    <div className="relative h-12 bg-slate-50 rounded-lg flex items-center justify-between px-3 border border-slate-100 overflow-hidden">
+                      {/* Line */}
+                      <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-slate-200" />
+                      
+                      <div className="relative z-10 flex flex-col items-center">
+                        <div className="w-5 h-5 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-[9px]">🏢</div>
+                        <span className="text-[8px] text-slate-400 font-bold mt-1">کارخانه</span>
+                      </div>
+                      
+                      {/* Animating Truck */}
+                      <motion.div 
+                        animate={{ x: [25, -25, 25] }}
+                        transition={{ repeat: Infinity, duration: 8, ease: "easeInOut" }}
+                        className="relative z-10 text-lg pointer-events-none"
+                      >
+                        🚚
+                      </motion.div>
+                      
+                      <div className="relative z-10 flex flex-col items-center">
+                        <div className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-[9px] text-emerald-700">✓</div>
+                        <span className="text-[8px] text-slate-600 font-black mt-1">مقصد شما</span>
+                      </div>
+                    </div>
+                    {/* Protection Badge */}
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                      <span className="text-[9px] font-black">پلمپ سربی خودرو و ۱۰۰٪ تضمین بیمه کل خسارت جاده‌ای</span>
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 3 && (
+                  <div className="space-y-3 py-1 text-center">
+                    <span className="text-[10px] font-black text-slate-400 block mb-1">تکامل رتبه و ارتقای تخفیفات دائمی:</span>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { name: "برنز", val: "۰٪", color: "text-amber-700 bg-amber-50 border-amber-200" },
+                        { name: "نقره", val: "۱.۵٪", color: "text-slate-500 bg-slate-50 border-slate-200" },
+                        { name: "طلا", val: "۲.۵٪", color: "text-amber-500 bg-amber-50/50 border-amber-300" },
+                        { name: "VIP 👑", val: "۴٪ + انحصار", color: "text-purple-600 bg-purple-50 border-purple-200 font-bold" }
+                      ].map((lvl, idx) => (
+                        <div 
+                          key={lvl.name} 
+                          className={`p-1.5 rounded-lg border text-center transition-all ${lvl.color} ${
+                            idx === 3 ? "ring-2 ring-purple-500/20 scale-105" : ""
+                          }`}
+                        >
+                          <div className="text-[8px] font-black">{lvl.name}</div>
+                          <div className="text-[9px] font-black mt-0.5">{lvl.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[8px] text-slate-500 font-bold leading-normal pt-1 border-t border-slate-100">
+                      بر اساس حجم تراکنش ماهانه، تخفیف‌های ویژه روی کل اقلام برایتان فعال می‌شود.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </section>
+
       {/* --- NEW PRODUCTS AND RAW MATERIALS SHOWCASE SECTION --- */}
       <section className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100/80">
@@ -829,17 +1088,17 @@ export default function DynamicPresentation({
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={onEnterPanel}
-          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
+          className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
-              <Store size={18} />
+            <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 text-base group-hover:scale-105 transition-all shrink-0">
+              🏬
             </div>
-            <span className="font-black text-xs sm:text-sm text-slate-900 group-hover:text-blue-700 transition-colors whitespace-nowrap truncate">
-              پنل کاربری
+            <span className="font-black text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 transition-colors whitespace-nowrap truncate">
+              پنل کاربری خریداران
             </span>
           </div>
-          <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center text-xs font-bold transition-all shrink-0">
+          <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-xs font-bold transition-all shrink-0">
             ←
           </span>
         </motion.button>
@@ -942,12 +1201,12 @@ export default function DynamicPresentation({
           approvedRepsList = [];
         }
 
-        let rawFactoriesList = b2bConfig?.factories && b2bConfig.factories.length > 0
+        let rawFactoriesList = Array.isArray(b2bConfig?.factories)
           ? b2bConfig.factories
           : [];
 
         // If no explicit factories in config, derive factories dynamically from product brands
-        if (rawFactoriesList.length === 0 && products && products.length > 0) {
+        if (!Array.isArray(b2bConfig?.factories) && rawFactoriesList.length === 0 && products && products.length > 0) {
           const validBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)))
             .filter(b => !isWarehouseBrand(b));
 
@@ -1204,23 +1463,25 @@ export default function DynamicPresentation({
       })()}
 
       {/* --- OFFICIAL SOCIAL CHANNELS (FRAMED CARD CONTAINER) --- */}
-      <section className="bg-gradient-to-r from-slate-50 via-purple-50/20 to-slate-50 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-200/70">
+      <section className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <span className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-              <Radio size={15} className="animate-pulse" />
+            <span className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center shadow-xs">
+              <Radio size={16} className="text-emerald-600 animate-pulse" />
             </span>
             <div>
-              <h4 className="text-xs sm:text-sm font-black text-slate-850">
-                شبکه‌های اجتماعی و کانال‌های رسمی دست اول
+              <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <span>📢</span>
+                <span>شبکه‌های اجتماعی و کانال‌های رسمی دست اول</span>
               </h4>
               <p className="text-[10px] text-slate-500 font-bold hidden sm:block">
                 کانال رسمی اطلاع‌رسانی تخفیف‌های پالتی، جشنواره‌ها و اخبار زنجیره تامین
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 shadow-2xs">
-            پشتیبانی و ارتباط مستقیم
+          <span className="text-[10px] font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1">
+            <span>💬</span>
+            <span>ارتباط مستقیم و پشتیبانی</span>
           </span>
         </div>
 
@@ -1232,17 +1493,17 @@ export default function DynamicPresentation({
             href={rubikaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-purple-50/60 hover:border-purple-300 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
+            className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
                 <Send size={16} />
               </div>
               <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-850 group-hover:text-purple-700 block truncate">
+                <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-purple-700 block truncate">
                   کانال روبیکا
                 </span>
-                <span className="text-[10px] text-purple-600 font-black block truncate mt-0.5">
+                <span className="text-[10px] text-slate-500 font-bold block truncate mt-0.5">
                   اطلاع‌رسانی بار کارخانه
                 </span>
               </div>
@@ -1257,17 +1518,17 @@ export default function DynamicPresentation({
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-emerald-50/60 hover:border-emerald-300 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
+            className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
                 <MessageCircle size={16} />
               </div>
               <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-850 group-hover:text-emerald-700 block truncate">
+                <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-emerald-700 block truncate">
                   واتساپ پشتیبانی
                 </span>
-                <span className="text-[10px] text-emerald-600 font-black block truncate mt-0.5">
+                <span className="text-[10px] text-slate-500 font-bold block truncate mt-0.5">
                   پاسخگویی سریع سفارشات
                 </span>
               </div>
@@ -1282,28 +1543,41 @@ export default function DynamicPresentation({
             href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-pink-50/60 hover:border-pink-300 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
+            className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
                 <Share2 size={16} />
               </div>
               <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-850 group-hover:text-pink-700 block truncate">
+                <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-rose-700 block truncate">
                   اینستاگرام رسمی
                 </span>
-                <span className="text-[10px] text-pink-600 font-black block truncate mt-0.5">
-                  آفرهای ویژه و ویدیو خطوط
+                <span className="text-[10px] text-slate-500 font-bold block truncate mt-0.5">
+                  آفرهای ویژه و خطوط
                 </span>
               </div>
             </div>
-            <ChevronLeft size={16} className="text-slate-300 group-hover:text-pink-600 transition-colors hidden sm:block shrink-0" />
+            <ChevronLeft size={16} className="text-slate-300 group-hover:text-rose-600 transition-colors hidden sm:block shrink-0" />
           </motion.a>
         </div>
       </section>
 
       {/* --- PARTNER BRANDS STRIP --- */}
       {(() => {
+        const fallbackBrands = [
+          { id: "b1", name: "صنایع غذایی مینو", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b2", name: "شیرین عسل", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b3", name: "لبنیات چوپان", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b4", name: "پاکبان", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b5", name: "صنایع غذایی بهروز", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b6", name: "گروه غذایی گلستان", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b7", name: "صنایع غذایی تبرک", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b8", name: "چی‌توز (دینا)", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b9", name: "یک و یک", type: "کارخانه معتبر", icon: "🏭" },
+          { id: "b10", name: "سحر همدان", type: "کارخانه معتبر", icon: "🏭" },
+        ];
+
         const activeBrands = (b2bConfig?.brands && b2bConfig.brands.length > 0 
           ? b2bConfig.brands 
           : Array.from(new Set(products.map(p => p.brand).filter(Boolean))).map((brandName, idx) => ({
@@ -1314,114 +1588,109 @@ export default function DynamicPresentation({
               logoUrl: undefined
             }))).filter(b => b && b.name && !isWarehouseBrand(b.name));
 
+        const brandsToDisplay = activeBrands.length > 0 ? activeBrands : fallbackBrands;
+
         return (
-          <section className="space-y-2 py-3 border-b border-slate-100/60 mb-2">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-              <span className="text-[11px] sm:text-xs font-black text-slate-800 flex items-center gap-1.5">
-                <Building2 size={14} className={activeColors.brandIconText} />
-                برندهای رسمی کارخانه‌ها
+          <section className="space-y-2 py-3 border-b border-slate-100 mb-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5">
+                <span>🏭</span>
+                <span>برندهای رسمی کارخانه‌ها</span>
               </span>
-              <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
-                تامین‌کنندگان مستقیم
+              <span className="text-[10px] text-slate-800 font-bold bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-lg">
+                ✨ تامین‌کنندگان مستقیم
               </span>
             </div>
 
-            {activeBrands.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-4 text-center bg-white rounded-xl border border-dashed border-slate-200 p-3">
-                <span className="text-xl mb-1">🏭</span>
-                <p className="text-xs font-bold text-slate-600">هنوز هیچ برندی ثبت نشده است</p>
-              </div>
-            ) : (
-              <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-2.5 pb-1 pt-1 hide-scrollbar scroll-smooth">
-                {activeBrands.map((brand, bIdx) => {
-                  const logoSrc = brand.logoUrl || (brand as any).logo;
-                  return (
-                    <button
-                      key={`${brand.id || brand.name}-${bIdx}`}
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
-                        if (setActiveTab) setActiveTab('order');
-                      }}
-                      className="snap-start shrink-0 w-[72px] sm:w-[95px] flex flex-col items-center justify-center p-1 rounded-xl bg-white/70 hover:bg-emerald-50 transition-all duration-200 cursor-pointer group text-center relative"
-                      title={`مشاهده کاتالوگ و اقلام برند ${brand.name}`}
-                    >
-                      {/* Logo Container - Borderless, Clean & Prominent */}
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center relative group-hover:scale-108 transition-transform duration-200">
-                        {logoSrc ? (
-                          <img 
-                            src={logoSrc} 
-                            alt={brand.name} 
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const parent = e.currentTarget.parentElement;
-                              if (parent) {
-                                const fb = parent.querySelector('.brand-vector-fallback');
-                                if (fb) (fb as HTMLElement).style.display = 'flex';
-                              }
-                            }}
-                            className="w-full h-full object-contain p-0.5" 
-                          />
-                        ) : null}
-                        <div 
-                          className="brand-vector-fallback hidden absolute inset-0 bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex-col items-center justify-center rounded-xl shadow-xs"
-                          style={{ display: !logoSrc ? 'flex' : 'none' }}
-                        >
-                          <span className="text-lg">🏭</span>
-                        </div>
+            <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-2.5 pb-1 pt-1 hide-scrollbar scroll-smooth">
+              {brandsToDisplay.map((brand, bIdx) => {
+                const logoSrc = (brand as any).logoUrl || (brand as any).logo;
+                return (
+                  <button
+                    key={`${brand.id || brand.name}-${bIdx}`}
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
+                      if (setActiveTab) setActiveTab('order');
+                    }}
+                    className="snap-start shrink-0 w-[80px] sm:w-[105px] flex flex-col items-center justify-center p-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 transition-all duration-200 cursor-pointer group text-center shadow-xs"
+                    title={`مشاهده کاتالوگ و اقلام برند ${brand.name}`}
+                  >
+                    {/* Logo Container - Clean, White & Prominent */}
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center relative group-hover:scale-105 transition-transform duration-200 overflow-hidden">
+                      {logoSrc ? (
+                        <img 
+                          src={logoSrc} 
+                          alt={brand.name} 
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              const fb = parent.querySelector('.brand-vector-fallback');
+                              if (fb) (fb as HTMLElement).style.display = 'flex';
+                            }
+                          }}
+                          className="w-full h-full object-contain p-1" 
+                        />
+                      ) : null}
+                      <div 
+                        className="brand-vector-fallback hidden absolute inset-0 bg-slate-100 text-slate-700 flex-col items-center justify-center rounded-xl"
+                        style={{ display: !logoSrc ? 'flex' : 'none' }}
+                      >
+                        <span className="text-xl">🏭</span>
                       </div>
+                    </div>
 
-                      <div className="text-center w-full min-w-0 mt-1">
-                        <h4 className="text-[10px] sm:text-xs font-black text-slate-800 group-hover:text-emerald-700 truncate">
-                          {brand.name}
-                        </h4>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                    <div className="text-center w-full min-w-0 mt-1.5">
+                      <h4 className="text-[10px] sm:text-xs font-black text-slate-800 group-hover:text-emerald-700 truncate">
+                        {brand.name}
+                      </h4>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </section>
         );
       })()}
 
       {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3.5 border-b border-slate-100/80 mb-2">
-        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/70 border border-slate-200/60">
-          <div className="w-9 h-9 bg-slate-200/80 text-slate-850 rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
-            <Factory size={18} />
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3.5 border-b border-slate-100 mb-2">
+        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
+            🏭
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-850 truncate">تامین مستقیم کارخانه</h4>
+            <h4 className="text-xs font-black text-slate-900 truncate">تامین مستقیم کارخانه</h4>
             <p className="text-[10px] text-slate-500 font-bold truncate">ثبت مستقیم در خط تولید</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-emerald-50/50 border border-emerald-200/60">
-          <div className="w-9 h-9 bg-emerald-600 text-white rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
-            <Truck size={18} />
+        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
+            🚚
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-850 truncate">ترابری هوشمند جاده‌ای</h4>
+            <h4 className="text-xs font-black text-slate-900 truncate">ترابری هوشمند جاده‌ای</h4>
             <p className="text-[10px] text-slate-500 font-bold truncate">ارسال بیمه‌شده سراسری</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-indigo-50/50 border border-indigo-200/60">
-          <div className="w-9 h-9 bg-indigo-600 text-white rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
-            <ShieldCheck size={18} />
+        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
+            🧾
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-850 truncate">فاکتور رسمی و معتبر</h4>
+            <h4 className="text-xs font-black text-slate-900 truncate">فاکتور رسمی و معتبر</h4>
             <p className="text-[10px] text-slate-500 font-bold truncate">با سیب سلامت و استاندارد</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-amber-50/50 border border-amber-200/60">
-          <div className="w-9 h-9 bg-amber-500 text-slate-950 rounded-lg flex items-center justify-center shrink-0 shadow-2xs">
-            <Coins size={18} />
+        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
+            💎
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-850 truncate">تضمین سود بنکداری</h4>
+            <h4 className="text-xs font-black text-slate-900 truncate">تضمین سود بنکداری</h4>
             <p className="text-[10px] text-slate-500 font-bold truncate">پایین‌ترین نرخ خروجی کارخانه</p>
           </div>
         </div>

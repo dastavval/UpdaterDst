@@ -114,7 +114,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       try {
         const parsed = JSON.parse(savedAds);
         if (Array.isArray(parsed)) {
-          const cleaned = parsed.filter((item: any) => !item.id.startsWith("ad-init-") && item.category !== ("service" as any) && item.category !== ("raw_material" as any));
+          const cleaned = parsed.filter((item: any) => !item.id.startsWith("ad-init-") && item.category !== ("service" as any) && item.category !== ("raw_material" as any) && item.category !== "equipment");
           setAds(cleaned);
         } else {
           setAds([]);
@@ -313,11 +313,8 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     return String(num).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[parseInt(d, 10)]);
   };
 
-  // Filtering Logic: Only include ads and products that are EXPLICITLY marked as isKafBazaar or isLiquid
-  const effectiveKafProducts = (products || []).filter(p => !p.disabled && (
-    p.isKafBazaar === true || 
-    (p as any).isLiquid === true
-  ));
+  // Filtering Logic: Only include products that are EXPLICITLY marked as isKafBazaar
+  const effectiveKafProducts = (products || []).filter(p => !p.disabled && p.isKafBazaar === true);
 
   const allOpportunities = [
     ...ads.filter(ad => !ad.id.startsWith("ad-init-")),
@@ -659,41 +656,58 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   if (isMini) {
     return (
       <div className="w-full mt-6 mb-12 max-w-7xl mx-auto px-4" id="ad-board-mini-container" dir="rtl">
-        {/* Billboard Styled Header */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.04)] flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
-              <TrendingDown size={22} className="animate-pulse" />
+        {/* 🌟 HERO CARD HEADER - MINI MODE (WHITE THEME) */}
+        <div className="bg-white text-slate-900 rounded-3xl p-6 shadow-xl border border-slate-200/90 relative overflow-hidden flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
+          {/* Subtle Accent Glow */}
+          <div className="absolute -top-16 -right-16 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="flex items-start sm:items-center gap-4 relative z-10">
+            <div className="w-14 h-14 bg-amber-50 text-amber-600 border border-amber-200/80 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+              <SpecialPriceBagIcon size={26} className="text-amber-600" animated={true} />
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-3 py-0.5 rounded-full">فرصت ویژه</span>
-                <h3 className="font-black text-sm text-slate-800">خرید زیر قیمت بازار (کالاهای مازاد و حراج کارخانجات)</h3>
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-amber-100/90 text-amber-900 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping"></span>
+                  <span>حراج زنده کف بازار</span>
+                </span>
+                <span className="bg-emerald-50 text-emerald-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck size={12} className="text-emerald-600" />
+                  <span>تضمین امانی دست‌اول</span>
+                </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-2xl">
-                بستری انحصاری برای ثبت درخواست کالا و مواد اولیه زیر قیمت بازار آزاد. کلیه مبادلات با نظارت مستقیم و واسطه‌گری امین پلتفرم صورت می‌پذیرد.
+              <h3 className="font-black text-base sm:text-lg text-slate-900 tracking-tight flex items-center gap-2">
+                <span>تالار معاملات فوری کفِ بازار</span>
+                <span className="text-amber-800 text-xs font-black bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg hidden sm:inline-block">
+                  📉 ۱۵٪ تا ۴۰٪ زیر قیمت آزاد
+                </span>
+              </h3>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-2xl">
+                بستری اختصاصی برای خرید و تسویه فوری بارهای مازاد کارخانجات و کالاهای بدون واسطه با ضمانت صندوق امانی پلتفرم.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full lg:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-3 shrink-0 w-full lg:w-auto justify-end relative z-10 pt-2 lg:pt-0 border-t border-slate-100 lg:border-t-0">
+            <div className="hidden xl:flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-3.5 py-2 rounded-2xl text-[11px] font-bold text-slate-700">
+              <div className="text-center border-l border-slate-200/80 pl-3">
+                <span className="text-[9px] text-slate-500 block font-black">حراج‌های فعال</span>
+                <span className="text-amber-700 font-black text-xs">{displayOpportunityCount} مورد</span>
+              </div>
+              <div className="text-center">
+                <span className="text-[9px] text-slate-500 block font-black">تسویه</span>
+                <span className="text-emerald-700 font-black text-xs">۱۰۰٪ امانی</span>
+              </div>
+            </div>
+
             <button
               onClick={onNavigateToBillboard}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-black px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm border border-slate-200"
+              className="bg-white hover:bg-slate-50 text-slate-900 text-xs font-black px-5 py-3 rounded-2xl transition-all flex items-center gap-2 cursor-pointer border border-slate-300 shadow-sm active:scale-95"
             >
-              <span>مشاهده تالار کف بازار ({displayOpportunityCount} مورد)</span>
-              <ChevronLeft size={14} />
+              <span>ورود به تالار کامل ({displayOpportunityCount} حراج)</span>
+              <ChevronLeft size={16} />
             </button>
-            <button
-              onClick={() => {
-                setCategory("under_market");
-                setIsSubmitModalOpen(true);
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <Plus size={14} />
-              <span>ثبت محصول زیر قیمت</span>
-            </button>
+            <AddAdButton variant="desktop" />
           </div>
         </div>
 
@@ -783,100 +797,95 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   // FULL PAGE / TAB MODE
   return (
     <div className="w-full mt-2 mb-12 max-w-7xl mx-auto px-4" id="ad-board-full-container" dir="rtl">
-      
-      {/* 🌟 PREMIUM LUMINOUS BENTO HERO BOARD (بورد اصلی و درخشان کف بازار) */}
-      <div className="bg-gradient-to-br from-amber-500/[0.03] via-white to-emerald-500/[0.03] border border-amber-500/15 rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 shadow-md mb-6 text-right relative overflow-hidden ring-4 ring-amber-500/[0.01]">
-        {/* Background Glowing Orbs for Luxurious Atmosphere */}
-        <div className="absolute top-0 left-1/4 w-72 h-72 bg-amber-200/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-emerald-200/15 rounded-full blur-3xl pointer-events-none" />
+      {/* 🌟 KAF BAZAAR HERO HEADER BOARD (CLEAN WHITE THEME) */}
+      <div className="bg-white text-slate-900 rounded-3xl p-5 sm:p-6 shadow-xl border border-slate-200/90 mb-6 text-right relative overflow-hidden">
+        {/* Subtle Ambient Glow */}
+        <div className="absolute -top-20 -right-20 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
-        {/* Header Layout */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 md:pb-6 border-b border-slate-100 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black shadow-md md:shadow-lg shadow-amber-500/20 shrink-0 relative animate-bounce-slow">
-              <span className="absolute inset-0 rounded-xl md:rounded-2xl bg-amber-400 opacity-25 blur-xs animate-pulse" />
-              <SpecialPriceBagIcon size={20} className="text-slate-900 md:scale-125" animated={true} />
+        {/* Top Header Row */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-5 border-b border-slate-100 relative z-10">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-black shadow-xs shrink-0">
+              <SpecialPriceBagIcon size={28} className="text-amber-600" animated={true} />
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h1 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <span>تالار معامِلات فوری</span>
-                  <span className="text-amber-600 text-[10px] sm:text-sm font-black bg-amber-100 border border-amber-200/50 px-2 py-0.5 rounded-full">کفِ بازار 📉</span>
-                </h1>
-                <span className="bg-emerald-50 text-emerald-700 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1 shadow-3xs">
-                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping"></span>
-                  <span>{displayOpportunityCount} حراج فعال</span>
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-amber-100/90 text-amber-900 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping"></span>
+                  <span>تالار زنده معاملات فوری</span>
+                </span>
+                <span className="bg-emerald-50 text-emerald-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck size={12} className="text-emerald-600" />
+                  <span>تضمین امانی دست‌اول</span>
+                </span>
+                <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-slate-200 hidden sm:inline-flex items-center gap-1">
+                  <Flame size={11} className="text-amber-600" />
+                  <span>حراج مستقیم کارخانه</span>
                 </span>
               </div>
-              <p className="text-[10px] sm:text-xs text-slate-500 font-bold mt-1 leading-relaxed hidden sm:block">
-                بازار دست‌اول برای حراج نقدی مازاد خطوط تولید کارخانجات کشور، خریدهای زیر قیمت صنف و خریدهای فوری نقدی با تضمین پرداخت امانی.
+
+              <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight flex flex-wrap items-center gap-2">
+                <span>تالار معاملات فوری کفِ بازار</span>
+                <span className="text-amber-800 text-xs font-black bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-xl">
+                  📉 ۱۵٪ تا ۴۰٪ زیر قیمت بازار آزاد
+                </span>
+              </h1>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-2xl hidden sm:block">
+                حراج نقدی مازاد خطوط تولید، واگذاری فوری محموله‌ها و تامین بی واسطه با نظارت و تسویه در صندوق امانی دست‌اول.
               </p>
             </div>
           </div>
 
-          {/* Action Toolbar buttons */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 md:pb-0 shrink-0">
-            <button
-              onClick={() => {
-                loadAds();
-                setSearchQuery("");
-                setActiveCategoryFilter("all");
-              }}
-              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg md:rounded-xl text-[10px] sm:text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-3xs active:scale-[0.98] whitespace-nowrap min-w-fit"
-            >
-              <RefreshCw size={12} className="text-amber-500 animate-spin-slow" />
-              <span>به‌روزرسانی</span>
-            </button>
-
-            <button
-              onClick={() => setShowRulesModal(true)}
-              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg md:rounded-xl text-[10px] sm:text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-3xs active:scale-[0.98] whitespace-nowrap min-w-fit"
-            >
-              <ShieldCheck size={12} className="text-emerald-600" />
-              <span>قوانین صیانت</span>
-            </button>
-
-            <AddAdButton variant="desktop" />
-          </div>
-        </div>
-
-        {/* 🏢 THREE-COLUMN EXECUTIVE BENTO METRICS (کارت‌های بانتو شاخص و اعتبار مالی) */}
-        <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-2.5 sm:gap-4 py-4 border-b border-slate-100 relative z-10 scrollbar-none">
-          <div className="bg-white/90 border border-emerald-100 rounded-xl md:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3.5 shadow-3xs hover:shadow-2xs transition-shadow whitespace-nowrap shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <ShieldCheck size={16} />
+          {/* KPI Stats & Action Buttons Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 relative z-10">
+            {/* Quick Live KPI Counters */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200/80 p-2 rounded-2xl text-center text-[10px] font-bold text-slate-700">
+              <div className="px-2 border-l border-slate-200/80">
+                <span className="text-[8px] text-slate-500 block font-black">حراج فعال</span>
+                <span className="text-amber-700 font-black text-xs">{displayOpportunityCount} مورد</span>
+              </div>
+              <div className="px-2 border-l border-slate-200/80">
+                <span className="text-[8px] text-slate-500 block font-black">تخفیف کف</span>
+                <span className="text-emerald-700 font-black text-xs">تا ۴۰٪</span>
+              </div>
+              <div className="px-2">
+                <span className="text-[8px] text-slate-500 block font-black">تسویه</span>
+                <span className="text-indigo-700 font-black text-xs">امانی ۱۰۰٪</span>
+              </div>
             </div>
-            <div className="text-right space-y-0.5">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black block">تضمین نقدی صندوق امانی</span>
-              <span className="text-[11px] sm:text-sm font-black text-slate-900 block">{realVolumeText}</span>
-            </div>
-          </div>
 
-          <div className="bg-white/90 border border-amber-100 rounded-xl md:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3.5 shadow-3xs hover:shadow-2xs transition-shadow whitespace-nowrap shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <BadgePercent size={16} className="animate-pulse" />
-            </div>
-            <div className="text-right space-y-0.5">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black block">بازه تخفیف مازاد خط</span>
-              <span className="text-[11px] sm:text-sm font-black text-slate-900 block">{realMaxProfitText}</span>
-            </div>
-          </div>
+            {/* Toolbar Buttons */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+              <button
+                onClick={() => {
+                  loadAds();
+                  setSearchQuery("");
+                  setActiveCategoryFilter("all");
+                }}
+                className="px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-slate-300 shadow-2xs active:scale-95 whitespace-nowrap"
+                title="به‌روزرسانی لیست حراج‌ها"
+              >
+                <RefreshCw size={13} className="text-amber-600" />
+                <span>به‌روزرسانی</span>
+              </button>
 
-          <div className="bg-white/90 border border-indigo-100 rounded-xl md:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3.5 shadow-3xs hover:shadow-2xs transition-shadow whitespace-nowrap shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <Sparkles size={16} />
-            </div>
-            <div className="text-right space-y-0.5">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 font-black block">احراز هویت و پلمپ کالا</span>
-              <span className="text-[11px] sm:text-sm font-black text-slate-900 block">{realPhysicalText}</span>
+              <button
+                onClick={() => setShowRulesModal(true)}
+                className="px-3.5 py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-300 shadow-2xs active:scale-95 whitespace-nowrap"
+              >
+                <ShieldCheck size={14} className="text-emerald-600" />
+                <span>قوانین صیانت</span>
+              </button>
+
+              <AddAdButton variant="desktop" />
             </div>
           </div>
         </div>
 
-        {/* Row 3: Filter Chips and Search Bar */}
-        <div className="pt-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 relative z-10">
+        {/* Filter Chips & Search Bar */}
+        <div className="pt-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 relative z-10">
           {/* Category Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
             {[
               { value: "all", label: "همه فرصت‌های ویژه", count: allOpportunities.length },
               { value: "under_market", label: "📉 کف قیمت بازار", count: allOpportunities.filter(a => a.category === 'under_market').length },
@@ -888,13 +897,13 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 onClick={() => setActiveCategoryFilter(filter.value as any)}
                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 border ${
                   activeCategoryFilter === filter.value
-                    ? "bg-slate-900 text-white border-slate-900 shadow-sm scale-[1.01]"
-                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200/80 shadow-2xs"
+                    ? "bg-slate-900 text-white border-slate-900 shadow-sm scale-[1.02]"
+                    : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs"
                 }`}
               >
                 <span>{filter.label}</span>
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                  activeCategoryFilter === filter.value ? "bg-amber-400 text-slate-900" : "bg-slate-100 text-slate-500"
+                  activeCategoryFilter === filter.value ? "bg-amber-400 text-slate-950" : "bg-slate-100 text-slate-600"
                 }`}>
                   {filter.count}
                 </span>
@@ -910,7 +919,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="جستجوی عنوان حراج کالا یا کارخانه..."
-                className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-7 py-2 text-xs font-bold outline-none focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-400 text-slate-800 text-right shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-xl pr-9 pl-7 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-400 transition-all shadow-2xs text-right"
               />
               <Search size={14} className="absolute right-3 top-2.5 text-slate-400" />
               {searchQuery && (
@@ -924,11 +933,11 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
             </div>
 
             {/* View Mode Toggle */}
-            <div className="hidden sm:flex items-center bg-white p-0.5 rounded-xl border border-slate-200 shrink-0 shadow-2xs">
+            <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0 shadow-2xs">
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                  viewMode === "list" ? "bg-slate-900 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
+                  viewMode === "list" ? "bg-white text-slate-900 shadow-xs border border-slate-200" : "text-slate-500 hover:text-slate-800"
                 }`}
                 title="نمایش لیستی"
               >
@@ -937,7 +946,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                  viewMode === "grid" ? "bg-slate-900 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
+                  viewMode === "grid" ? "bg-white text-slate-900 shadow-xs border border-slate-200" : "text-slate-500 hover:text-slate-800"
                 }`}
                 title="نمایش شبکه‌ای"
               >
@@ -1027,100 +1036,104 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       </AnimatePresence>
 
       {/* 📉 کالاهای منتخب کف بازار (تحویل فوری) */}
-      {!isMini && products && products.filter(p => p.isKafBazaar).length > 0 && (
+      {!isMini && products && products.length > 0 && (
         <div className="mb-8 text-right bg-gradient-to-l from-emerald-500/10 via-amber-500/5 to-transparent border border-emerald-100 rounded-3xl p-6 relative overflow-hidden">
           <div className="absolute -top-12 -left-12 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
           
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📉</span>
-              <div>
-                <h3 className="font-black text-sm sm:text-base text-slate-900">کالاهای منتخب «کف بازار» با تحویل فوری</h3>
-                <p className="text-[10px] text-slate-500 font-bold mt-0.5">محصولات تایید شده و مستقیم از انبار مرکزی دست اول با ضمانت اصالت و سلامت بار</p>
-              </div>
-            </div>
-            <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2.5 py-1 rounded-full border border-emerald-200">
-              تعداد: {products.filter(p => p.isKafBazaar).length} کالا
-            </span>
-          </div>
-
           {(() => {
-            const kafBazaarProducts = products.filter(p => !p.disabled && (p.isKafBazaar === true || (p as any).isLiquid === true));
-            if (kafBazaarProducts.length === 0) return null;
-            return (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {kafBazaarProducts.map((p, pIdx) => {
-                  const rolePricing = getProductRolePricing(p, user);
-                  const userPrice = rolePricing.unitWholesalePrice;
-                  const repPrice = rolePricing.representativeFloorPrice;
-                  const consumerPrice = rolePricing.consumerPrice;
-                  return (
-                    <div 
-                      key={`kafbazaar-prod-${p.id || pIdx}-${pIdx}`}
-                      onClick={() => onSelectProduct && onSelectProduct(p)}
-                      className="bg-white border border-slate-200/90 rounded-3xl p-3.5 shadow-2xs hover:shadow-material-md hover:border-emerald-300 transition-all relative flex flex-col justify-between cursor-pointer group"
-                    >
-                      {/* Clean Square Image Container */}
-                      <div className="relative aspect-square w-full bg-white rounded-2xl border border-slate-100 p-2 overflow-hidden flex items-center justify-center group-hover:bg-slate-50/50 transition-colors">
-                        <ProductImage 
-                          src={p.image_url} 
-                          alt={p.name} 
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
-                        />
-                        <span className="absolute top-2.5 right-2.5 bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-lg shadow-xs">
-                          📉 تخفیف ویژه کف بازار
-                        </span>
-                        <span className="absolute bottom-2 left-2 bg-white/80 backdrop-blur-xs text-slate-900 text-[8px] font-bold px-2 py-0.5 rounded-md border border-slate-100">
-                          کارتن {p.carton_pack_count || 24} عددی
-                        </span>
-                      </div>
+            const kafBazaarProducts = products.filter(p => !p.disabled && p.isKafBazaar === true);
+            const displayList = kafBazaarProducts;
+            if (displayList.length === 0) return null;
 
-                      <div className="mt-3 space-y-1.5">
-                        <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold">
-                          <span>{p.brand || "کارخانه رسمی"}</span>
-                          <span className="text-indigo-600 font-black">{p.category || "کالای اساسی"}</span>
-                        </div>
-                        <h4 className="text-xs font-black text-slate-900 leading-snug line-clamp-2 min-h-[36px] group-hover:text-emerald-700 transition-colors">{p.name}</h4>
-                        
-                        <div className="pt-2.5 flex justify-between items-end border-t border-slate-100">
-                          <div className="text-right">
-                            <p className="text-[9px] text-slate-400 font-bold line-through">
-                              {consumerPrice.toLocaleString('fa-IR')} تومان
-                            </p>
-                            <p className="text-xs font-black text-emerald-700 font-mono">
-                              {userPrice.toLocaleString('fa-IR')} <span className="text-[9px]">تومان</span>
-                            </p>
-                          </div>
-                          <span className="text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-black border border-emerald-100">
-                            تامین مستقیم
+            return (
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📉</span>
+                    <div>
+                      <h3 className="font-black text-sm sm:text-base text-slate-900">کالاهای منتخب «کف بازار» با تحویل فوری</h3>
+                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">قیمت‌های حراج تکی و عمده مستقیم از انبار مرکزی دست اول با ضمانت اصالت و سلامت بار</p>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2.5 py-1 rounded-full border border-emerald-200">
+                    تعداد: {displayList.length} کالا
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {displayList.map((p, pIdx) => {
+                    const rolePricing = getProductRolePricing(p, user);
+                    const userPrice = rolePricing.unitWholesalePrice;
+                    const consumerPrice = rolePricing.consumerPrice || Math.round(userPrice * 1.25);
+                    const packCount = p.carton_pack_count || 24;
+                    const unitProfit = Math.max(0, consumerPrice - userPrice);
+                    const cartonProfit = unitProfit * packCount;
+                    const profitPercent = consumerPrice > 0 ? Math.round((unitProfit / consumerPrice) * 100) : 20;
+
+                    return (
+                      <div 
+                        key={`kafbazaar-prod-${p.id || pIdx}-${pIdx}`}
+                        onClick={() => onSelectProduct && onSelectProduct(p)}
+                        className="bg-white border border-slate-200/90 rounded-3xl p-3.5 shadow-2xs hover:shadow-material-md hover:border-emerald-400 transition-all relative flex flex-col justify-between cursor-pointer group"
+                      >
+                        {/* Clean Square Image Container */}
+                        <div className="relative aspect-square w-full bg-white rounded-2xl border border-slate-100 p-2 overflow-hidden flex items-center justify-center group-hover:bg-slate-50/50 transition-colors">
+                          <ProductImage 
+                            src={p.image_url} 
+                            alt={p.name} 
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" 
+                          />
+                          <span className="absolute top-2.5 right-2.5 bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-lg shadow-xs">
+                            📉 کف قیمت بازار
+                          </span>
+                          <span className="absolute bottom-2 left-2 bg-white/80 backdrop-blur-xs text-slate-900 text-[8px] font-bold px-2 py-0.5 rounded-md border border-slate-100">
+                            کارتن {packCount.toLocaleString('fa-IR')} عددی
                           </span>
                         </div>
 
-                        {/* Representative badge if relevant */}
-                        {repPrice && !rolePricing.isRepresentative && (
-                          <div className="text-[9px] text-slate-500 pt-1 flex items-center justify-between border-t border-slate-50">
-                            <span>کف عاملیت:</span>
-                            <span className="font-mono font-bold text-indigo-700">{repPrice.toLocaleString('fa-IR')} ت</span>
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold">
+                            <span>{p.brand || "کارخانه رسمی"}</span>
+                            <span className="text-indigo-600 font-black">{p.category || "کالای اساسی"}</span>
                           </div>
-                        )}
-                      </div>
+                          <h4 className="text-xs font-black text-slate-900 leading-snug line-clamp-2 min-h-[36px] group-hover:text-emerald-700 transition-colors">{p.name}</h4>
+                          
+                          {/* Pricing details */}
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-slate-500 font-bold">قیمت خرید تکی:</span>
+                              <span className="font-black text-emerald-700 font-mono text-xs">{userPrice.toLocaleString('fa-IR')} تومان</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[9px]">
+                              <span className="text-slate-400 font-bold">قیمت روی جلد:</span>
+                              <span className="line-through font-mono text-slate-400">{consumerPrice.toLocaleString('fa-IR')} تومان</span>
+                            </div>
+                          </div>
 
-                      <div className="mt-3 pt-2">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onSelectProduct) onSelectProduct(p);
-                          }}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all text-center cursor-pointer shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <ShieldCheck size={13} />
-                          <span>مشاهده و خرید مستقیم</span>
-                        </button>
+                          {/* Profit temptation badge */}
+                          <div className="bg-emerald-50 text-emerald-800 p-2 rounded-xl text-[10px] font-black border border-emerald-200/80 flex items-center justify-between">
+                            <span>سود کارتن:</span>
+                            <span className="font-mono text-emerald-900">{cartonProfit.toLocaleString('fa-IR')} تومان ({profitPercent.toLocaleString('fa-IR')}٪ سود)</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 pt-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onSelectProduct) onSelectProduct(p);
+                            }}
+                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all text-center cursor-pointer shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                          >
+                            <ShieldCheck size={13} />
+                            <span>مشاهده و خرید مستقیم</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             );
           })()}
         </div>
@@ -1683,7 +1696,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
                       }`}
                     >
                       <div className="flex justify-between items-center w-full">
-                        <span className="text-xs font-black text-slate-800">🔥 حراج و مازاد</span>
+                        <span className="text-xs font-black text-slate-800">🔥 حراج مازاد خط</span>
                         <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${category === "liquid" ? "border-amber-600" : "border-slate-300"}`}>
                           {category === "liquid" && <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />}
                         </div>

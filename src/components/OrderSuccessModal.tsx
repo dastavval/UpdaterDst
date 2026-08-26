@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Package, Truck, Printer, X, ArrowRight, Sparkles, UserCheck } from 'lucide-react';
+import { CheckCircle2, Package, Truck, Printer, X, ArrowRight, Sparkles, UserCheck, ExternalLink, Copy, Check } from 'lucide-react';
+import { generateInvoiceUrl } from '../lib/invoice-url-helper';
 
 interface OrderSuccessModalProps {
   isOpen: boolean;
@@ -12,6 +13,24 @@ interface OrderSuccessModalProps {
 }
 
 export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amount, onPrintInvoice, autoCreatedAccount }: OrderSuccessModalProps) {
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleCopyLink = () => {
+    const url = generateInvoiceUrl(trackingNumber);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+      }).catch(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+      });
+    } else {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -87,19 +106,61 @@ export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amo
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl">
-                <p className="text-[11px] text-blue-800 leading-relaxed font-bold text-center">
-                  💡 پیش‌فاکتور مستقیم شما صادر گردیده و در پنل کاربری قابل استعلام و بارگیری است. در صورت تمایل کارخانه، فاکتور رسمی نیز صادر و همراه بار فیزیکی ارسال خواهد شد.
+              {/* Direct English Invoice Preview Link Box */}
+              <div className="bg-white text-slate-800 p-4 rounded-2xl space-y-3 border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-700 font-black flex items-center gap-1.5">
+                    <span>🧾</span>
+                    <span>لینک آنلاین پیش‌فاکتور:</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onPrintInvoice) {
+                        onPrintInvoice();
+                      }
+                    }}
+                    className="text-xs font-black text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>👁️ مشاهده آنی پیش‌فاکتور</span>
+                    <ExternalLink size={13} />
+                  </button>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono text-slate-800 dir-ltr overflow-hidden">
+                  <span className="truncate pr-2">{generateInvoiceUrl(trackingNumber)}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="text-[11px] font-sans font-bold bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg shrink-0 border border-slate-300 cursor-pointer shadow-xs flex items-center gap-1"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check size={12} className="text-emerald-600" />
+                        <span className="text-emerald-700">کپی شد</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} className="text-slate-500" />
+                        <span>کپی لینک</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                <p className="text-xs text-slate-700 leading-relaxed font-bold text-center">
+                  💡 پیش‌فاکتور مستقیم شما صادر گردیده و در پنل کاربری قابل استعلام، چاپ و دانلود می‌باشد. همراه بار فیزیکی نیز فاکتور معتبر ارسال خواهد شد.
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button 
                   onClick={onClose}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
                 >
                   <ArrowRight size={16} />
-                  بازگشت به بازارگاه
+                  <span>🏪 بازگشت به بازارگاه</span>
                 </button>
                 <button 
                   onClick={() => {
@@ -109,10 +170,10 @@ export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amo
                       window.print();
                     }
                   }}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                  className="flex-1 bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
                 >
                   <Printer size={16} className="text-emerald-600" />
-                  چاپ فاکتور رسمی
+                  <span>📄 مشاهده و دانلود پیش‌فاکتور</span>
                 </button>
               </div>
             </div>

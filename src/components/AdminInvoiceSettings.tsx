@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Save, 
@@ -12,9 +12,18 @@ import {
   Trash2,
   Phone,
   MapPin,
-  ShieldAlert
+  ShieldAlert,
+  Stamp,
+  Palette,
+  UserCheck,
+  Sparkles,
+  Image as ImageIcon,
+  Camera,
+  PenTool
 } from 'lucide-react';
 import WholesaleInvoiceView from './WholesaleInvoiceView';
+import { OfficialUnifiedSealSignature } from './OfficialDigitalStamp';
+import SealSignatureCaptureModal from './SealSignatureCaptureModal';
 import { Order } from '../types';
 
 interface AdminInvoiceSettingsProps {
@@ -40,7 +49,16 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   const [includeVatByDefault, setIncludeVatByDefault] = useState<boolean>(currentInv.includeVatByDefault !== undefined ? Boolean(currentInv.includeVatByDefault) : true);
   const [defaultDocType, setDefaultDocType] = useState<'proforma' | 'official'>(currentInv.defaultDocType === 'official' ? 'official' : 'proforma');
 
+  // Stamp & Signature Dynamic States
+  const [sealType, setSealType] = useState<"dynamic_vector" | "custom_image" | "signature_only" | "stamp_only">(
+    currentInv.sealType || (currentInv.officialSealUrl || b2bConfig?.officialSealUrl ? "custom_image" : "dynamic_vector")
+  );
+  const [sealColor, setSealColor] = useState<string>(currentInv.sealColor || "#1e40af");
+  const [signerName, setSignerName] = useState<string>(currentInv.signerName || "مهندس علیرضا اکبری");
+  const [signerTitle, setSignerTitle] = useState<string>(currentInv.signerTitle || "مدیرعامل و رییس هیات‌مدیره");
   const [officialSealUrl, setOfficialSealUrl] = useState(currentInv.officialSealUrl || b2bConfig?.officialSealUrl || "");
+  const [officialSignatureUrl, setOfficialSignatureUrl] = useState(currentInv.officialSignatureUrl || b2bConfig?.officialSignatureUrl || "");
+  
   const [catalogPdfUrl, setCatalogPdfUrl] = useState(b2bConfig?.catalogPdfUrl || "");
   const [footerNotes, setFooterNotes] = useState(currentInv.footerNotes || "این پیش‌فاکتور به منزله تاییدیه قطعی سفارش و رزرو کالا در خط تولید می‌باشد. کلیه مرسولات دارای بیمه ترانزیت جاده‌ای هستند.");
 
@@ -72,6 +90,34 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [showLivePreview, setShowLivePreview] = useState(false);
+  const [isCaptureModalOpen, setIsCaptureModalOpen] = useState(false);
+  const [captureTarget, setCaptureTarget] = useState<'seal' | 'signature'>('seal');
+
+  useEffect(() => {
+    if (b2bConfig?.invoiceSettings) {
+      const inv = b2bConfig.invoiceSettings;
+      if (inv.sellerTitle !== undefined) setSellerTitle(inv.sellerTitle);
+      if (inv.sellerNationalId !== undefined) setSellerNationalId(inv.sellerNationalId);
+      if (inv.sellerRegNumber !== undefined) setSellerRegNumber(inv.sellerRegNumber);
+      if (inv.sellerEconomicCode !== undefined) setSellerEconomicCode(inv.sellerEconomicCode);
+      if (inv.sellerPhone !== undefined) setSellerPhone(inv.sellerPhone);
+      if (inv.sellerMobile !== undefined) setSellerMobile(inv.sellerMobile);
+      if (inv.sellerAddress !== undefined) setSellerAddress(inv.sellerAddress);
+      if (inv.cashDiscountPercent !== undefined) setCashDiscountPercent(inv.cashDiscountPercent);
+      if (inv.chequeMarkupPerMonthPercent !== undefined) setChequeMarkupPerMonthPercent(inv.chequeMarkupPerMonthPercent);
+      if (inv.maxSedimentDiscountPercent !== undefined) setMaxSedimentDiscountPercent(inv.maxSedimentDiscountPercent);
+      if (inv.includeVatByDefault !== undefined) setIncludeVatByDefault(Boolean(inv.includeVatByDefault));
+      if (inv.defaultDocType !== undefined) setDefaultDocType(inv.defaultDocType);
+      if (inv.sealType !== undefined) setSealType(inv.sealType);
+      if (inv.sealColor !== undefined) setSealColor(inv.sealColor);
+      if (inv.signerName !== undefined) setSignerName(inv.signerName);
+      if (inv.signerTitle !== undefined) setSignerTitle(inv.signerTitle);
+      if (inv.officialSealUrl !== undefined) setOfficialSealUrl(inv.officialSealUrl);
+      if (inv.officialSignatureUrl !== undefined) setOfficialSignatureUrl(inv.officialSignatureUrl);
+      if (inv.footerNotes !== undefined) setFooterNotes(inv.footerNotes);
+      if (inv.bankAccounts && Array.isArray(inv.bankAccounts)) setBankAccounts(inv.bankAccounts);
+    }
+  }, [b2bConfig]);
 
   const handleAddAccount = () => {
     setBankAccounts([...bankAccounts, {
@@ -113,6 +159,11 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         includeVatByDefault: Boolean(includeVatByDefault),
         defaultDocType,
         officialSealUrl,
+        officialSignatureUrl,
+        sealType,
+        sealColor,
+        signerName,
+        signerTitle,
         footerNotes,
         bankAccounts
       };
@@ -120,6 +171,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
       const updatedB2bConfig = {
         ...b2bConfig,
         officialSealUrl,
+        officialSignatureUrl,
         catalogPdfUrl,
         maxSedimentDiscountPercent: Number(maxSedimentDiscountPercent),
         quantityDiscountTiers: quantityDiscountTiers.map(t => ({
@@ -648,61 +700,304 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
 
         {/* Section 4: Official Stamp & Signature */}
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-          <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Upload className="text-purple-600" size={18} />
-            مهر و امضای رسمی مدیر (جهت چاپ فاکتور)
-          </h3>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <Stamp className="text-purple-600" size={18} />
+              تنظیمات هوشمند و سفارشی‌سازی مهر و امضای رسمی فاکتور
+            </h3>
+            <span className="text-[11px] font-bold text-slate-400">
+              تغییرات فوراً در پیش‌نمایش و فاکتور چاپی اعمال می‌شود
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-black text-slate-500 mb-1">لینک یا آپلود تصویر مهر و امضا</label>
-                <input
-                  type="text"
-                  value={officialSealUrl}
-                  onChange={e => setOfficialSealUrl(e.target.value)}
-                  placeholder="https://... یا آپلود فایل"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono text-slate-800 outline-none"
-                  dir="ltr"
-                />
+          {/* NEW: Webcam & Live Capture Hero Action Banner */}
+          <div className="p-4 sm:p-5 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 rounded-3xl text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg shadow-purple-950/20 border border-purple-800/30">
+            <div className="flex items-center gap-3.5 text-right w-full md:w-auto">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
+                <Camera size={24} className="animate-pulse" />
               </div>
-
               <div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="admin-seal-input"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const r = new FileReader();
-                      r.onloadend = () => setOfficialSealUrl(r.result as string);
-                      r.readAsDataURL(file);
-                    }
-                  }}
-                />
-                <label
-                  htmlFor="admin-seal-input"
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer border border-slate-300 transition-colors w-max"
-                >
-                  <Upload size={14} />
-                  <span>آپلود تصویر مهر و امضای دیجیتال</span>
-                </label>
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <span>عکاسی مستقیم مهر و امضا با وبکم / دوربین</span>
+                  <span className="text-[10px] bg-purple-500/40 text-purple-200 px-2 py-0.5 rounded-full border border-purple-400/30 font-mono">
+                    NEW WEBCAM AI
+                  </span>
+                </h4>
+                <p className="text-[11px] text-purple-200/80 font-medium mt-0.5 leading-relaxed">
+                  مهر یا امضای خود را مقابل دوربین بگیرید؛ سیستم به صورت خودکار سفیدی کاغذ را شفاف کرده و روی فاکتور قرار می‌دهد.
+                </p>
               </div>
             </div>
 
-            {/* Seal Preview Box */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-center min-h-[140px]">
-              <span className="text-[10px] font-black text-slate-400 mb-2">پیش‌نمایش مهر روی فاکتور:</span>
-              {officialSealUrl ? (
-                <div className="w-36 h-24 border border-slate-200 rounded-xl overflow-hidden bg-white flex items-center justify-center p-1 shadow-sm">
-                  <img src={officialSealUrl} alt="Seal Preview" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+            <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptureTarget('seal');
+                  setIsCaptureModalOpen(true);
+                }}
+                className="flex-1 md:flex-none px-4 py-2.5 bg-white hover:bg-purple-50 text-purple-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <Camera size={15} className="text-purple-600" />
+                <span>عکاسی وبکم مهر</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptureTarget('signature');
+                  setIsCaptureModalOpen(true);
+                }}
+                className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-purple-400/40 shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <PenTool size={15} />
+                <span>رسم دیجیتال / اسکن امضا</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Mode Selector Tabs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              { id: 'dynamic_vector', label: 'مهر و امضای وکتور هوشمند', desc: 'تولید خودکار با QR و نام شرکت', icon: <Sparkles size={14} /> },
+              { id: 'custom_image', label: 'تصویر اختصاصی (آپلود PNG)', desc: 'مهر و امضای اسکن‌شده کارخانه', icon: <ImageIcon size={14} /> },
+              { id: 'signature_only', label: 'فقط امضای خوشنویسی', desc: 'بدون کادر مهر مربعی', icon: <UserCheck size={14} /> },
+              { id: 'stamp_only', label: 'فقط مهر رسمی QR', desc: 'بدون امضای دست‌نویس', icon: <Stamp size={14} /> },
+            ].map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setSealType(m.id as any)}
+                className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                  sealType === m.id
+                    ? 'border-purple-600 bg-purple-50/70 text-purple-950 shadow-xs'
+                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black">{m.label}</span>
+                  <span className={sealType === m.id ? 'text-purple-600' : 'text-slate-400'}>{m.icon}</span>
                 </div>
-              ) : (
-                <div className="text-xs font-bold text-slate-300">هنوز مهری آپلود نشده است</div>
+                <span className="text-[10px] text-slate-500 font-medium">{m.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pt-2">
+            
+            {/* Left Controls (7 cols) */}
+            <div className="lg:col-span-7 space-y-4">
+              
+              {/* Color Selector for Vector Stamp */}
+              {(sealType === 'dynamic_vector' || sealType === 'stamp_only' || sealType === 'signature_only') && (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                  <label className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
+                    <Palette size={14} className="text-purple-600" />
+                    <span>رنگ جوهر مهر و امضای رسمی:</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { hex: '#1e40af', label: 'آبی بانکی (استاندارد)' },
+                      { hex: '#1e293b', label: 'سرمه‌ای / مشکی اداری' },
+                      { hex: '#0f766e', label: 'سبز یشمی / بازرگانی' },
+                      { hex: '#991b1b', label: 'قرمز رسمی ثبت اسناد' },
+                    ].map(c => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => setSealColor(c.hex)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          sealColor === c.hex
+                            ? 'border-slate-800 bg-white shadow-xs font-black'
+                            : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        <span className="w-3.5 h-3.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: c.hex }} />
+                        <span>{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* Signer Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div>
+                  <label className="block text-[10.5px] font-black text-slate-600 mb-1">نام شخص امضاکننده</label>
+                  <input
+                    type="text"
+                    value={signerName}
+                    onChange={e => setSignerName(e.target.value)}
+                    placeholder="مثال: مهندس علیرضا اکبری"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10.5px] font-black text-slate-600 mb-1">سمت رسمی ذیل امضا</label>
+                  <input
+                    type="text"
+                    value={signerTitle}
+                    onChange={e => setSignerTitle(e.target.value)}
+                    placeholder="مثال: مدیرعامل و رییس هیات‌مدیره"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              {/* Custom Image Uploaders (for custom_image mode or fallback) */}
+              <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black text-slate-700 block">
+                    بارگذاری یا عکاسی تصویر مهر رسمی (PNG شفاف):
+                  </label>
+                  {officialSealUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setOfficialSealUrl("")}
+                      className="text-[10px] text-rose-600 hover:underline font-bold"
+                    >
+                      حذف تصویر مهر
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCaptureTarget('seal');
+                      setIsCaptureModalOpen(true);
+                    }}
+                    className="w-full sm:w-auto px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-purple-200 transition-colors shrink-0 shadow-2xs cursor-pointer"
+                  >
+                    <Camera size={14} className="text-purple-600" />
+                    <span>عکاسی وبکم</span>
+                  </button>
+
+                  <label className="w-full sm:w-auto px-3.5 py-2.5 bg-white hover:bg-slate-100 text-slate-800 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer border border-slate-300 transition-colors shrink-0 shadow-2xs">
+                    <Upload size={14} className="text-slate-600" />
+                    <span>انتخاب فایل</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const r = new FileReader();
+                          r.onloadend = () => {
+                            setOfficialSealUrl(r.result as string);
+                            setSealType("custom_image");
+                          };
+                          r.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={officialSealUrl}
+                    onChange={e => setOfficialSealUrl(e.target.value)}
+                    placeholder="یا درج آدرس اینترنتی: https://.../seal.png"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 outline-none"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="border-t border-slate-200/80 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-black text-slate-700 block">
+                      بارگذاری، عکاسی یا رسم امضای مدیریت (PNG شفاف):
+                    </label>
+                    {officialSignatureUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setOfficialSignatureUrl("")}
+                        className="text-[10px] text-rose-600 hover:underline font-bold"
+                      >
+                        حذف تصویر امضا
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCaptureTarget('signature');
+                        setIsCaptureModalOpen(true);
+                      }}
+                      className="w-full sm:w-auto px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-purple-200 transition-colors shrink-0 shadow-2xs cursor-pointer"
+                    >
+                      <PenTool size={14} className="text-purple-600" />
+                      <span>رسم / وبکم</span>
+                    </button>
+
+                    <label className="w-full sm:w-auto px-3.5 py-2.5 bg-white hover:bg-slate-100 text-slate-800 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer border border-slate-300 transition-colors shrink-0 shadow-2xs">
+                      <Upload size={14} className="text-slate-600" />
+                      <span>انتخاب فایل</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const r = new FileReader();
+                            r.onloadend = () => setOfficialSignatureUrl(r.result as string);
+                            r.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      value={officialSignatureUrl}
+                      onChange={e => setOfficialSignatureUrl(e.target.value)}
+                      placeholder="یا درج لینک تصویر امضا: https://.../sign.png"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 outline-none"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+              </div>
+
             </div>
+
+            {/* Right Live Preview Card (5 cols) */}
+            <div className="lg:col-span-5 bg-gradient-to-b from-slate-50 to-slate-100 p-5 rounded-3xl border border-slate-200 flex flex-col items-center justify-center min-h-[260px] text-center relative overflow-hidden shadow-inner">
+              <div className="absolute top-3 right-3 text-[10px] font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-200">
+                پیش‌نمایش زنده در فاکتور رسمی
+              </div>
+
+              <div className="w-full max-w-[240px] bg-white p-4 rounded-2xl border border-slate-200/90 shadow-md flex flex-col items-center justify-center mt-4">
+                <span className="text-[9px] font-black text-slate-800 mb-2 border-b border-slate-100 pb-1 w-full">
+                  مهر و امضای الکترونیکی {sellerTitle || "بازرگانی دست اول"}
+                </span>
+
+                <div className="w-44 h-28 flex items-center justify-center">
+                  <OfficialUnifiedSealSignature
+                    className="w-full h-full"
+                    sealUrl={officialSealUrl}
+                    signatureUrl={officialSignatureUrl}
+                    sealType={sealType}
+                    companyTitle={sellerTitle}
+                    regNumber={sellerRegNumber || "3360"}
+                    sealColor={sealColor}
+                    signerName={signerName}
+                    signerTitle={signerTitle}
+                  />
+                </div>
+
+                <div className="flex items-center justify-center gap-1 text-[7.5px] text-slate-400 font-bold border-t border-slate-100 pt-1 mt-1 w-full">
+                  <ShieldAlert size={10} className="text-purple-600" />
+                  <span>تاییدیه رسمی اصالت و صدور فاکتور</span>
+                </div>
+              </div>
+
+              <span className="text-[10px] text-slate-400 font-bold mt-3">
+                این مهر و امضا با همین جزئیات روی پیش‌فاکتور مشتریان و خروجی PDF درج می‌شود.
+              </span>
+            </div>
+
           </div>
         </div>
 
@@ -786,6 +1081,11 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
               includeVatByDefault,
               defaultDocType,
               officialSealUrl,
+              officialSignatureUrl,
+              sealType,
+              sealColor,
+              signerName,
+              signerTitle,
               footerNotes,
               bankAccounts
             }
@@ -794,6 +1094,25 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
           isAdmin={true}
         />
       )}
+
+      {/* Official Seal & Signature Webcam Capture Modal */}
+      <SealSignatureCaptureModal
+        isOpen={isCaptureModalOpen}
+        onClose={() => setIsCaptureModalOpen(false)}
+        defaultTarget={captureTarget}
+        companyTitle={sellerTitle}
+        onSave={(dataUrl, target) => {
+          if (target === 'seal') {
+            setOfficialSealUrl(dataUrl);
+            setSealType('custom_image');
+          } else {
+            setOfficialSignatureUrl(dataUrl);
+            if (sealType === 'dynamic_vector' || sealType === 'stamp_only') {
+              // keep sealType or set to custom_image if both exist
+            }
+          }
+        }}
+      />
     </div>
   );
 }

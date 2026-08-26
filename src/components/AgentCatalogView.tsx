@@ -458,9 +458,9 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                 <form onSubmit={handleSubmitOrder} className="space-y-5">
                   {/* Selected Items list */}
                   <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-1">
-                    {cartSummary.itemsList.map((item) => (
+                    {cartSummary.itemsList.map((item, itemIdx) => (
                       <div 
-                        key={`cart-item-${item.product.id}`}
+                        key={`agent-cart-item-${item.product.id || itemIdx}-${itemIdx}`}
                         className="bg-slate-50 p-3 rounded-2xl border border-slate-150 flex items-center justify-between gap-3"
                       >
                         <div className="space-y-1">

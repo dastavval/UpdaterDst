@@ -6,7 +6,7 @@ import https from "https";
 import dns from "dns";
 import AdmZip from "adm-zip";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import { execSync, exec } from "child_process";
 import { 
@@ -246,23 +246,46 @@ function loadConfig(): any {
 }
 
 function saveConfig(cfg: any) {
-  b2bConfig = { ...b2bConfig, ...cfg };
+  b2bConfig = { 
+    ...b2bConfig, 
+    ...cfg,
+    invoiceSettings: {
+      ...(b2bConfig?.invoiceSettings || {}),
+      ...(cfg?.invoiceSettings || {})
+    }
+  };
   try {
     fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    if (typeof OLD_B2B_CONFIG_FILE !== 'undefined' && OLD_B2B_CONFIG_FILE && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
+      fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    }
   } catch (e) {
     console.error("Failed to save b2b-config.json:", e);
   }
 }
 
+const INITIAL_DEFAULT_PRODUCTS = [
+  { id: "PRD-1001", sku: "PRD-1001", code: "PRD-1001", name: "چیپس سیب‌زمینی چی‌توز کچاپ", brand: "چی‌توز (به‌آرا)", price: 32000, bulk_price: 32000, consumer_price: 40000, purchase_price: 28000, category: "تنقلات و شکلات", image_url: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=600", min_order_cartons: 5, carton_pack_count: 24, disabled: false, isFeatured: true, factoryName: "صنایع غذایی به‌آرا (چی‌توز)" },
+  { id: "PRD-1002", sku: "PRD-1002", code: "PRD-1002", name: "پفک طلایی چی‌توز بزرگ", brand: "چی‌توز (به‌آرا)", price: 24000, bulk_price: 24000, consumer_price: 30000, purchase_price: 20000, category: "تنقلات و شکلات", image_url: "https://images.unsplash.com/photo-1621447504864-d8686e12698c?auto=format&fit=crop&q=80&w=600", min_order_cartons: 5, carton_pack_count: 30, disabled: false, isFeatured: true, factoryName: "صنایع غذایی به‌آرا (چی‌توز)" },
+  { id: "PRD-1003", sku: "PRD-1003", code: "PRD-1003", name: "تخمه آفتابگردان مزمز ۱۰۰ گرمی", brand: "مزمز", price: 18500, bulk_price: 18500, consumer_price: 25000, purchase_price: 15000, category: "تنقلات و شکلات", image_url: "https://images.unsplash.com/photo-1528751014936-863e6e7a319c?auto=format&fit=crop&q=80&w=600", min_order_cartons: 10, carton_pack_count: 40, disabled: false, isFeatured: true, factoryName: "گروه کارخانجات مزمز" },
+  { id: "PRD-1004", sku: "PRD-1004", code: "PRD-1004", name: "بیسکویت ویفر شیرین عسل شکلاتی", brand: "شیرین عسل", price: 12000, bulk_price: 12000, consumer_price: 18000, purchase_price: 9500, category: "کیک، کلوچه و بیسکویت", image_url: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600", min_order_cartons: 8, carton_pack_count: 48, disabled: false, isFeatured: true, factoryName: "گروه صنایع غذایی شیرین عسل" },
+  { id: "PRD-1005", sku: "PRD-1005", code: "PRD-1005", name: "آبمیوه قوطی رانی هلو ۲۴۰ میل", brand: "رانی", price: 26500, bulk_price: 26500, consumer_price: 35000, purchase_price: 22000, category: "نوشیدنی‌ها", image_url: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600", min_order_cartons: 10, carton_pack_count: 24, disabled: false, isFeatured: true, factoryName: "شرکت العوجان ایرانیان (رانی)" },
+  { id: "PRD-1006", sku: "PRD-1006", code: "PRD-1006", name: "پنیر نود گرمی کاله صباح", brand: "کاله", price: 36000, bulk_price: 36000, consumer_price: 45000, purchase_price: 30000, category: "مواد غذایی و کنسروجات", image_url: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&q=80&w=600", min_order_cartons: 5, carton_pack_count: 24, disabled: false, isFeatured: true, factoryName: "گروه لبنی کاله" }
+];
+
 function loadProducts(): any[] {
   try {
     if (fs.existsSync(PRODUCTS_FILE)) {
-      return JSON.parse(fs.readFileSync(PRODUCTS_FILE, "utf-8"));
+      const parsed = JSON.parse(fs.readFileSync(PRODUCTS_FILE, "utf-8"));
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
     console.error("Error loading products.json:", e);
   }
-  return [];
+  try {
+    saveProducts(INITIAL_DEFAULT_PRODUCTS);
+  } catch (e) {}
+  return INITIAL_DEFAULT_PRODUCTS;
 }
 
 function saveProducts(products: any[]) {
@@ -274,28 +297,81 @@ function saveProducts(products: any[]) {
   }
 }
 
+const ROOT_ORDERS_FILE = path.join(process.cwd(), "orders.json");
+
 function loadOrders(): any[] {
+  const allOrdersMap = new Map<string, any>();
+
+  const addOrdersToList = (list: any[]) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      if (!item) continue;
+      const key = item.id || item.trackingNumber || item.orderId;
+      if (key) {
+        if (!allOrdersMap.has(key)) {
+          allOrdersMap.set(key, item);
+        } else {
+          const existing = allOrdersMap.get(key);
+          allOrdersMap.set(key, { ...existing, ...item });
+        }
+      }
+    }
+  };
+
   try {
     if (fs.existsSync(ORDERS_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(ORDERS_FILE, "utf-8"));
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      addOrdersToList(parsed);
     }
   } catch (e) {
     console.error("Error loading orders.json:", e);
   }
+
+  try {
+    if (fs.existsSync(ROOT_ORDERS_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(ROOT_ORDERS_FILE, "utf-8"));
+      addOrdersToList(parsed);
+    }
+  } catch (e) {}
+
   const configAny = b2bConfig as any;
-  if (configAny && Array.isArray(configAny.orders) && configAny.orders.length > 0) {
-    return configAny.orders;
+  if (configAny && Array.isArray(configAny.orders)) {
+    addOrdersToList(configAny.orders);
   }
-  return [];
+
+  return Array.from(allOrdersMap.values());
 }
 
 function saveOrders(orders: any[]) {
   try {
+    const existing = loadOrders();
+    const map = new Map<string, any>();
+    
+    for (const o of existing) {
+      if (o && (o.id || o.trackingNumber || o.orderId)) {
+        map.set(o.id || o.trackingNumber || o.orderId, o);
+      }
+    }
+    for (const o of orders) {
+      if (o && (o.id || o.trackingNumber || o.orderId)) {
+        const key = o.id || o.trackingNumber || o.orderId;
+        const prev = map.get(key) || {};
+        map.set(key, { ...prev, ...o });
+      }
+    }
+
+    const mergedList = Array.from(map.values());
+
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(mergedList, null, 2), "utf-8");
+    try {
+      fs.writeFileSync(ROOT_ORDERS_FILE, JSON.stringify(mergedList, null, 2), "utf-8");
+    } catch (e) {}
+
+    (b2bConfig as any).orders = mergedList;
+    saveConfig(b2bConfig);
   } catch (e) {
-    console.error("Error saving orders.json:", e);
+    console.error("Error saving orders:", e);
   }
 }
 
@@ -336,54 +412,7 @@ const DEFAULT_B2B_CONFIG = {
     { "id": "b-4", "name": "رانی", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23c2410c'/><circle cx='100' cy='100' r='76' fill='%23ea580c' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='38' fill='%23ffffff' text-anchor='middle'>رانی</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23ffedd5' text-anchor='middle'>RANI JUICE</text></svg>" },
     { "id": "b-5", "name": "کاله", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%2315803d'/><circle cx='100' cy='100' r='76' fill='%2316a34a' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='38' fill='%23ffffff' text-anchor='middle'>کاله</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23dcfce7' text-anchor='middle'>KALLEH BRAND</text></svg>" }
   ],
-  factories: [
-    {
-      "id": "fac-1",
-      "factoryCode": "FAC-1001",
-      "name": "صنایع غذایی به‌آرا (چی‌توز)",
-      "city": "مشهد",
-      "province": "خراسان رضوی",
-      "establishedYear": 1372,
-      "badge": "gold",
-      "isVerified": true,
-      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMDAgMjAwJz48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyByeD0nNDAnIGZpbGw9JyNkYzI2MjYnLz48Y2lyY2xlIGN4PScxMDAnIGN5PScxMDAnIHI9Jzc2JyBmaWxsPScjZjs5ZTBiJyBzdHJva2U9JyNmZmZmZmYnIHN0cm9rZS13aWR0aD0nNicvPjx0ZXh0IHg9JzEwMCcgeT0nMTEwJyBmb250LWZhbWlseT0nVGFob21hLCBzYW5zLXNlcmlmJyBmb250LXdlaWdodD0nOTAwJyBmb250LXNpemU9JzMyJyBmaWxsPScjZmZmZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz7Yp9uM49iq2YjYsuKAmDwvdGV4dD48dGV4dCB4=100' y='140' font-family='sans-serif' font-weight='bold' font-size='12' fill='%2378350f' text-anchor='middle'>CHETOZ BRAND</text></svg>",
-      "coverUrl": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80",
-      "category": "تنقلات و شکلات",
-      "mainProducts": ["چیپس سیب‌زمینی چی‌توز", "پفک چی‌توز طلایی", "کرانچی چی‌توز آتشین"],
-      "minOrderAmount": "۱۵,۰۰۰,۰۰۰ تومان",
-      "address": "شهرک صنعتی توس، فاز یک، اندیشه ۵",
-      "phone": "۰۵۱-۳۵۴۱۰۰۰۰",
-      "managerName": "مهندس احمدی",
-      "rating": 4.9,
-      "reviewsCount": 142,
-      "capacityPerMonth": "۸۰۰ تن در ماه",
-      "description": "گروه صنایع غذایی به آرا با نام تجاری چی‌توز، پیشرو در تولید انواع چیپس، اسنک، پفک و فرآورده‌های حجیم شده بر پایه سیب‌زمینی و ذرت.",
-      "profileDesignMode": "simple"
-    },
-    {
-      "id": "fac-2",
-      "factoryCode": "FAC-1002",
-      "name": "گروه کارخانجات مزمز",
-      "city": "تهران",
-      "province": "تهران",
-      "establishedYear": 1374,
-      "badge": "vip",
-      "isVerified": true,
-      "logoUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMDAgMjAwJz48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyByeD0nNDAnIGZpbGw9JyMxZDRlZDgnLz48Y2lyY2xlIGN4PScxMDAnIGN5PScxMDAnIHI9Jzc2JyBmaWxsPScjM2I4MmY2JyBzdHJva2U9JyNmZmZmZmYnIHN0cm9rZS13aWR0aD0nNicvPjx0ZXh0IHg9JzEwMCcgeT0nMTEyJyBmb250LWZhbWlseT0nVGFob21hLCBzYW5zLXNlcmlmJyBmb250LXdlaWdodD0nOTAwJyBmb250LXNpemU9JzM2JyBmaWxsPScjZmZmZmZmJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJz7ZhdiyZhdiyPC90ZXh0Pjx0ZXh0IHg9JzEwMCcgeT0nMTQyJyBmb250LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC13ZWlnaHQ9J2JvbGQnIGZvbnQtc2l6ZT0nMTInIGZpbGw9JyNkYmVhZmUnIHRleHQtYW5jaG9yPSdtaWRkbGUnPk1BWk1BWiBGT09EUzwvdGV4dD48L3N2Zz4=",
-      "coverUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
-      "category": "تنقلات و شکلات",
-      "mainProducts": ["تخمه آفتابگردان مزمز", "چیپس کتلت مزمز", "مغز بادام‌زمینی مزمز"],
-      "minOrderAmount": "۲۰,۰۰۰,۰۰۰ تومان",
-      "address": "شهرک صنعتی شمس‌آباد، بلوار بوستان",
-      "phone": "۰۲۱-۵۶۲۳۰۰۰۰",
-      "managerName": "مهندس رضایی",
-      "rating": 4.8,
-      "reviewsCount": 118,
-      "capacityPerMonth": "۶۵۰ تن در ماه",
-      "description": "مجموعه مزمز اولین تولیدکننده تخمه و آجیل بسته‌بندی بهداشتی و چیپس‌های ترد فرآوری‌شده در ایران.",
-      "profileDesignMode": "simple"
-    }
-  ],
+  factories: [],
   gallery: [
     "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
     "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1000"
@@ -468,7 +497,11 @@ const DEFAULT_B2B_CONFIG = {
     { threshold: 50000000, discountPercent: 5 },
     { threshold: 150000000, discountPercent: 8 },
     { threshold: 500000000, discountPercent: 12 }
-  ]
+  ],
+  equipmentAds: [] as any[],
+  serviceAds: [] as any[],
+  rawMaterialAds: [] as any[],
+  sponsoredAds: [] as any[]
 };
 
 let b2bConfig = { ...DEFAULT_B2B_CONFIG };
@@ -495,9 +528,13 @@ if (fs.existsSync(B2B_CONFIG_FILE)) {
     b2bConfig = {
       ...DEFAULT_B2B_CONFIG,
       ...parsed,
-      categories: (parsed.categories && parsed.categories.length > 0) ? parsed.categories : DEFAULT_B2B_CONFIG.categories,
-      factories: (parsed.factories && parsed.factories.length > 0) ? parsed.factories : DEFAULT_B2B_CONFIG.factories,
-      brands: (parsed.brands && parsed.brands.length > 0) ? parsed.brands : DEFAULT_B2B_CONFIG.brands
+      categories: (parsed.categories && Array.isArray(parsed.categories)) ? parsed.categories : DEFAULT_B2B_CONFIG.categories,
+      factories: (parsed.factories && Array.isArray(parsed.factories)) ? parsed.factories : DEFAULT_B2B_CONFIG.factories,
+      brands: (parsed.brands && Array.isArray(parsed.brands)) ? parsed.brands : DEFAULT_B2B_CONFIG.brands,
+      equipmentAds: (parsed.equipmentAds && Array.isArray(parsed.equipmentAds)) ? parsed.equipmentAds : [],
+      serviceAds: (parsed.serviceAds && Array.isArray(parsed.serviceAds)) ? parsed.serviceAds : [],
+      rawMaterialAds: (parsed.rawMaterialAds && Array.isArray(parsed.rawMaterialAds)) ? parsed.rawMaterialAds : [],
+      sponsoredAds: (parsed.sponsoredAds && Array.isArray(parsed.sponsoredAds)) ? parsed.sponsoredAds : []
     };
 
     // Fail-safe sanitisation: parspack.net has frequent TLS/HTTPS negotiation issues.
@@ -539,9 +576,10 @@ function saveDailyCache(data: any) {
 async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
   const provider = aiConfig.provider;
   const apiKey = aiConfig.apiKey || process.env.GEMINI_API_KEY || "";
+  const baseUrl = (aiConfig.endpointUrl || "https://api.gapgpt.ir/v1").replace(/\/$/, "");
 
   if (provider === "gapgpt") {
-    const url = `${aiConfig.endpointUrl.replace(/\/$/, "")}/chat/completions`;
+    const url = `${baseUrl}/chat/completions`;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
 
@@ -569,29 +607,57 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
       return data.choices?.[0]?.message?.content || "";
     } catch (e: any) {
       console.error("GapGPT call failed:", e.message || e);
+      // Fallback to Gemini if Gemini API key is available
+      if (process.env.GEMINI_API_KEY) {
+        console.warn("Falling back from GapGPT to Gemini...");
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: process.env.GEMINI_API_KEY,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+          const response = await ai.models.generateContent({
+            model: "gemini-3.7-flash",
+            contents: prompt,
+            ...(systemPrompt ? { config: { systemInstruction: systemPrompt } } : {})
+          });
+          if (response.text) return response.text;
+        } catch (gemErr) {
+          console.warn("Fallback to Gemini also failed:", gemErr);
+        }
+      }
       throw e;
     }
   } else {
     if (!apiKey) throw new Error("No Gemini API Key provided.");
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash"
-      });
-      
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: (systemPrompt ? systemPrompt + "\n\n" : "") + prompt }] }]
-      });
-      return result.response.text();
-    } catch (e: any) {
-      const errMsg = e?.message || String(e);
-      if (errMsg.includes("resource_exhausted") || errMsg.includes("quota") || errMsg.includes("429")) {
-        console.warn("Gemini API Quota Exceeded / Rate Limited. Falling back gracefully.");
-        return "سرویس هوش مصنوعی در حال حاضر با ترافیک بالا مواجه است (سهمیه مصرفی). لطفاً چند لحظه دیگر مجدداً تلاش کنید یا از امکانات استاندارد سامانه استفاده نمایید.";
+    const modelsToTry = ["gemini-3.7-flash", "gemini-flash-latest", "gemini-3.1-pro-preview"];
+    let lastError: any = null;
+    
+    for (const modelName of modelsToTry) {
+      try {
+        const ai = new GoogleGenAI({
+          apiKey: apiKey,
+          httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+        });
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          ...(systemPrompt ? { config: { systemInstruction: systemPrompt } } : {})
+        });
+        if (response.text) {
+          return response.text;
+        }
+      } catch (e: any) {
+        lastError = e;
+        const errMsg = e?.message || String(e);
+        if (errMsg.includes("resource_exhausted") || errMsg.includes("quota") || errMsg.includes("429")) {
+          console.warn("Gemini API Quota Exceeded / Rate Limited. Falling back gracefully.");
+          return "سرویس هوش مصنوعی در حال حاضر با ترافیک بالا مواجه است (سهمیه مصرفی). لطفاً چند لحظه دیگر مجدداً تلاش کنید یا از امکانات استاندارد سامانه استفاده نمایید.";
+        }
+        console.warn(`Gemini model ${modelName} failed, trying next...`, errMsg.substring(0, 120));
       }
-      console.error("Gemini call failed:", e);
-      throw e;
     }
+    console.error("All Gemini model attempts failed:", lastError?.message || lastError);
+    return "سرویس هوش مصنوعی خروجی معتبری در این لحظه ارائه نکرد. لطفاً مجدداً تلاش نمایید.";
   }
 }
 
@@ -602,6 +668,76 @@ async function callAISafe(prompt: string, systemPrompt?: string, fallbackText: s
     console.log("AI info: Connection unavailable, using fallback.");
     return fallbackText;
   }
+}
+
+// --- UNIFIED SEO & TOROB PRODUCT AGGREGATOR ---
+function getAllProductsForSEOAndTorob(): any[] {
+  const result: any[] = [];
+  const seenIds = new Set<string>();
+
+  const addProduct = (p: any) => {
+    if (!p) return;
+    const id = String(p.id || p.sku || p.code || p.productCode || "").trim();
+    if (!id || seenIds.has(id)) return;
+    seenIds.add(id);
+
+    const priceNum = (val: any) => {
+      if (val === undefined || val === null) return 0;
+      if (typeof val === 'number') return val;
+      const clean = String(val)
+        .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
+        .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632))
+        .replace(/,/g, '')
+        .match(/\d+/);
+      return clean ? parseInt(clean[0], 10) : 0;
+    };
+
+    const bulkPrice = priceNum(p.bulk_price || p.price || p.wholesalePrice);
+    const consumerPrice = priceNum(p.consumer_price || p.marketPrice || p.consumerPrice);
+
+    result.push({
+      id,
+      sku: id,
+      code: id,
+      name: p.name || p.title || "محصول بدون نام",
+      brand: p.brand || p.factoryName || "کارخانه رسمی",
+      factoryName: p.factoryName || p.brand || "کارخانه رسمی",
+      price: bulkPrice,
+      bulk_price: bulkPrice,
+      consumer_price: consumerPrice,
+      category: p.category || "مواد غذایی",
+      image_url: p.image_url || p.imageUrl || p.image || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
+      imageUrl: p.image_url || p.imageUrl || p.image || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
+      min_order_cartons: Number(p.min_order_cartons || p.minOrderCartons || 1),
+      carton_pack_count: Number(p.carton_pack_count || p.itemsPerUnit || 24),
+      disabled: Boolean(p.disabled),
+      isFeatured: Boolean(p.isFeatured)
+    });
+  };
+
+  // 1. From PRODUCTS_FILE
+  try {
+    const mainList = loadProducts();
+    if (Array.isArray(mainList)) mainList.forEach(addProduct);
+  } catch (e) {}
+
+  // 2. From local-products.json if exists
+  try {
+    const localPath = path.join(process.cwd(), "local-products.json");
+    if (fs.existsSync(localPath)) {
+      const localList = JSON.parse(fs.readFileSync(localPath, "utf-8"));
+      if (Array.isArray(localList)) localList.forEach(addProduct);
+    }
+  } catch (e) {}
+
+  // 3. From b2bConfig.products if present
+  try {
+    if (Array.isArray((b2bConfig as any).products)) {
+      (b2bConfig as any).products.forEach(addProduct);
+    }
+  } catch (e) {}
+
+  return result;
 }
 
 // --- DYNAMIC AUTO-GENERATED SITEMAP.XML FOR GOOGLE & SEARCH ENGINES ---
@@ -634,35 +770,14 @@ function generateDynamicSitemapXml(baseUrl: string = "https://dastavval.com"): s
     }
   }
 
-  // 3. Dynamic Products from local storage or config
+  // 3. Dynamic Products from unified aggregator
   const productUrls: Array<{ loc: string; priority: string; changefreq: string }> = [];
-  try {
-    const localProductsPath = path.join(process.cwd(), "local-products.json");
-    if (fs.existsSync(localProductsPath)) {
-      const prods = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
-      if (Array.isArray(prods)) {
-        for (const p of prods) {
-          if (p.id && !p.disabled) {
-            productUrls.push({
-              loc: `${baseUrl}/?product=${p.id}`,
-              priority: p.isFeatured ? "0.9" : "0.8",
-              changefreq: "daily"
-            });
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("Could not load local products for sitemap:", e);
-  }
-
-  // Fallback initial products if local-products.json was empty
-  if (productUrls.length === 0) {
-    const defaultProductIds = ["PRD-1001", "PRD-1002", "PRD-1003", "PRD-1004", "PRD-1005", "PRD-1006"];
-    for (const pid of defaultProductIds) {
+  const allProds = getAllProductsForSEOAndTorob();
+  for (const p of allProds) {
+    if (p.id && !p.disabled) {
       productUrls.push({
-        loc: `${baseUrl}/?product=${pid}`,
-        priority: "0.85",
+        loc: `${baseUrl}/?product=${encodeURIComponent(p.id)}`,
+        priority: p.isFeatured ? "0.9" : "0.8",
         changefreq: "daily"
       });
     }
@@ -674,7 +789,7 @@ function generateDynamicSitemapXml(baseUrl: string = "https://dastavval.com"): s
   for (const fac of factories) {
     if (fac.id) {
       factoryUrls.push({
-        loc: `${baseUrl}/?tab=factories&factory=${fac.id}`,
+        loc: `${baseUrl}/?tab=factories&factory=${encodeURIComponent(fac.id)}`,
         priority: "0.85",
         changefreq: "weekly"
       });
@@ -691,7 +806,7 @@ function generateDynamicSitemapXml(baseUrl: string = "https://dastavval.com"): s
         for (const art of articles) {
           if (art.id) {
             articleUrls.push({
-              loc: `${baseUrl}/?article=${art.id}`,
+              loc: `${baseUrl}/?article=${encodeURIComponent(art.id)}`,
               priority: "0.85",
               changefreq: "weekly"
             });
@@ -721,7 +836,7 @@ ${xmlEntries}
 </urlset>`;
 }
 
-// Serve dynamic robots.txt for Googlebot, Torobbot, and Search Crawlers
+// Serve dynamic robots.txt for Googlebot, TorobBot, and Search Crawlers
 app.get("/robots.txt", (req, res) => {
   const host = req.get("host") || "dastavval.com";
   const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
@@ -729,6 +844,7 @@ app.get("/robots.txt", (req, res) => {
 User-agent: *
 Allow: /
 Allow: /api/torob/
+Allow: /torob/
 Disallow: /admin
 Disallow: /api/admin/
 Disallow: /api/git/
@@ -742,6 +858,7 @@ Allow: /
 User-agent: TorobBot
 Allow: /
 Allow: /api/torob/
+Allow: /torob/
 
 Sitemap: ${protocol}://${host}/sitemap.xml
 `;
@@ -750,8 +867,8 @@ Sitemap: ${protocol}://${host}/sitemap.xml
   res.send(robotsTxt);
 });
 
-// Serve dynamic, real-time sitemap.xml on /sitemap.xml
-app.get("/sitemap.xml", (req, res) => {
+// Serve dynamic, real-time sitemap.xml on /sitemap.xml and /api/sitemap.xml
+const serveSitemapHandler = (req: express.Request, res: express.Response) => {
   const host = req.get("host") || "dastavval.com";
   const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
   const baseUrl = `${protocol}://${host}`;
@@ -760,25 +877,49 @@ app.get("/sitemap.xml", (req, res) => {
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400");
   res.send(sitemapXml);
-});
+};
 
-// Admin API to trigger auto-generation and write to static file
-app.post("/api/seo/generate-sitemap", (req, res) => {
+app.get("/sitemap.xml", serveSitemapHandler);
+app.get("/api/sitemap.xml", serveSitemapHandler);
+
+// Admin API to trigger auto-generation and write to static files securely
+app.all("/api/seo/generate-sitemap", (req, res) => {
   try {
-    const sitemapContent = generateDynamicSitemapXml("https://dastavval.com");
-    const publicSitemapPath = path.join(process.cwd(), "public", "sitemap.xml");
-    fs.writeFileSync(publicSitemapPath, sitemapContent, "utf-8");
+    const host = req.get("host") || "dastavval.com";
+    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
+    const baseUrl = `${protocol}://${host}`;
+
+    const sitemapContent = generateDynamicSitemapXml(baseUrl);
     
-    // Also copy to dist if dist exists
-    const distSitemapPath = path.join(process.cwd(), "dist", "sitemap.xml");
-    if (fs.existsSync(path.join(process.cwd(), "dist"))) {
-      fs.writeFileSync(distSitemapPath, sitemapContent, "utf-8");
+    // Save to public/sitemap.xml
+    const publicDir = path.join(process.cwd(), "public");
+    if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+    fs.writeFileSync(path.join(publicDir, "sitemap.xml"), sitemapContent, "utf-8");
+    
+    // Save to dist/sitemap.xml if dist exists
+    const distDir = path.join(process.cwd(), "dist");
+    if (fs.existsSync(distDir)) {
+      fs.writeFileSync(path.join(distDir, "sitemap.xml"), sitemapContent, "utf-8");
     }
+
+    // Save to data/sitemap.xml
+    const dataDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(path.join(dataDir, "sitemap.xml"), sitemapContent, "utf-8");
+
+    const products = getAllProductsForSEOAndTorob();
+    const categories = b2bConfig.categories || [];
+    const factories = b2bConfig.factories || [];
 
     res.json({
       success: true,
-      message: "فایل sitemap.xml پویا با آخرین کاتالوگ محصولات و دسته‌بندی‌ها با موفقیت تولید و ذخیره شد.",
-      generatedAt: new Date().toISOString()
+      message: "فایل sitemap.xml پویا با موفقیت به همراه تمام کاتالوگ محصولات، کارخانجات و دسته‌بندی‌ها تولید و ذخیره شد.",
+      stats: {
+        totalProducts: products.length,
+        totalCategories: categories.length,
+        totalFactories: factories.length,
+        generatedAt: new Date().toISOString()
+      }
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -788,60 +929,47 @@ app.post("/api/seo/generate-sitemap", (req, res) => {
 // --- PUBLIC API V1 FOR EXTERNAL APPS ---
 app.get("/api/v1/products", async (req, res) => {
   try {
-    const localProductsPath = path.join(process.cwd(), "local-products.json");
-    let products = [];
-    if (fs.existsSync(localProductsPath)) {
-      products = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
-    }
+    const products = getAllProductsForSEOAndTorob();
     res.json({ success: true, count: products.length, products });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// --- TOROB INTEGRATION FEED ---
-app.get("/api/torob/products", async (req, res) => {
+// --- CORS & MIDDLEWARE FOR TOROB API INTEGRATIONS ---
+app.use(["/api/torob", "/torob", "/torob-api"], (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
+// TOROB PRODUCTS FEED API (Supports JSON Dict, JSON Array, Pagination)
+const handleTorobProducts = async (req: express.Request, res: express.Response) => {
   try {
     const host = req.get("host") || "dastavval.com";
-    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
     const baseUrl = `${protocol}://${host}`;
 
-    const localProductsPath = path.join(process.cwd(), "local-products.json");
-    let productsList: any[] = [];
-    if (fs.existsSync(localProductsPath)) {
-      productsList = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
-    }
+    const allProducts = getAllProductsForSEOAndTorob();
+    const activeProducts = allProducts.filter((p: any) => !p.disabled);
 
     const torobProductsObj: Record<string, any> = {};
     const torobProductsArr: any[] = [];
 
-    const sanitizePrice = (priceStr: any) => {
-      if (priceStr === undefined || priceStr === null) return 0;
-      if (typeof priceStr === 'number') return priceStr;
-      
-      // Convert Persian digits to English digits
-      const englishDigits = String(priceStr)
-        .replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
-        .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
-      
-      // Extract numbers only
-      const match = englishDigits.replace(/,/g, '').match(/\d+/);
-      return match ? parseInt(match[0], 10) : 0;
-    };
-
-    productsList.forEach((prod: any) => {
-      if (prod.disabled) return;
-
-      const id = String(prod.id || prod.productCode || prod.code);
+    activeProducts.forEach((prod: any) => {
+      const id = String(prod.id || prod.sku || prod.code);
       const title = prod.name;
-      const subtitle = prod.brand || prod.factoryName || "";
-      const page_url = `${baseUrl}/?product=${id}`;
+      const subtitle = prod.brand || prod.factoryName || "کارخانه رسمی";
+      const page_url = `${baseUrl}/?product=${encodeURIComponent(id)}`;
       const image_url = prod.image_url || prod.imageUrl || `${baseUrl}/assets/logo.svg`;
-      const price = sanitizePrice(prod.bulk_price || prod.price);
-      const old_price = sanitizePrice(prod.consumer_price || prod.marketPrice);
-      const availability = prod.disabled ? "outofstock" : "instock";
+      const price = Number(prod.bulk_price || prod.price || 0);
+      const old_price = Number(prod.consumer_price || 0);
+      const availability = "instock";
 
       const torobItem = {
+        page_unique_code: id,
         title,
         subtitle,
         page_url,
@@ -849,10 +977,12 @@ app.get("/api/torob/products", async (req, res) => {
         old_price: old_price > price ? old_price : undefined,
         availability,
         image_url,
+        registry: null,
+        guarantee: "ضمانت اصالت و سلامت فیزیکی دست اول",
         spec: {
           "تولیدکننده": prod.factoryName || prod.brand || "کارخانه رسمی",
           "حداقل سفارش": prod.min_order_cartons ? `${prod.min_order_cartons} کارتن` : "بدون حداقل",
-          "تعداد در کارتن": prod.carton_pack_count ? `${prod.carton_pack_count} عدد` : "نامشخص",
+          "تعداد در کارتن": prod.carton_pack_count ? `${prod.carton_pack_count} عدد` : "۲۴ عدد",
           "دسته‌بندی": prod.category || "عمومی"
         }
       };
@@ -861,48 +991,54 @@ app.get("/api/torob/products", async (req, res) => {
       torobProductsArr.push({ id, ...torobItem });
     });
 
-    if (req.query.format === "array") {
-      res.json({ products: torobProductsArr });
+    if (req.query.format === "array" || req.query.type === "list") {
+      res.json({
+        count: torobProductsArr.length,
+        max_pages: 1,
+        page: 1,
+        products: torobProductsArr
+      });
     } else {
-      res.json({ products: torobProductsObj });
+      res.json({
+        count: torobProductsArr.length,
+        max_pages: 1,
+        page: 1,
+        products: torobProductsObj
+      });
     }
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
+};
 
-// Torob RSS / XML Feed for Partner Integrations
-app.get("/api/torob/feed.xml", async (req, res) => {
+app.get("/api/torob/products", handleTorobProducts);
+app.get("/torob/products", handleTorobProducts);
+app.get("/torob/products.json", handleTorobProducts);
+app.get("/api/torob/products.json", handleTorobProducts);
+app.get("/api/torob/v1/products", handleTorobProducts);
+
+// TOROB RSS / XML FEED
+const handleTorobXmlFeed = async (req: express.Request, res: express.Response) => {
   try {
     const host = req.get("host") || "dastavval.com";
-    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
     const baseUrl = `${protocol}://${host}`;
 
-    const localProductsPath = path.join(process.cwd(), "local-products.json");
-    let productsList: any[] = [];
-    if (fs.existsSync(localProductsPath)) {
-      productsList = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
-    }
+    const allProducts = getAllProductsForSEOAndTorob();
+    const activeProducts = allProducts.filter((p: any) => !p.disabled);
 
-    const sanitizePrice = (priceStr: any) => {
-      if (!priceStr) return 0;
-      if (typeof priceStr === 'number') return priceStr;
-      const englishDigits = String(priceStr).replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776));
-      const match = englishDigits.replace(/,/g, '').match(/\d+/);
-      return match ? parseInt(match[0], 10) : 0;
-    };
-
-    const itemsXml = productsList.filter((p: any) => !p.disabled).map((prod: any) => {
-      const id = String(prod.id || prod.productCode || prod.code);
+    const itemsXml = activeProducts.map((prod: any) => {
+      const id = String(prod.id || prod.sku || prod.code);
       const title = prod.name || "";
       const brand = prod.brand || prod.factoryName || "";
-      const price = sanitizePrice(prod.bulk_price || prod.price);
-      const oldPrice = sanitizePrice(prod.consumer_price || prod.marketPrice);
+      const price = Number(prod.bulk_price || prod.price || 0);
+      const oldPrice = Number(prod.consumer_price || 0);
       const image = prod.image_url || prod.imageUrl || `${baseUrl}/assets/logo.svg`;
-      const url = `${baseUrl}/?product=${id}`;
+      const url = `${baseUrl}/?product=${encodeURIComponent(id)}`;
 
       return `    <item>
       <id>${id}</id>
+      <page_unique_code>${id}</page_unique_code>
       <title><![CDATA[${title}]]></title>
       <subtitle><![CDATA[${brand}]]></subtitle>
       <page_url>${url}</page_url>
@@ -917,7 +1053,7 @@ app.get("/api/torob/feed.xml", async (req, res) => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:torob="http://torob.com/rss/specs">
   <channel>
-    <title>فید محصولات سامانه ملی دست اول</title>
+    <title>فید رسمی محصولات سامانه ملی دست اول</title>
     <link>${baseUrl}</link>
     <description>خرید مستقیم از کارخانجات صنایع غذایی ایران با قیمت کف بازار</description>
     <language>fa</language>
@@ -931,32 +1067,56 @@ ${itemsXml}
   } catch (error: any) {
     res.status(500).send(`<error>${error.message}</error>`);
   }
-});
+};
 
-// Single product instant check for Torob Crawlers
-app.get("/api/torob/product-check", (req, res) => {
+app.get("/api/torob/feed.xml", handleTorobXmlFeed);
+app.get("/torob/feed.xml", handleTorobXmlFeed);
+app.get("/torob-api/feed.xml", handleTorobXmlFeed);
+
+// TOROB SINGLE PRODUCT INSTANT CHECK API
+const handleTorobProductCheck = (req: express.Request, res: express.Response) => {
   try {
-    const id = req.query.id as string;
-    const localProductsPath = path.join(process.cwd(), "local-products.json");
-    let productsList: any[] = [];
-    if (fs.existsSync(localProductsPath)) {
-      productsList = JSON.parse(fs.readFileSync(localProductsPath, "utf-8"));
+    const host = req.get("host") || "dastavval.com";
+    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
+    const baseUrl = `${protocol}://${host}`;
+
+    const id = (req.query.id || req.query.product_id || req.query.page_unique_code) as string;
+    const pageUrl = req.query.page_url as string;
+
+    const allProducts = getAllProductsForSEOAndTorob();
+    let found = null;
+
+    if (id) {
+      found = allProducts.find((p: any) => String(p.id) === String(id) || String(p.sku) === String(id) || String(p.code) === String(id));
+    } else if (pageUrl) {
+      found = allProducts.find((p: any) => pageUrl.includes(String(p.id)));
     }
-    const found = productsList.find((p: any) => String(p.id) === id || String(p.code) === id);
+
     if (!found) {
-      return res.status(404).json({ exists: false, availability: "outofstock" });
+      return res.status(404).json({ exists: false, availability: "outofstock", message: "محصول یافت نشد." });
     }
+
+    const price = Number(found.bulk_price || found.price || 0);
+    const old_price = Number(found.consumer_price || 0);
+
     res.json({
       exists: true,
       id: found.id,
-      name: found.name,
-      price: found.bulk_price || found.price,
-      availability: found.disabled ? "outofstock" : "instock"
+      page_unique_code: found.id,
+      title: found.name,
+      price,
+      old_price: old_price > price ? old_price : undefined,
+      availability: found.disabled ? "outofstock" : "instock",
+      page_url: `${baseUrl}/?product=${encodeURIComponent(found.id)}`,
+      image_url: found.image_url || found.imageUrl || `${baseUrl}/assets/logo.svg`
     });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ exists: false, error: e.message });
   }
-});
+};
+
+app.get("/api/torob/product-check", handleTorobProductCheck);
+app.get("/torob/product-check", handleTorobProductCheck);
 
 app.get("/api/v1/categories", (req, res) => {
   res.json({ success: true, categories: b2bConfig.categories || [] });
@@ -2160,6 +2320,63 @@ app.post("/api/admin/ai-config", (req, res) => {
   res.json({ success: true });
 });
 
+app.post("/api/admin/ai-test", async (req, res) => {
+  const { provider, apiKey, endpointUrl } = req.body || {};
+  const testProvider = provider || aiConfig.provider || "gemini";
+  const testKey = apiKey || aiConfig.apiKey || process.env.GEMINI_API_KEY || "";
+  const testUrl = (endpointUrl || aiConfig.endpointUrl || "https://api.gapgpt.ir/v1").replace(/\/$/, "");
+
+  const prompt = "پاسخ کوتاهی به فارسی بده که تایید کند درگاه هوش مصنوعی وصل است و آماده ارائه خدمت می‌باشد.";
+  try {
+    if (testProvider === "gapgpt") {
+      const cleanUrl = `${testUrl}/chat/completions`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (testKey) headers["Authorization"] = `Bearer ${testKey}`;
+
+      const response = await fetch(cleanUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.5
+        }),
+        signal: AbortSignal.timeout(12000)
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        return res.json({
+          success: false,
+          provider: "gapgpt",
+          error: `خطا در فراخوانی درگاه GapGPT (کد status ${response.status}): ${errText.substring(0, 150)}`
+        });
+      }
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content || "پاسخ خالی از GapGPT دریافت شد.";
+      return res.json({
+        success: true,
+        provider: "gapgpt",
+        reply,
+        message: "ارتباط با درگاه GapGPT با موفقیت تایید شد."
+      });
+    } else {
+      const reply = await callAI(prompt, "AI Connection Test");
+      return res.json({
+        success: true,
+        provider: "gemini",
+        reply,
+        message: "ارتباط با درگاه هوش مصنوعی جمینی با موفقیت تایید شد."
+      });
+    }
+  } catch (err: any) {
+    return res.json({
+      success: false,
+      provider: testProvider,
+      error: `خطا در تست اتصال هوش مصنوعی: ${err.message || String(err)}`
+    });
+  }
+});
+
 // --- GITHUB AUTO UPDATE ENDPOINT ---
 async function fetchGithubZip(url: string, token: string): Promise<{ buffer: Buffer; finalUrl: string } | null> {
   const isS3Url = (u: string) => 
@@ -3098,17 +3315,32 @@ app.post("/api/b2b/config", (req, res) => {
         ...(b2bConfig.invoiceSettings || {}),
         ...(incoming.invoiceSettings || {})
       },
-      categories: (incoming.categories && incoming.categories.length > 0)
+      categories: (incoming.categories && Array.isArray(incoming.categories))
         ? incoming.categories 
         : (b2bConfig.categories || DEFAULT_B2B_CONFIG.categories),
-      factories: (incoming.factories && incoming.factories.length > 0)
+      factories: (incoming.factories && Array.isArray(incoming.factories))
         ? incoming.factories 
         : (b2bConfig.factories || DEFAULT_B2B_CONFIG.factories),
-      brands: (incoming.brands && incoming.brands.length > 0)
+      brands: (incoming.brands && Array.isArray(incoming.brands))
         ? incoming.brands 
-        : (b2bConfig.brands || DEFAULT_B2B_CONFIG.brands)
+        : (b2bConfig.brands || DEFAULT_B2B_CONFIG.brands),
+      equipmentAds: (incoming.equipmentAds && Array.isArray(incoming.equipmentAds))
+        ? incoming.equipmentAds
+        : b2bConfig.equipmentAds,
+      serviceAds: (incoming.serviceAds && Array.isArray(incoming.serviceAds))
+        ? incoming.serviceAds
+        : b2bConfig.serviceAds,
+      rawMaterialAds: (incoming.rawMaterialAds && Array.isArray(incoming.rawMaterialAds))
+        ? incoming.rawMaterialAds
+        : b2bConfig.rawMaterialAds,
+      sponsoredAds: (incoming.sponsoredAds && Array.isArray(incoming.sponsoredAds))
+        ? incoming.sponsoredAds
+        : b2bConfig.sponsoredAds
     };
     fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    if (typeof OLD_B2B_CONFIG_FILE !== 'undefined' && OLD_B2B_CONFIG_FILE && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
+      try { fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+    }
     res.json({ success: true, config: b2bConfig });
   } catch (error: any) {
     console.error("Failed to save config:", error);
@@ -3443,9 +3675,8 @@ app.post("/api/sms/send-otp", async (req, res) => {
 // لغو11
 // Endpoint to send Invoice issued SMS with Fixed Static Factor Link
 // Compliance with Iran Telecom & MeliPayamak rules: No variable URLs permitted in pattern parameters!
-// Pattern Format:
-// 1-Var Pattern: پیش‌فاکتور سفارش {0} در سامانه دست اول صادر شد:\ndastavval.com/factors/{0}.pdf
-// 2-Var Pattern: جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/{1}.pdf
+// 1-Var Pattern: پیش‌فاکتور سفارش {0} در سامانه دست اول صادر شد:\ndastavval.com/factors/{0}
+// 2-Var Pattern: جناب {0}، پیش‌فاکتور سفارش {1} در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/{1}
 app.post("/api/sms/send-invoice-sms", async (req, res) => {
   const { phone, buyerName, orderId, origin } = req.body;
   if (!phone || !orderId) {
@@ -3455,13 +3686,18 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
   const cleanPhone = normalizeIranianPhone(phone);
   const name = (buyerName || "خریدار محترم B2B").trim();
   
-  // Extract strictly numeric digits from orderId e.g. "خریدار عمده (3001)" -> "3001"
+  // Extract strictly numeric ASCII digits from orderId e.g. "3001" or convert Persian numbers
   let cleanCode = String(orderId)
     .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
     .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
     .replace(/\D/g, "");
-  if (!cleanCode) {
-    cleanCode = String(orderId).trim().replace(/\s+/g, "").replace(/[^\w-]/g, "") || "1001";
+
+  if (!cleanCode || cleanCode.length === 0) {
+    // If orderId was name or non-numeric, strip non-ASCII characters to keep URL 100% clean
+    cleanCode = String(orderId).replace(/[^\x00-\x7F]/g, "").replace(/[^a-zA-Z0-9]/g, "").trim();
+  }
+  if (!cleanCode || cleanCode.length === 0) {
+    cleanCode = "3360";
   }
 
   const baseDomain = (origin || "https://dastavval.com").replace(/\/$/, "");
@@ -3470,25 +3706,25 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
   
   let result: any = { success: false, message: "" };
 
-  // 1. Try sending by 2-variable pattern ({0}=name; {1}=cleanCode) first!
-  // This matches standard 2-variable MeliPayamak patterns we recommend.
+  // 1. First try sending 1-variable pattern ({0}=cleanCode) so {0} in URL is ALWAYS pure English digits (e.g. 3360)
+  // This prevents MeliPayamak patterns like "dastavval.com/factors/{0}" from placing Farsi buyer names into the URL!
   if (patternId && Number(patternId) > 0) {
     result = await sendMeliPayamakSms(
       cleanPhone,
       textWithFixedLink,
       Number(patternId),
-      `${name};${cleanCode}`
+      `${cleanCode}`
     );
   }
 
-  // 2. If 2-variable pattern attempt failed, retry with 1-variable pattern ({0}=cleanCode)
+  // 2. If 1-variable pattern failed (e.g. pattern expects 2 variables), try 2-variable pattern ({0}=name; {1}=cleanCode)
   if (!result.success && patternId && Number(patternId) > 0 && b2bConfig.smsUsername && b2bConfig.smsPassword) {
-    console.warn("Retrying invoice SMS with 1-variable pattern ({0}=cleanCode)...");
+    console.warn("Retrying invoice SMS with 2-variable pattern ({0}=name; {1}=cleanCode)...");
     result = await sendMeliPayamakSms(
       cleanPhone, 
       textWithFixedLink, 
       Number(patternId), 
-      `${cleanCode}`
+      `${name};${cleanCode}`
     );
   }
 
@@ -3690,6 +3926,12 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
     const oIdStr = String(o.id || "");
     const oTrackStr = String(o.trackingNumber || "");
     const oOrderStr = String(o.orderId || "");
+    const oBuyerName = String(o.buyerName || o.customerName || o.buyerInfo?.name || "").toLowerCase();
+    const oBuyerPhone = String(o.buyerPhone || o.customerPhone || o.phone || o.mobile || "");
+
+    const factorLower = factorId.toLowerCase().trim();
+    const decodedLower = decoded.toLowerCase().trim();
+
     return (
       oIdStr === factorId ||
       oTrackStr === factorId ||
@@ -3697,13 +3939,17 @@ app.get(["/factors/:id", "/factors/:id.pdf", "/invoice/:id"], (req, res) => {
       (cleanNumericCode && (
         oIdStr.includes(cleanNumericCode) ||
         oTrackStr.includes(cleanNumericCode) ||
-        oOrderStr.includes(cleanNumericCode)
-      ))
+        oOrderStr.includes(cleanNumericCode) ||
+        oBuyerPhone.includes(cleanNumericCode)
+      )) ||
+      (factorLower && factorLower.length > 2 && (oBuyerName.includes(factorLower) || factorLower.includes(oBuyerName))) ||
+      (decodedLower && decodedLower.length > 2 && (oBuyerName.includes(decodedLower) || decodedLower.includes(oBuyerName))) ||
+      (factorLower && oBuyerPhone.includes(factorLower))
     );
-  }) || {
+  }) || (orders.length > 0 ? orders[0] : null) || {
     id: cleanNumericCode || factorId,
     trackingNumber: cleanNumericCode ? `DO-${cleanNumericCode}` : factorId,
-    buyerName: "مشتری سازمانی سامانه دست اول",
+    buyerName: factorId.length > 2 && !/^\d+$/.test(factorId) ? factorId : "مشتری سازمانی سامانه دست اول",
     buyerCompany: "پخش عمده و زنجیره تامین",
     buyerPhone: "09*********",
     createdAt: new Date().toISOString(),
@@ -4788,14 +5034,292 @@ async function autoSyncCatalog() {
 setTimeout(autoSyncCatalog, 5000); // Wait 5s after startup
 setInterval(autoSyncCatalog, 6 * 60 * 60 * 1000); // Every 6 hours
 
+// ==========================================
+// 🪙 LOYALTY & REWARDS SERVER API
+// ==========================================
+const LOYALTY_FILE = path.join(process.cwd(), "loyalty_data.json");
+
+function loadLoyaltyStore(): { [phone: string]: any } {
+  try {
+    if (fs.existsSync(LOYALTY_FILE)) {
+      return JSON.parse(fs.readFileSync(LOYALTY_FILE, "utf-8"));
+    }
+  } catch (e) {}
+  return {};
+}
+
+function saveLoyaltyStore(data: any) {
+  try {
+    fs.writeFileSync(LOYALTY_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (e) {}
+}
+
+app.get("/api/loyalty/summary/:phone", (req, res) => {
+  const phone = req.params.phone;
+  const store = loadLoyaltyStore();
+  const userData = store[phone] || {
+    currentPoints: 0,
+    lifetimeEarnedPoints: 0,
+    lifetimeRedeemedPoints: 0,
+    totalDiscountSavedToman: 0,
+    tier: "bronze",
+    tierLabel: "برنزی",
+    tierMultiplier: 1.0,
+    transactions: []
+  };
+
+  res.json({
+    status: "success",
+    data: {
+      ...userData,
+      redeemableTomanValue: (userData.currentPoints || 0) * 1000
+    }
+  });
+});
+
+app.get("/api/loyalty/transactions/:phone", (req, res) => {
+  const phone = req.params.phone;
+  const store = loadLoyaltyStore();
+  const userData = store[phone] || { transactions: [] };
+  res.json({
+    status: "success",
+    data: userData.transactions || []
+  });
+});
+
+app.post("/api/loyalty/award", (req, res) => {
+  const { user_phone, phone, points, order_tracking_number, orderId, order_amount } = req.body;
+  const userPhone = user_phone || phone;
+  const pts = Number(points || 0);
+
+  if (!userPhone || pts <= 0) {
+    return res.status(400).json({ status: "error", message: "پارامترهای ورودی نامعتبر است." });
+  }
+
+  const store = loadLoyaltyStore();
+  const current = store[userPhone] || {
+    currentPoints: 0,
+    lifetimeEarnedPoints: 0,
+    lifetimeRedeemedPoints: 0,
+    totalDiscountSavedToman: 0,
+    transactions: []
+  };
+
+  current.currentPoints = (current.currentPoints || 0) + pts;
+  current.lifetimeEarnedPoints = (current.lifetimeEarnedPoints || 0) + pts;
+
+  // Determine tier
+  let tier = "bronze";
+  let tierLabel = "برنزی";
+  let tierMultiplier = 1.0;
+  if (current.lifetimeEarnedPoints >= 2000) {
+    tier = "platinum";
+    tierLabel = "پلاتینیوم";
+    tierMultiplier = 1.5;
+  } else if (current.lifetimeEarnedPoints >= 800) {
+    tier = "gold";
+    tierLabel = "طلایی";
+    tierMultiplier = 1.25;
+  } else if (current.lifetimeEarnedPoints >= 300) {
+    tier = "silver";
+    tierLabel = "نقره‌ای";
+    tierMultiplier = 1.1;
+  }
+  current.tier = tier;
+  current.tierLabel = tierLabel;
+  current.tierMultiplier = tierMultiplier;
+
+  current.transactions = current.transactions || [];
+  current.transactions.unshift({
+    id: `tx-${Date.now()}`,
+    type: "earn",
+    points: pts,
+    description: `پاداش خرید سفارش ${order_tracking_number || orderId || ""}`,
+    orderTrackingNumber: order_tracking_number || orderId,
+    orderAmount: Number(order_amount || 0),
+    createdAt: new Date().toISOString()
+  });
+
+  store[userPhone] = current;
+  saveLoyaltyStore(store);
+
+  res.json({
+    status: "success",
+    message: `${pts} امتیاز پاداش با موفقیت افزوده شد.`,
+    data: current
+  });
+});
+
+app.post("/api/loyalty/redeem", (req, res) => {
+  const { user_phone, phone, points, order_tracking_number, orderId, discount_amount } = req.body;
+  const userPhone = user_phone || phone;
+  const pts = Number(points || 0);
+
+  if (!userPhone || pts <= 0) {
+    return res.status(400).json({ status: "error", message: "پارامترهای ورودی نامعتبر است." });
+  }
+
+  const store = loadLoyaltyStore();
+  const current = store[userPhone] || {
+    currentPoints: 0,
+    lifetimeEarnedPoints: 0,
+    lifetimeRedeemedPoints: 0,
+    totalDiscountSavedToman: 0,
+    transactions: []
+  };
+
+  const actualDeduct = Math.min(pts, current.currentPoints || 0);
+  const discountToman = Number(discount_amount || (actualDeduct * 1000));
+
+  current.currentPoints = Math.max(0, (current.currentPoints || 0) - actualDeduct);
+  current.lifetimeRedeemedPoints = (current.lifetimeRedeemedPoints || 0) + actualDeduct;
+  current.totalDiscountSavedToman = (current.totalDiscountSavedToman || 0) + discountToman;
+
+  current.transactions = current.transactions || [];
+  current.transactions.unshift({
+    id: `tx-${Date.now()}`,
+    type: "redeem",
+    points: actualDeduct,
+    description: `کسر ${actualDeduct} امتیاز جهت تخفیف در سفارش ${order_tracking_number || orderId || ""}`,
+    orderTrackingNumber: order_tracking_number || orderId,
+    discountAmount: discountToman,
+    createdAt: new Date().toISOString()
+  });
+
+  store[userPhone] = current;
+  saveLoyaltyStore(store);
+
+  res.json({
+    status: "success",
+    message: `${actualDeduct} امتیاز با موفقیت کسر گردید.`,
+    data: current
+  });
+});
+
+function injectDynamicSeoMeta(html: string, req: express.Request): string {
+  try {
+    const productId = (req.query.product as string) || (req.path.startsWith("/product/") ? req.path.split("/product/")[1] : null);
+    const categoryName = (req.query.category as string) || null;
+
+    const host = req.get("host") || "dastavval.com";
+    const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
+    const baseUrl = `${protocol}://${host}`;
+
+    let pageTitle = "دست اول | سامانه ملی خرید عمده مواد غذایی، استعلام مستقیم از کارخانه";
+    let metaDesc = "پلتفرم جامع B2B خرید عمده از کارخانجات صنایع غذایی و مواد اولیه با کمترین قیمت، صدور پیش‌فاکتور رسمی، ضمانت پرداخت امانی و اعطای نمایندگی.";
+    let ogImage = `${baseUrl}/assets/logo.svg`;
+    let canonicalUrl = `${baseUrl}${req.originalUrl || "/"}`;
+    let jsonLdScript = "";
+
+    if (productId) {
+      const allProds = getAllProductsForSEOAndTorob();
+      const prod = allProds.find((p: any) => String(p.id) === String(productId) || String(p.sku) === String(productId) || String(p.code) === String(productId));
+      if (prod) {
+        const prodPrice = prod.bulk_price || prod.price || 0;
+        const brandName = prod.brand || prod.factoryName || "کارخانه رسمی";
+        pageTitle = `خرید عمده ${prod.name} | قیمت کارخانه و کف بازار - دست اول`;
+        metaDesc = `استعلام قیمت روز و خرید عمده ${prod.name} با مارک ${brandName}. قیمت کف بازار ${prodPrice ? prodPrice.toLocaleString('fa-IR') + ' تومان' : 'استعلامی'}. ارسال مستقیم از انبار کارخانه با ضمانت اصالت.`;
+        ogImage = prod.image_url || prod.imageUrl || ogImage;
+        if (!ogImage.startsWith("http")) ogImage = `${baseUrl}${ogImage.startsWith("/") ? "" : "/"}${ogImage}`;
+
+        const productSchema = {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": prod.name,
+          "image": [ogImage],
+          "description": metaDesc,
+          "sku": prod.id || prod.sku,
+          "brand": {
+            "@type": "Brand",
+            "name": brandName
+          },
+          "offers": {
+            "@type": "Offer",
+            "url": canonicalUrl,
+            "priceCurrency": "IRT",
+            "price": prodPrice,
+            "itemCondition": "https://schema.org/NewCondition",
+            "availability": prod.disabled ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+            "seller": {
+              "@type": "Organization",
+              "name": "دست اول"
+            }
+          }
+        };
+        jsonLdScript = `<script type="application/ld+json">${JSON.stringify(productSchema)}</script>`;
+      }
+    } else if (categoryName) {
+      pageTitle = `خرید عمده ${categoryName} | لیست قیمت کارخانه - دست اول`;
+      metaDesc = `خرید عمده و مستقیم محصولات ${categoryName} از کارخانجات معتبر تولیدکننده. استعلام قیمت روز و ثبت سفارش رسمی در دست اول.`;
+    }
+
+    let modifiedHtml = html;
+    modifiedHtml = modifiedHtml.replace(/<title>.*?<\/title>/gi, `<title>${pageTitle}</title>`);
+    modifiedHtml = modifiedHtml.replace(/<meta name="title" content=".*?" \/>/gi, `<meta name="title" content="${pageTitle}" />`);
+    modifiedHtml = modifiedHtml.replace(/<meta name="description" content=".*?" \/>/gi, `<meta name="description" content="${metaDesc}" />`);
+    modifiedHtml = modifiedHtml.replace(/<meta property="og:title" content=".*?" \/>/gi, `<meta property="og:title" content="${pageTitle}" />`);
+    modifiedHtml = modifiedHtml.replace(/<meta property="og:description" content=".*?" \/>/gi, `<meta property="og:description" content="${metaDesc}" />`);
+    modifiedHtml = modifiedHtml.replace(/<meta property="og:image" content=".*?" \/>/gi, `<meta property="og:image" content="${ogImage}" />`);
+    modifiedHtml = modifiedHtml.replace(/<link rel="canonical" href=".*?" \/>/gi, `<link rel="canonical" href="${canonicalUrl}" />`);
+
+    if (jsonLdScript) {
+      modifiedHtml = modifiedHtml.replace("</head>", `${jsonLdScript}\n</head>`);
+    }
+
+    return modifiedHtml;
+  } catch (e) {
+    return html;
+  }
+}
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+    app.use(async (req, res, next) => {
+      const isHtmlReq = req.headers.accept?.includes("text/html") && !req.path.includes(".");
+      if (isHtmlReq && (req.query.product || req.query.category || req.path.startsWith("/product/"))) {
+        try {
+          const indexPath = path.join(process.cwd(), "index.html");
+          let rawHtml = fs.readFileSync(indexPath, "utf-8");
+          rawHtml = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+          const seoHtml = injectDynamicSeoMeta(rawHtml, req);
+          return res.status(200).set({ "Content-Type": "text/html" }).end(seoHtml);
+        } catch (e) {
+          next();
+        }
+      } else {
+        next();
+      }
+    });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+    app.use(express.static(distPath, {
+      maxAge: "1y",
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      }
+    }));
+
+    app.get("*", (req, res) => {
+      // For missing static assets (e.g., stale JS chunks or missing images), return 404 instead of index.html fallback
+      if (req.path.startsWith("/assets/") || /\.(js|css|map|json|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)$/i.test(req.path)) {
+        return res.status(404).set("Cache-Control", "no-store").send("Asset not found");
+      }
+
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      try {
+        const indexPath = path.join(distPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+          const rawHtml = fs.readFileSync(indexPath, "utf-8");
+          const seoHtml = injectDynamicSeoMeta(rawHtml, req);
+          return res.send(seoHtml);
+        }
+      } catch (e) {}
+      res.sendFile(path.join(distPath, "index.html"));
+    });
   }
   app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
 }

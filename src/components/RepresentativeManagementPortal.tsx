@@ -61,6 +61,7 @@ import AddAdButton from "./AddAdButton";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import HonorPlaqueCard from "./HonorPlaqueCard";
 import RepresentativeAnalyticsDashboard from "./RepresentativeAnalyticsDashboard";
+import RepresentativeKYCView from "./RepresentativeKYCView";
 import { getRegionalLeads, saveRegionalLeads, addRepCommission, getRepCommissions, RegionalLead, getRepresentativeGuarantees, saveRepresentativeGuarantee } from "../lib/leads-store";
 
 interface RepresentativeManagementPortalProps {
@@ -212,13 +213,14 @@ export default function RepresentativeManagementPortal({
   onOpenInvoiceModal
 }: RepresentativeManagementPortalProps) {
   // Main Sub-Tab State
-  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing' | 'rules'>('workplace');
+  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing' | 'rules' | 'kyc'>('workplace');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [workplaceViewMode, setWorkplaceViewMode] = useState<'cards' | 'table'>('cards');
 
   const [copiedReferral, setCopiedReferral] = useState(false);
   const referralCode = user?.agencyCode || user?.userCode || "REP-7012";
-  const referralUrl = `https://dastavval.com/?ref=${referralCode}`;
+  const siteOrigin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : "https://dastavval.com";
+  const referralUrl = `${siteOrigin}/?ref=${referralCode}`;
 
   const handleCopyReferral = () => {
     navigator.clipboard.writeText(referralUrl);
@@ -1270,6 +1272,19 @@ export default function RepresentativeManagementPortal({
           <User size={16} />
           <span>مشخصات دفتر عاملیت</span>
         </button>
+
+        {/* Tab 9: Verification & KYC */}
+        <button
+          onClick={() => setActiveTab('kyc')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap border border-dashed ${
+            activeTab === 'kyc'
+              ? "bg-gradient-to-r from-indigo-600 to-violet-700 text-white border-indigo-700 shadow-md"
+              : "text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 border-indigo-200"
+          }`}
+        >
+          <ShieldCheck size={16} className={activeTab === 'kyc' ? "text-white" : "text-indigo-500 animate-pulse"} />
+          <span>🔒 احراز هویت و مدارک هویتی</span>
+        </button>
       </div>
 
       {/* ========================================================================= */}
@@ -1282,9 +1297,14 @@ export default function RepresentativeManagementPortal({
               🔗
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-slate-900">لینک اختصاصی بازاریابی و دعوت نماینده</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-slate-900">لینک اختصاصی بازاریابی و افیلیت نماینده</h3>
+                <span className="text-[10px] px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-black border border-emerald-200">
+                  پورسانت نقدی ۵٪
+                </span>
+              </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                این لینک را برای سوپرمارکت‌ها، بنکداران و همکاران منطقه خود ارسال فرمایید. با ثبت نام و هر ثبت سفارش از طریق این لینک، عملکرد و پورسانت نقدی به حساب عاملیت شما منظور می‌گردد.
+                این لینک را برای سوپرمارکت‌ها، بنکداران و همکاران خود ارسال فرمایید. هر ثبت سفارش با این لینک، ۵٪ پورسانت نقدی مستقیم (معادل نیمی از کارمزد ۱۰٪ سامانه) برای عاملیت شما به همراه دارد.
               </p>
             </div>
           </div>
@@ -1293,7 +1313,7 @@ export default function RepresentativeManagementPortal({
             <div className="flex-1 bg-slate-50 border border-slate-200 px-4 py-4 rounded-2xl text-xs sm:text-sm font-mono font-bold text-slate-800 text-left flex items-center justify-between overflow-x-auto shadow-inner">
               <span>{referralUrl}</span>
               <span className="text-[10px] sm:text-xs text-amber-700 font-black bg-amber-100 px-3 py-1 rounded-md ml-3 shrink-0 border border-amber-200">
-                کد: {referralCode}
+                کد معرف: {referralCode}
               </span>
             </div>
             
@@ -1306,17 +1326,70 @@ export default function RepresentativeManagementPortal({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+          {/* Social Quick Share Buttons */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5">
+            <span className="text-xs font-black text-slate-700 block">ارسال مستقیم لینک و معرفی به همکاران:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`سلام و احترام، همکار گرامی.\nجهت مشاهده کاتالوگ قیمت دست‌اول کارخانجات و ثبت سفارش عمده با تضمین قیمت و تحویل، می‌توانید از لینک عاملیت رسمی ما اقدام فرمایید:\n${referralUrl}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                واتس‌اپ
+              </a>
+              <a
+                href={`https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(`خرید عمده مواد غذایی و تنقلات به قیمت درب کارخانه - عاملیت رسمی دست‌اول`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                تلگرام
+              </a>
+              <a
+                href={`sms:?body=${encodeURIComponent(`همکار گرامی، لینک خرید عمده به قیمت کارخانه با عاملیت رسمی ما:\n${referralUrl}`)}`}
+                className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                پیامک (SMS)
+              </a>
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: "خرید عمده به قیمت کارخانه - دست‌اول",
+                      text: "سفارش مستقیم و به قیمت کارخانه با عاملیت رسمی",
+                      url: referralUrl
+                    }).catch(() => {});
+                  } else {
+                    handleCopyReferral();
+                  }
+                }}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                اشتراک‌گذاری در سایر برنامه‌ها
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> مشتریان جذب شده:</span>
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> خریداران معرفی شده:</span>
               <div className="text-xl font-black text-slate-900">{toPersianNum(affiliateStats.buyersCount)} خریدار</div>
             </div>
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><ShoppingBag size={14} className="text-slate-400" /> سفارشات قطعی:</span>
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><ShoppingBag size={14} className="text-slate-400" /> سفارشات ثبت شده:</span>
               <div className="text-xl font-black text-slate-900">{toPersianNum(affiliateStats.ordersCount)} سفارش</div>
             </div>
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Wallet size={14} className="text-slate-400" /> پورسانت فعال:</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Wallet size={14} className="text-slate-400" /> پورسانت نقدی کل:</span>
+                <button
+                  onClick={() => setShowSettlementModal(true)}
+                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-black underline cursor-pointer"
+                >
+                  درخواست تسویه
+                </button>
+              </div>
               <div className="text-xl font-black text-slate-900 text-emerald-600">{toPersianNum(affiliateStats.commissionsTotal)} <span className="text-xs text-slate-500">تومان</span></div>
             </div>
           </div>
@@ -2845,6 +2918,30 @@ export default function RepresentativeManagementPortal({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 11.5. SUB-TAB CONTENT: 🔒 REPRESENTATIVE KYC & DOCUMENTS                  */}
+      {/* ========================================================================= */}
+      {activeTab === 'kyc' && (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+          <RepresentativeKYCView 
+            user={user} 
+            onKycUpdated={(kycData) => {
+              if (onUpdateUser) {
+                // Keep the parent state updated with latest status
+                onUpdateUser({ 
+                  ...user, 
+                  kycStatus: kycData.status,
+                  nationalCode: kycData.nationalCode,
+                  province: kycData.province,
+                  city: kycData.city,
+                  address: kycData.warehouseAddress
+                });
+              }
+            }}
+          />
         </div>
       )}
 

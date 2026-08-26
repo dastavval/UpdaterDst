@@ -1,3 +1,5 @@
+import { getApiUrl } from "../utils/api-utils";
+
 const MEMORY_DB: Record<string, any[]> = {};
 
 const DEFAULT_PRODUCTS_SEED = [
@@ -233,17 +235,14 @@ function loadCollection(path: string): any[] {
 }
 
 function getB2BApiPath(path: string): string | null {
-  const isDevelopment = typeof window !== "undefined" && 
-    (window.location.port === '3000' || window.location.hostname.includes('run.app') || window.location.hostname === 'localhost');
-  
   if (path === "products") {
-    return isDevelopment ? "/api/b2b/products" : "/php/api.php?action=b2b/products";
+    return getApiUrl("/api/b2b/products");
   }
   if (path === "orders") {
-    return isDevelopment ? "/api/b2b/orders" : "/php/api.php?action=b2b/orders";
+    return getApiUrl("/api/b2b/orders");
   }
   if (path === "users") {
-    return isDevelopment ? "/api/b2b/users" : "/php/api.php?action=b2b/users";
+    return getApiUrl("/api/b2b/users");
   }
   return null;
 }

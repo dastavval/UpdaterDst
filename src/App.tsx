@@ -35,22 +35,56 @@ import VirtualizedProductGrid from "./components/VirtualizedProductGrid";
 import CheckoutWizard from "./components/CheckoutWizard";
 import WholesaleInvoiceView from "./components/WholesaleInvoiceView";
 import ChequeCharterModal from "./components/ChequeCharterModal";
+import LiveWholesaleMarketTicker from "./components/LiveWholesaleMarketTicker";
+import LogisticsEstimatorModal from "./components/LogisticsEstimatorModal";
+import QuickMatrixOrderModal from "./components/QuickMatrixOrderModal";
+import B2BFloatingActionBar from "./components/B2BFloatingActionBar";
+import { getLoyaltySummary } from "./lib/loyalty-store";
 import { getUserSession, saveUserSession, clearUserSession } from "./lib/auth-helper";
 
-// Lazy loading heavy view sections for optimal page-load and rendering performance
-const WholesaleCatalogView = React.lazy(() => import("./components/WholesaleCatalogView"));
-const B2BNews = React.lazy(() => import("./components/B2BNews"));
-const SupportCenter = React.lazy(() => import("./components/SupportCenter"));
-const FactoriesView = React.lazy(() => import("./components/FactoriesView"));
-const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
-const UserPanel = React.lazy(() => import("./components/UserPanel"));
-const B2BBusinessDashboard = React.lazy(() => import("./components/B2BBusinessDashboard"));
-const AdBoard = React.lazy(() => import("./components/AdBoard"));
-const CPanelInstallerWizard = React.lazy(() => import("./components/CPanelInstallerWizard"));
-const DealershipRequestView = React.lazy(() => import("./components/DealershipRequestView"));
-const B2BProfitSimulator = React.lazy(() => import("./components/B2BProfitSimulator").then(m => ({ default: m.B2BProfitSimulator })));
-const AgentCatalogView = React.lazy(() => import("./components/AgentCatalogView"));
-const ErrorPages = React.lazy(() => import("./components/ErrorPages"));
+// Resilient lazy loader with auto-retry on dynamic chunk fetch errors
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  componentImport: () => Promise<any>
+) {
+  return React.lazy(async () => {
+    const pageHasBeenReloaded = sessionStorage.getItem("chunk_reload_attempted");
+    try {
+      const module = await componentImport();
+      sessionStorage.removeItem("chunk_reload_attempted");
+      if (module && typeof module === "object" && "default" in module) {
+        return { default: module.default };
+      }
+      if (module && typeof module === "object") {
+        const firstExportKey = Object.keys(module)[0];
+        return { default: module[firstExportKey] };
+      }
+      return module;
+    } catch (error: any) {
+      console.warn("Dynamic chunk loading error encountered, refreshing application assets:", error);
+      if (!pageHasBeenReloaded) {
+        sessionStorage.setItem("chunk_reload_attempted", "true");
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw error;
+    }
+  });
+}
+
+// Lazy loading heavy view sections with robust chunk reload resilience
+const WholesaleCatalogView = lazyWithRetry(() => import("./components/WholesaleCatalogView"));
+const B2BNews = lazyWithRetry(() => import("./components/B2BNews"));
+const SupportCenter = lazyWithRetry(() => import("./components/SupportCenter"));
+const FactoriesView = lazyWithRetry(() => import("./components/FactoriesView"));
+const AdminPanel = lazyWithRetry(() => import("./components/AdminPanel"));
+const UserPanel = lazyWithRetry(() => import("./components/UserPanel"));
+const B2BBusinessDashboard = lazyWithRetry(() => import("./components/B2BBusinessDashboard"));
+const AdBoard = lazyWithRetry(() => import("./components/AdBoard"));
+const CPanelInstallerWizard = lazyWithRetry(() => import("./components/CPanelInstallerWizard"));
+const DealershipRequestView = lazyWithRetry(() => import("./components/DealershipRequestView"));
+const B2BProfitSimulator = lazyWithRetry(() => import("./components/B2BProfitSimulator"));
+const AgentCatalogView = lazyWithRetry(() => import("./components/AgentCatalogView"));
+const SystemPages = lazyWithRetry(() => import("./components/SystemPages"));
 import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
 import { getApiUrl, isWarehouseBrand } from "./utils/api-utils";
@@ -209,32 +243,11 @@ export default function App() {
       primaryColor: "emerald",
       appName: "دست اول",
       appSub: "مرجع مبادلات مستقیم و تامین کالای عمده از درب کارخانه",
-      factories: [
-        {
-          id: "fac-1",
-          factoryCode: "FAC-1001",
-          name: "صنایع غذایی به‌آرا (چی‌توز)",
-          city: "مشهد",
-          province: "خراسان رضوی",
-          establishedYear: 1372,
-          badge: "gold",
-          isVerified: true,
-          logoUrl: "https://images.unsplash.com/photo-1581441363689-1f3c3c414635?auto=format&fit=crop&w=200&q=80",
-          category: "تنقلات و شکلات"
-        },
-        {
-          id: "fac-2",
-          factoryCode: "FAC-1002",
-          name: "گروه کارخانجات مزمز",
-          city: "تهران",
-          province: "تهران",
-          establishedYear: 1374,
-          badge: "vip",
-          isVerified: true,
-          logoUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=200&q=80",
-          category: "تنقلات و شکلات"
-        }
-      ],
+      factories: [],
+      equipmentAds: [],
+      serviceAds: [],
+      rawMaterialAds: [],
+      sponsoredAds: [],
       categories: [
         { id: "cat-1", name: "تنقلات و شکلات", label: "تنقلات و شکلات", image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600" },
         { id: "cat-2", name: "کیک، کلوچه و بیسکویت", label: "کیک، کلوچه و بیسکویت", image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600" },
@@ -302,8 +315,8 @@ export default function App() {
           return {
             ...defaultDefaults,
             ...parsed,
-            factories: (parsed.factories && parsed.factories.length > 0) ? parsed.factories : defaultDefaults.factories,
-            categories: (parsed.categories && parsed.categories.length > 0) ? parsed.categories : defaultDefaults.categories,
+            factories: (parsed.factories && Array.isArray(parsed.factories)) ? parsed.factories : defaultDefaults.factories,
+            categories: (parsed.categories && Array.isArray(parsed.categories)) ? parsed.categories : defaultDefaults.categories,
             invoiceSettings: {
               ...defaultDefaults.invoiceSettings,
               ...(parsed.invoiceSettings || {}),
@@ -322,11 +335,22 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
-  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog' | 'error'>('presentation');
+  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog' | 'error' | 'profit-simulator' | 'loyalty'>('presentation');
   const [currentSellerId, setCurrentSellerId] = useState<string>("factory_cheetoz");
   const [currentSellerName, setCurrentSellerName] = useState<string>("مزمز و چیتوز");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("app_db_products");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {}
+    }
+    return INITIAL_PRODUCTS;
+  });
+  const [loading, setLoading] = useState(false);
 
   // Live GitHub Hot-Update Sync and Cache-Busting engine states
   const [currentVersion, setCurrentVersion] = useState<any>(null);
@@ -374,13 +398,23 @@ export default function App() {
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [isTopAnnouncementDismissed, setIsTopAnnouncementDismissed] = useState(false);
   const [showChequeCharterModal, setShowChequeCharterModal] = useState(false);
   const [showPwaModal, setShowPwaModal] = useState(false);
+  const [showLogisticsModal, setShowLogisticsModal] = useState(false);
+  const [showQuickMatrixModal, setShowQuickMatrixModal] = useState(false);
   const [isCPanelWizardOpen, setIsCPanelWizardOpen] = useState(false);
   const [lastOrderTracking, setLastOrderTracking] = useState("");
   const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
   const [directUrlInvoiceOrder, setDirectUrlInvoiceOrder] = useState<any | null>(null);
+
+  const handleApplyMatrixOrder = (items: { product: Product; quantityCartons: number }[]) => {
+    items.forEach(({ product, quantityCartons }) => {
+      addToCart(product, quantityCartons);
+    });
+    setIsCartOpen(true);
+  };
 
   // Real Zarinpal online payment gateway orchestration engine
   const [zarinpalOpen, setZarinpalOpen] = useState(false);
@@ -597,66 +631,127 @@ export default function App() {
       }
 
       const path = window.location.pathname;
-      if (path.includes('/invoice/') || path.includes('/factors/')) {
-        let decoded = path;
-        try { decoded = decodeURIComponent(path); } catch (e) {}
-        const match = decoded.match(/(?:factors|invoice)\/([^/]+)/i);
-        if (match && match[1]) {
-          const rawId = match[1].replace(/\.pdf$/i, '').trim();
-          const cleanNumeric = rawId.replace(/\D/g, '') || rawId;
-          if (cleanNumeric) {
-            // Fetch the real order from backend/database
-            const loadRealFactor = async () => {
+      const urlParamsForInvoice = new URLSearchParams(window.location.search);
+      const queryInvoiceId = urlParamsForInvoice.get('factor') || urlParamsForInvoice.get('invoice') || urlParamsForInvoice.get('order') || urlParamsForInvoice.get('orderId') || urlParamsForInvoice.get('track');
+
+      const isInvoicePath = path.includes('/invoice/') || path.includes('/factors/') || !!queryInvoiceId;
+
+      if (isInvoicePath) {
+        let rawId = queryInvoiceId || "";
+        if (!rawId) {
+          let decoded = path;
+          try { decoded = decodeURIComponent(path); } catch (e) {}
+          const match = decoded.match(/(?:factors|invoice)\/([^/?#]+)/i);
+          if (match && match[1]) {
+            rawId = match[1].replace(/\.pdf$/i, '').trim();
+          }
+        }
+
+        if (rawId) {
+          // Convert any Persian/Arabic digits to clean English digits
+          const cleanNumeric = rawId
+            .replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+            .replace(/[٠-٩]/g, (d) => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
+            .replace(/\D/g, '') || rawId;
+
+          const loadRealFactor = async () => {
+            let foundOrder: any = null;
+
+            const isOrderMatch = (o: any) => {
+              if (!o) return false;
+              const oIdStr = String(o.id || "");
+              const oTrackStr = String(o.tracking_number || o.trackingNumber || "");
+              const oOrderStr = String(o.orderId || "");
+              const oBuyerName = String(o.buyerName || o.customerName || o.buyerInfo?.name || "").toLowerCase();
+              const oBuyerPhone = String(o.buyerPhone || o.customerPhone || o.phone || o.mobile || "");
+
+              const rawLower = rawId.toLowerCase().trim();
+
+              return (
+                oIdStr === rawId ||
+                oTrackStr === rawId ||
+                oOrderStr === rawId ||
+                oIdStr === cleanNumeric ||
+                oTrackStr === cleanNumeric ||
+                (cleanNumeric && (
+                  oIdStr.includes(cleanNumeric) ||
+                  oTrackStr.includes(cleanNumeric) ||
+                  oOrderStr.includes(cleanNumeric) ||
+                  oBuyerPhone.includes(cleanNumeric)
+                )) ||
+                (rawLower && rawLower.length > 2 && (oBuyerName.includes(rawLower) || rawLower.includes(oBuyerName))) ||
+                (rawLower && oBuyerPhone.includes(rawLower))
+              );
+            };
+
+            // 1. Try local storage cache first for instant opening
+            try {
+              const local = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
+              const raw = JSON.parse(localStorage.getItem("dastavval_raw_orders") || "[]");
+              const combined = [...local, ...raw];
+              foundOrder = combined.find(isOrderMatch);
+            } catch (err) {}
+
+            // 2. Try Firestore live collection
+            if (!foundOrder) {
               try {
-                const response = await fetch('/api/b2b/orders');
-                if (response.ok) {
-                  const ordersList = await response.json();
-                  const matched = ordersList.find((o: any) => {
-                    const oIdStr = String(o.id || "");
-                    const oTrackStr = String(o.trackingNumber || "");
-                    const oOrderStr = String(o.orderId || "");
-                    return (
-                      oIdStr === rawId ||
-                      oTrackStr === rawId ||
-                      oOrderStr === rawId ||
-                      oIdStr === cleanNumeric ||
-                      oTrackStr === cleanNumeric ||
-                      oOrderStr === cleanNumeric ||
-                      (cleanNumeric && (
-                        oIdStr.includes(cleanNumeric) ||
-                        oTrackStr.includes(cleanNumeric) ||
-                        oOrderStr.includes(cleanNumeric)
-                      ))
-                    );
-                  });
-                  if (matched) {
-                    setDirectUrlInvoiceOrder(matched);
-                    return;
+                const ordersSnap = await getDocs(query(collection(db, "orders")));
+                ordersSnap.forEach((docSnap) => {
+                  const data = docSnap.data();
+                  const item = { id: docSnap.id, ...data };
+                  if (isOrderMatch(item)) {
+                    foundOrder = item;
                   }
+                });
+              } catch (e) {
+                console.warn("Firestore direct factor lookup notice:", e);
+              }
+            }
+
+            // 3. Try backend API endpoint /api/b2b/orders or /php/api.php?action=b2b/orders
+            if (!foundOrder) {
+              try {
+                const apiPaths = ['/api/b2b/orders', '/php/api.php?action=b2b/orders'];
+                for (const apiPath of apiPaths) {
+                  try {
+                    const response = await fetch(apiPath);
+                    if (response.ok) {
+                      const ordersList = await response.json();
+                      if (Array.isArray(ordersList)) {
+                        foundOrder = ordersList.find(isOrderMatch);
+                        if (foundOrder) break;
+                      }
+                    }
+                  } catch (e) {}
                 }
               } catch (err) {
                 console.error("Error loading real invoice from API:", err);
               }
+            }
 
-              // Fallback if not found or API failed
+            if (foundOrder) {
+              setDirectUrlInvoiceOrder(foundOrder);
+            } else {
+              // Fallback preview
               setDirectUrlInvoiceOrder({
                 id: cleanNumeric,
                 trackingNumber: `DO-${cleanNumeric}`,
                 buyerName: "خریدار محترم (عامل توزیع)",
-                buyerCompany: "شرکت بازرگانی مواد غذایی البرز",
-                buyerPhone: "09*********",
+                buyerCompany: "شرکت بازرگانی مواد غذایی",
+                buyerPhone: "09123456789",
                 createdAt: new Date().toISOString(),
                 totalAmount: 185000000,
                 items: [
-                  { name: "روغن مایع خوراکی آفتابگردان ۱.۵ لیتری (کارتن ۶ عددی)", quantity: 50, price: 420000, brand: "کارخانه کشت و صنعت" },
-                  { name: "تن ماهی ۱۸۰ گرمی قوطی آسان بازشو (کارتن ۲۴ عددی)", quantity: 30, price: 2900000, brand: "صنایع غذایی شیلات" }
+                  { name: "روغن مایع خوراکی آفتابگردان ۱.۵ لیتری (کارتن ۶ عددی)", quantityCartons: 50, price: 420000, brand: "کارخانه کشت و صنعت" },
+                  { name: "تن ماهی ۱۸۰ گرمی قوطی آسان بازشو (کارتن ۲۴ عددی)", quantityCartons: 30, price: 2900000, brand: "صنایع غذایی شیلات" }
                 ],
                 paymentStatus: "paid",
                 status: "confirmed"
               });
-            };
-            loadRealFactor();
-          }
+            }
+          };
+
+          loadRealFactor();
         }
       }
 
@@ -697,7 +792,7 @@ export default function App() {
 
   const fetchArticles = async () => {
     try {
-      const res = await fetch("/api/articles");
+      const res = await fetch(getApiUrl("/api/articles"));
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -920,8 +1015,8 @@ export default function App() {
         const data = await res.json();
         if (data && typeof data === 'object') {
           setB2bConfig((prev: any) => {
-            const factories = (data.factories && data.factories.length > 0) ? data.factories : (prev.factories?.length > 0 ? prev.factories : INITIAL_FACTORIES);
-            const categories = (data.categories && data.categories.length > 0) ? data.categories : (prev.categories?.length > 0 ? prev.categories : INITIAL_CATEGORIES);
+            const factories = (data.factories && Array.isArray(data.factories)) ? data.factories : (Array.isArray(prev.factories) ? prev.factories : []);
+            const categories = (data.categories && Array.isArray(data.categories)) ? data.categories : (Array.isArray(prev.categories) ? prev.categories : INITIAL_CATEGORIES);
             const logoUrl = data.logoUrl || prev.logoUrl || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png";
             
             const merged = { 
@@ -941,6 +1036,18 @@ export default function App() {
             
             try {
               localStorage.setItem("dastavval_b2b_config", JSON.stringify(merged));
+              if (Array.isArray(data.equipmentAds)) {
+                localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(data.equipmentAds));
+              }
+              if (Array.isArray(data.serviceAds)) {
+                localStorage.setItem("dastavval_industrial_services", JSON.stringify(data.serviceAds));
+              }
+              if (Array.isArray(data.rawMaterialAds)) {
+                localStorage.setItem("dastavval_raw_materials", JSON.stringify(data.rawMaterialAds));
+              }
+              if (Array.isArray(data.sponsoredAds)) {
+                localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(data.sponsoredAds));
+              }
               cacheB2bConfig(merged).catch(() => {});
             } catch (e) {}
             return merged;
@@ -953,53 +1060,64 @@ export default function App() {
   };
 
   const handleUpdateB2bConfig = async (updatedConfig: any) => {
-    let fullMergedConfig: any = null;
-    setB2bConfig((prev: any) => {
-      fullMergedConfig = {
-        ...prev,
-        ...updatedConfig,
-        invoiceSettings: {
-          ...(prev.invoiceSettings || {}),
-          ...(updatedConfig.invoiceSettings || {}),
-          bankAccounts: (updatedConfig.invoiceSettings?.bankAccounts && updatedConfig.invoiceSettings.bankAccounts.length > 0)
-            ? updatedConfig.invoiceSettings.bankAccounts
-            : (prev.invoiceSettings?.bankAccounts || [])
-        }
-      };
-      try {
-        localStorage.setItem("dastavval_b2b_config", JSON.stringify(fullMergedConfig));
-        cacheB2bConfig(fullMergedConfig).catch(() => {});
-      } catch (e) {}
-      return fullMergedConfig;
-    });
+    const prevConfig = b2bConfig || {};
+    const fullMergedConfig = {
+      ...prevConfig,
+      ...updatedConfig,
+      invoiceSettings: {
+        ...(prevConfig.invoiceSettings || {}),
+        ...(updatedConfig.invoiceSettings || {}),
+        bankAccounts: (updatedConfig.invoiceSettings?.bankAccounts && updatedConfig.invoiceSettings.bankAccounts.length > 0)
+          ? updatedConfig.invoiceSettings.bankAccounts
+          : (prevConfig.invoiceSettings?.bankAccounts || [])
+      }
+    };
+
+    setB2bConfig(fullMergedConfig);
+    try {
+      localStorage.setItem("dastavval_b2b_config", JSON.stringify(fullMergedConfig));
+      if (Array.isArray(fullMergedConfig.equipmentAds)) {
+        localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(fullMergedConfig.equipmentAds));
+      }
+      if (Array.isArray(fullMergedConfig.serviceAds)) {
+        localStorage.setItem("dastavval_industrial_services", JSON.stringify(fullMergedConfig.serviceAds));
+      }
+      if (Array.isArray(fullMergedConfig.rawMaterialAds)) {
+        localStorage.setItem("dastavval_raw_materials", JSON.stringify(fullMergedConfig.rawMaterialAds));
+      }
+      if (Array.isArray(fullMergedConfig.sponsoredAds)) {
+        localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(fullMergedConfig.sponsoredAds));
+      }
+      window.dispatchEvent(new Event("dastavval-ads-sync"));
+      window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+      window.dispatchEvent(new Event("storage"));
+      cacheB2bConfig(fullMergedConfig).catch(() => {});
+    } catch (e) {}
 
     try {
-      const configToSend = fullMergedConfig || updatedConfig;
       const res = await fetch(getApiUrl("/api/b2b/config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(configToSend)
+        body: JSON.stringify(fullMergedConfig)
       });
       if (res.ok) {
         const data = await res.json();
         if (data && data.config) {
-          setB2bConfig((prev: any) => {
-            const nextMerged = {
-              ...prev,
-              ...data.config,
-              invoiceSettings: {
-                ...(prev.invoiceSettings || {}),
-                ...(data.config.invoiceSettings || {}),
-                bankAccounts: (data.config.invoiceSettings?.bankAccounts && data.config.invoiceSettings.bankAccounts.length > 0)
-                  ? data.config.invoiceSettings.bankAccounts
-                  : (prev.invoiceSettings?.bankAccounts || [])
-              }
-            };
-            try {
-              localStorage.setItem("dastavval_b2b_config", JSON.stringify(nextMerged));
-            } catch (e) {}
-            return nextMerged;
-          });
+          const finalConfig = {
+            ...fullMergedConfig,
+            ...data.config,
+            invoiceSettings: {
+              ...(fullMergedConfig.invoiceSettings || {}),
+              ...(data.config.invoiceSettings || {}),
+              bankAccounts: (data.config.invoiceSettings?.bankAccounts && data.config.invoiceSettings.bankAccounts.length > 0)
+                ? data.config.invoiceSettings.bankAccounts
+                : (fullMergedConfig.invoiceSettings?.bankAccounts || [])
+            }
+          };
+          setB2bConfig(finalConfig);
+          try {
+            localStorage.setItem("dastavval_b2b_config", JSON.stringify(finalConfig));
+          } catch (e) {}
         }
       }
     } catch (e) {
@@ -1236,8 +1354,8 @@ export default function App() {
     try {
       // 1. FAST PATH: Check IndexedDB Cache
       const [cachedProducts, cachedConfig] = await Promise.all([
-        getCachedProducts(),
-        getCachedB2bConfig()
+        getCachedProducts().catch(() => []),
+        getCachedB2bConfig().catch(() => null)
       ]);
       
       let hasCachedData = false;
@@ -1247,26 +1365,35 @@ export default function App() {
           setB2bConfig(cachedConfig);
         }
         hasCachedData = true;
-        setLoading(false); // Render instantly!
       } else {
-        setLoading(true);
+        // Instant local database fallback (so first-time visitors see content immediately)
+        try {
+          const { getDocs, query, collection, db } = await import('./lib/data-layer');
+          const localSnap = await getDocs(query(collection(db, "products")));
+          const localItems = localSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          if (localItems && localItems.length > 0) {
+            setProducts(localItems);
+            hasCachedData = true;
+          }
+        } catch (e) {
+          console.warn("Local seed fallback failed:", e);
+        }
       }
 
-      // 2. BACKGROUND SYNC (or foreground if no cache)
+      // 2. Schedule non-blocking background fetch so the site is interactive in 500ms
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+
+      // 3. BACKGROUND SYNC: Sync data silently in background
       const fetchPromises = Promise.all([
-        fetchProducts(hasCachedData),
+        fetchProducts(true),
         fetchDailyPresentation(),
-        fetchB2bConfig(hasCachedData),
+        fetchB2bConfig(true),
         fetchArticles()
       ]);
+      fetchPromises.catch(e => console.warn("Background sync warning:", e));
 
-      if (!hasCachedData) {
-        await seedProductsIfEmpty(); 
-        await fetchPromises;
-        setLoading(false);
-      } else {
-        fetchPromises.catch(e => console.error("Background sync error:", e));
-      }
     } catch (e) {
       console.error("Critical error during init:", e);
       setLoading(false);
@@ -1275,7 +1402,7 @@ export default function App() {
 
   const fetchDailyPresentation = async () => {
     try {
-      const res = await fetch("/api/ai/daily-presentation");
+      const res = await fetch(getApiUrl("/api/ai/daily-presentation"));
       const contentType = res.headers.get("content-type");
       if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
@@ -1435,7 +1562,9 @@ export default function App() {
       console.error("addToCart: Invalid product object", product);
       return;
     }
-    const qty = Math.max(1, Math.round(Number(quantityCartons) || 1));
+    const moq = Math.max(1, product.min_order_cartons || b2bConfig?.minOrderCartons || 5);
+    const requestedQty = Math.round(Number(quantityCartons) || moq);
+    const qty = Math.max(moq, requestedQty);
     const packCount = Math.max(1, product.carton_pack_count || 12);
 
     setCart(prev => {
@@ -1695,13 +1824,18 @@ export default function App() {
 
       // Trigger automatic Invoice SMS with static factor path to buyer
       try {
+        const cleanOrderCode = String(trackingNumber || '')
+          .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+          .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٥٦٧٨٩".indexOf(d)])
+          .replace(/\D/g, '') || String(trackingNumber || '3360');
+
         fetch(getApiUrl("/api/sms/send-invoice-sms"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: buyerPhone,
             buyerName: buyerName || "خریدار محترم (عامل توزیع)",
-            orderId: trackingNumber,
+            orderId: cleanOrderCode,
             origin: window.location.origin
           })
         }).catch(err => console.warn("Auto invoice SMS notification trigger:", err));
@@ -1884,15 +2018,6 @@ export default function App() {
     // PWA modal triggers explicitly via navbar button or PWA banner shortcut
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-4" dir="rtl">
-        <div className="w-16 h-16 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-bold text-sm">در حال دریافت اطلاعات یکپارچه پلتفرم...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen transition-colors duration-300 font-sans bg-white text-slate-900" dir={language === 'en' ? 'ltr' : 'rtl'}>
       
@@ -2032,6 +2157,81 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* 📢 Modern Sleek Top Announcement Banner (b2bConfig.topAnnouncement) */}
+      <AnimatePresence>
+        {(b2bConfig.showTopAnnouncement !== false && (b2bConfig.topAnnouncement || b2bConfig.showTopAnnouncement)) && !isTopAnnouncementDismissed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -10 }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className="relative z-40 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-bold text-xs py-1.5 px-3 sm:px-6 shadow-2xs border-b border-amber-300/80 overflow-hidden"
+          >
+            {/* Background Subtle Glow Shimmer Effect */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.35),transparent_65%)] pointer-events-none" />
+
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 relative z-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                {/* Badge Label */}
+                <span className="shrink-0 flex items-center gap-1 bg-slate-950 text-amber-300 font-black text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full shadow-2xs border border-amber-400/40">
+                  <Sparkles size={11} className="text-amber-400 animate-pulse" />
+                  <span>اطلاعیه ویژه</span>
+                </span>
+
+                {/* Announcement Text */}
+                <p className="truncate text-[11px] sm:text-xs font-black text-slate-950 tracking-tight">
+                  {b2bConfig.topAnnouncement || "ثبت سفارشات عمده با قیمت مصوب کف کارخانه و ارسال فوری سراسری"}
+                </p>
+              </div>
+
+              {/* Action Controls */}
+              <div className="flex items-center gap-2 shrink-0">
+                {(b2bConfig.topAnnouncementPopupContent || b2bConfig.topAnnouncement) && (
+                  <button
+                    onClick={() => setShowAnnouncementModal(true)}
+                    className="text-[10px] sm:text-[11px] font-black bg-slate-950/90 hover:bg-slate-950 text-amber-200 hover:text-white px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                  >
+                    <span>جزئیات</span>
+                    <ChevronRight size={11} className="rotate-180" />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setIsTopAnnouncementDismissed(true)}
+                  title="بستن اطلاعیه"
+                  className="p-1 rounded-md text-slate-950/80 hover:text-slate-950 hover:bg-amber-300/60 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Live Wholesale Market Ticker Bar (Top of Site - Admin Toggleable) */}
+      {(b2bConfig.showMarketTicker !== false) && (
+        <LiveWholesaleMarketTicker 
+          products={activeProducts}
+          ads={b2bConfig?.ads || []}
+          factories={b2bConfig?.factories || []}
+          news={b2bConfig?.news || []}
+          userBadge={userBadge}
+          userCity={userCity}
+          activeTab={activeTab}
+          onOpenLogistics={() => setShowLogisticsModal(true)}
+          onOpenQuickOrder={() => {
+            setActiveTab('order');
+            setShowQuickMatrixModal(true);
+          }}
+          onSelectProduct={(p) => {
+            setActiveTab('order');
+            setSelectedDetailProduct(p);
+          }}
+          onNavigateTab={(tab) => setActiveTab(tab as any)}
+        />
+      )}
+
       {/* Navbar with Cart */}
       <Navbar 
         cartCount={cart.reduce((s, i) => s + i.quantityCartons, 0)} 
@@ -2074,6 +2274,34 @@ export default function App() {
         onCityChange={(city) => setUserCity(city)}
         onManualSync={handleManualSync}
         isSyncingData={isSyncingData}
+      />
+
+      {/* Floating B2B Action Bar */}
+      <B2BFloatingActionBar 
+        cartCount={cart.reduce((s, i) => s + i.quantityCartons, 0)}
+        onOpenCart={() => setIsCartOpen(true)}
+        onOpenQuickOrder={() => setShowQuickMatrixModal(true)}
+        onOpenLogistics={() => setShowLogisticsModal(true)}
+        onOpenProfitSimulator={() => setActiveTab('profit-simulator')}
+        onOpenLoyalty={() => setActiveTab('loyalty')}
+        loyaltyPoints={user ? getLoyaltySummary(user?.phone || user?.mobile || user?.id || "guest").currentPoints : 0}
+        supportPhone={b2bConfig.supportPhone}
+      />
+
+      {/* Logistics Estimator Modal */}
+      <LogisticsEstimatorModal 
+        isOpen={showLogisticsModal}
+        onClose={() => setShowLogisticsModal(false)}
+        defaultProvince={userCity || "تهران"}
+      />
+
+      {/* Quick Matrix Order Modal */}
+      <QuickMatrixOrderModal 
+        isOpen={showQuickMatrixModal}
+        onClose={() => setShowQuickMatrixModal(false)}
+        products={activeProducts}
+        onApplyToCart={handleApplyMatrixOrder}
+        userBadge={userBadge}
       />
 
       {/* Main Container */}
@@ -2858,19 +3086,19 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="space-y-6"
             >
-              <div className="flex justify-between items-center bg-white/70 backdrop-blur-md px-6 py-4 rounded-3xl border border-slate-100 shadow-sm" dir="rtl">
+              <div className="flex justify-between items-center bg-white px-6 py-4 rounded-3xl border border-slate-200 shadow-xs" dir="rtl">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black border border-emerald-100">
                     🎓
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-850">مرکز آموزش و مهارت‌آموزی تجاری</h3>
-                    <p className="text-[10px] text-slate-400 font-bold">مهارت‌ها و ترفندهای سودآوری انبارداری و خرده‌فروشی</p>
+                    <h3 className="text-sm font-black text-slate-900">مرکز آموزش و راهنمای جامع سامانه دست اول</h3>
+                    <p className="text-[10px] text-slate-500 font-bold">راهنمای گام‌به‌گام خرید مستقیم، تسویه امن امانی، خرید چکی و دریافت بار</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setActiveTab('presentation')}
-                  className="px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-605 rounded-xl text-xs font-black transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>صفحه نخست</span>
                   <ArrowUpRight size={14} className="rotate-90" />
@@ -3018,7 +3246,7 @@ export default function App() {
               transition={{ duration: 0.2 }}
             >
               <Suspense fallback={<SectionSkeleton />}>
-                <ErrorPages 
+                <SystemPages 
                   onNavigateHome={() => {
                     setActiveTab('presentation');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3835,10 +4063,10 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToTop}
-            className="fixed bottom-36 left-4 sm:bottom-24 sm:left-6 lg:bottom-8 lg:left-8 z-[90] p-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer border border-blue-400/50 flex items-center justify-center group"
+            className="fixed bottom-20 left-4 sm:bottom-22 sm:left-6 lg:bottom-8 lg:left-8 z-40 p-3 bg-white/95 backdrop-blur-md hover:bg-slate-50 text-slate-800 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-slate-200 flex items-center justify-center group"
             title="بازگشت به بالای صفحه"
           >
-            <ArrowUp size={22} className="group-hover:-translate-y-1 transition-transform" />
+            <ArrowUp size={20} className="text-slate-800 group-hover:-translate-y-0.5 transition-transform" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -4035,38 +4263,6 @@ export default function App() {
           </FadeInContainer>
         </Suspense>
       )}
-
-      {/* Unified Minimalist White Splash Preloader */}
-      <AnimatePresence>
-        {loading && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center space-y-6 text-slate-900 p-6 font-sans"
-            dir="rtl"
-          >
-            <div className="relative">
-              <DastavvalLogo size={80} showText={false} logoUrl={b2bConfig?.logoUrl} />
-            </div>
-
-            <div className="text-center space-y-2">
-              <h2 className="text-xl font-black tracking-tight text-slate-900">مرجع دست اول</h2>
-              <p className="text-xs text-slate-400 font-bold">در حال همگام‌سازی کاتالوگ مرکزی و شبکه کارخانجات کشور...</p>
-            </div>
-
-            {/* Subtle progress bar */}
-            <div className="w-64 h-1 bg-slate-100 rounded-full overflow-hidden relative">
-              <motion.div 
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="h-full bg-emerald-500 rounded-full" 
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

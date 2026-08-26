@@ -195,20 +195,20 @@ export default function AddAdButton({
       {variant === "desktop" && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`px-5 py-2.5 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 hover:text-white rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-amber-500/10 active:scale-[0.98] whitespace-nowrap min-w-fit ${className}`}
+          className={`hidden sm:flex px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-xl text-xs font-black transition-all items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] whitespace-nowrap min-w-fit ${className}`}
         >
-          <Plus size={16} />
-          <span>عرضه بار / ثبت فروش فوری</span>
+          <Plus size={15} />
+          <span>ثبت عرضه بار</span>
         </button>
       )}
 
       {variant === "inline" && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`w-full py-3.5 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 hover:text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-amber-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer ${className}`}
+          className={`w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black rounded-xl text-xs shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer ${className}`}
         >
-          <Plus size={16} />
-          <span>ثبت آگهی جدید / عرضه بار در تالار</span>
+          <Plus size={15} />
+          <span>ثبت عرضه بار در تالار</span>
         </button>
       )}
 
@@ -216,9 +216,9 @@ export default function AddAdButton({
         <div className={`fixed bottom-24 left-5 z-[100] md:hidden ${className}`}>
           <button
             onClick={() => setIsOpen(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-slate-950 font-black px-5 py-3.5 rounded-full shadow-lg shadow-amber-500/35 border border-amber-400 active:scale-95 transition-all text-xs"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-slate-950 font-black px-4 py-2.5 rounded-full shadow-md shadow-amber-500/25 border border-amber-400 active:scale-95 transition-all text-xs"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             <span>ثبت عرضه بار</span>
           </button>
         </div>

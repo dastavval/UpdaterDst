@@ -25,6 +25,9 @@ export interface AdItem {
 
 export const getAdFallbackImage = (title: string, category: string): string => {
   const norm = title.toLowerCase();
+  if (category === "equipment" || norm.includes("دستگاه") || norm.includes("تجهیزات") || norm.includes("ماشین")) {
+    return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600";
+  }
   if (norm.includes("روغن")) {
     return "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600";
   }

@@ -5,7 +5,7 @@ import {
   Copy, Edit3, Plus, Trash2,
   Download, FileText, CheckCircle2,
   Image as ImageIcon, Loader2, ShieldCheck,
-  Truck, UserCheck, Link as LinkIcon
+  Truck, UserCheck, Link as LinkIcon, ExternalLink
 } from "lucide-react";
 import { generateInvoiceUrl } from "../lib/invoice-url-helper";
 import { toJpeg, toPng } from "html-to-image";
@@ -569,55 +569,53 @@ export default function WholesaleInvoiceView({
               id="btn-download-pdf-invoice"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className={`px-3 py-1.5 disabled:bg-slate-400 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95 ${
-                isFactoryView ? 'bg-indigo-700 hover:bg-indigo-800' : 'bg-emerald-700 hover:bg-emerald-800'
-              }`}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-95"
               title={isFactoryView ? "دانلود حواله خروج انبار" : "دانلود فایل PDF پیش‌فاکتور"}
             >
-              {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              <span>دانلود PDF</span>
+              {isGeneratingPdf ? <Loader2 size={15} className="animate-spin" /> : <span>📥</span>}
+              <span>{isGeneratingPdf ? "در حال تولید PDF..." : "دانلود PDF"}</span>
             </button>
 
             {/* Print Button */}
             <button
               id="btn-print-official-invoice"
               onClick={handlePrint}
-              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
               title="چاپ مستقیم فاکتور"
             >
-              <Printer size={14} />
-              <span className="hidden sm:inline">چاپ</span>
+              <span>🖨️</span>
+              <span className="hidden sm:inline">چاپ رسمی</span>
             </button>
 
             {/* Download JPG Image Button */}
             <button
               onClick={handleDownloadImage}
               disabled={isGeneratingImage}
-              className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
               title="دانلود عکس کامل برای واتساپ/ایتا/تلگرام"
             >
-              {isGeneratingImage ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-              <span>دانلود عکس</span>
+              {isGeneratingImage ? <Loader2 size={15} className="animate-spin" /> : <span>🖼️</span>}
+              <span>{isGeneratingImage ? "ذخیره عکس..." : "دانلود عکس"}</span>
             </button>
 
             {/* Copy Static Link Button */}
             <button
               onClick={handleCopyLink}
-              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
               title={`کپی لینک ثابت فاکتور (${invoiceStaticUrl})`}
             >
-              {copiedLink ? <Check size={14} className="text-emerald-600" /> : <LinkIcon size={14} />}
-              <span>لینک فاکتور</span>
+              {copiedLink ? <Check size={15} className="text-emerald-600" /> : <span>🔗</span>}
+              <span>لینک آنلاین</span>
             </button>
 
             {/* Copy Text Button */}
             <button
               onClick={handleCopyText}
-              className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1"
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
               title="کپی متن خلاصه فاکتور"
             >
-              {copiedText ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-              <span className="hidden sm:inline">کپی</span>
+              {copiedText ? <Check size={15} className="text-emerald-600" /> : <span>📋</span>}
+              <span className="hidden sm:inline">کپی متن</span>
             </button>
 
             {/* Admin Edit Controls (Disabled in Factory View) */}
@@ -642,6 +640,34 @@ export default function WholesaleInvoiceView({
               title="بستن"
             >
               <X size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* Live English Preview URL Banner */}
+        <div className="w-full bg-slate-900 text-slate-100 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs font-mono border border-slate-800 shadow-inner">
+          <div className="flex items-center gap-1.5 text-slate-300 font-sans text-[11px] font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+            <span>لینک آنلاین پیش‌فاکتور (English URL):</span>
+          </div>
+          <div className="flex items-center gap-2 font-mono dir-ltr text-amber-300 font-bold text-[11px] bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 max-w-full overflow-hidden">
+            <a 
+              href={invoiceStaticUrl} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:underline flex items-center gap-1.5 truncate text-amber-300"
+              title="مشاهده مستقیم پیش‌فاکتور آنلاین"
+            >
+              <span className="truncate">{invoiceStaticUrl}</span>
+              <ExternalLink size={12} className="text-amber-400 shrink-0" />
+            </a>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="text-slate-300 hover:text-white px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition-colors text-[10px] font-sans font-bold cursor-pointer shrink-0 border border-slate-700"
+              title="کپی لینک مستقیم"
+            >
+              {copiedLink ? "کپی شد" : "کپی لینک"}
             </button>
           </div>
         </div>
@@ -1300,7 +1326,17 @@ export default function WholesaleInvoiceView({
               
               {/* Unified Overlapping Stamp + Signature */}
               <div className="relative w-44 h-24 flex items-center justify-center">
-                <OfficialUnifiedSealSignature className="w-full h-full" />
+                <OfficialUnifiedSealSignature 
+                  className="w-full h-full"
+                  sealUrl={invSettings.officialSealUrl || b2bConfig?.officialSealUrl}
+                  signatureUrl={invSettings.officialSignatureUrl || b2bConfig?.officialSignatureUrl}
+                  sealType={invSettings.sealType || (invSettings.officialSealUrl || b2bConfig?.officialSealUrl ? 'custom_image' : 'dynamic_vector')}
+                  companyTitle={invSettings.sellerTitle || b2bConfig?.appName || "صنایع غذایی و بازرگانی دست اول"}
+                  regNumber={invSettings.sellerRegNumber || "3360"}
+                  sealColor={invSettings.sealColor || "#1e40af"}
+                  signerName={invSettings.signerName}
+                  signerTitle={invSettings.signerTitle || (isFactoryView ? "مدیریت لجستیک و اعزام ناوگان" : "مدیریت بازرگانی و ترابری")}
+                />
               </div>
 
               <div className="flex items-center gap-1 text-[7px] text-slate-400 font-bold">

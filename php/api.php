@@ -271,6 +271,25 @@ if (strpos($action, 'admin/') === 0 || $action === 'create_order') {
     enforce_php_rate_limit($action, 10, 900);
 }
 
+// لیست اکشن‌هایی که حتی بدون اتصال به دیتابیس هم به صورت خودکار (با فایل JSON یا فال‌بک) پاسخ می‌دهند
+$offline_capable_actions = [
+    'health', 'ping', 'status', 'version', 
+    'b2b/config', 'b2b/products', 'get_products', 
+    'articles', 'categories', 'factories', 'ai/daily-presentation',
+    'b2b/orders', 'b2b/users', 'admin/b2b-config'
+];
+
+// بررسی دسترسی به دیتابیس برای سایر اکشن‌ها
+if (!$pdo && !in_array($action, $offline_capable_actions)) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'status' => 'error',
+        'success' => false,
+        'message' => 'عدم دسترسی به پایگاه داده MySQL. لطفاً از طریق installer.php وضعیت دیتابیس را بررسی کنید: ' . ($db_error ?? '')
+    ], JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
 switch ($action) {
     // ۱. دریافت لیست محصولات
     case 'get_products':
@@ -287,6 +306,25 @@ switch ($action) {
     case 'b2b/products':
         header('Content-Type: application/json; charset=utf-8');
         $method = $_SERVER['REQUEST_METHOD'];
+        if (!$pdo) {
+            $jsonProductsPath = dirname(__DIR__) . '/products.json';
+            if ($method === 'POST') {
+                $input = json_decode(file_get_contents('php://input'), true);
+                if (is_array($input)) {
+                    @file_put_contents($jsonProductsPath, json_encode($input, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+                    echo json_encode(['status' => 'success', 'count' => count($input), 'message' => 'ذخیره در فایل محلی با موفقیت انجام شد.'], JSON_UNESCAPED_UNICODE);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'دیتا معتبر ارسال نشده است.'], JSON_UNESCAPED_UNICODE);
+                }
+            } else {
+                if (file_exists($jsonProductsPath)) {
+                    echo file_get_contents($jsonProductsPath);
+                } else {
+                    echo json_encode([], JSON_UNESCAPED_UNICODE);
+                }
+            }
+            exit();
+        }
         if ($method === 'POST') {
             $input = json_decode(file_get_contents('php://input'), true);
             if (!is_array($input)) {
@@ -474,10 +512,28 @@ switch ($action) {
                 if ($row && !empty($row['setting_value'])) {
                     echo $row['setting_value'];
                 } else {
-                    echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                    // FALLBACK: Read from b2b-config.json to seed/recover if db is unconfigured
+                    $jsonPath = dirname(__DIR__) . '/b2b-config.json';
+                    if (file_exists($jsonPath)) {
+                        $configContent = file_get_contents($jsonPath);
+                        // Save it to database for future sessions and stability
+                        try {
+                            $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_config', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                            $saveStmt->execute([$configContent, $configContent]);
+                        } catch (Exception $dbErr) {}
+                        echo $configContent;
+                    } else {
+                        echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                    }
                 }
             } catch (PDOException $e) {
-                echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                // Try reading directly from file if database error occurs
+                $jsonPath = dirname(__DIR__) . '/b2b-config.json';
+                if (file_exists($jsonPath)) {
+                    echo file_get_contents($jsonPath);
+                } else {
+                    echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                }
             }
         }
         exit();
@@ -1753,6 +1809,173 @@ switch ($action) {
         } else {
             @unlink($tempZip);
             echo json_encode(['success' => false, 'error' => 'خطا در باز کردن و استخراج فایل فشرده ZIP.'], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    // ==========================================
+    // 🪙 LOYALTY & REWARDS CLUB PHP ENDPOINTS
+    // ==========================================
+    case 'loyalty/summary':
+        header('Content-Type: application/json; charset=utf-8');
+        $phone = normalize_iranian_phone_php($_GET['phone'] ?? $_GET['user_id'] ?? '');
+        if (empty($phone)) {
+            echo json_encode(['status' => 'error', 'message' => 'شماره کاربر الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            // Get user points
+            $stmt = $pdo->prepare("SELECT id, name, mobile, role, badge, COALESCE(loyalty_points, 0) as loyalty_points FROM users WHERE mobile = ? LIMIT 1");
+            $stmt->execute([$phone]);
+            $userRow = $stmt->fetch();
+
+            $currentPoints = $userRow ? (int)$userRow['loyalty_points'] : 0;
+
+            // Get transactions stats
+            $txStmt = $pdo->prepare("SELECT 
+                SUM(CASE WHEN type = 'earn' OR type = 'bonus' THEN points ELSE 0 END) as lifetime_earned,
+                SUM(CASE WHEN type = 'redeem' THEN points ELSE 0 END) as lifetime_redeemed,
+                SUM(CASE WHEN type = 'redeem' THEN discount_amount ELSE 0 END) as total_discount_saved
+                FROM loyalty_transactions WHERE user_phone = ?");
+            $txStmt->execute([$phone]);
+            $stats = $txStmt->fetch();
+
+            $lifetimeEarned = (int)($stats['lifetime_earned'] ?? $currentPoints);
+            $lifetimeRedeemed = (int)($stats['lifetime_redeemed'] ?? 0);
+            $totalSaved = (float)($stats['total_discount_saved'] ?? ($lifetimeRedeemed * 1000));
+
+            // Determine tier
+            $tier = 'bronze';
+            $tierLabel = 'برنزی';
+            $tierMultiplier = 1.0;
+            if ($lifetimeEarned >= 2000) {
+                $tier = 'platinum';
+                $tierLabel = 'پلاتینیوم';
+                $tierMultiplier = 1.5;
+            } elseif ($lifetimeEarned >= 800) {
+                $tier = 'gold';
+                $tierLabel = 'طلایی';
+                $tierMultiplier = 1.25;
+            } elseif ($lifetimeEarned >= 300) {
+                $tier = 'silver';
+                $tierLabel = 'نقره‌ای';
+                $tierMultiplier = 1.1;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'data' => [
+                    'currentPoints' => $currentPoints,
+                    'lifetimeEarnedPoints' => $lifetimeEarned,
+                    'lifetimeRedeemedPoints' => $lifetimeRedeemed,
+                    'totalDiscountSavedToman' => $totalSaved,
+                    'tier' => $tier,
+                    'tierLabel' => $tierLabel,
+                    'tierMultiplier' => $tierMultiplier,
+                    'redeemableTomanValue' => $currentPoints * 1000
+                ]
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'loyalty/transactions':
+        header('Content-Type: application/json; charset=utf-8');
+        $phone = normalize_iranian_phone_php($_GET['phone'] ?? '');
+        if (empty($phone)) {
+            echo json_encode(['status' => 'error', 'message' => 'شماره کاربر الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM loyalty_transactions WHERE user_phone = ? ORDER BY id DESC LIMIT 50");
+            $stmt->execute([$phone]);
+            $transactions = $stmt->fetchAll();
+            echo json_encode(['status' => 'success', 'data' => $transactions], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'loyalty/award':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = normalize_iranian_phone_php($input['user_phone'] ?? $input['phone'] ?? '');
+        $points = (int)($input['points'] ?? 0);
+        $orderTracking = $input['order_tracking_number'] ?? $input['orderId'] ?? '';
+        $orderAmount = (float)($input['order_amount'] ?? 0);
+        $desc = $input['description'] ?? "پاداش وفاداری خرید سفارش $orderTracking";
+
+        if (empty($phone) || $points <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'شماره و میزان امتیاز معتبر نیست.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // Insert transaction
+            $txStmt = $pdo->prepare("INSERT INTO loyalty_transactions (user_phone, type, points, description, order_tracking_number, order_amount) VALUES (?, 'earn', ?, ?, ?, ?)");
+            $txStmt->execute([$phone, $points, $desc, $orderTracking, $orderAmount]);
+
+            // Update user balance (create user record if not existing)
+            $upStmt = $pdo->prepare("INSERT INTO users (name, mobile, role, badge, loyalty_points) VALUES (?, ?, 'buyer', 'bronze', ?) ON DUPLICATE KEY UPDATE loyalty_points = COALESCE(loyalty_points, 0) + ?");
+            $upStmt->execute(['خریدار عمده', $phone, $points, $points]);
+
+            $pdo->commit();
+            echo json_encode(['status' => 'success', 'message' => "$points امتیاز پاداش با موفقیت ثبت گردید."], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'loyalty/redeem':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = normalize_iranian_phone_php($input['user_phone'] ?? $input['phone'] ?? '');
+        $points = (int)($input['points'] ?? 0);
+        $orderTracking = $input['order_tracking_number'] ?? $input['orderId'] ?? '';
+        $discountAmount = (float)($input['discount_amount'] ?? ($points * 1000));
+        $desc = $input['description'] ?? "کسر $points امتیاز جهت تخفیف در سفارش $orderTracking";
+
+        if (empty($phone) || $points <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'پارامترهای کسر امتیاز نامعتبر است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // Check current balance
+            $chkStmt = $pdo->prepare("SELECT loyalty_points FROM users WHERE mobile = ? LIMIT 1");
+            $chkStmt->execute([$phone]);
+            $userRow = $chkStmt->fetch();
+            $currentPoints = $userRow ? (int)$userRow['loyalty_points'] : 0;
+
+            if ($currentPoints < $points) {
+                // Allow fallback if needed, but cap
+                $points = max(0, $currentPoints);
+            }
+
+            if ($points > 0) {
+                // Insert transaction
+                $txStmt = $pdo->prepare("INSERT INTO loyalty_transactions (user_phone, type, points, description, order_tracking_number, discount_amount) VALUES (?, 'redeem', ?, ?, ?, ?)");
+                $txStmt->execute([$phone, $points, $desc, $orderTracking, $discountAmount]);
+
+                // Deduct from user
+                $deductStmt = $pdo->prepare("UPDATE users SET loyalty_points = GREATEST(0, COALESCE(loyalty_points, 0) - ?) WHERE mobile = ?");
+                $deductStmt->execute([$points, $phone]);
+            }
+
+            $pdo->commit();
+            echo json_encode(['status' => 'success', 'message' => "$points امتیاز با موفقیت کسر و به تخفیف تبدیل شد."], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
         exit();
 

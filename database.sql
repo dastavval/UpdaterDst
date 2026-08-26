@@ -94,12 +94,13 @@ CREATE TABLE `users` (
   `city` VARCHAR(100) DEFAULT NULL,
   `role` VARCHAR(50) DEFAULT 'buyer',
   `badge` VARCHAR(50) DEFAULT 'bronze',
+  `loyalty_points` INT DEFAULT 0 COMMENT 'موجودی امتیاز باشگاه مشتریان',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `users` (`name`, `mobile`, `company`, `city`, `role`, `badge`) VALUES
-('مدیریت ارشد دست اول', '09120000000', 'دفتر مرکزی بازرگانی', 'تهران', 'admin', 'admin'),
-('حاج علی محمدی', '09121112233', 'بنکداری محمدی', 'اصفهان', 'buyer', 'gold');
+INSERT INTO `users` (`name`, `mobile`, `company`, `city`, `role`, `badge`, `loyalty_points`) VALUES
+('مدیریت ارشد دست اول', '09120000000', 'دفتر مرکزی بازرگانی', 'تهران', 'admin', 'admin', 500),
+('حاج علی محمدی', '09121112233', 'بنکداری محمدی', 'اصفهان', 'buyer', 'gold', 150);
 
 -- ------------------------------------------------------------
 -- 5. جدول درخواست‌های تماس و مشاوره (callback_requests)
@@ -126,5 +127,22 @@ CREATE TABLE `site_settings` (
 
 INSERT INTO `site_settings` (`setting_key`, `setting_value`) VALUES
 ('general_config', '{"appName": "دست اول", "supportPhone": "02191000000", "minOrderCartons": 5}');
+
+-- ------------------------------------------------------------
+-- 7. جدول تراکنش‌های باشگاه وفاداری و پاداش خرید (loyalty_transactions)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `loyalty_transactions`;
+CREATE TABLE `loyalty_transactions` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_phone` VARCHAR(50) NOT NULL,
+  `type` ENUM('earn', 'redeem', 'expire', 'bonus') NOT NULL,
+  `points` INT NOT NULL,
+  `description` VARCHAR(255) NOT NULL,
+  `order_tracking_number` VARCHAR(50) DEFAULT NULL,
+  `order_amount` DECIMAL(15,2) DEFAULT NULL,
+  `discount_amount` DECIMAL(15,2) DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_user_phone` (`user_phone`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { TermsAndRulesSection } from "./InfoSections";
 import { ArticleDetailModal } from "./ArticleDetailModal";
+import { ComprehensiveSystemGuide } from "./ComprehensiveSystemGuide";
 
 interface NewsItem {
   id: string;
@@ -465,132 +466,13 @@ export default function B2BNews({
       )}
 
       {exploreSubTab === 'education' && (
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-emerald-800 to-emerald-950 rounded-[2rem] p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-emerald-700/30">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-xl" />
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="space-y-2">
-                <span className="text-[10px] bg-emerald-500/35 border border-emerald-400/35 px-2.5 py-1 rounded-full font-black">🎓 آکادمی توسعه کسب‌وکار و راهنما</span>
-                <h3 className="text-xl sm font-black">آموزش گام‌به‌گام راه‌اندازی کسب‌وکار</h3>
-                <p className="text-emerald-100/80 text-xs font-bold leading-relaxed">با مطالعه دروس زیر و تکمیل چالش‌ها، مدرک نماینده معتبر دست اول را دریافت کنید.</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex flex-col items-center">
-                <span className="text-2xl font-black text-amber-300">
-                  {Math.round((completedLessons.length / 4) * 100)}%
-                </span>
-                <span className="text-[9px] font-black text-emerald-200 mt-1">پیشرفت دوره آموزش</span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full bg-emerald-900/50 rounded-full h-2 mt-6 overflow-hidden">
-              <div 
-                className="bg-amber-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${(completedLessons.length / 4) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2">
-            {/* Lessons List */}
-            <div className="lg:col-span-8 space-y-4">
-              {[
-                {
-                  id: 0,
-                  title: "درس اول: معرفی مدل تجاری حذف واسطه و شروع به کار",
-                  duration: "۱۰ دقیقه",
-                  desc: "در این درس با تعریف سود انباشته زنجیره تامین مستقیم و نحوه توزیع آن بدون دلالان سنتی بازار آشنا می‌شوید.",
-                  tips: "💡 کلید سودآوری در دست اول، تجمیع خرده‌سفارشات محله و ارسال یکپارچه از درب کارخانه است."
-                },
-                {
-                  id: 1,
-                  title: "درس دوم: نحوه ثبت نام مشتریان و رتبه‌بندی اعتباری همکاران",
-                  duration: "۱۵ دقیقه",
-                  desc: "یادگیری فرآیند ارزیابی و آپلود مدارک همکاران و نحوه تفکیک نشان‌های برنزی، نقره‌ای، طلایی و VIP.",
-                  tips: "💡 رتبه‌های طلایی و VIP از ۲ تا ۵ درصد تخفیف مازاد نقدی بهره‌مند می‌شوند."
-                },
-                {
-                  id: 2,
-                  title: "درس سوم: صدور فاکتور رسمی و ضمانت امانی معاملات دست اول",
-                  duration: "۱۲ دقیقه",
-                  desc: "آموزش گام‌به‌گام نحوه واریز پول به حساب واسط امانی دست اول و صدور پیش‌فاکتور با مالیات بر ارزش افزوده قانونی.",
-                  tips: "💡 تا زمان تایید تحویل کالا توسط مشتری، وجه در صندوق امانی محفوظ می‌ماند."
-                },
-                {
-                  id: 3,
-                  title: "درس چهارم: هماهنگی حمل‌ونقل دولتی، پلمپ جاده‌ای و بیمه بار",
-                  duration: "۲۰ دقیقه",
-                  desc: "نحوه کار با خطوط ترانزیت جاده‌ای مسقف، دریافت شماره راننده و کنترل سلامت پلمپ سربی در مقصد.",
-                  tips: "💡 در صورت شکستگی یا عیب کالا، موضوع را فوراً در حضور راننده باربری صورتجلسه و امضا کنید."
-                }
-              ].map((lesson, idx) => {
-                const isCompleted = completedLessons.includes(lesson.id);
-                return (
-                  <div 
-                    key={`b2b-edu-lesson-${lesson.id || idx}-${idx}`}
-                    className={`p-5 rounded-2xl border transition-all ${
-                      isCompleted 
-                        ? 'bg-emerald-500/5 border-emerald-500/20' 
-                        : 'bg-white border-slate-150 shadow-sm'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start gap-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isCompleted) {
-                            setCompletedLessons(completedLessons.filter(id => id !== lesson.id));
-                          } else {
-                            setCompletedLessons([...completedLessons, lesson.id]);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-colors flex items-center gap-1 border cursor-pointer shrink-0 ${
-                          isCompleted
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-slate-50 text-slate-600 border-slate-150 hover'
-                        }`}
-                      >
-                        {isCompleted ? "✓ خوانده شد" : "علامت به عنوان خوانده شده"}
-                      </button>
-                      <div className="text-right">
-                        <div className="flex items-center gap-2 justify-end">
-                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-black">⏱️ {lesson.duration}</span>
-                          <h4 className="text-xs sm font-black text-slate-900">{lesson.title}</h4>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-2 font-bold leading-relaxed">{lesson.desc}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 text-[10px] sm text-amber-800 font-bold leading-relaxed">
-                      {lesson.tips}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Sidebar Guide Info */}
-            <div className="lg:col-span-4 space-y-4">
-              <div className="bg-emerald-50/40 border border-emerald-150/50 rounded-2xl p-5 space-y-4 text-right">
-                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700 text-lg">💡</div>
-                <h4 className="text-xs sm font-black text-slate-900 font-sans font-sans">چرا باید این دوره را تکمیل کنیم؟</h4>
-                <p className="text-[11px] text-slate-500 font-bold leading-relaxed">تکمیل دوره باعث فعال شدن نشان تاییدیه اعضای رسمی شبکه در پروفایل شما شده و اجازه دسترسی به تخفیفات تشویقی حجم بالا را به شما می‌دهد.</p>
-              </div>
-
-              <div className="bg-amber-50/40 border border-amber-150/50 rounded-2xl p-5 text-center space-y-4">
-                <span className="text-3xl select-none block">🏆</span>
-                <h4 className="text-xs sm font-black text-slate-900 font-sans">گواهی تایید فعالیت نماینده</h4>
-                <p className="text-[10px] text-slate-400 font-bold leading-relaxed">با مطالعه کامل تمامی دروس، دکمه فعال شده و گواهی شما صادر می‌شود.</p>
-                <button
-                  disabled={completedLessons.length < 4}
-                  onClick={() => alert("درخواست شما برای بررسی و صدور گواهی به تیم پشتیبانی دست اول ارسال شد. نتیجه تا ۲۴ ساعت آینده به شما پیامک خواهد شد.")}
-                  className="w-full py-2.5 bg-emerald-600 hover disabled disabled text-white font-black text-[10px] sm rounded-xl cursor-pointer transition-all disabled:cursor-not-allowed"
-                >
-                  دریافت گواهی الکترونیک نمایندگی
-                </button>
-              </div>
-            </div>
-          </div>
+        <div className="space-y-6 animate-fadeIn">
+          <ComprehensiveSystemGuide 
+            onSwitchTab={(tab) => {
+              window.dispatchEvent(new CustomEvent("switch-tab", { detail: tab }));
+            }} 
+            userBadge={userBadge}
+          />
         </div>
       )}
 

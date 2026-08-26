@@ -29,6 +29,7 @@ import {
   Boxes,
   Layers,
   Send,
+  Lock,
   PlusCircle,
   PhoneCall,
   CheckCircle,
@@ -165,6 +166,35 @@ export interface IndustrialServiceItem {
   imageUrl: string;
   isPendingApproval?: boolean;
 }
+
+export interface IndustrialEquipmentItem {
+  id: string;
+  title: string;
+  category: string;
+  factoryName: string;
+  contactPerson: string;
+  contactPhone: string;
+  location: string;
+  quantity: string;
+  wholesalePrice: string;
+  marketPrice: string;
+  buyerProfit: string;
+  description: string;
+  imageUrl?: string;
+  isPendingApproval?: boolean;
+}
+
+const EQUIPMENT_CATEGORIES = [
+  "همه تجهیزات",
+  "ماشین‌آلات بسته‌بندی",
+  "میکسر و بلندر صنعتی",
+  "خطوط تولید و مخازن استیل",
+  "پرکن و لیبل‌زن",
+  "تجهیزات حرارتی و برودتی",
+  "سایر قطعات و ملزومات خط"
+];
+
+const INITIAL_EQUIPMENT: IndustrialEquipmentItem[] = [];
 
 const SERVICE_CATEGORIES = [
   "همه خدمات صنعتی",
@@ -423,8 +453,8 @@ export default function FactoriesView({
   userBadge,
   user
 }: FactoriesViewProps) {
-  // Main Sub-Tab State: 'factories' | 'raw_materials' | 'services'
-  const [activeSubTab, setActiveSubTab] = useState<'factories' | 'raw_materials' | 'services'>('factories');
+  // Main Sub-Tab State: 'factories' | 'raw_materials' | 'services' | 'equipment'
+  const [activeSubTab, setActiveSubTab] = useState<'factories' | 'raw_materials' | 'services' | 'equipment'>('factories');
 
   // Dedicated Factory Full-Page state
   const [selectedDedicatedFactory, setSelectedDedicatedFactory] = useState<FactoryProfile | null>(null);
@@ -446,21 +476,22 @@ export default function FactoriesView({
 
   // Raw Materials States with persistence
   const [rawMaterialsList, setRawMaterialsList] = useState<RawMaterial[]>(() => {
+    if (b2bConfig?.rawMaterialAds && Array.isArray(b2bConfig.rawMaterialAds)) {
+      return b2bConfig.rawMaterialAds;
+    }
     try {
       const saved = localStorage.getItem("dastavval_raw_materials");
-      return saved ? JSON.parse(saved) : INITIAL_RAW_MATERIALS;
-    } catch (e) {
-      return INITIAL_RAW_MATERIALS;
-    }
+      if (saved !== null) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_RAW_MATERIALS;
   });
 
   const [suppliersList, setSuppliersList] = useState<RawMaterialSupplier[]>(() => {
     try {
       const saved = localStorage.getItem("dastavval_raw_suppliers");
-      return saved ? JSON.parse(saved) : INITIAL_RAW_SUPPLIERS;
-    } catch (e) {
-      return INITIAL_RAW_SUPPLIERS;
-    }
+      if (saved !== null) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_RAW_SUPPLIERS;
   });
 
   const [selectedRawCategory, setSelectedRawCategory] = useState("همه مواد اولیه");
@@ -468,12 +499,14 @@ export default function FactoriesView({
 
   // Industrial & Commercial Services States with persistence
   const [servicesList, setServicesList] = useState<IndustrialServiceItem[]>(() => {
+    if (b2bConfig?.serviceAds && Array.isArray(b2bConfig.serviceAds)) {
+      return b2bConfig.serviceAds;
+    }
     try {
       const saved = localStorage.getItem("dastavval_industrial_services");
-      return saved ? JSON.parse(saved) : INITIAL_INDUSTRIAL_SERVICES;
-    } catch (e) {
-      return INITIAL_INDUSTRIAL_SERVICES;
-    }
+      if (saved !== null) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_INDUSTRIAL_SERVICES;
   });
 
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("همه خدمات صنعتی");
@@ -518,6 +551,85 @@ export default function FactoriesView({
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [matSuccessMsg, setMatSuccessMsg] = useState("");
+
+  // Industrial Equipment States with persistence
+  const [equipmentList, setEquipmentList] = useState<IndustrialEquipmentItem[]>(() => {
+    if (b2bConfig?.equipmentAds && Array.isArray(b2bConfig.equipmentAds)) {
+      return b2bConfig.equipmentAds;
+    }
+    try {
+      const saved = localStorage.getItem("dastavval_industrial_equipment");
+      if (saved !== null) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_EQUIPMENT;
+  });
+
+  const [selectedEquipmentCategory, setSelectedEquipmentCategory] = useState("همه تجهیزات");
+  const [searchEquipmentQuery, setSearchEquipmentQuery] = useState("");
+  const [targetEquipment, setTargetEquipment] = useState<IndustrialEquipmentItem | null>(null);
+  const [showOrderEquipmentModal, setShowOrderEquipmentModal] = useState(false);
+  const [showAddEquipmentModal, setShowAddEquipmentModal] = useState(false);
+
+  // New Equipment Form State
+  const [newEqTitle, setNewEqTitle] = useState("");
+  const [newEqCat, setNewEqCat] = useState("ماشین‌آلات بسته‌بندی");
+  const [newEqFactory, setNewEqFactory] = useState("");
+  const [newEqContactPerson, setNewEqContactPerson] = useState("");
+  const [newEqContactPhone, setNewEqContactPhone] = useState("");
+  const [newEqLocation, setNewEqLocation] = useState("");
+  const [newEqQuantity, setNewEqQuantity] = useState("۱ دستگاه");
+  const [newEqWholesalePrice, setNewEqWholesalePrice] = useState("");
+  const [newEqMarketPrice, setNewEqMarketPrice] = useState("");
+  const [newEqBuyerProfit, setNewEqBuyerProfit] = useState("");
+  const [newEqDesc, setNewEqDesc] = useState("");
+  const [eqSuccessMsg, setEqSuccessMsg] = useState("");
+  const [uploadedEqImageBase64, setUploadedEqImageBase64] = useState<string | null>(null);
+
+  // Equipment Order Request State
+  const [reqEqFactoryName, setReqEqFactoryName] = useState("");
+  const [reqEqContactPhone, setReqEqContactPhone] = useState("");
+  const [reqEqCity, setReqEqCity] = useState("");
+  const [reqEqDetails, setReqEqDetails] = useState("");
+
+  // Sync effect from localStorage / Admin Panel actions
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        if (b2bConfig?.rawMaterialAds && Array.isArray(b2bConfig.rawMaterialAds)) {
+          setRawMaterialsList(b2bConfig.rawMaterialAds);
+        } else {
+          const savedMat = localStorage.getItem("dastavval_raw_materials");
+          if (savedMat !== null) setRawMaterialsList(JSON.parse(savedMat));
+        }
+
+        if (b2bConfig?.serviceAds && Array.isArray(b2bConfig.serviceAds)) {
+          setServicesList(b2bConfig.serviceAds);
+        } else {
+          const savedSrv = localStorage.getItem("dastavval_industrial_services");
+          if (savedSrv !== null) setServicesList(JSON.parse(savedSrv));
+        }
+
+        if (b2bConfig?.equipmentAds && Array.isArray(b2bConfig.equipmentAds)) {
+          setEquipmentList(b2bConfig.equipmentAds);
+        } else {
+          const savedEq = localStorage.getItem("dastavval_industrial_equipment");
+          if (savedEq !== null) setEquipmentList(JSON.parse(savedEq));
+        }
+      } catch (e) {}
+    };
+
+    handleSync();
+
+    window.addEventListener("dastavval-ads-sync", handleSync);
+    window.addEventListener("dastavval_ads_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("dastavval-ads-sync", handleSync);
+      window.removeEventListener("dastavval_ads_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [b2bConfig]);
+  const [eqOrderSubmittedCode, setEqOrderSubmittedCode] = useState<string | null>(null);
 
   const handleImageFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -651,8 +763,12 @@ export default function FactoriesView({
 
   // Fallback to b2bConfig factories if available, with dynamic merging of registered factory profiles
   const allFactories: FactoryItem[] = useMemo(() => {
-    let list = factories.length > 0 ? factories : (b2bConfig?.factories || []);
-    if (list.length === 0 && products && products.length > 0) {
+    let list: FactoryItem[] = [];
+    if (Array.isArray(factories) && factories.length > 0) {
+      list = factories;
+    } else if (Array.isArray(b2bConfig?.factories)) {
+      list = b2bConfig.factories;
+    } else if (products && products.length > 0) {
       const validBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)))
         .filter(b => !isWarehouseBrand(b));
 
@@ -897,6 +1013,83 @@ export default function FactoriesView({
     return matchesCategory && matchesSearch;
   });
 
+  // Filter Industrial Equipment
+  const filteredEquipment = equipmentList.filter(eq => {
+    const matchesCategory = selectedEquipmentCategory === "همه تجهیزات" || eq.category === selectedEquipmentCategory;
+    const q = searchEquipmentQuery.trim().toLowerCase();
+    const matchesSearch = !q || (
+      eq.title.toLowerCase().includes(q) ||
+      eq.factoryName.toLowerCase().includes(q) ||
+      eq.description.toLowerCase().includes(q) ||
+      eq.location.toLowerCase().includes(q)
+    );
+    return matchesCategory && matchesSearch;
+  });
+
+  // Handle Register Industrial Equipment
+  const handleRegisterEquipment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEqTitle.trim() || !newEqFactory.trim() || !newEqWholesalePrice.trim()) return;
+
+    const sampleEqImages: Record<string, string> = {
+      "ماشین‌آلات بسته‌بندی": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
+      "میکسر و بلندر صنعتی": "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=600",
+      "پرکن و لیبل‌زن": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600",
+      "خطوط تولید و مخازن استیل": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600",
+      "تجهیزات حرارتی و برودتی": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
+      "سایر قطعات و ملزومات خط": "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=600"
+    };
+
+    const newEq: IndustrialEquipmentItem = {
+      id: `eq-${Date.now()}`,
+      title: newEqTitle.trim(),
+      category: newEqCat,
+      factoryName: newEqFactory.trim(),
+      contactPerson: newEqContactPerson.trim() || "مدیر فروش",
+      contactPhone: newEqContactPhone.trim(),
+      location: newEqLocation.trim() || "ایران",
+      quantity: newEqQuantity.trim() || "۱ دستگاه",
+      wholesalePrice: newEqWholesalePrice.trim(),
+      marketPrice: newEqMarketPrice.trim() || "توافقی",
+      buyerProfit: newEqBuyerProfit.trim() || "تخفیف عالی خرید مستقیم و بدون واسطه",
+      description: newEqDesc.trim() || "فروش تجهیزات صنعتی کارکرده یا نو کارخانه به شرط سلامت فنی کامل.",
+      imageUrl: uploadedEqImageBase64 || sampleEqImages[newEqCat] || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
+      isPendingApproval: true
+    };
+
+    const updated = [newEq, ...equipmentList];
+    setEquipmentList(updated);
+    try {
+      localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
+    } catch (err) {}
+
+    setEqSuccessMsg("تجهیز صنعتی شما با موفقیت ثبت شد و پس از بررسی مدارک مالکیت و تایید فنی توسط کارشناسان دست‌اول در تالار تجهیزات صنعتی منتشر خواهد شد.");
+    setTimeout(() => {
+      setShowAddEquipmentModal(false);
+      setEqSuccessMsg("");
+      setNewEqTitle("");
+      setNewEqFactory("");
+      setNewEqContactPerson("");
+      setNewEqContactPhone("");
+      setNewEqLocation("");
+      setNewEqQuantity("۱ دستگاه");
+      setNewEqWholesalePrice("");
+      setNewEqMarketPrice("");
+      setNewEqBuyerProfit("");
+      setNewEqDesc("");
+      setUploadedEqImageBase64(null);
+    }, 3500);
+  };
+
+  // Handle Order / Purchase Request for Industrial Equipment
+  const handleOrderEquipmentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqEqFactoryName.trim() || !reqEqContactPhone.trim()) return;
+
+    const trackingCode = `EQ-REQ-${Math.floor(100000 + Math.random() * 900000)}`;
+    setEqOrderSubmittedCode(trackingCode);
+  };
+
   // Handle Register Industrial Service
   const handleRegisterService = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1030,6 +1223,18 @@ export default function FactoriesView({
             >
               <Briefcase size={14} />
               <span>خدمات صنعتی ({toPersianNum(servicesList.length)})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('equipment')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeSubTab === 'equipment'
+                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20 font-black"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
+            >
+              <Wrench size={14} />
+              <span>⚙️ تجهیزات صنعتی ({toPersianNum(equipmentList.length)})</span>
             </button>
           </div>
         </div>
@@ -1554,6 +1759,188 @@ export default function FactoriesView({
                 </div>
               </motion.div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'equipment' && (
+        <div className="space-y-6">
+          {/* Top Info Banner & CTA (White Theme) */}
+          <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
+            {/* Subtle Ambient Glow accents */}
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-2 max-w-xl text-right z-10" dir="rtl">
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-indigo-155">
+                ⚙️ خرید و فروش بی واسطه تجهیزات خطوط تولید صنایع کشور
+              </span>
+              <h2 className="text-base sm:text-lg font-black text-slate-900">
+                تالار تخصصی تجهیزات صنعتی، مخازن استیل و ماشین‌آلات کارخانجات
+              </h2>
+              <p className="text-[11px] text-slate-500 font-bold leading-relaxed font-sans">
+                فرصتی ویژه برای تامین ماشین‌آلات بسته‌بندی، میکسرها، پرکن‌ها و دیگ‌های بخار سالم و کارشناسی‌شده مستقیماً از کارخانجات سراسر ایران با عقد قرارداد رسمی و نظارت فنی تیم واسطه‌گری امن دست‌اول
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full lg:w-auto shrink-0 z-10">
+              <button
+                onClick={() => {
+                  setTargetEquipment(null);
+                  setShowOrderEquipmentModal(true);
+                }}
+                className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black px-5 py-3.5 rounded-2xl text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Send size={14} />
+                <span>ثبت استعلام خرید تجهیز صنعتی</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowAddEquipmentModal(true);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-3.5 rounded-2xl text-xs transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Wrench size={14} />
+                <span>فروش تجهیزات و ماشین‌آلات مازاد</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Category Filter */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  value={searchEquipmentQuery}
+                  onChange={(e) => setSearchEquipmentQuery(e.target.value)}
+                  placeholder="جستجوی نام تجهیز، برند، موقعیت مکانی کارخانه..."
+                  className="w-full bg-white border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              {EQUIPMENT_CATEGORIES.map((cat, idx) => (
+                <button
+                  key={`fact-eq-cat-${cat}-${idx}`}
+                  onClick={() => setSelectedEquipmentCategory(cat)}
+                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+                    selectedEquipmentCategory === cat
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Equipment Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredEquipment.length === 0 ? (
+              <div className="col-span-full py-16 text-center space-y-3 bg-white rounded-[2.5rem] border border-slate-150" dir="rtl">
+                <p className="text-xs text-slate-500 font-bold">هیچ تجهیز یا ماشین‌آلاتی با این مشخصات یافت نشد.</p>
+                <button 
+                  onClick={() => {
+                    setSelectedEquipmentCategory("همه تجهیزات");
+                    setSearchEquipmentQuery("");
+                  }}
+                  className="text-indigo-600 font-black text-xs hover:underline cursor-pointer"
+                >
+                  پاک کردن فیلترها
+                </button>
+              </div>
+            ) : (
+              filteredEquipment.map((eq, eIdx) => (
+                <motion.div
+                  key={`fact-eq-item-${eq.id || eIdx}-${eIdx}`}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-[2.5rem] border border-slate-200/80 p-6 space-y-4 hover:border-indigo-400 hover:shadow-xl transition-all flex flex-col justify-between text-right"
+                  dir="rtl"
+                >
+                  <div className="space-y-3">
+                    <div className="relative aspect-video rounded-3xl overflow-hidden bg-slate-100 border border-slate-150 shadow-3xs">
+                      <img src={eq.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600"} alt={eq.title} className="w-full h-full object-cover" />
+                      <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-indigo-700 font-black text-[10px] px-3 py-1 rounded-full border border-indigo-200">
+                        {eq.category}
+                      </span>
+
+                      {/* Verification Overlay */}
+                      {eq.isPendingApproval ? (
+                        <span className="absolute bottom-3 right-3 bg-amber-500/95 backdrop-blur-md text-slate-950 font-black text-[9px] px-2.5 py-1 rounded-lg border border-amber-400 flex items-center gap-1 shadow-sm">
+                          ⏳ در انتظار تایید ناظر
+                        </span>
+                      ) : (
+                        <span className="absolute bottom-3 right-3 bg-emerald-600/95 backdrop-blur-md text-white font-black text-[9px] px-2.5 py-1 rounded-lg border border-emerald-500 flex items-center gap-1 shadow-sm">
+                          ✓ تجهیز کارشناسی شده دست‌اول
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 leading-snug">
+                        {eq.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-bold mt-1">
+                        🏢 کارخانه مالک: {eq.factoryName} | 📍 موقعیت: {eq.location}
+                      </p>
+                    </div>
+
+                    {/* Escrow Guarantee Badge */}
+                    <div className="flex flex-col gap-1.5 bg-indigo-50 border border-indigo-100/60 p-2.5 rounded-xl text-[9px] font-black text-indigo-900 shadow-3xs">
+                      <div className="flex items-center gap-1.5">
+                        <Lock size={11} className="text-indigo-600 shrink-0" />
+                        <span>قابلیت معامله امن واسطه‌ای پلتفرم دست‌اول</span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 font-medium line-clamp-2 leading-relaxed">
+                      {eq.description}
+                    </p>
+
+                    {/* Quick Specs Grid */}
+                    <div className="grid grid-cols-1 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[11px] font-bold text-slate-700">
+                      <div className="flex justify-between border-b border-slate-150 pb-1.5">
+                        <span className="text-slate-400 font-medium">موجودی / تعداد:</span>
+                        <span className="text-slate-800">{eq.quantity}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-150 pb-1.5">
+                        <span className="text-slate-400 font-medium">قیمت واگذاری نقدی:</span>
+                        <span className="text-slate-900 font-extrabold">{eq.wholesalePrice}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-150 pb-1.5">
+                        <span className="text-slate-400 font-medium">قیمت بازار آزاد نو:</span>
+                        <span className="text-slate-650 font-bold decoration-rose-500/65 line-through">{eq.marketPrice}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-700 bg-emerald-50/50 p-1.5 rounded-lg border border-emerald-100/40">
+                        <span className="font-extrabold">منفعت نقدی خریدار مستقیم:</span>
+                        <span className="font-black text-[12px]">{eq.buyerProfit}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ordering CTA Button */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setTargetEquipment(eq);
+                        setShowOrderEquipmentModal(true);
+                      }}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl text-xs transition-colors shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Wrench size={16} />
+                      <span>درخواست بازدید فنی و خرید مستقیم</span>
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -2486,6 +2873,378 @@ export default function FactoriesView({
                   >
                     <ShieldCheck size={16} />
                     <span>تایید و ارسال مشخصات خدمت جهت تایید ادمین</span>
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 6: ORDER INDUSTRIAL EQUIPMENT (RFQ) WITH ESCROW */}
+      <AnimatePresence>
+        {showOrderEquipmentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto text-right"
+              dir="rtl"
+            >
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-[10px] font-black text-indigo-800 mb-2">
+                    <Wrench size={12} className="text-indigo-600" />
+                    <span>درخواست استعلام خرید تجهیز صنعتی با نظارت دست‌اول</span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    {targetEquipment ? `استعلام: ${targetEquipment.title}` : "فرم استعلام و سفارش خرید تجهیزات صنعتی"}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1 font-sans">
+                    {targetEquipment ? `مالک: ${targetEquipment.factoryName} | موقعیت: ${targetEquipment.location}` : "درخواست شما برای کارخانجات دارنده ماشین‌آلات ارسال خواهد شد"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowOrderEquipmentModal(false);
+                    setEqOrderSubmittedCode(null);
+                  }}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {eqOrderSubmittedCode ? (
+                <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-3xl text-center space-y-4 font-sans">
+                  <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/30 animate-bounce">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h4 className="text-base font-black text-slate-900">درخواست کارشناسی و خرید با موفقیت ثبت شد</h4>
+                  <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+                    کد پیگیری درخواست شما: <span className="font-mono font-black text-sm bg-white px-3 py-1 rounded-lg border border-emerald-300">{eqOrderSubmittedCode}</span>
+                  </p>
+                  <p className="text-xs text-slate-600 font-medium">
+                    کارشناس فنی و ناظر دست‌اول ظرف حداکثر ۲ ساعت کاری جهت هماهنگی بازدید حضوری، تست سلامت دستگاه و تنظیم قرارداد امانی واسطه‌ای با شما تماس خواهد گرفت.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowOrderEquipmentModal(false);
+                      setEqOrderSubmittedCode(null);
+                    }}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    متوجه شدم
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleOrderEquipmentSubmit} className="space-y-4">
+                  {/* Escrow Guarantee Box */}
+                  <div className="bg-indigo-50/80 border border-indigo-200/80 p-4 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2 text-indigo-900 font-black text-xs">
+                      <ShieldCheck size={16} className="text-indigo-600 shrink-0" />
+                      <span>تضمین معامله امن و کارشناسی سلامت ماشین‌آلات</span>
+                    </div>
+                    <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
+                      مبلغ معامله تا زمان تحویل فیزیکی دستگاه به کارخانه شما، تست کامل قطعات برقی و مکانیکی و رضایت قطعی خریدار، در حساب امانی دست‌اول نزد بانک محفوظ می‌ماند.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">نام کارخانه یا شرکت متقاضی خرید:</label>
+                      <input
+                        type="text"
+                        required
+                        value={reqEqFactoryName}
+                        onChange={(e) => setReqEqFactoryName(e.target.value)}
+                        placeholder="مثال: کارتن‌سازی البرز نو"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">شماره تماس جهت هماهنگی بازدید:</label>
+                      <input
+                        type="tel"
+                        required
+                        value={reqEqContactPhone}
+                        onChange={(e) => setReqEqContactPhone(e.target.value)}
+                        placeholder="۰۹۱۲..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-left"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-800 block">شهر و محل دقیق نصب تجهیز:</label>
+                    <input
+                      type="text"
+                      required
+                      value={reqEqCity}
+                      onChange={(e) => setReqEqCity(e.target.value)}
+                      placeholder="مثال: قزوین - شهرک صنعتی لیا"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-800 block">توضیحات فنی، نیاز به اورهال یا شروط تست:</label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={reqEqDetails}
+                      onChange={(e) => setReqEqDetails(e.target.value)}
+                      placeholder="لطفاً مواردی نظیر برق مصرفی (تک فاز/سه فاز)، متریال بدنه، ابعاد، یا شروط ضمانت و گارانتی مدنظر خود را شرح دهید..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 bg-indigo-650 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck size={16} />
+                    <span>ثبت درخواست بازدید فنی و خرید کارشناسی‌شده</span>
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 7: ADD INDUSTRIAL EQUIPMENT (SELL MACHINE) */}
+      <AnimatePresence>
+        {showAddEquipmentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-400/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto text-right"
+              dir="rtl"
+            >
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">واگذاری و فروش تجهیزات و ماشین‌آلات مازاد</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5 font-sans">تجهیزات صنعتی مازاد کارگاه یا خط تولید خود را بدون واسطه به همکاران بفروشید</p>
+                </div>
+                <button
+                  onClick={() => setShowAddEquipmentModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {eqSuccessMsg ? (
+                <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-3xl text-center space-y-4 font-sans text-emerald-900">
+                  <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/30">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h4 className="text-base font-black text-emerald-950">تجهیز صنعتی با موفقیت ثبت شد</h4>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    درخواست فروش شما ثبت گردید. پس از کارشناسی مدارک مالکیت و صحت فیزیکی تجهیز توسط کارشناسان دست‌اول، کالا با ضمانت در تالار تجهیزات صنعتی منتشر خواهد شد.
+                  </p>
+                  <button
+                    onClick={() => setShowAddEquipmentModal(false)}
+                    className="w-full py-3 bg-emerald-650 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    بستن پنجره
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleRegisterEquipment} className="space-y-4 font-sans">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">عنوان یا نام دقیق دستگاه / تجهیز:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqTitle}
+                        onChange={(e) => setNewEqTitle(e.target.value)}
+                        placeholder="مثال: دیگ بخار ۳ تنی استیل"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">دسته‌بندی تجهیز صنعتی:</label>
+                      <select
+                        value={newEqCat}
+                        onChange={(e) => setNewEqCat(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      >
+                        {EQUIPMENT_CATEGORIES.filter(c => c !== "همه تجهیزات").map((cat, idx) => (
+                          <option key={`add-eq-cat-opt-${idx}`} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">نام کارخانه مالک / فروشنده:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqFactory}
+                        onChange={(e) => setNewEqFactory(e.target.value)}
+                        placeholder="مثال: صنایع غذایی بهارستان"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">موقعیت مکانی دستگاه (استان/شهر):</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqLocation}
+                        onChange={(e) => setNewEqLocation(e.target.value)}
+                        placeholder="مثال: البرز - شهرک صنعتی اشتهارد"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">موجودی / تعداد دستگاه:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqQuantity}
+                        onChange={(e) => setNewEqQuantity(e.target.value)}
+                        placeholder="مثال: ۱ دستگاه"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">نام و نام خانوادگی مسئول فروش:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqContactPerson}
+                        onChange={(e) => setNewEqContactPerson(e.target.value)}
+                        placeholder="مثال: مهندس صادقی"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-800 block">شماره تماس (محفوظ نزد ناظر):</label>
+                      <input
+                        type="tel"
+                        required
+                        value={newEqContactPhone}
+                        onChange={(e) => setNewEqContactPhone(e.target.value)}
+                        placeholder="۰۹۱۲..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-left font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-800 block">قیمت واگذاری زیر بازار (تومان):</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqWholesalePrice}
+                        onChange={(e) => setNewEqWholesalePrice(e.target.value)}
+                        placeholder="مثال: ۱۵۰,۰۰۰,۰۰۰ تومان"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-800 block">قیمت نو / بازار آزاد (تومان):</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqMarketPrice}
+                        onChange={(e) => setNewEqMarketPrice(e.target.value)}
+                        placeholder="مثال: ۱۹۰,۰۰۰,۰۰۰ تومان"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-800 block">منفعت نقدی خریدار (اختلاف قیمت):</label>
+                      <input
+                        type="text"
+                        required
+                        value={newEqBuyerProfit}
+                        onChange={(e) => setNewEqBuyerProfit(e.target.value)}
+                        placeholder="مثال: ۴۰ میلیون سود واگذاری فوری"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-800 block">تصویر تجهیز، کاتالوگ یا برگه کارشناسی:</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          if (e.target.files?.[0]) {
+                            const file = e.target.files[0];
+                            const result = await uploadToParsPackStorage(file, "factories");
+                            if (result.success && result.url) {
+                              setUploadedEqImageBase64(result.url);
+                            } else {
+                              const reader = new FileReader();
+                              reader.onload = (readerEvent) => {
+                                if (readerEvent.target?.result && typeof readerEvent.target.result === "string") {
+                                  setUploadedEqImageBase64(readerEvent.target.result);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }
+                        }}
+                        className="text-xs"
+                      />
+                      {uploadedEqImageBase64 && (
+                        <img src={uploadedEqImageBase64} alt="Preview" className="w-10 h-10 object-cover rounded-lg border" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-800 block">توضیحات تکمیلی، شرایط تست و علت واگذاری:</label>
+                    <textarea
+                      rows={3}
+                      value={newEqDesc}
+                      onChange={(e) => setNewEqDesc(e.target.value)}
+                      placeholder="علت فروش دستگاه، وضعیت کارکرد، سرویس‌های انجام شده و گواهی سلامت ماشین‌آلات را اینجا شرح دهید..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Escrow Guarantee Notice */}
+                  <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-[11px] text-amber-900 space-y-1 font-medium">
+                    <div className="font-black flex items-center gap-1.5 text-amber-950">
+                      <ShieldCheck size={14} className="text-amber-700" />
+                      <span>قوانین واسطه‌گری امن و کارشناسی تجهیزات در دست‌اول:</span>
+                    </div>
+                    <p className="text-[10px] text-amber-800 leading-relaxed">
+                      کارشناس ناظر دست‌اول حضورتان می‌رسد و پس از تایید فیزیکی، آن را با گارانتی امانی به همکاران عرضه می‌دارد. تا پایان زمان آزمون خریدار، مبلغ نزد پلتفرم امانت خواهد ماند.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck size={16} />
+                    <span>تایید مشخصات تجهیز و ارسال جهت بررسی و انتشار کارشناسی</span>
                   </button>
                 </form>
               )}

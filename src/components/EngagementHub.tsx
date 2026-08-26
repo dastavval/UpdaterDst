@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   Check, X, Search, Copy, Calculator, RefreshCw, BarChart2, Briefcase, 
   Clock, TrendingUp, Sparkles, Users, UserCheck, MessageCircle, HelpCircle,
-  TrendingDown, CheckCircle2, ChevronDown, MessageSquare, CheckCircle, Heart, Building2, Truck, Plus, ArrowLeftRight, Percent, ShieldCheck, Info, ShoppingBag
+  TrendingDown, CheckCircle2, ChevronDown, MessageSquare, CheckCircle, Heart, Building2, Truck, Plus, ArrowLeftRight, Percent, ShieldCheck, Info, ShoppingBag, PackageCheck, Layers
 } from "lucide-react";
 import { Product } from "../types";
+import { getDisplayImageUrl } from "../lib/image-utils";
 
 interface EngagementHubProps {
   products: Product[];
@@ -249,8 +250,8 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
   };
 
   const formatPrice = (price: any) => {
-    if (price === undefined || price === null || isNaN(Number(price))) return "۰ ریال";
-    return toPersianNum(Number(price).toLocaleString()) + " ریال";
+    if (price === undefined || price === null || isNaN(Number(price))) return "۰ تومان";
+    return toPersianNum(Number(price).toLocaleString()) + " تومان";
   };
 
   // ----------------------------------------------------
@@ -657,77 +658,136 @@ export default function EngagementHub({ products, onAddToCart, userBadge = "bron
                 </div>
               </div>
 
-              {/* Stagnancy Cards Grid */}
+              {/* Stagnancy Cards Grid - With High Quality Product Image and Visual Polish */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {stagnancyProducts.slice(0, 4).map(({ product, metrics }, stagIdx) => (
-                  <div key={`stag-hub-prod-${product.id || 'p'}-${stagIdx}-${metrics.stagnancyIndex}`} className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:scale-150 transition-transform" />
-                    
-                    <div>
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="space-y-1">
-                          <span className="text-[10px] bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full font-black border border-emerald-200/60">
-                            {product.brand}
-                          </span>
-                          <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-2">{product.name}</h4>
+                {stagnancyProducts.slice(0, 6).map(({ product, metrics }, stagIdx) => {
+                  const prodRawImg = (product as any).imageUrl || product.image_url || (product as any).image;
+                  const displayImg = getDisplayImageUrl(prodRawImg);
+
+                  return (
+                    <div 
+                      key={`stag-hub-prod-${product.id || 'p'}-${stagIdx}-${metrics.stagnancyIndex}`} 
+                      className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between relative overflow-hidden group"
+                    >
+                      <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:scale-150 transition-transform" />
+                      
+                      <div>
+                        {/* Header: Product Image + Brand + Name + Stagnancy Index */}
+                        <div className="flex items-start gap-3.5">
+                          {/* Product Image Box */}
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-slate-50 border border-slate-200/80 p-1.5 shrink-0 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform duration-200">
+                            {prodRawImg ? (
+                              <img
+                                src={displayImg}
+                                alt={product.name}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const parent = e.currentTarget.parentElement;
+                                  if (parent) {
+                                    const fb = parent.querySelector('.stag-fallback-icon');
+                                    if (fb) (fb as HTMLElement).style.display = 'flex';
+                                  }
+                                }}
+                                className="w-full h-full object-contain"
+                              />
+                            ) : null}
+                            <div 
+                              className="stag-fallback-icon hidden absolute inset-0 bg-slate-100 text-slate-700 flex-col items-center justify-center rounded-2xl text-xl"
+                              style={{ display: !prodRawImg ? 'flex' : 'none' }}
+                            >
+                              <span>📦</span>
+                            </div>
+                            <span className="absolute bottom-1 right-1 text-[8px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded-md shadow-2xs">
+                              {toPersianNum(metrics.discountPercent)}٪-
+                            </span>
+                          </div>
+
+                          {/* Info Column */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-lg font-black border border-slate-200/70 inline-flex items-center gap-1">
+                                <span>🏭</span>
+                                <span className="truncate max-w-[100px] sm:max-w-[140px]">{product.brand || "کارخانه همکار"}</span>
+                              </span>
+                              
+                              <div className="text-left shrink-0 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
+                                <span className="text-[9px] text-slate-500 font-bold ml-1">انباشت:</span>
+                                <span className="text-xs font-mono font-black text-slate-900">
+                                  {toPersianNum(metrics.stagnancyIndex)}<span className="text-[10px] text-slate-400">/۱۰</span>
+                                </span>
+                              </div>
+                            </div>
+
+                            <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-1.5 leading-snug line-clamp-2" title={product.name}>
+                              {product.name}
+                            </h4>
+
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 flex items-center gap-1">
+                              <span>📦</span>
+                              <span>بسته‌بندی: کارتن {toPersianNum(product.carton_pack_count || 24)} عددی</span>
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-left shrink-0 bg-slate-50 px-3 py-1.5 rounded-2xl border border-slate-200/80">
-                          <span className="text-[9px] text-slate-400 block font-bold">شاخص انباشت</span>
-                          <span className="text-xs font-mono font-black text-slate-900">
-                            {toPersianNum(metrics.stagnancyIndex)} <span className="text-[10px] text-slate-400">/ ۱۰</span>
-                          </span>
+
+                        {/* Metrics Grid */}
+                        <div className="grid grid-cols-2 gap-2.5 my-3.5 bg-slate-50 p-3 rounded-2xl border border-slate-200/70 text-right">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">🏢</span>
+                            <div>
+                              <span className="text-[9px] text-slate-500 block font-bold">موجودی انبار کارخانه:</span>
+                              <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block">
+                                {toPersianNum(metrics.stock)} کارتن
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">⏳</span>
+                            <div>
+                              <span className="text-[9px] text-slate-500 block font-bold">مانده تا انقضا:</span>
+                              <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block">
+                                {toPersianNum(metrics.monthsRemaining)} ماه
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Price Details */}
+                        <div className="space-y-2 bg-slate-50/50 p-3 rounded-2xl border border-slate-200/60">
+                          <div className="flex items-center justify-between text-xs px-1">
+                            <span className="text-[11px] text-slate-500 font-bold">قیمت عمده مصوب:</span>
+                            <span className="font-mono text-slate-400 line-through text-xs">
+                              {formatPrice(metrics.originalBulkPrice)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs p-2.5 bg-emerald-50 rounded-xl border border-emerald-200/60">
+                            <span className="text-[11px] text-emerald-900 font-black flex items-center gap-1.5">
+                              <Sparkles size={14} className="text-emerald-600 shrink-0" />
+                              <span>نرخ با تخفیف رسوب‌زدایی:</span>
+                            </span>
+                            <span className="font-mono text-emerald-700 font-black text-sm">
+                              {formatPrice(metrics.discountedBulkPrice)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 my-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block font-bold">موجودی کارخانه:</span>
-                          <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block">
-                            {toPersianNum(metrics.stock)} کارتن
-                          </span>
+                      {/* Action Row */}
+                      <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="text-[10px] text-slate-600 font-bold text-right w-full sm:w-auto">
+                          ✨ حداقل سفارش: {toPersianNum(metrics.moq)} کارتن
                         </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block font-bold">مانده تا انقضا:</span>
-                          <span className="text-xs font-black text-slate-900 font-mono mt-0.5 block">
-                            {toPersianNum(metrics.monthsRemaining)} ماه
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs px-1">
-                          <span className="text-[11px] text-slate-500 font-bold">قیمت عمده مصوب:</span>
-                          <span className="font-mono text-slate-400 line-through text-xs">
-                            {formatPrice(metrics.originalBulkPrice)}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs p-3 bg-emerald-50/80 rounded-2xl border border-emerald-200/60">
-                          <span className="text-[11px] text-emerald-900 font-black flex items-center gap-1.5">
-                            <Sparkles size={14} className="text-emerald-600" />
-                            <span>تخفیف رسوب‌زدایی ({toPersianNum(metrics.discountPercent)}٪):</span>
-                          </span>
-                          <span className="font-mono text-emerald-700 font-black text-sm">
-                            {formatPrice(metrics.discountedBulkPrice)}
-                          </span>
-                        </div>
+                        <button
+                          onClick={() => handlePurchaseStagnancyBatch(product, metrics.moq)}
+                          className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
+                        >
+                          <ShoppingBag size={15} />
+                          <span>ثبت حواله ({toPersianNum(metrics.moq)} کارتن) - سود بالا</span>
+                        </button>
                       </div>
                     </div>
-
-                    <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="text-[9px] text-slate-500 font-black text-right sm:max-w-[180px]">
-                        ✨ حداقل خرید ۵ کارتن با حاشیه سود ویژه و بالاتر برای همکار.
-                      </div>
-                      <button
-                        onClick={() => handlePurchaseStagnancyBatch(product, metrics.moq)}
-                        className="w-full sm:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
-                      >
-                        <ShoppingBag size={15} />
-                        <span>ثبت حواله خرید ({toPersianNum(metrics.moq)} کارتن) - سود بالا</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

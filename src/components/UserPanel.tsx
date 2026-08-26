@@ -20,6 +20,8 @@ import FactoryManagementPortal from "./FactoryManagementPortal";
 import RepresentativeManagementPortal from "./RepresentativeManagementPortal";
 import { getRepCommissions } from "../lib/leads-store";
 import { ReferralRewardModal } from "./ReferralRewardModal";
+import LoyaltyRewardsClub from "./LoyaltyRewardsClub";
+import { getLoyaltySummary } from "../lib/loyalty-store";
 
 interface UserPanelProps {
   user: any;
@@ -59,7 +61,7 @@ export default function UserPanel({
   // Role-specific Active Tab
   const [factoryTab, setFactoryTab] = useState<'products' | 'add_product' | 'orders' | 'profile'>('products');
   const [marketerTab, setMarketerTab] = useState<'desk' | 'payout' | 'certificate' | 'referred_orders' | 'profile'>('desk');
-  const [customerTab, setCustomerTab] = useState<'orders' | 'quick_order' | 'credit' | 'referrals' | 'profile'>('orders');
+  const [customerTab, setCustomerTab] = useState<'orders' | 'loyalty' | 'quick_order' | 'credit' | 'referrals' | 'profile'>('orders');
 
   // Selected Order for Invoice modal
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
@@ -189,13 +191,8 @@ export default function UserPanel({
     // 3. Filter out orders containing test keywords or belonging to generic simulated buyers
     return ordersList.filter(order => {
       const buyerName = (order.buyerName || order.buyerInfo?.name || "").toLowerCase();
-      const isTestKeyword = buyerName.includes("تست") || 
-                            buyerName.includes("test") || 
-                            buyerName.includes("نمونه") || 
-                            buyerName.includes("fake") ||
-                            (order.id && order.id.startsWith("test-"));
+      const isTestKeyword = (order.id && order.id.startsWith("test-fake-demo-"));
 
-      // For new users, exclude test/mock orders entirely so they start with a pristine workspace
       if (isNewUser && isTestKeyword) {
         return false;
       }
@@ -203,27 +200,53 @@ export default function UserPanel({
     });
   };
 
-  // Fetch real orders from database / storage
+  // Fetch real orders from database / storage / API
   const fetchOrders = async () => {
     setLoadingOrders(true);
+    let combinedOrders: Order[] = [];
+    const seenIds = new Set<string>();
+
+    const addUnique = (list: any[]) => {
+      if (!Array.isArray(list)) return;
+      for (const item of list) {
+        const id = item.id || item.trackingNumber || `ord_${Math.random()}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          combinedOrders.push({ ...item, id });
+        }
+      }
+    };
+
+    // 1. Fetch from Firestore
     try {
       const q = query(collection(db, "orders"));
       const snap = await getDocs(q);
-      const ordersData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
-      const filtered = filterFakeDataAndSetStatus(ordersData);
-      setAllOrders(filtered);
+      const firestoreOrders = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })) as Order[];
+      addUnique(firestoreOrders);
     } catch (e) {
-      console.warn("Could not fetch orders:", e);
-      try {
-        const local = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
-        const filtered = filterFakeDataAndSetStatus(local);
-        setAllOrders(filtered);
-      } catch {
-        setAllOrders([]);
-      }
-    } finally {
-      setLoadingOrders(false);
+      console.warn("Firestore orders fetch notice in UserPanel:", e);
     }
+
+    // 2. Fetch from local cache & storage
+    try {
+      const local = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
+      const raw = JSON.parse(localStorage.getItem("dastavval_raw_orders") || "[]");
+      addUnique(local);
+      addUnique(raw);
+    } catch (err) {}
+
+    // 3. Always fetch from backend API endpoint to ensure all persistent server orders are loaded
+    try {
+      const res = await fetch("/api/b2b/orders");
+      if (res.ok) {
+        const apiOrders = await res.json();
+        addUnique(apiOrders);
+      }
+    } catch (err) {}
+
+    const filtered = filterFakeDataAndSetStatus(combinedOrders);
+    setAllOrders(filtered);
+    setLoadingOrders(false);
   };
 
   useEffect(() => {
@@ -235,7 +258,7 @@ export default function UserPanel({
     return () => {
       window.removeEventListener("dastavval-manual-sync", handleSync);
     };
-  }, []);
+  }, [user]);
 
   // Filter Factory Orders (Strictly orders containing this factory's products)
   const factoryOrders = useMemo(() => {
@@ -255,43 +278,62 @@ export default function UserPanel({
   const customerOrders = useMemo(() => {
     if (!user) return [];
     
-    const normalizeMobile = (num: string) => {
+    // Normalize phone to last 10 digits e.g. 9121234567
+    const extract10DigitSuffix = (num: string | number | null | undefined): string => {
       if (!num) return "";
-      let cleaned = num.toString().replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]);
-      cleaned = cleaned.replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)]);
-      cleaned = cleaned.replace(/\D/g, "");
-      if (cleaned.startsWith("989")) {
-        cleaned = "0" + cleaned.substring(2);
-      } else if (cleaned.startsWith("9")) {
-        cleaned = "0" + cleaned;
+      let cleaned = String(num)
+        .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+        .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٥٦٧٨٩".indexOf(d)])
+        .replace(/\D/g, "");
+      if (cleaned.length >= 10) {
+        return cleaned.slice(-10);
       }
       return cleaned;
     };
 
-    const userPhones = [
-      normalizeMobile(user.phone || ""),
-      normalizeMobile(user.mobile || ""),
-      normalizeMobile(user.username || ""),
-      normalizeMobile(user.phone_number || "")
+    const userPhoneSuffixes = [
+      extract10DigitSuffix(user.phone),
+      extract10DigitSuffix(user.mobile),
+      extract10DigitSuffix(user.username),
+      extract10DigitSuffix(user.phone_number),
+      extract10DigitSuffix(user.buyerPhone),
+      extract10DigitSuffix((user as any).userCode),
+      extract10DigitSuffix((user as any).customerCode)
     ].filter(Boolean);
 
     const uEmail = (user.email || "").trim().toLowerCase();
-    
+    const uName = (user.name || (user as any).fullName || (user as any).buyerName || "").trim().toLowerCase();
+    const uCompany = (user.company || "").trim().toLowerCase();
+    const uId = String(user.id || "").trim();
+
     return allOrders.filter(orderItem => {
       const order = orderItem as any;
-      // 1. Match by explicit user ID
-      if (order.userId && user.id && order.userId === user.id) return true;
-      if (order.username && user.username && order.username === user.username) return true;
+      // 1. Match by explicit user ID or username
+      if (order.userId && uId && String(order.userId) === uId) return true;
+      if (order.username && user.username && String(order.username) === String(user.username)) return true;
       
-      const buyerP = normalizeMobile(order.buyerPhone || order.customerPhone || order.phone || order.buyerInfo?.phone || order.buyerInfo?.mobile || "");
-      const buyerE = (order.buyerEmail || order.email || "").trim().toLowerCase();
+      const buyerPhoneRaw = order.buyerPhone || order.customerPhone || order.phone || order.mobile || order.userPhone || order.buyerInfo?.phone || order.buyerInfo?.mobile || "";
+      const buyerSuffix = extract10DigitSuffix(buyerPhoneRaw);
       
-      // 2. Match by verified phone number
-      if (buyerP && userPhones.some(phone => phone === buyerP)) return true;
+      // 2. Match by verified phone number (last 7+ digits comparison)
+      if (buyerSuffix && userPhoneSuffixes.some(p => p === buyerSuffix || (p.length >= 7 && buyerSuffix.endsWith(p)) || (p.length >= 7 && p.endsWith(buyerSuffix)) || (p.length >= 7 && buyerSuffix.includes(p)))) return true;
       
       // 3. Match by verified email address
+      const buyerE = (order.buyerEmail || order.email || "").trim().toLowerCase();
       if (uEmail && buyerE === uEmail) return true;
-      
+
+      // 4. Match by buyer name or company
+      const buyerN = (order.buyerName || order.customerName || order.buyerInfo?.name || "").trim().toLowerCase();
+      const buyerC = (order.buyerCompany || "").trim().toLowerCase();
+      if (uName && uName.length >= 3 && buyerN && (buyerN.includes(uName) || uName.includes(buyerN))) return true;
+      if (uCompany && uCompany.length >= 3 && buyerC && (buyerC.includes(uCompany) || uCompany.includes(buyerC))) return true;
+
+      // 5. Match by session order tracking number (if placed in same browser session prior to registration)
+      try {
+        const lastOrderTrack = localStorage.getItem("dastavval_last_order_tracking");
+        if (lastOrderTrack && (order.id === lastOrderTrack || order.trackingNumber === lastOrderTrack)) return true;
+      } catch (e) {}
+
       return false;
     });
   }, [allOrders, user]);
@@ -584,6 +626,22 @@ export default function UserPanel({
           </div>
 
           <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
+            {(userRole === 'customer' || userRole === 'user') && (() => {
+              const loyaltySum = getLoyaltySummary(user?.phone || user?.mobile || user?.id || "guest", allOrders);
+              return (
+                <button
+                  type="button"
+                  onClick={() => setCustomerTab('loyalty')}
+                  className="px-3.5 py-2.5 bg-gradient-to-r from-amber-500/10 via-amber-400/20 to-amber-500/10 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-xs"
+                >
+                  <span className="p-1 rounded-lg bg-amber-500 text-white shadow-xs">
+                    <Award size={13} />
+                  </span>
+                  <span>باشگاه مشتریان: <strong className="font-sans font-black text-amber-700">{toPersianNum(loyaltySum.currentPoints)}</strong> امتیاز ({loyaltySum.tierLabel})</span>
+                </button>
+              );
+            })()}
+
             <button
               type="button"
               onClick={() => {
@@ -1054,6 +1112,18 @@ export default function UserPanel({
             </button>
 
             <button
+              onClick={() => setCustomerTab('loyalty')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                customerTab === 'loyalty'
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-xs"
+                  : "text-amber-800 bg-amber-50/70 hover:bg-amber-100/70 hover:text-amber-900"
+              }`}
+            >
+              <Award size={16} className={customerTab === 'loyalty' ? 'text-amber-100' : 'text-amber-600'} />
+              <span>باشگاه مشتریان و امتیازها</span>
+            </button>
+
+            <button
               onClick={() => setCustomerTab('quick_order')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 customerTab === 'quick_order'
@@ -1146,8 +1216,17 @@ export default function UserPanel({
                         <div>
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm font-black text-slate-900">سفارش {order.trackingNumber || (order.id ? order.id.slice(-8).toUpperCase() : "جاری")}</span>
-                            <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              {order.status === 'delivered' ? "تحویل شده" : "بارگیری از انبار دست‌اول"}
+                            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border ${
+                              order.status === 'delivered' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                              order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                              (order.status === 'processing' || order.status === 'confirmed') ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              order.status === 'cancelled' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                              'bg-amber-100 text-amber-800 border-amber-200'
+                            }`}>
+                              {order.status === 'delivered' ? "تحویل شده" :
+                               order.status === 'shipped' ? "تحویل به باربری (در مسیر)" :
+                               (order.status === 'processing' || order.status === 'confirmed') ? "تایید شده (در حال بارگیری)" :
+                               order.status === 'cancelled' ? "لغو شده" : "در انتظار تایید کارخانه"}
                             </span>
                           </div>
                           <span className="text-[11px] text-slate-400 font-bold mt-1 block">
@@ -1690,6 +1769,15 @@ export default function UserPanel({
               </div>
 
             </div>
+          )}
+
+          {/* TAB CONTENT: LOYALTY REWARDS CLUB */}
+          {customerTab === 'loyalty' && (
+            <LoyaltyRewardsClub
+              user={user}
+              orders={allOrders}
+              setActiveTab={setActiveTab}
+            />
           )}
 
           {/* TAB CONTENT: STORE PROFILE */}
