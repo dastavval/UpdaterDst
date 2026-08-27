@@ -1,0 +1,293 @@
+
+import sys
+
+file_path = "src/components/AdminPanel.tsx"
+
+with open(file_path, "r", encoding="utf-8") as f:
+    lines = f.read().splitlines()
+
+start_idx = -1
+for i, line in enumerate(lines):
+    if "{activeSubTab === 'news' && (" in line and i > 6000:
+        start_idx = i
+        break
+
+end_idx = -1
+for i, line in enumerate(lines):
+    if "{activeSubTab === 'catalog' && (" in line:
+        end_idx = i
+        break
+
+if start_idx != -1 and end_idx != -1:
+    print(f"Replacing range {start_idx+1} to {end_idx}")
+    
+    clean_blocks = [
+        "      {activeSubTab === 'news' && (",
+        "        <AdminArticles",
+        "          articles={articles}",
+        "          products={products}",
+        "          b2bConfig={b2bConfig}",
+        "          setLoading={setLoading}",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          setErrorMsg={setErrorMsg}",
+        "          confirmAction={confirmAction}",
+        "          onUpdateArticles={onUpdateArticles}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'approvals' && (",
+        "        <div className=\"space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500\">",
+        "          <AdminPendingApprovals",
+        "            orders={orders}",
+        "            onEditOrder={handleStartEditOrder}",
+        "            safeBuyRequests={safeBuyRequests}",
+        "            sponsoredAds={sponsoredAds}",
+        "            barterDeals={barterDeals}",
+        "            representativesList={representativesList}",
+        "            onUpdateRepStatus={handleUpdateRepStatus}",
+        "            suppliersList={suppliersList}",
+        "            onUpdateSupplierStatus={handleUpdateSupplierStatus}",
+        "            callbackRequests={callbackRequests}",
+        "            supportTickets={supportTickets}",
+        "            onUpdateOrderStatus={handleUpdateOrderStatus}",
+        "            onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}",
+        "            onUpdateAdStatus={handleUpdateAdStatus}",
+        "            onUpdateBarterStatus={handleUpdateBarterStatus}",
+        "            onUpdateCallback={handleUpdateCallback}",
+        "            onUpdateTicketStatus={handleUpdateTicketStatus}",
+        "            onNavigateTab={(tab) => {",
+        "              setActiveSubTab(tab as any);",
+        "              window.scrollTo({ top: 0, behavior: \"smooth\" });",
+        "            }}",
+        "          />",
+        "        </div>",
+        "      )}",
+        "      {activeSubTab === 'representatives' && (",
+        "        <AdminRepresentatives",
+        "          representativesList={representativesList}",
+        "          allAvailableBrandsList={allAvailableBrandsList}",
+        "          setLoading={setLoading}",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          setErrorMsg={setErrorMsg}",
+        "          confirmAction={confirmAction}",
+        "          setSelectedRepForCertificate={setSelectedRepForCertificate}",
+        "          onUpdateReps={onUpdateReps}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'orders' && (",
+        "        <AdminOrders",
+        "          orders={orders}",
+        "          ordersLoading={ordersLoading}",
+        "          fetchOrders={fetchOrders}",
+        "          handleUpdateOrderStatus={handleUpdateOrderStatus}",
+        "          setLoading={setLoading}",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          setErrorMsg={setErrorMsg}",
+        "          confirmAction={confirmAction}",
+        "          setShowPrintInvoice={setShowPrintInvoice}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'crm' && (",
+        "        <AdminCRM",
+        "          crmCustomers={crmCustomers}",
+        "          crmLoading={crmLoading}",
+        "          products={products}",
+        "          setLoading={setLoading}",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          setErrorMsg={setErrorMsg}",
+        "          confirmAction={confirmAction}",
+        "          loadCrmCustomers={loadCrmCustomers}",
+        "          onUpdateOrders={async () => { await fetchOrders(); }}",
+        "        />",
+        "      )}",
+        "      {(activeSubTab === 'invoice' || activeSubTab === 'accounting') && (",
+        "        <AdminInvoiceSettings",
+        "          b2bConfig={b2bConfig}",
+        "          onUpdateB2bConfig={onUpdateB2bConfig}",
+        "          setLoading={setLoading}",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          setErrorMsg={setErrorMsg}",
+        "          orders={orders}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'safe_buy' && (",
+        "        <AdminSafeBuy",
+        "          products={products}",
+        "          sponsoredAds={sponsoredAds}",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          setErrorMsg={setErrorMsg}",
+        "          setLoading={setLoading}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'ads' && (",
+        "        <div className=\"bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center\">",
+        "          <Megaphone size={64} className=\"mx-auto text-indigo-200 mb-6\" />",
+        "          <h3 className=\"text-xl font-black text-slate-900\">مدیریت کمپین‌های تبلیغاتی و بنرها</h3>",
+        "          <p className=\"text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto\">بزودی ابزارهای پیشرفته مدیریت جایگاه‌های تبلیغاتی در این بخش فعال خواهد شد. فعلاً از بخش صف تایید برای مدیریت آگهی‌ها استفاده کنید.</p>",
+        "        </div>",
+        "      )}",
+        "      {(activeSubTab as any) === 'factory_audit' && (",
+        "        <AdminFactoryProductAudit ",
+        "          products={products}",
+        "          onUpdateProduct={onUpdateProduct}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'channel_posts' && (",
+        "        <AdminChannelPosts",
+        "          setSuccessMsg={setSuccessMsg}",
+        "          autoPostSettings={autoPostSettings}",
+        "          setAutoPostSettings={setAutoPostSettings}",
+        "        />",
+        "      )}",
+        "      {activeSubTab === 'dashboard' && <AdminSalesCharts />}",
+        "      {(activeSubTab as any) === 'system' && !showAiSettings && !showImporterDashboard && (",
+        "        <AdminSystemConfig",
+        "          b2bConfig={b2bConfig}",
+        "          onUpdateB2bConfig={onUpdateB2bConfig}",
+        "          products={products}",
+        "          orders={orders}",
+        "          articles={articles}",
+        "          onRefreshProducts={onRefreshProducts}",
+        "        />",
+        "      )}",
+        "      {(activeSubTab as any) === 'parspack_storage' && !showAiSettings && !showImporterDashboard && (",
+        "        <AdminSystemConfig",
+        "          defaultTab=\"parspack_storage\"",
+        "          b2bConfig={b2bConfig}",
+        "          onUpdateB2bConfig={onUpdateB2bConfig}",
+        "          products={products}",
+        "          orders={orders}",
+        "          articles={articles}",
+        "          onRefreshProducts={onRefreshProducts}",
+        "        />",
+        "      )}",
+        "      {(activeSubTab as any) === 'sms' && !showAiSettings && !showImporterDashboard && (",
+        "        <AdminSystemConfig",
+        "          defaultTab=\"sms\"",
+        "          b2bConfig={b2bConfig}",
+        "          onUpdateB2bConfig={onUpdateB2bConfig}",
+        "          products={products}",
+        "          orders={orders}",
+        "          articles={articles}",
+        "          onRefreshProducts={onRefreshProducts}",
+        "        />",
+        "      )}",
+        "      {(activeSubTab as any) === 'reports' && (",
+        "        <div className=\"space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500\">",
+        "          <div className=\"flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2\">",
+        "            <div>",
+        "              <h3 className=\"text-xl font-black text-slate-900\">گزارشات تحلیل بازار و فروش</h3>",
+        "              <p className=\"text-xs text-slate-400 font-bold mt-1\">مانیتورینگ هوشمند عملکرد کارخانجات و توزیع‌کنندگان عمده</p>",
+        "            </div>",
+        "            <div className=\"flex gap-2\">",
+        "              <button className=\"flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-2xl text-[11px] font-black text-slate-700 shadow-sm hover:shadow-md transition-all\">",
+        "                <Download size={14} />",
+        "                خروجی PDF",
+        "              </button>",
+        "              <button className=\"flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-2xl text-[11px] font-black shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all\">",
+        "                <RefreshCw size={14} />",
+        "                بروزرسانی داده‌ها",
+        "              </button>",
+        "            </div>",
+        "          </div>",
+        "          <AdminSalesCharts />",
+        "        </div>",
+        "      )}",
+        "      {(activeSubTab as any) === 'profile' && (",
+        "        <div className=\"space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl\">",
+        "          <h3 className=\"text-sm font-black text-slate-900\">مدیریت حساب کاربری و امنیت</h3>",
+        "          <div className=\"space-y-4\">",
+        "            <input ",
+        "               type=\"text\" ",
+        "               placeholder=\"نام نمایشی جدید\" ",
+        "               value={newDisplayName}",
+        "              onChange={(e) => setNewDisplayName(e.target.value)}",
+        "              className=\"w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black\"",
+        "            />",
+        "            <button ",
+        "               onClick={() => updateDisplayName(newDisplayName)}",
+        "              className=\"px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black\"",
+        "            > ",
+        "              به‌روزرسانی نام",
+        "            </button>",
+        "          </div>",
+        "          <div className=\"space-y-4 pt-4 border-t border-gray-100\">",
+        "            <input ",
+        "               type=\"password\" ",
+        "               placeholder=\"رمز عبور جدید\" ",
+        "               value={newPassword}",
+        "              onChange={(e) => setNewPassword(e.target.value)}",
+        "              className=\"w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black\"",
+        "            />",
+        "            <button ",
+        "               onClick={() => changePassword(newPassword)}",
+        "              className=\"px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black\"",
+        "            >",
+        "              تغییر رمز عبور",
+        "            </button>",
+        "          </div>",
+        "          <div className=\"pt-4 border-t border-gray-100\">",
+        "            <button ",
+        "               onClick={async () => {",
+        "                await logoutUser();",
+        "                if (onLogout) onLogout();",
+        "              }}",
+        "              className=\"px-4 py-2 bg-rose-600 hover transition-colors text-white rounded-xl text-[10px] font-black cursor-pointer\"",
+        "            >",
+        "              خروج از حساب",
+        "            </button>",
+        "          </div>",
+        "        </div>",
+        "      )}",
+        "      {activeSubTab === 'categories' && (",
+        "        <div className=\"bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center\">",
+        "          <Layers size={64} className=\"mx-auto text-indigo-200 mb-6\" />",
+        "          <h3 className=\"text-xl font-black text-slate-900\">مدیریت دسته‌بندی‌های کالا</h3>",
+        "          <p className=\"text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto\">لیست دسته‌بندی‌ها به صورت خودکار از کاتالوگ محصولات استخراج می‌شود. بزودی امکان ویرایش دستی و تغییر آیکون‌ها فراهم می‌گردد.</p>",
+        "        </div>",
+        "      )}",
+        "      {activeSubTab === 'brands' && (",
+        "        <div className=\"bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center\">",
+        "          <Award size={64} className=\"mx-auto text-indigo-200 mb-6\" />",
+        "          <h3 className=\"text-xl font-black text-slate-900\">مدیریت برندهای تجاری</h3>",
+        "          <p className=\"text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto\">برندها بر اساس محصولات موجود در انبار دسته‌بندی می‌شوند. می‌توانید از بخش برندینگ برای مدیریت لوگوها استفاده کنید.</p>",
+        "        </div>",
+        "      )}",
+        "      {activeSubTab === 'barter' && (",
+        "        <div className=\"bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center\">",
+        "          <RefreshCw size={64} className=\"mx-auto text-indigo-200 mb-6\" />",
+        "          <h3 className=\"text-xl font-black text-slate-900\">سامانه تهاتر کالا و خدمات</h3>",
+        "          <p className=\"text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto\">بخش تهاتر هوشمند در حال توسعه است. فعلاً درخواست‌های تهاتر را از بخش صف تایید پیگیری کنید.</p>",
+        "        </div>",
+        "      )}"
+    ]
+    
+    p_start = -1
+    for k, l in enumerate(lines):
+        if "{activeSubTab === 'products' && (" in l and "animate-in" in lines[k+1]:
+            p_start = k
+            break
+    
+    p_end = -1
+    if p_start != -1:
+        brace_count = 0
+        paren_count = 0
+        for k in range(p_start, len(lines)):
+            l = lines[k]
+            for char in l:
+                if char == '{': brace_count += 1
+                elif char == '}': brace_count -= 1
+                elif char == '(': paren_count += 1
+                elif char == ')': paren_count -= 1
+            if brace_count == 0 and paren_count == 0:
+                p_end = k
+                break
+    
+    products_block = lines[p_start : p_end + 1] if p_start != -1 and p_end != -1 else []
+    
+    new_lines = lines[:start_idx] + clean_blocks + products_block + lines[end_idx:]
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(new_lines))
+    print("Final deduplication and restoration successful.")
+else:
+    print("Start/End indices not found.")

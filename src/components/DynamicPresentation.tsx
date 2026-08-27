@@ -96,6 +96,9 @@ export default function DynamicPresentation({
   const [showcaseTab, setShowcaseTab] = useState<'all' | 'products' | 'raw_materials'>('all');
   const [activeStep, setActiveStep] = useState(0);
   const [simulateCartons, setSimulateCartons] = useState(50);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>("food");
+
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const toPersianNum = (num: number | string) => {
     if (num === undefined || num === null) return "";
@@ -866,95 +869,107 @@ export default function DynamicPresentation({
         </motion.div>
       </section>
 
-      {/* --- QUICK CATEGORY NAVIGATION - CRISP, VIBRANT & CLARIFIED --- */}
+      {/* --- DYNAMIC CATEGORY SYSTEM - COMPACT & SEARCHABLE --- */}
       <section className="space-y-4 pt-2" dir="rtl">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
               <Grid size={18} />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-black text-slate-900">دسته‌بندی‌های کالا</h2>
-              <p className="text-[10px] text-slate-400 font-bold">دسترسی سریع به گروه‌های کالایی و خطوط پخش</p>
+              <h2 className="text-sm sm:text-base font-black text-slate-900">ویترین دسته‌بندی‌ها</h2>
+              <p className="text-[10px] text-slate-400 font-bold">دسترسی مستقیم به خطوط تامین و تولید</p>
             </div>
           </div>
-          <button 
-            onClick={() => setActiveTab?.('order')}
-            className="text-[11px] font-black text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100/70 px-3 py-1.5 rounded-xl border border-emerald-200/80 cursor-pointer"
-          >
-            <span>کاتالوگ کامل</span>
-            <ChevronLeft size={14} />
-          </button>
-        </div>
-
-        <div className="relative group">
-          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 -mx-2 px-2 sm:-mx-4 sm:px-4 scroll-smooth no-scrollbar snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {categoriesList.map((cat, catIdx) => {
-              const itemCount = cat.id === "همه" 
-                ? products.length 
-                : products.filter(p => isCategoryMatch(p, cat.id)).length;
-              const isSelected = selectedCategory === cat.id;
-
-              return (
-                <motion.button
-                  key={`cat-scroll-${cat.id}-${catIdx}`}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    const targetCat = cat.id === "همه" ? "همه" : cat.id;
-                    setSelectedCategory(targetCat);
-                    if (setActiveCategory) setActiveCategory(targetCat);
-                  }}
-                  className={`flex flex-col items-center justify-between p-3.5 rounded-2xl min-w-[124px] sm:min-w-[136px] h-[134px] transition-all duration-300 cursor-pointer border snap-start relative overflow-hidden group/cat shadow-xs ${
-                    isSelected
-                      ? "bg-gradient-to-b from-emerald-600 to-teal-700 text-white border-emerald-500 ring-2 ring-emerald-500/25 shadow-md shadow-emerald-700/20"
-                      : "bg-white text-slate-800 border-slate-200/80 hover:border-emerald-300 hover:shadow-sm"
-                  }`}
-                >
-                  {/* Subtle Background Graphic without Heavy Blurring */}
-                  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                    <img 
-                      src={cat.image || getCategoryImage(cat.id)} 
-                      alt=""
-                      className={`w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-110 ${
-                        isSelected ? "opacity-15" : "opacity-25"
-                      }`}
-                    />
-                    <div className={`absolute inset-0 ${
-                      isSelected 
-                        ? 'bg-gradient-to-b from-emerald-600/85 to-teal-800/95' 
-                        : 'bg-gradient-to-b from-white/90 via-white/80 to-slate-50/90 group-hover/cat:from-white/70'
-                    }`} />
-                  </div>
-
-                  {/* Icon Badge */}
-                  <div className={`relative z-10 w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${
-                    isSelected 
-                      ? "bg-white/20 text-white border border-white/25 shadow-inner" 
-                      : "bg-white text-slate-700 border border-slate-100 shadow-2xs group-hover/cat:border-emerald-200 group-hover/cat:scale-105"
-                  }`}>
-                    {cat.icon || "📦"}
-                  </div>
-
-                  {/* Labels */}
-                  <div className="relative z-10 text-center space-y-1 w-full mt-auto">
-                    <h3 className={`text-[11px] font-black truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                      {cat.label}
-                    </h3>
-                    <div className={`text-[9px] font-black px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 ${
-                      isSelected 
-                        ? "bg-white/25 text-white border border-white/20" 
-                        : "bg-slate-100 text-slate-700 border border-slate-200/60"
-                    }`}>
-                      <Package size={10} className="shrink-0" />
-                      <span>{toPersianNum(itemCount)} کالا</span>
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
+          
+          {/* Quick Search Categories */}
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input 
+              type="text"
+              placeholder="جستجوی سریع دسته..."
+              onChange={(e) => {
+                const term = e.target.value.toLowerCase();
+                // We'll filter the visible grid based on this
+                const items = document.querySelectorAll('.category-grid-item');
+                items.forEach((item: any) => {
+                  const label = item.getAttribute('data-label')?.toLowerCase() || "";
+                  if (label.includes(term)) {
+                    item.style.display = 'flex';
+                  } else {
+                    item.style.display = 'none';
+                  }
+                });
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pr-9 pl-3 text-[11px] font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+            />
           </div>
         </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-2 sm:gap-3">
+          {categoriesList.slice(0, showAllCategories ? categoriesList.length : 6).map((cat, catIdx) => {
+            const itemCount = cat.id === "همه" 
+              ? products.length 
+              : products.filter(p => isCategoryMatch(p, cat.id)).length;
+            const isSelected = selectedCategory === cat.id;
+
+            return (
+              <motion.button
+                key={`cat-grid-real-${cat.id}-${catIdx}`}
+                data-label={cat.label}
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  const targetCat = cat.id === "همه" ? "همه" : cat.id;
+                  setSelectedCategory(targetCat);
+                  if (setActiveCategory) setActiveCategory(targetCat);
+                }}
+                className={`category-grid-item flex flex-col items-center justify-center p-2 rounded-2xl h-[92px] transition-all duration-300 cursor-pointer border relative overflow-hidden group/cat ${
+                  isSelected
+                    ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/20"
+                    : "bg-white text-slate-800 border-slate-100 hover:border-emerald-200 hover:shadow-sm"
+                }`}
+              >
+                {/* Subtle Visual Background */}
+                <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
+                  <img src={cat.image || getCategoryImage(cat.id)} alt="" className="w-full h-full object-cover" />
+                </div>
+
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xl mb-1.5 transition-all duration-500 ${
+                  isSelected 
+                    ? "bg-white/20 text-white" 
+                    : "bg-slate-50 text-slate-600 group-hover/cat:bg-emerald-50 group-hover/cat:text-emerald-600"
+                }`}>
+                  {cat.icon || "📦"}
+                </div>
+
+                <div className="text-center space-y-0.5 relative z-10 w-full px-1">
+                  <h3 className={`text-[9px] font-black leading-tight truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                    {cat.label}
+                  </h3>
+                  <div className={`text-[8px] font-bold inline-flex items-center gap-0.5 ${
+                    isSelected ? "text-emerald-50" : "text-slate-400"
+                  }`}>
+                    <span>{toPersianNum(itemCount)}</span>
+                    <span>کالا</span>
+                  </div>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {categoriesList.length > 6 && (
+          <div className="flex justify-center pt-1">
+            <button 
+              onClick={() => setShowAllCategories(!showAllCategories)}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black transition-all border border-slate-200/50 cursor-pointer"
+            >
+              <span>{showAllCategories ? "بستن لیست" : `مشاهده ${toPersianNum(categoriesList.length - 6)} دسته دیگر`}</span>
+              <ChevronLeft size={12} className={`transition-transform duration-300 ${showAllCategories ? 'rotate-90' : '-rotate-90'}`} />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* --- SMART B2B SEARCH & FEATURED PRODUCTS --- */}
@@ -1208,7 +1223,15 @@ export default function DynamicPresentation({
         // If no explicit factories in config, derive factories dynamically from product brands
         if (!Array.isArray(b2bConfig?.factories) && rawFactoriesList.length === 0 && products && products.length > 0) {
           const validBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)))
-            .filter(b => !isWarehouseBrand(b));
+            .filter(b => !isWarehouseBrand(b))
+            .filter(b => {
+              const brandName = b.toString().trim().toLowerCase();
+              const configMatch = (b2bConfig?.factories as any[])?.find((f: any) => {
+                const fName = (f.name || "").toString().trim().toLowerCase();
+                return fName === brandName || fName.includes(brandName) || brandName.includes(fName);
+              });
+              return configMatch ? (configMatch as any).isActive !== false : true;
+            });
 
           rawFactoriesList = validBrands.map((bName, idx) => {
             const sample = products.find(p => p.brand === bName);
@@ -1233,7 +1256,9 @@ export default function DynamicPresentation({
           });
         }
 
-        const configFactories = rawFactoriesList.map((f: any, idx: number) => ({
+        const configFactories = rawFactoriesList
+          .filter((f: any) => f && f.isActive !== false)
+          .map((f: any, idx: number) => ({
           id: f.id || `fac-custom-${idx}`,
           name: f.name || "کارخانه همکار",
           rating: f.rating || 4.9,

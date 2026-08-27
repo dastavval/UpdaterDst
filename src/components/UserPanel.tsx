@@ -191,7 +191,7 @@ export default function UserPanel({
     // 3. Filter out orders containing test keywords or belonging to generic simulated buyers
     return ordersList.filter(order => {
       const buyerName = (order.buyerName || order.buyerInfo?.name || "").toLowerCase();
-      const isTestKeyword = (order.id && order.id.startsWith("test-fake-demo-"));
+      const isTestKeyword = (order.id && typeof order.id === 'string' && order.id.startsWith("test-fake-demo-"));
 
       if (isNewUser && isTestKeyword) {
         return false;
@@ -875,7 +875,7 @@ export default function UserPanel({
                           const comm = Math.round(ordTotal * 0.025);
                           return (
                             <tr key={`user-ref-ord-${ord.id || idx}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3 pr-2 font-mono font-bold text-slate-700">#{ord.id ? ord.id.slice(-6).toUpperCase() : `ORD-${idx+1}`}</td>
+                              <td className="py-3 pr-2 font-mono font-bold text-slate-700">#{ord.id ? String(ord.id || "").slice(-6).toUpperCase() : `ORD-${idx+1}`}</td>
                               <td className="py-3 font-bold text-slate-900">{ord.buyerName || ord.buyerInfo?.name || "فروشگاه همکار"}</td>
                               <td className="py-3 font-mono font-bold text-slate-900">{toPersianNum(ordTotal.toLocaleString('fa-IR'))} تومان</td>
                               <td className="py-3 font-mono font-bold text-emerald-600">+{toPersianNum(comm.toLocaleString('fa-IR'))} تومان</td>
@@ -1215,7 +1215,7 @@ export default function UserPanel({
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <span className="text-sm font-black text-slate-900">سفارش {order.trackingNumber || (order.id ? order.id.slice(-8).toUpperCase() : "جاری")}</span>
+                            <span className="text-sm font-black text-slate-900">سفارش {order.trackingNumber || (order.id ? String(order.id || "").slice(-8).toUpperCase() : "جاری")}</span>
                             <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border ${
                               order.status === 'delivered' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
                               order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-200' :

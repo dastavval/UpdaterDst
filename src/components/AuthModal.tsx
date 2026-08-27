@@ -499,6 +499,39 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
           if (userRole === 'customer') {
             addLeadFromRegistration(newUserObj);
           }
+
+          if (userRole === 'representative') {
+            const repPayload = {
+              id: newUserObj.id,
+              city: newUserObj.city,
+              name: newUserObj.name,
+              phone: newUserObj.phone,
+              tel: newUserObj.phone,
+              address: newUserObj.address || "آدرس اعلام نشده",
+              badge: 'silver',
+              isApproved: false, // pending admin approval
+              agencyCode: newUserObj.agencyCode,
+              brands: [],
+              createdAt: newUserObj.createdAt,
+              updatedAt: newUserObj.createdAt
+            };
+
+            // 1. Sync immediately to dastavval_representatives local storage
+            try {
+              const savedReps = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+              savedReps.push(repPayload);
+              localStorage.setItem("dastavval_representatives", JSON.stringify(savedReps));
+            } catch (e) {
+              console.warn("Error saving to dastavval_representatives local storage:", e);
+            }
+
+            // 2. Persist in Firestore/backend via setDoc
+            try {
+              await setDoc(doc(db, "representatives", newUserObj.id), repPayload);
+            } catch (dbErr) {
+              console.warn("Failed to save representative to database:", dbErr);
+            }
+          }
         } catch (storageErr) {
           console.warn("Storage sync failed:", storageErr);
         }
@@ -726,7 +759,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                       <div className="flex items-center justify-center gap-2.5" dir="ltr">
                         {otpDigits.map((digit, idx) => (
                           <input
-                            key={idx}
+                            key={`authmodal-idx-${idx}`}
                             ref={otpInputRefs[idx]}
                             type="text"
                             inputMode="numeric"

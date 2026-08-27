@@ -130,6 +130,7 @@ interface FactoriesViewProps {
   theme?: 'light' | 'dark';
   userBadge?: string;
   user?: any;
+  onUpdateB2bConfig?: (updatedConfig: any) => Promise<void>;
 }
 
 const DEFAULT_CATEGORIES = [
@@ -451,7 +452,8 @@ export default function FactoriesView({
   initialFactoryId,
   theme = 'light',
   userBadge,
-  user
+  user,
+  onUpdateB2bConfig
 }: FactoriesViewProps) {
   // Main Sub-Tab State: 'factories' | 'raw_materials' | 'services' | 'equipment'
   const [activeSubTab, setActiveSubTab] = useState<'factories' | 'raw_materials' | 'services' | 'equipment'>('factories');
@@ -688,6 +690,14 @@ export default function FactoriesView({
       localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
     } catch (err) {}
 
+    if (onUpdateB2bConfig && b2bConfig) {
+      const existingRawAds = Array.isArray(b2bConfig.rawMaterialAds) ? b2bConfig.rawMaterialAds : [];
+      onUpdateB2bConfig({
+        ...b2bConfig,
+        rawMaterialAds: [newMat, ...existingRawAds]
+      }).catch(e => console.error("Failed to sync raw material ad with server:", e));
+    }
+
     const exists = suppliersList.some(s => s.companyName.toLowerCase() === newMatSupName.trim().toLowerCase());
     if (!exists) {
       const newSup: RawMaterialSupplier = {
@@ -764,13 +774,22 @@ export default function FactoriesView({
   // Fallback to b2bConfig factories if available, with dynamic merging of registered factory profiles
   const allFactories: FactoryItem[] = useMemo(() => {
     let list: FactoryItem[] = [];
-    if (Array.isArray(factories) && factories.length > 0) {
+    if (factories) {
       list = factories;
-    } else if (Array.isArray(b2bConfig?.factories)) {
-      list = b2bConfig.factories;
+    } else if (b2bConfig?.factories && Array.isArray(b2bConfig.factories)) {
+      list = b2bConfig.factories.filter((f: any) => f && f.isActive !== false);
     } else if (products && products.length > 0) {
       const validBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)))
-        .filter(b => !isWarehouseBrand(b));
+        .filter(b => !isWarehouseBrand(b))
+        .filter(b => {
+          // Robust matching: trim and lowercase for comparison
+          const brandName = b.toString().trim().toLowerCase();
+          const configMatch = b2bConfig?.factories?.find((f: any) => {
+            const fName = (f.name || "").toString().trim().toLowerCase();
+            return fName === brandName || fName.includes(brandName) || brandName.includes(fName);
+          });
+          return configMatch ? configMatch.isActive !== false : true;
+        });
 
       list = validBrands.map((bName, idx) => {
         const sample = products.find(p => p.brand === bName);
@@ -797,7 +816,7 @@ export default function FactoriesView({
       const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
       const localUsersList = Object.values(localUsers).filter((u: any) => u.userRole === 'factory' || u.role === 'factory' || u.status === 'active');
       
-      return list.map((f: any) => {
+      const finalResult = list.map((f: any) => {
         // Find matching local user by factoryCode, id, or company name
         const matchingUser = localUsersList.find((u: any) => 
           u.factoryCode === f.factoryCode || 
@@ -844,11 +863,13 @@ export default function FactoriesView({
         }
         return f;
       });
+
+      return finalResult.filter((f: any) => f && f.isActive !== false);
     } catch (e) {
       console.warn("Could not merge local factory users:", e);
-      return list;
+      return list.filter((f: any) => f && f.isActive !== false);
     }
-  }, [factories, b2bConfig?.factories]);
+  }, [factories, b2bConfig?.factories, products]);
 
   // Open modal and track view count
   const handleOpenFactoryModal = (factory: FactoryItem) => {
@@ -973,7 +994,7 @@ export default function FactoriesView({
       (fac.mainProducts && Array.isArray(fac.mainProducts) && fac.mainProducts.some(p => typeof p === 'string' && p.toLowerCase().includes(q)))
     );
 
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesSearch && fac.isActive !== false;
   });
 
   // SORTING RULE: Featured / Pinned / Premium factories ALWAYS come FIRST
@@ -1063,6 +1084,14 @@ export default function FactoriesView({
       localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
     } catch (err) {}
 
+    if (onUpdateB2bConfig && b2bConfig) {
+      const existingEqAds = Array.isArray(b2bConfig.equipmentAds) ? b2bConfig.equipmentAds : [];
+      onUpdateB2bConfig({
+        ...b2bConfig,
+        equipmentAds: [newEq, ...existingEqAds]
+      }).catch(e => console.error("Failed to sync equipment ad with server:", e));
+    }
+
     setEqSuccessMsg("تجهیز صنعتی شما با موفقیت ثبت شد و پس از بررسی مدارک مالکیت و تایید فنی توسط کارشناسان دست‌اول در تالار تجهیزات صنعتی منتشر خواهد شد.");
     setTimeout(() => {
       setShowAddEquipmentModal(false);
@@ -1124,6 +1153,14 @@ export default function FactoriesView({
     try {
       localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
     } catch (err) {}
+
+    if (onUpdateB2bConfig && b2bConfig) {
+      const existingSrvAds = Array.isArray(b2bConfig.serviceAds) ? b2bConfig.serviceAds : [];
+      onUpdateB2bConfig({
+        ...b2bConfig,
+        serviceAds: [newSrv, ...existingSrvAds]
+      }).catch(e => console.error("Failed to sync service ad with server:", e));
+    }
 
     setSrvSuccessMsg("خدمت شما با موفقیت ثبت شد و پس از بررسی مدارک و تایید کارشناس ناظر دست‌اول در تالار خدمات صنعتی منتشر خواهد شد.");
     setTimeout(() => {

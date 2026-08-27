@@ -161,7 +161,7 @@ export default function AdminRepresentatives({
       };
 
       try {
-        if (editingRep?.id && !editingRep.id.startsWith("REP-")) {
+        if (editingRep?.id && typeof editingRep.id === 'string' && !editingRep.id.startsWith("REP-")) {
           await updateDoc(doc(db, "representatives", editingRep.id), payload);
         } else {
           await addDoc(collection(db, "representatives"), {
@@ -193,12 +193,12 @@ export default function AdminRepresentatives({
         let userUpdated = false;
         Object.keys(localUsers).forEach(key => {
           const u = localUsers[key];
-          if (u && (u.phone === repPhone || u.email === repPhone)) {
+          if (u && (u.phone === repPhone || u.email === repPhone || u.userCode === payload.id)) {
             localUsers[key] = {
               ...u,
               role: 'representative',
-              isRepresentativeApproved: true,
-              agencyApproved: true,
+              isRepresentativeApproved: repIsApproved,
+              agencyApproved: repIsApproved,
               agencyCode: generatedAgencyCode,
               city: repCity || u.city,
               address: repAddress || u.address
@@ -208,6 +208,13 @@ export default function AdminRepresentatives({
         });
         if (userUpdated) {
           localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          try {
+            fetch("/api/b2b/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(localUsers)
+            }).catch(() => {});
+          } catch (e) {}
         }
       } catch (err) {
         console.warn("User promotion sync error:", err);
@@ -247,8 +254,51 @@ export default function AdminRepresentatives({
   const handleFastApproveRep = async (rep: any) => {
     setLoading(true);
     try {
-      await updateDoc(doc(db, "representatives", rep.id), { isApproved: true });
-      setSuccessMsg("نماینده تایید گردید.");
+      try {
+        await updateDoc(doc(db, "representatives", rep.id), { isApproved: true });
+      } catch (e) {}
+
+      // Update local storage
+      try {
+        const savedReps = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+        const idx = savedReps.findIndex((r: any) => r.id === rep.id || r.agencyCode === rep.agencyCode || r.phone === rep.phone);
+        if (idx >= 0) {
+          savedReps[idx] = { ...savedReps[idx], isApproved: true, status: 'active' };
+          localStorage.setItem("dastavval_representatives", JSON.stringify(savedReps));
+        }
+      } catch (e) {}
+
+      // Synchronize in users collection
+      try {
+        const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+        let userUpdated = false;
+        Object.keys(localUsers).forEach(key => {
+          const u = localUsers[key];
+          if (u && (u.phone === rep.phone || u.email === rep.phone || u.userCode === rep.id)) {
+            localUsers[key] = {
+              ...u,
+              role: 'representative',
+              isRepresentativeApproved: true,
+              agencyApproved: true,
+              agencyCode: rep.agencyCode || u.agencyCode,
+              status: 'active'
+            };
+            userUpdated = true;
+          }
+        });
+        if (userUpdated) {
+          localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          try {
+            fetch("/api/b2b/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(localUsers)
+            }).catch(() => {});
+          } catch (e) {}
+        }
+      } catch (e) {}
+
+      setSuccessMsg("نماینده با موفقیت تایید و وضعیت دسترسی فعال شد.");
       if (onUpdateReps) await onUpdateReps();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {

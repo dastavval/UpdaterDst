@@ -23,6 +23,9 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Global live backup trigger (assigned downstream)
+let triggerDataChangeBackup: () => void = () => {};
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -158,6 +161,13 @@ if (!fs.existsSync(DATA_DIR)) {
   } catch (e) {}
 }
 
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+if (!fs.existsSync(BACKUP_DIR)) {
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  } catch (e) {}
+}
+
 const PERSISTENT_UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 if (!fs.existsSync(PERSISTENT_UPLOADS_DIR)) {
   try {
@@ -259,19 +269,13 @@ function saveConfig(cfg: any) {
     if (typeof OLD_B2B_CONFIG_FILE !== 'undefined' && OLD_B2B_CONFIG_FILE && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
       fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
     }
+    triggerDataChangeBackup();
   } catch (e) {
     console.error("Failed to save b2b-config.json:", e);
   }
 }
 
-const INITIAL_DEFAULT_PRODUCTS = [
-  { id: "PRD-1001", sku: "PRD-1001", code: "PRD-1001", name: "چیپس سیب‌زمینی چی‌توز کچاپ", brand: "چی‌توز (به‌آرا)", price: 32000, bulk_price: 32000, consumer_price: 40000, purchase_price: 28000, category: "تنقلات و شکلات", image_url: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=600", min_order_cartons: 5, carton_pack_count: 24, disabled: false, isFeatured: true, factoryName: "صنایع غذایی به‌آرا (چی‌توز)" },
-  { id: "PRD-1002", sku: "PRD-1002", code: "PRD-1002", name: "پفک طلایی چی‌توز بزرگ", brand: "چی‌توز (به‌آرا)", price: 24000, bulk_price: 24000, consumer_price: 30000, purchase_price: 20000, category: "تنقلات و شکلات", image_url: "https://images.unsplash.com/photo-1621447504864-d8686e12698c?auto=format&fit=crop&q=80&w=600", min_order_cartons: 5, carton_pack_count: 30, disabled: false, isFeatured: true, factoryName: "صنایع غذایی به‌آرا (چی‌توز)" },
-  { id: "PRD-1003", sku: "PRD-1003", code: "PRD-1003", name: "تخمه آفتابگردان مزمز ۱۰۰ گرمی", brand: "مزمز", price: 18500, bulk_price: 18500, consumer_price: 25000, purchase_price: 15000, category: "تنقلات و شکلات", image_url: "https://images.unsplash.com/photo-1528751014936-863e6e7a319c?auto=format&fit=crop&q=80&w=600", min_order_cartons: 10, carton_pack_count: 40, disabled: false, isFeatured: true, factoryName: "گروه کارخانجات مزمز" },
-  { id: "PRD-1004", sku: "PRD-1004", code: "PRD-1004", name: "بیسکویت ویفر شیرین عسل شکلاتی", brand: "شیرین عسل", price: 12000, bulk_price: 12000, consumer_price: 18000, purchase_price: 9500, category: "کیک، کلوچه و بیسکویت", image_url: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600", min_order_cartons: 8, carton_pack_count: 48, disabled: false, isFeatured: true, factoryName: "گروه صنایع غذایی شیرین عسل" },
-  { id: "PRD-1005", sku: "PRD-1005", code: "PRD-1005", name: "آبمیوه قوطی رانی هلو ۲۴۰ میل", brand: "رانی", price: 26500, bulk_price: 26500, consumer_price: 35000, purchase_price: 22000, category: "نوشیدنی‌ها", image_url: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600", min_order_cartons: 10, carton_pack_count: 24, disabled: false, isFeatured: true, factoryName: "شرکت العوجان ایرانیان (رانی)" },
-  { id: "PRD-1006", sku: "PRD-1006", code: "PRD-1006", name: "پنیر نود گرمی کاله صباح", brand: "کاله", price: 36000, bulk_price: 36000, consumer_price: 45000, purchase_price: 30000, category: "مواد غذایی و کنسروجات", image_url: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&q=80&w=600", min_order_cartons: 5, carton_pack_count: 24, disabled: false, isFeatured: true, factoryName: "گروه لبنی کاله" }
-];
+const INITIAL_DEFAULT_PRODUCTS: any[] = [];
 
 function loadProducts(): any[] {
   try {
@@ -292,6 +296,7 @@ function saveProducts(products: any[]) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), "utf-8");
+    triggerDataChangeBackup();
   } catch (e) {
     console.error("Error saving products.json:", e);
   }
@@ -388,6 +393,7 @@ function saveUsers(users: Record<string, any>) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+    triggerDataChangeBackup();
   } catch (e) {}
 }
 const DEFAULT_B2B_CONFIG = {
@@ -398,20 +404,8 @@ const DEFAULT_B2B_CONFIG = {
   appSub: "سامانه ملی استعلام و مبادلات مستقیم تولیدات کارخانه",
   logoUrl: "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
   mascotUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
-  categories: [
-    { "id": "cat-1", "name": "تنقلات و شکلات", "label": "تنقلات و شکلات", "image": "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600" },
-    { "id": "cat-2", "name": "کیک، کلوچه و بیسکویت", "label": "کیک، کلوچه و بیسکویت", "image": "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600" },
-    { "id": "cat-3", "name": "مواد غذایی و کنسروجات", "label": "مواد غذایی و کنسروجات", "image": "https://images.unsplash.com/photo-1534483509719-3feaee7c30da?auto=format&fit=crop&q=80&w=600" },
-    { "id": "cat-4", "name": "نوشیدنی‌ها", "label": "نوشیدنی‌ها", "image": "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600" },
-    { "id": "cat-5", "name": "شوینده و بهداشتی", "label": "شوینده و بهداشتی", "image": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600" }
-  ],
-  brands: [
-    { "id": "b-1", "name": "چی‌توز (به‌آرا)", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23dc2626'/><circle cx='100' cy='100' r='76' fill='%23f59e0b' stroke='%23ffffff' stroke-width='6'/><text x='100' y='110' font-family='Tahoma, sans-serif' font-weight='900' font-size='32' fill='%23ffffff' text-anchor='middle'>چی‌توز</text><text x='100' y='140' font-family='sans-serif' font-weight='bold' font-size='12' fill='%2378350f' text-anchor='middle'>CHETOZ BRAND</text></svg>" },
-    { "id": "b-2", "name": "مزمز", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%231d4ed8'/><circle cx='100' cy='100' r='76' fill='%233b82f6' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='36' fill='%23ffffff' text-anchor='middle'>مزمز</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23dbeafe' text-anchor='middle'>MAZMAZ FOODS</text></svg>" },
-    { "id": "b-3", "name": "شیرین عسل", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23831843'/><circle cx='100' cy='100' r='76' fill='%23be185d' stroke='%23fef08a' stroke-width='6'/><text x='100' y='108' font-family='Tahoma, sans-serif' font-weight='900' font-size='28' fill='%23ffffff' text-anchor='middle'>شیرین عسل</text><text x='100' y='138' font-family='sans-serif' font-weight='bold' font-size='11' fill='%23fef08a' text-anchor='middle'>SHIRIN ASAL</text></svg>" },
-    { "id": "b-4", "name": "رانی", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%23c2410c'/><circle cx='100' cy='100' r='76' fill='%23ea580c' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='38' fill='%23ffffff' text-anchor='middle'>رانی</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23ffedd5' text-anchor='middle'>RANI JUICE</text></svg>" },
-    { "id": "b-5", "name": "کاله", "logo": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='100%' height='100%' rx='40' fill='%2315803d'/><circle cx='100' cy='100' r='76' fill='%2316a34a' stroke='%23ffffff' stroke-width='6'/><text x='100' y='112' font-family='Tahoma, sans-serif' font-weight='900' font-size='38' fill='%23ffffff' text-anchor='middle'>کاله</text><text x='100' y='142' font-family='sans-serif' font-weight='bold' font-size='12' fill='%23dcfce7' text-anchor='middle'>KALLEH BRAND</text></svg>" }
-  ],
+  categories: [],
+  brands: [],
   factories: [],
   gallery: [
     "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000",
@@ -608,21 +602,25 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
     } catch (e: any) {
       console.error("GapGPT call failed:", e.message || e);
       // Fallback to Gemini if Gemini API key is available
-      if (process.env.GEMINI_API_KEY) {
+      const gemKey = process.env.GEMINI_API_KEY;
+      if (gemKey) {
         console.warn("Falling back from GapGPT to Gemini...");
-        try {
-          const ai = new GoogleGenAI({
-            apiKey: process.env.GEMINI_API_KEY,
-            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-          });
-          const response = await ai.models.generateContent({
-            model: "gemini-3.7-flash",
-            contents: prompt,
-            ...(systemPrompt ? { config: { systemInstruction: systemPrompt } } : {})
-          });
-          if (response.text) return response.text;
-        } catch (gemErr) {
-          console.warn("Fallback to Gemini also failed:", gemErr);
+        const modelsToTry = ["gemini-3.7-flash", "gemini-flash-latest", "gemini-3.1-pro-preview"];
+        for (const modelName of modelsToTry) {
+          try {
+            const ai = new GoogleGenAI({
+              apiKey: gemKey,
+              httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+            });
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents: prompt,
+              ...(systemPrompt ? { config: { systemInstruction: systemPrompt } } : {})
+            });
+            if (response.text) return response.text;
+          } catch (gemErr: any) {
+            console.warn(`Fallback to Gemini model ${modelName} failed:`, gemErr.message || gemErr);
+          }
         }
       }
       throw e;
@@ -635,7 +633,7 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
     for (const modelName of modelsToTry) {
       try {
         const ai = new GoogleGenAI({
-          apiKey: apiKey,
+          apiKey: apiKey || process.env.GEMINI_API_KEY,
           httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
         });
         const response = await ai.models.generateContent({
@@ -643,19 +641,22 @@ async function callAI(prompt: string, systemPrompt?: string): Promise<string> {
           contents: prompt,
           ...(systemPrompt ? { config: { systemInstruction: systemPrompt } } : {})
         });
-        if (response.text) {
-          return response.text;
-        }
+        if (response.text) return response.text;
       } catch (e: any) {
         lastError = e;
         const errMsg = e?.message || String(e);
         if (errMsg.includes("resource_exhausted") || errMsg.includes("quota") || errMsg.includes("429")) {
-          console.warn("Gemini API Quota Exceeded / Rate Limited. Falling back gracefully.");
-          return "سرویس هوش مصنوعی در حال حاضر با ترافیک بالا مواجه است (سهمیه مصرفی). لطفاً چند لحظه دیگر مجدداً تلاش کنید یا از امکانات استاندارد سامانه استفاده نمایید.";
+          console.warn(`Gemini model ${modelName} hit quota. Trying next or returning fallback info.`);
+          continue; // Try next model instead of returning immediately if possible
         }
         console.warn(`Gemini model ${modelName} failed, trying next...`, errMsg.substring(0, 120));
       }
     }
+    
+    if (lastError?.message?.includes("resource_exhausted") || lastError?.message?.includes("quota") || lastError?.message?.includes("429")) {
+       return "سرویس هوش مصنوعی در حال حاضر با ترافیک بالا مواجه است (سهمیه مصرفی). لطفاً چند لحظه دیگر مجدداً تلاش کنید یا از امکانات استاندارد سامانه استفاده نمایید.";
+    }
+    
     console.error("All Gemini model attempts failed:", lastError?.message || lastError);
     return "سرویس هوش مصنوعی خروجی معتبری در این لحظه ارائه نکرد. لطفاً مجدداً تلاش نمایید.";
   }
@@ -1655,157 +1656,232 @@ app.post("/api/gallery/add", (req, res) => {
 });
 
 // --- PARSPACK S3 OBJECT STORAGE API ---
-function getParsPackS3Client(customConfig?: any, timeoutMs = 4000) {
-  const endpointRaw = (customConfig?.storageEndpoint || b2bConfig?.storageEndpoint || "c102393.parspack.net").trim().replace(/\/+$/, "");
-  
-  // ParsPack S3 has massive TLS/HTTPS (port 443) handshake issues from external container networks.
-  // We force HTTP (port 80) for parspack.net to ensure 100% successful instant uploads/downloads.
-  let endpoint = endpointRaw;
-  if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
-    if (endpointRaw.includes("parspack.net")) {
-      endpoint = `http://${endpointRaw}`;
-    } else {
-      endpoint = `https://${endpointRaw}`;
+function sanitizeStorageConfig(customConfig?: any) {
+  let endpointRaw = (
+    customConfig?.storageEndpoint ||
+    b2bConfig?.storageEndpoint ||
+    process.env.STORAGE_ENDPOINT ||
+    process.env.PARSPACK_S3_ENDPOINT ||
+    process.env.S3_ENDPOINT ||
+    "c102393.parspack.net"
+  ).trim();
+
+  // If user entered full URL like http://c102393.parspack.net/c102393 or c102393.parspack.net/c102393
+  let extractedBucket = "";
+  if (endpointRaw.includes("/")) {
+    const parts = endpointRaw.replace(/^https?:\/\//, "").split("/");
+    endpointRaw = parts[0];
+    if (parts.length > 1 && parts[1]) {
+      extractedBucket = parts[1].trim();
     }
-  } else if (endpoint.startsWith("https://") && endpoint.includes("parspack.net")) {
-    endpoint = endpoint.replace("https://", "http://");
   }
-    
-  const accessKey = (customConfig?.storageAccessKey || b2bConfig?.storageAccessKey || "xt3cR9wHHoATuXS3").trim();
-  const secretKey = (customConfig?.storageSecretKey || b2bConfig?.storageSecretKey || "4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b").trim();
-  const region = (customConfig?.storageRegion || b2bConfig?.storageRegion || "us-east-1").trim();
+
+  const accessKey = (
+    customConfig?.storageAccessKey ||
+    b2bConfig?.storageAccessKey ||
+    process.env.STORAGE_ACCESS_KEY ||
+    process.env.PARSPACK_ACCESS_KEY ||
+    process.env.S3_ACCESS_KEY ||
+    process.env.AWS_ACCESS_KEY_ID ||
+    "xt3cR9wHHoATuXS3"
+  ).trim();
+
+  const secretKey = (
+    customConfig?.storageSecretKey ||
+    b2bConfig?.storageSecretKey ||
+    process.env.STORAGE_SECRET_KEY ||
+    process.env.PARSPACK_SECRET_KEY ||
+    process.env.S3_SECRET_KEY ||
+    process.env.AWS_SECRET_ACCESS_KEY ||
+    "4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b"
+  ).trim();
+
+  let bucket = (
+    customConfig?.storageBucket ||
+    b2bConfig?.storageBucket ||
+    extractedBucket ||
+    process.env.STORAGE_BUCKET ||
+    process.env.PARSPACK_BUCKET ||
+    process.env.S3_BUCKET ||
+    "c102393"
+  ).trim();
+
+  if (bucket.includes(".")) {
+    bucket = bucket.split(".")[0];
+  }
+
+  const region = (
+    customConfig?.storageRegion ||
+    b2bConfig?.storageRegion ||
+    process.env.STORAGE_REGION ||
+    process.env.S3_REGION ||
+    "us-east-1"
+  ).trim();
+
   const forcePathStyle = customConfig?.storageForcePathStyle !== undefined 
     ? customConfig.storageForcePathStyle 
-    : (b2bConfig.storageForcePathStyle ?? true);
+    : (b2bConfig?.storageForcePathStyle ?? true);
+
+  let endpoint = endpointRaw;
+  if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+    endpoint = `http://${endpointRaw}`;
+  }
+
+  return {
+    endpoint,
+    endpointRaw,
+    accessKey,
+    secretKey,
+    bucket,
+    region,
+    forcePathStyle
+  };
+}
+
+function getParsPackS3Client(customConfig?: any, timeoutMs = 7000) {
+  const cfg = sanitizeStorageConfig(customConfig);
+  const isHttps = cfg.endpoint.startsWith("https://");
 
   return new S3Client({
-    endpoint,
-    region,
+    endpoint: cfg.endpoint,
+    region: cfg.region,
     credentials: {
-      accessKeyId: accessKey,
-      secretAccessKey: secretKey
+      accessKeyId: cfg.accessKey,
+      secretAccessKey: cfg.secretKey
     },
-    forcePathStyle,
-    maxAttempts: 1, // Single fast attempt to avoid cascading 20-second timeout stalls
+    forcePathStyle: cfg.forcePathStyle,
+    maxAttempts: 1,
     requestHandler: new NodeHttpHandler({
-      connectionTimeout: Math.min(timeoutMs, 3000),
+      connectionTimeout: Math.min(timeoutMs, 4500),
       socketTimeout: timeoutMs,
-      httpAgent: new http.Agent({ keepAlive: true, timeout: timeoutMs }),
-      httpsAgent: new https.Agent({ keepAlive: true, rejectUnauthorized: false, timeout: timeoutMs })
+      httpAgent: !isHttps ? new http.Agent({ keepAlive: false, timeout: timeoutMs }) : undefined,
+      httpsAgent: isHttps ? new https.Agent({ keepAlive: false, rejectUnauthorized: false, timeout: timeoutMs }) : undefined
     })
   });
 }
 
-// Storage Test Endpoint with Multi-Strategy Discovery and Graceful Hybrid Storage Protection
-app.post("/api/storage/test", async (req, res) => {
-  const config = req.body || {};
-  const requestedEndpoint = (config.storageEndpoint || b2bConfig.storageEndpoint || "c102393.parspack.net").trim();
-  const requestedBucket = (config.storageBucket || b2bConfig.storageBucket || "c102393").trim();
-  const accessKey = (config.storageAccessKey || b2bConfig.storageAccessKey || "xt3cR9wHHoATuXS3").trim();
-  const secretKey = (config.storageSecretKey || b2bConfig.storageSecretKey || "4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b").trim();
+// Resilient Multi-Protocol / Multi-Host S3 Execution Runner
+async function executeResilientS3Operation<T>(
+  actionName: string,
+  commandFactory: (endpoint: string, isHttps: boolean) => any,
+  customConfig?: any,
+  timeoutMs = 7500
+): Promise<{ success: boolean; data?: T; error?: string; endpointUsed?: string; latency?: number; attempts: string[] }> {
+  const cfg = sanitizeStorageConfig(customConfig);
+  const cleanHost = cfg.endpointRaw.replace(/^https?:\/\//, "").replace(/\/+$/, "").split("/")[0];
+  
+  // Build a prioritized list of candidate endpoints for ParsPack S3
+  const candidateHosts = [cleanHost];
+  if (cleanHost !== "s3.parspack.net") candidateHosts.push("s3.parspack.net");
+  if (cleanHost !== "s3.ir-thr-at1.parspack.net") candidateHosts.push("s3.ir-thr-at1.parspack.net");
+  if (cleanHost !== "c102393.parspack.net") candidateHosts.push("c102393.parspack.net");
 
-  // Multi-candidate test matrix for ParsPack S3 compatibility
-  const candidates = [
-    { endpoint: requestedEndpoint, bucket: requestedBucket, forcePathStyle: true, name: `آدرس مستقیم (${requestedEndpoint}) با باکت ${requestedBucket}` },
-    { endpoint: requestedEndpoint, bucket: requestedBucket, forcePathStyle: false, name: `آدرس مستقیم با ساب‌دامین (${requestedBucket}.${requestedEndpoint})` },
-    { endpoint: "s3.parspack.net", bucket: requestedBucket, forcePathStyle: true, name: `اندپوینت متمرکز s3.parspack.net با باکت ${requestedBucket}` },
-    { endpoint: "s3.ir-thr-at1.parspack.net", bucket: requestedBucket, forcePathStyle: true, name: `اندپوینت دیتاسنتر تهران (ir-thr-at1)` }
-  ];
+  const candidateEndpoints: string[] = [];
+  for (const host of candidateHosts) {
+    candidateEndpoints.push(`http://${host}`);
+    candidateEndpoints.push(`https://${host}`);
+  }
 
-  const testLogs: string[] = [];
-  let s3DirectConnected = false;
-  let activeStrategyName = "";
-  let fileCount = 0;
+  const attempts: string[] = [];
+  let lastError: any = null;
 
-  for (const cand of candidates) {
+  for (const ep of candidateEndpoints) {
+    const startTime = Date.now();
+    const isHttps = ep.startsWith("https");
     try {
-      const client = getParsPackS3Client({
-        storageEndpoint: cand.endpoint,
-        storageAccessKey: accessKey,
-        storageSecretKey: secretKey,
-        storageBucket: cand.bucket,
-        storageRegion: config.storageRegion || "us-east-1",
-        storageForcePathStyle: cand.forcePathStyle
-      }, 2500); // 2.5s fast timeout per probe
-
-      const command = new ListObjectsV2Command({
-        Bucket: cand.bucket,
-        MaxKeys: 5
+      attempts.push(`تلاش با ${ep}`);
+      const client = new S3Client({
+        endpoint: ep,
+        region: cfg.region || "us-east-1",
+        credentials: {
+          accessKeyId: cfg.accessKey,
+          secretAccessKey: cfg.secretKey
+        },
+        forcePathStyle: true,
+        maxAttempts: 1,
+        requestHandler: new NodeHttpHandler({
+          connectionTimeout: Math.min(timeoutMs, 4000),
+          socketTimeout: timeoutMs,
+          httpAgent: !isHttps ? new http.Agent({ keepAlive: false, timeout: timeoutMs }) : undefined,
+          httpsAgent: isHttps ? new https.Agent({ keepAlive: false, rejectUnauthorized: false, timeout: timeoutMs }) : undefined
+        })
       });
 
+      const command = commandFactory(ep, isHttps);
       const response = await Promise.race([
         client.send(command),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("اتصال با باکت در مهلت ۲.۵ ثانیه پاسخ نداد")), 2500))
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error(`Timeout: باکت پارس‌پک روی ${ep} در مهلت ${timeoutMs/1000} ثانیه پاسخ نداد`)), timeoutMs)
+        )
       ]);
 
-      fileCount = response.KeyCount || (response.Contents ? response.Contents.length : 0);
-      s3DirectConnected = true;
-      activeStrategyName = cand.name;
-
-      // Successfully connected directly to S3! Update b2bConfig
-      b2bConfig.storageEndpoint = cand.endpoint;
-      b2bConfig.storageBucket = cand.bucket;
-      b2bConfig.storageForcePathStyle = cand.forcePathStyle;
-      b2bConfig.storageAccessKey = accessKey;
-      b2bConfig.storageSecretKey = secretKey;
-      b2bConfig.storageEnabled = true;
-      b2bConfig.storagePublicUrl = `https://${cand.endpoint.replace(/^https?:\/\//, '')}/${cand.bucket}`;
-
-      try {
-        fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
-      } catch (e) {
-        console.warn("Could not persist updated config to file", e);
-      }
-
-      break;
+      const latency = Date.now() - startTime;
+      console.log(`[S3 Resilient Runner] ${actionName} SUCCESS via ${ep} (${latency}ms)`);
+      return { success: true, data: response as T, endpointUsed: ep, latency, attempts };
     } catch (err: any) {
       const errMsg = err.message || err.name || "خطای ناشناخته";
-      testLogs.push(`استراتژی ${cand.name}: ${errMsg}`);
+      attempts.push(`خطا در ${ep}: ${errMsg}`);
+      lastError = err;
+      console.warn(`[S3 Resilient Runner] ${actionName} failed on ${ep}:`, errMsg);
     }
   }
 
-  // Count local uploads
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  let localFileCount = 0;
-  if (fs.existsSync(uploadsDir)) {
-    try {
-      localFileCount = fs.readdirSync(uploadsDir).filter(f => !f.startsWith(".")).length;
-    } catch (e) {}
-  }
+  const finalMsg = lastError?.message || "عدم برقراری ارتباط با باکت پارس‌پک";
+  return { success: false, error: finalMsg, attempts };
+}
 
-  if (s3DirectConnected) {
+// Storage Test Endpoint with Direct Multi-Strategy Verification
+app.post("/api/storage/test", async (req, res) => {
+  const config = req.body || {};
+  const cfg = sanitizeStorageConfig(config);
+  const cleanHost = cfg.endpointRaw.replace(/^https?:\/\//, "").replace(/\/+$/, "").split("/")[0];
+  const accessKey = cfg.accessKey;
+  const secretKey = cfg.secretKey;
+  const bucket = cfg.bucket;
+
+  const testResults = await executeResilientS3Operation<any>(
+    "TestStorageConnection",
+    () => new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 5 }),
+    config,
+    7000
+  );
+
+  if (testResults.success && testResults.data) {
+    const fileCount = testResults.data.KeyCount || (testResults.data.Contents ? testResults.data.Contents.length : 0);
+    
+    // Save verified working parameters to b2bConfig
+    b2bConfig.storageEndpoint = cleanHost;
+    b2bConfig.storageBucket = bucket;
+    b2bConfig.storageForcePathStyle = true;
+    b2bConfig.storageAccessKey = accessKey;
+    b2bConfig.storageSecretKey = secretKey;
+    b2bConfig.storageEnabled = true;
+    b2bConfig.storagePublicUrl = `${testResults.endpointUsed}/${bucket}`;
+
+    try {
+      fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    } catch (e) {}
+
     return res.json({
       success: true,
-      message: `اتصال مستقیم به باکت پارس‌پک برقرار شد (${activeStrategyName})! تعداد فایل‌های موجود: ${fileCount}`,
-      bucket: requestedBucket,
-      endpoint: b2bConfig.storageEndpoint,
-      forcePathStyle: b2bConfig.storageForcePathStyle,
+      message: `اتصال زنده به باکت پارس‌پک با موفقیت تایید گردید! پورت و پروتکل فعال: ${testResults.endpointUsed} (زمان پاسخ: ${testResults.latency}ms). تعداد اشیاء موجود: ${fileCount}`,
       fileCount,
-      testLogs
+      endpointUsed: testResults.endpointUsed,
+      latency: testResults.latency,
+      attempts: testResults.attempts
     });
   }
 
-  // Always enable Hybrid Cloud Storage smoothly if remote Iran datacenter blocks direct outbound ICMP/SYN from container
-  b2bConfig.storageEndpoint = requestedEndpoint;
-  b2bConfig.storageBucket = requestedBucket;
-  b2bConfig.storageAccessKey = accessKey;
-  b2bConfig.storageSecretKey = secretKey;
-  b2bConfig.storageEnabled = true;
-  b2bConfig.storagePublicUrl = `https://${requestedEndpoint.replace(/^https?:\/\//, '')}/${requestedBucket}`;
-
-  try {
-    fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
-  } catch (e) {}
-
+  // If failed, return clear error message with suggestions
   return res.json({
-    success: true,
-    message: `سیستم ذخیره‌سازی ابری هیبرید دست‌اول فعال شد. اطلاعات باکت پارس‌پک (${requestedEndpoint} / ${requestedBucket}) ثبت گردید و سرویس کش و آپلود امن سرور آماده بهره‌برداری است.`,
-    bucket: requestedBucket,
-    endpoint: requestedEndpoint,
-    forcePathStyle: true,
-    fileCount: localFileCount,
-    hybridMode: true,
-    testLogs
+    success: false,
+    error: `عدم برقراری اتصال به باکت پارس‌پک: ${testResults.error}`,
+    attempts: testResults.attempts,
+    recommendations: [
+      "از صحت کلید Access Key و Secret Key در پنل پارس‌پک اطمینان حاصل فرمایید.",
+      "مطمئن شوید فایروال سرور هاست (CSF/UFW) پورت‌های ۸۰ یا ۴۴۳ خروجی را نبسته است.",
+      "در پنل هاست، DNS سرور را بر روی 8.8.8.8 یا 1.1.1.1 تنظیم نمایید."
+    ]
   });
 });
 
@@ -1852,35 +1928,36 @@ app.post("/api/storage/upload", async (req, res) => {
       const targetFileName = `${timestamp}-${cleanFileName}`;
       fs.writeFileSync(path.join(uploadsDir, targetFileName), buffer);
       fs.writeFileSync(path.join(persistentUploadsDir, targetFileName), buffer);
+      triggerDataChangeBackup();
     } catch (e) {
       console.warn("Local upload write note:", e);
     }
 
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
+    const cfg = sanitizeStorageConfig();
     let directUrl = `/uploads/${timestamp}-${cleanFileName}`;
     let proxyUrl = `/api/storage/file/${encodeURIComponent(objectKey)}`;
     let s3Success = false;
 
-    // Attempt remote S3 upload with fast timeout
-    try {
-      const client = getParsPackS3Client(undefined, 4000);
-      const putCommand = new PutObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
-        Body: buffer,
-        ContentType: mimeType
-      });
-      await Promise.race([
-        client.send(putCommand),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000))
-      ]);
-      s3Success = true;
-      const s3Ep = (b2bConfig.storageEndpoint || 'c102393.parspack.net').trim();
-      const scheme = s3Ep.includes("parspack.net") ? "http" : "https";
-      const publicBase = (b2bConfig.storagePublicUrl || `${scheme}://${s3Ep}/${bucket}`).replace(/\/+$/, "");
-      directUrl = `${publicBase}/${objectKey}`;
-    } catch (s3Err: any) {
-      console.warn("[ParsPack S3 Storage]: Using local fast cache due to:", s3Err.message || s3Err);
+    // Attempt remote S3 upload with timeout
+    if (b2bConfig.storageEnabled !== false && cfg.accessKey && cfg.secretKey) {
+      try {
+        const client = getParsPackS3Client(undefined, 5000);
+        const putCommand = new PutObjectCommand({
+          Bucket: cfg.bucket,
+          Key: objectKey,
+          Body: buffer,
+          ContentType: mimeType
+        });
+        await Promise.race([
+          client.send(putCommand),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+        ]);
+        s3Success = true;
+        const publicBase = (b2bConfig.storagePublicUrl || `http://${cfg.endpointRaw}/${cfg.bucket}`).replace(/\/+$/, "");
+        directUrl = `${publicBase}/${objectKey}`;
+      } catch (s3Err: any) {
+        console.warn("[ParsPack S3 Storage]: Using local fast cache due to:", s3Err.message || s3Err);
+      }
     }
 
     return res.json({
@@ -1906,37 +1983,41 @@ app.post("/api/storage/upload", async (req, res) => {
 // Storage List Files Endpoint
 app.get("/api/storage/files", async (req, res) => {
   try {
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
-    const s3Ep = (b2bConfig.storageEndpoint || 'c102393.parspack.net').trim();
-    const scheme = s3Ep.includes("parspack.net") ? "http" : "https";
-    const publicBase = (b2bConfig.storagePublicUrl || `${scheme}://${s3Ep}/${bucket}`).replace(/\/+$/, "");
+    const cfg = sanitizeStorageConfig();
     let files: any[] = [];
+    let s3Connected = false;
+    let s3Error: string | null = null;
+    let s3EndpointUsed: string | null = null;
 
-    // 1. Try remote S3 listing with fast timeout
-    try {
-      const client = getParsPackS3Client(undefined, 3500);
-      const command = new ListObjectsV2Command({
-        Bucket: bucket,
-        MaxKeys: 50
-      });
+    // 1. Try remote S3 listing via resilient runner
+    if (b2bConfig.storageEnabled !== false && cfg.accessKey && cfg.secretKey) {
+      const s3ListResult = await executeResilientS3Operation<any>(
+        "ListObjects",
+        () => new ListObjectsV2Command({
+          Bucket: cfg.bucket,
+          MaxKeys: 100
+        }),
+        undefined,
+        7000
+      );
 
-      const response = await Promise.race([
-        client.send(command),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3500))
-      ]);
-
-      if (response.Contents && response.Contents.length > 0) {
-        files = response.Contents.map((item) => ({
-          key: item.Key || "",
-          size: item.Size || 0,
-          lastModified: item.LastModified,
-          url: `${publicBase}/${item.Key}`,
-          proxyUrl: `/api/storage/file/${encodeURIComponent(item.Key || "")}`,
-          source: 'parspack_s3'
-        }));
+      if (s3ListResult.success && s3ListResult.data) {
+        s3Connected = true;
+        s3EndpointUsed = s3ListResult.endpointUsed || null;
+        const publicBase = `${s3ListResult.endpointUsed}/${cfg.bucket}`;
+        if (s3ListResult.data.Contents && s3ListResult.data.Contents.length > 0) {
+          files = s3ListResult.data.Contents.map((item: any) => ({
+            key: item.Key || "",
+            size: item.Size || 0,
+            lastModified: item.LastModified,
+            url: `${publicBase}/${item.Key}`,
+            proxyUrl: `/api/storage/file/${encodeURIComponent(item.Key || "")}`,
+            source: 'parspack_s3'
+          }));
+        }
+      } else {
+        s3Error = s3ListResult.error || "عدم دریافت پاسخ از باکت";
       }
-    } catch (s3Err: any) {
-      // Gracefully continue to local files
     }
 
     // 2. Check local uploads
@@ -1964,14 +2045,23 @@ app.get("/api/storage/files", async (req, res) => {
       }
     }
 
-    return res.json({ success: true, count: files.length, files });
+    return res.json({ 
+      success: true, 
+      count: files.length, 
+      files,
+      s3Connected,
+      s3Error,
+      s3EndpointUsed,
+      bucket: cfg.bucket
+    });
   } catch (error: any) {
     console.error("[Storage List Files Error]:", error);
     return res.json({ 
       success: true, 
       count: 0, 
       files: [],
-      note: "هیچ فایلی یافت نشد."
+      s3Connected: false,
+      s3Error: error.message || String(error)
     });
   }
 });
@@ -1982,9 +2072,9 @@ app.post("/api/storage/delete", async (req, res) => {
     const { key } = req.body;
     if (!key) return res.status(400).json({ success: false, error: "کلید فایل الزامی است." });
 
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
+    const cfg = sanitizeStorageConfig();
     
-    // Remove local file if exists in both public/uploads and data/uploads
+    // Remove local file if exists in both public/uploads and data/uploads and backups
     const cleanFileName = key.split("/").pop();
     if (cleanFileName) {
       const localFilePath = path.join(process.cwd(), "public", "uploads", cleanFileName);
@@ -1995,17 +2085,24 @@ app.post("/api/storage/delete", async (req, res) => {
       if (fs.existsSync(persistentFilePath)) {
         try { fs.unlinkSync(persistentFilePath); } catch (e) {}
       }
+      const backupPath = path.join(BACKUP_DIR, cleanFileName);
+      if (fs.existsSync(backupPath)) {
+        try { fs.unlinkSync(backupPath); } catch (e) {}
+      }
+      triggerDataChangeBackup();
     }
 
     // Attempt remote S3 delete
-    try {
-      const client = getParsPackS3Client(undefined, 3000);
-      const command = new DeleteObjectCommand({
-        Bucket: bucket,
-        Key: key
-      });
-      await client.send(command);
-    } catch (e) {}
+    if (b2bConfig.storageEnabled !== false && cfg.accessKey && cfg.secretKey) {
+      try {
+        const client = getParsPackS3Client(undefined, 3500);
+        const command = new DeleteObjectCommand({
+          Bucket: cfg.bucket,
+          Key: key
+        });
+        await client.send(command);
+      } catch (e) {}
+    }
 
     return res.json({ success: true, message: `فایل با کلید ${key} با موفقیت حذف گردید.` });
   } catch (error: any) {
@@ -2015,50 +2112,190 @@ app.post("/api/storage/delete", async (req, res) => {
 });
 
 // --- BACKUP & SYSTEM MAINTENANCE API ---
+
+// Define the comprehensive backup package builder
+function buildFullBackupZip(): AdmZip {
+  const zip = new AdmZip();
+  
+  // 1. Ensure all core data files are loaded and flushed before zipping
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const products = loadProducts();
+    const orders = loadOrders();
+    const users = loadUsers();
+    const articles = loadArticles();
+
+    // Ensure they are written cleanly to disk
+    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), "utf-8");
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+    fs.writeFileSync(ARTICLES_FILE, JSON.stringify(articles, null, 2), "utf-8");
+    fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(aiConfig, null, 2), "utf-8");
+
+    // Include ALL JSON files in the data directory
+    const allFiles = fs.readdirSync(DATA_DIR);
+    for (const file of allFiles) {
+      const filePath = path.join(DATA_DIR, file);
+      const stat = fs.statSync(filePath);
+      if (stat.isFile() && file.endsWith(".json")) {
+        zip.addLocalFile(filePath);
+      }
+    }
+
+    // 2. Generate a cohesive master-data-dump.json inside the zip for cross-compatibility
+    const masterDump = {
+      createdAt: new Date().toISOString(),
+      b2bConfig,
+      aiConfig,
+      products,
+      orders,
+      users,
+      articles,
+      categories: b2bConfig.categories || [],
+      factories: b2bConfig.factories || [],
+      brands: b2bConfig.brands || [],
+      tables: {
+        products,
+        orders,
+        users,
+        articles,
+        categories: b2bConfig.categories || [],
+        site_settings: [
+          { setting_key: 'b2b_config', setting_value: JSON.stringify(b2bConfig) },
+          { setting_key: 'ai_config', setting_value: JSON.stringify(aiConfig) }
+        ]
+      }
+    };
+    zip.addFile("master-data-dump.json", Buffer.from(JSON.stringify(masterDump, null, 2), "utf-8"));
+  } catch (e) {
+    console.error("[Backup] Error adding JSON files to zip:", e);
+  }
+
+  // 3. Back up persistent upload assets
+  const persistentUploadsDir = path.join(DATA_DIR, "uploads");
+  if (fs.existsSync(persistentUploadsDir)) {
+    try {
+      zip.addLocalFolder(persistentUploadsDir, "uploads");
+    } catch (e) {
+      console.error("[Backup] Error adding uploads folder:", e);
+    }
+  }
+
+  const publicUploadsDir = path.join(process.cwd(), "public", "uploads");
+  if (fs.existsSync(publicUploadsDir) && publicUploadsDir !== persistentUploadsDir) {
+    try {
+      const pubFiles = fs.readdirSync(publicUploadsDir);
+      for (const pf of pubFiles) {
+        const fullPubPath = path.join(publicUploadsDir, pf);
+        if (fs.statSync(fullPubPath).isFile()) {
+          zip.addLocalFile(fullPubPath, "uploads");
+        }
+      }
+    } catch (e) {}
+  }
+
+  return zip;
+}
+
+// Implement background live S3 sync
+let backupTimeout: NodeJS.Timeout | null = null;
+function scheduleLiveBackup() {
+  if (backupTimeout) {
+    clearTimeout(backupTimeout);
+  }
+  backupTimeout = setTimeout(async () => {
+    try {
+      if (!b2bConfig.storageEnabled) return;
+      console.log("[Live-Backup] Starting debounced background live backup to S3...");
+      const bucket = (b2bConfig.storageBucket || "c102393").trim();
+      const zip = buildFullBackupZip();
+      const buffer = zip.toBuffer();
+      const client = getParsPackS3Client(undefined, 5000);
+
+      // Write to fixed key: backups/live-backup-latest.zip
+      await client.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: "backups/live-backup-latest.zip",
+        Body: buffer,
+        ContentType: "application/zip"
+      }));
+
+      console.log("[Live-Backup] Debounced live backup saved to S3 successfully.");
+    } catch (e: any) {
+      console.error("[Live-Backup Error] Failed to auto-backup in background:", e);
+    }
+  }, 5000); // 5-second debounce window
+}
+
+// Assign to the global hook we declared at the top of the file
+triggerDataChangeBackup = scheduleLiveBackup;
+
 app.post("/api/admin/backup/create", async (req, res) => {
   try {
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
-    if (!b2bConfig.storageEnabled) {
-      return res.status(400).json({ success: false, error: "باکت پارس‌پک غیرفعال است. ابتدا آن را فعال کنید." });
-    }
-
-    const zip = new AdmZip();
-    
-    // Add main config files to backup
-    if (fs.existsSync(B2B_CONFIG_FILE)) {
-      zip.addLocalFile(B2B_CONFIG_FILE);
-    }
-    if (fs.existsSync(CONFIG_FILE)) {
-      zip.addLocalFile(CONFIG_FILE);
-    }
-    if (fs.existsSync(CACHE_FILE)) {
-      zip.addLocalFile(CACHE_FILE);
-    }
-
-    // Export products to a separate JSON inside zip if they exist in memory or elsewhere
-    // In this app, products are in b2bConfig, so they are already in B2B_CONFIG_FILE
-
+    console.log("[Backup Create] Compiling a complete, live system backup zip...");
+    const zip = buildFullBackupZip();
     const buffer = zip.toBuffer();
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const fileName = `backup-${timestamp}.zip`;
     const objectKey = `backups/${fileName}`;
 
-    const client = getParsPackS3Client();
-    const putCommand = new PutObjectCommand({
-      Bucket: bucket,
-      Key: objectKey,
-      Body: buffer,
-      ContentType: "application/zip"
-    });
+    // 1. Always save local permanent backup copy on server disk
+    const permanentPath = path.join(DATA_DIR, "latest-permanent-backup.zip");
+    fs.writeFileSync(permanentPath, buffer);
+    const backupFilePath = path.join(BACKUP_DIR, fileName);
+    fs.writeFileSync(backupFilePath, buffer);
+    console.log("[Backup] Local copies saved at:", backupFilePath, permanentPath);
 
-    await client.send(putCommand);
+    let s3Uploaded = false;
+    let s3Error = "";
+
+    // 2. Attempt remote S3 backup if storage credentials exist
+    const cfg = sanitizeStorageConfig();
+    if (b2bConfig.storageEnabled !== false && cfg.accessKey && cfg.secretKey) {
+      try {
+        const client = getParsPackS3Client(undefined, 6000);
+        await Promise.race([
+          client.send(new PutObjectCommand({
+            Bucket: cfg.bucket,
+            Key: objectKey,
+            Body: buffer,
+            ContentType: "application/zip"
+          })),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("مهلت ذخیره‌سازی ابری به پایان رسید (Timeout)")), 6000))
+        ]);
+
+        // Also update live-backup-latest.zip in bucket
+        try {
+          await client.send(new PutObjectCommand({
+            Bucket: cfg.bucket,
+            Key: "backups/live-backup-latest.zip",
+            Body: buffer,
+            ContentType: "application/zip"
+          }));
+        } catch (e) {}
+
+        s3Uploaded = true;
+        console.log("[Backup Create] Uploaded to S3 successfully:", objectKey);
+      } catch (err: any) {
+        s3Error = err.message || "خطای نامشخص در اتصال به باکت";
+        console.warn("[Backup Create] S3 Upload warning:", s3Error);
+      }
+    }
 
     return res.json({
       success: true,
-      message: "فایل پشتیبان (بکاپ) با موفقیت تولید و روی باکت پارس‌پک ذخیره شد.",
+      message: s3Uploaded 
+        ? "فایل پشتیبان (بکاپ) جامع با موفقیت ایجاد و روی باکت پارس‌پک و دیسک سرور ذخیره شد."
+        : `فایل پشتیبان روی سرور ذخیره شد. ${s3Error ? "(هشدار باکت: " + s3Error + ")" : ""}`,
       fileName,
       key: objectKey,
-      size: buffer.length
+      size: buffer.length,
+      s3Uploaded,
+      s3Error: s3Error || undefined
     });
   } catch (error: any) {
     console.error("[Backup Creation Error]:", error);
@@ -2066,122 +2303,672 @@ app.post("/api/admin/backup/create", async (req, res) => {
   }
 });
 
+// Permanent Backup Download Route (Independent of S3)
+app.get("/api/admin/backup/download-permanent", async (req, res) => {
+  try {
+    const permanentPath = path.join(DATA_DIR, "latest-permanent-backup.zip");
+    
+    if (!fs.existsSync(permanentPath)) {
+      console.log("[Backup] Permanent file not found, creating a new one...");
+      const zip = buildFullBackupZip();
+      fs.writeFileSync(permanentPath, zip.toBuffer());
+    }
+    
+    const stats = fs.statSync(permanentPath);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", 'attachment; filename="emergency-backup.zip"');
+    res.setHeader("Content-Length", stats.size);
+    
+    const fileStream = fs.createReadStream(permanentPath);
+    fileStream.pipe(res);
+  } catch (error: any) {
+    console.error("[Permanent Backup Download Error]:", error);
+    res.status(500).send("خطا در دانلود فایل پشتیبان اضطراری");
+  }
+});
+
 app.get("/api/admin/backup/list", async (req, res) => {
   try {
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
-    const client = getParsPackS3Client();
-    
-    console.log(`[ParsPack Backup List] Fetching from bucket: ${bucket}`);
-    const command = new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: "backups/"
+    const cfg = sanitizeStorageConfig();
+    const backupMap = new Map<string, any>();
+    let s3Connected = false;
+    let s3Error: string | null = null;
+    let s3EndpointUsed: string | null = null;
+
+    // 1. Gather local backups from BACKUP_DIR
+    if (fs.existsSync(BACKUP_DIR)) {
+      try {
+        const localFiles = fs.readdirSync(BACKUP_DIR);
+        for (const file of localFiles) {
+          if (!file.endsWith(".zip") && !file.endsWith(".json")) continue;
+          const stat = fs.statSync(path.join(BACKUP_DIR, file));
+          const key = `backups/${file}`;
+          backupMap.set(file, {
+            key,
+            fileName: file,
+            size: stat.size,
+            lastModified: stat.mtime,
+            proxyUrl: `/api/storage/file/${encodeURIComponent(key)}`,
+            source: 'local'
+          });
+        }
+      } catch (e) {
+        console.warn("Could not read local backup dir:", e);
+      }
+    }
+
+    const permanentPath = path.join(DATA_DIR, "latest-permanent-backup.zip");
+    if (fs.existsSync(permanentPath)) {
+      try {
+        const stat = fs.statSync(permanentPath);
+        if (!backupMap.has("latest-permanent-backup.zip")) {
+          backupMap.set("latest-permanent-backup.zip", {
+            key: "latest-permanent-backup.zip",
+            fileName: "latest-permanent-backup.zip (نسخه اضطراری دیسک)",
+            size: stat.size,
+            lastModified: stat.mtime,
+            proxyUrl: `/api/admin/backup/download-permanent`,
+            source: 'local'
+          });
+        }
+      } catch (e) {}
+    }
+
+    // 2. Fetch remote S3 backups using resilient runner
+    if (b2bConfig.storageEnabled !== false && cfg.accessKey && cfg.secretKey) {
+      const s3Res = await executeResilientS3Operation<any>(
+        "ListBackups",
+        () => new ListObjectsV2Command({
+          Bucket: cfg.bucket,
+          Prefix: "backups/"
+        }),
+        undefined,
+        7000
+      );
+
+      if (s3Res.success && s3Res.data) {
+        s3Connected = true;
+        s3EndpointUsed = s3Res.endpointUsed || null;
+        for (const item of (s3Res.data.Contents || [])) {
+          if (!item.Key || (!item.Key.endsWith(".zip") && !item.Key.endsWith(".json"))) continue;
+          const fileName = item.Key.split("/").pop() || item.Key;
+          const existing = backupMap.get(fileName);
+          if (existing) {
+            existing.source = 'both';
+          } else {
+            backupMap.set(fileName, {
+              key: item.Key,
+              fileName,
+              size: item.Size || 0,
+              lastModified: item.LastModified,
+              proxyUrl: `/api/storage/file/${encodeURIComponent(item.Key)}`,
+              source: 's3'
+            });
+          }
+        }
+      } else {
+        s3Error = s3Res.error || "عدم ارتباط با باکت پارس‌پک";
+      }
+    }
+
+    const backups = Array.from(backupMap.values()).sort(
+      (a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+    );
+
+    return res.json({ 
+      success: true, 
+      count: backups.length, 
+      backups,
+      s3Connected,
+      s3Error,
+      s3EndpointUsed,
+      bucket: cfg.bucket
     });
-
-    const response = await client.send(command);
-    const backups = (response.Contents || [])
-      .filter(item => item.Key && item.Key.endsWith(".zip"))
-      .map(item => ({
-        key: item.Key || "",
-        fileName: (item.Key || "").split("/").pop(),
-        size: item.Size || 0,
-        lastModified: item.LastModified,
-        proxyUrl: `/api/storage/file/${encodeURIComponent(item.Key || "")}`
-      }))
-      .sort((a, b) => (b.lastModified?.getTime() || 0) - (a.lastModified?.getTime() || 0));
-
-    return res.json({ success: true, backups });
   } catch (error: any) {
     console.error("[Backup List Error]:", error);
-    return res.status(500).json({ success: false, error: "خطا در دریافت لیست بکاپ‌ها: " + (error.message || error) });
+    return res.json({ 
+      success: true, 
+      count: 0, 
+      backups: [], 
+      s3Connected: false,
+      s3Error: error.message || String(error)
+    });
+  }
+});
+
+// Storage Diagnosis Endpoint - Help user identify why connection fails on production hosts
+app.get("/api/admin/storage/diagnose", async (req, res) => {
+  const results: any = {
+    timestamp: new Date().toISOString(),
+    steps: [],
+    recommendations: []
+  };
+
+  const cfg = sanitizeStorageConfig();
+  const endpointHost = cfg.endpointRaw.replace(/^https?:\/\//, "").split("/")[0].split(":")[0];
+
+  // Step 1: DNS Lookup
+  try {
+    results.steps.push({ name: "بررسی DNS و تفکیک دامنه باکت", status: "pending" });
+    const dnsPromise = new Promise((resolve, reject) => {
+      dns.lookup(endpointHost, (err, address) => {
+        if (err) reject(err);
+        else resolve(address);
+      });
+    });
+    const ip = await dnsPromise;
+    results.steps[0].status = "success";
+    results.steps[0].message = `دامنه ${endpointHost} با موفقیت به آی‌پی ${ip} ترجمه شد. ارتباط DNS سالم است.`;
+  } catch (e: any) {
+    results.steps[0].status = "error";
+    results.steps[0].message = `خطا در یافتن آدرس (DNS): ${e.message}. ممکن است هاست شما دسترسی به DNSهای خارجی یا این دامنه را مسدود کرده باشد.`;
+    results.recommendations.push("در فایل /etc/resolv.conf سرور هاست خود DNSهای 8.8.8.8 یا 1.1.1.1 یا 4.2.2.4 را تنظیم کنید.");
+  }
+
+  // Step 2: TCP Connection on Port 80
+  let port80Ok = false;
+  try {
+    results.steps.push({ name: "تست اتصال پورت خروجی 80 (HTTP)", status: "pending" });
+    const net = await import("net");
+    const port80Promise = new Promise((resolve, reject) => {
+      const socket = net.createConnection(80, endpointHost);
+      socket.setTimeout(4000);
+      socket.on("connect", () => { socket.destroy(); resolve(true); });
+      socket.on("timeout", () => { socket.destroy(); reject(new Error("پورت 80 در مهلت ۴ ثانیه پاسخ نداد (Timeout)")); });
+      socket.on("error", (err) => { socket.destroy(); reject(err); });
+    });
+    await port80Promise;
+    port80Ok = true;
+    results.steps[1].status = "success";
+    results.steps[1].message = "پورت ۸۰ (HTTP) روی سرور هاست باز است و اتصال مستقیم با موفقیت برقرار شد.";
+  } catch (e: any) {
+    results.steps[1].status = "warning";
+    results.steps[1].message = `عدم دسترسی به پورت 80: ${e.message}.`;
+  }
+
+  // Step 3: TCP Connection on Port 443
+  let port443Ok = false;
+  try {
+    results.steps.push({ name: "تست اتصال پورت خروجی 443 (HTTPS)", status: "pending" });
+    const net = await import("net");
+    const port443Promise = new Promise((resolve, reject) => {
+      const socket = net.createConnection(443, endpointHost);
+      socket.setTimeout(4000);
+      socket.on("connect", () => { socket.destroy(); resolve(true); });
+      socket.on("timeout", () => { socket.destroy(); reject(new Error("پورت 443 در مهلت ۴ ثانیه پاسخ نداد (Timeout)")); });
+      socket.on("error", (err) => { socket.destroy(); reject(err); });
+    });
+    await port443Promise;
+    port443Ok = true;
+    results.steps[2].status = "success";
+    results.steps[2].message = "پورت ۴۴۳ (HTTPS) روی سرور هاست باز است و اتصال امن با موفقیت برقرار شد.";
+  } catch (e: any) {
+    results.steps[2].status = "warning";
+    results.steps[2].message = `عدم دسترسی به پورت 443: ${e.message}.`;
+  }
+
+  if (!port80Ok && !port443Ok) {
+    results.recommendations.push("هر دو پورت ۸۰ و ۴۴۳ مسدود هستند. در فایروال هاست (CSF/UFW/iptables) پورت‌های خروجی 80 و 443 را برای خروجی باز بفرمایید.");
+  }
+
+  // Step 4: S3 Credentials & Resilient List Check
+  try {
+    results.steps.push({ name: "تست احراز هویت و خواندن باکت (S3 Auth & ListObjects)", status: "pending" });
+    const s3Probe = await executeResilientS3Operation<any>(
+      "DiagnosticProbe",
+      () => new ListObjectsV2Command({ Bucket: cfg.bucket, MaxKeys: 5 }),
+      undefined,
+      7500
+    );
+
+    if (s3Probe.success && s3Probe.data) {
+      const fileCount = s3Probe.data.KeyCount || (s3Probe.data.Contents ? s3Probe.data.Contents.length : 0);
+      results.steps[3].status = "success";
+      results.steps[3].message = `احراز هویت کامل با باکت ${cfg.bucket} تایید شد! (${s3Probe.endpointUsed}، زمان پاسخ: ${s3Probe.latency}ms، تعداد فایل: ${fileCount})`;
+    } else {
+      results.steps[3].status = "error";
+      results.steps[3].message = `خطا در برقراری ارتباط با باکت S3: ${s3Probe.error}`;
+      results.recommendations.push("کلیدهای Access Key و Secret Key و نام باکت را بررسی فرمایید.");
+    }
+  } catch (e: any) {
+    results.steps[3].status = "error";
+    results.steps[3].message = `خطای غیرمنتظره در S3: ${e.message}`;
+  }
+
+  // Step 5: Local Storage & Write Permissions
+  try {
+    results.steps.push({ name: "مجوزهای نوشتن و پایداری دیسک سرور (/data و /backups)", status: "pending" });
+    const testFile = path.join(BACKUP_DIR, `.write_test_${Date.now()}.tmp`);
+    fs.writeFileSync(testFile, "ok");
+    fs.unlinkSync(testFile);
+    results.steps[4].status = "success";
+    results.steps[4].message = "دسترسی نوشتن و خواندن روی دیسک سرور هاست کاملاً سالم و تایید شده است.";
+  } catch (e: any) {
+    results.steps[4].status = "error";
+    results.steps[4].message = `خطا در دسترسی به دیسک سرور: ${e.message}.`;
+    results.recommendations.push("مجوز پوشه‌های data و public/uploads را در هاست روی 755 یا 775 قرار دهید.");
+  }
+
+  const allPassed = results.steps.every((s: any) => s.status === "success");
+  return res.json({ success: allPassed, results });
+});
+
+// Helper function to restore from structured JSON backup buffer
+async function restoreFromJsonBuffer(buffer: Buffer): Promise<{ restoredCount: number }> {
+  const text = buffer.toString("utf-8").replace(/^\uFEFF/, "").trim();
+  let parsed: any;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err: any) {
+    throw new Error("فایل پشتیبان فرمت ZIP معتبر ندارد و به صورت JSON نیز قابل خواندن نیست: " + err.message);
+  }
+
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+
+  let restoredCount = 0;
+
+  if (parsed && typeof parsed === "object") {
+    // Unwrap data / payload / backup envelopes if present
+    const rootData = parsed.data || parsed.payload || parsed.backup || parsed;
+
+    // If it's a direct array of products or orders
+    if (Array.isArray(rootData)) {
+      fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(rootData, null, 2), "utf-8");
+      restoredCount++;
+    } else {
+      // 1. Relational Tables (from MySQL / PHP dump)
+      if (rootData.tables && typeof rootData.tables === "object") {
+        const tbls = rootData.tables;
+        if (tbls.products && Array.isArray(tbls.products)) {
+          fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(tbls.products, null, 2), "utf-8");
+          restoredCount++;
+        }
+        if (tbls.orders && Array.isArray(tbls.orders)) {
+          fs.writeFileSync(ORDERS_FILE, JSON.stringify(tbls.orders, null, 2), "utf-8");
+          try { fs.writeFileSync(ROOT_ORDERS_FILE, JSON.stringify(tbls.orders, null, 2), "utf-8"); } catch (e) {}
+          restoredCount++;
+        }
+        if (tbls.users && Array.isArray(tbls.users)) {
+          fs.writeFileSync(USERS_FILE, JSON.stringify(tbls.users, null, 2), "utf-8");
+          restoredCount++;
+        }
+        if (tbls.articles && Array.isArray(tbls.articles)) {
+          fs.writeFileSync(ARTICLES_FILE, JSON.stringify(tbls.articles, null, 2), "utf-8");
+          restoredCount++;
+        }
+        if (tbls.categories && Array.isArray(tbls.categories)) {
+          fs.writeFileSync(path.join(DATA_DIR, "categories.json"), JSON.stringify(tbls.categories, null, 2), "utf-8");
+          restoredCount++;
+        }
+        if (tbls.crm_customers && Array.isArray(tbls.crm_customers)) {
+          fs.writeFileSync(path.join(DATA_DIR, "crm_customers.json"), JSON.stringify(tbls.crm_customers, null, 2), "utf-8");
+          restoredCount++;
+        }
+        if (tbls.site_settings && Array.isArray(tbls.site_settings)) {
+          tbls.site_settings.forEach((s: any) => {
+            if (s && s.setting_key === 'b2b_config' && s.setting_value) {
+              try {
+                const confObj = typeof s.setting_value === 'string' ? JSON.parse(s.setting_value) : s.setting_value;
+                fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(confObj, null, 2), "utf-8");
+                try { fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(confObj, null, 2), "utf-8"); } catch (e) {}
+                b2bConfig = { ...DEFAULT_B2B_CONFIG, ...confObj };
+                restoredCount++;
+              } catch (e) {}
+            }
+          });
+        }
+      }
+
+      // 2. Structured top-level collections
+      const cfgObj = rootData.b2bConfig || rootData.b2b_config || rootData.config;
+      if (cfgObj) {
+        fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(cfgObj, null, 2), "utf-8");
+        try { fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(cfgObj, null, 2), "utf-8"); } catch (e) {}
+        b2bConfig = { ...DEFAULT_B2B_CONFIG, ...cfgObj };
+        restoredCount++;
+      }
+
+      const aiCfgObj = rootData.aiConfig || rootData.ai_config;
+      if (aiCfgObj) {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(aiCfgObj, null, 2), "utf-8");
+        aiConfig = { ...aiConfig, ...aiCfgObj };
+        restoredCount++;
+      }
+
+      const prods = rootData.products || rootData.items;
+      if (prods && (Array.isArray(prods) || typeof prods === "object")) {
+        fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(prods, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const ords = rootData.orders || rootData.invoices;
+      if (ords && (Array.isArray(ords) || typeof ords === "object")) {
+        fs.writeFileSync(ORDERS_FILE, JSON.stringify(ords, null, 2), "utf-8");
+        try { fs.writeFileSync(ROOT_ORDERS_FILE, JSON.stringify(ords, null, 2), "utf-8"); } catch (e) {}
+        (b2bConfig as any).orders = Array.isArray(ords) ? ords : Object.values(ords);
+        restoredCount++;
+      }
+
+      const arts = rootData.articles || rootData.ads || rootData.billboardAds;
+      if (arts && (Array.isArray(arts) || typeof arts === "object")) {
+        fs.writeFileSync(ARTICLES_FILE, JSON.stringify(arts, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const usrs = rootData.users || rootData.customers || rootData.representatives;
+      if (usrs && (Array.isArray(usrs) || typeof usrs === "object")) {
+        fs.writeFileSync(USERS_FILE, JSON.stringify(usrs, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const crm = rootData.crmCustomers || rootData.crm_customers || rootData.leads;
+      if (crm && (Array.isArray(crm) || typeof crm === "object")) {
+        fs.writeFileSync(path.join(DATA_DIR, "crm_customers.json"), JSON.stringify(crm, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const cats = rootData.categories;
+      if (cats && (Array.isArray(cats) || typeof cats === "object")) {
+        fs.writeFileSync(path.join(DATA_DIR, "categories.json"), JSON.stringify(cats, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const revs = rootData.reviews;
+      if (revs && (Array.isArray(revs) || typeof revs === "object")) {
+        fs.writeFileSync(path.join(DATA_DIR, "reviews.json"), JSON.stringify(revs, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const chats = rootData.chatThreads || rootData.chat_threads;
+      if (chats && (Array.isArray(chats) || typeof chats === "object")) {
+        fs.writeFileSync(path.join(DATA_DIR, "chat_threads.json"), JSON.stringify(chats, null, 2), "utf-8");
+        restoredCount++;
+      }
+
+      const sms = rootData.smsLogs || rootData.sms_logs || rootData.smsHistory;
+      if (sms && (Array.isArray(sms) || typeof sms === "object")) {
+        fs.writeFileSync(path.join(DATA_DIR, "sms_logs.json"), JSON.stringify(sms, null, 2), "utf-8");
+        try { fs.writeFileSync(path.join(DATA_DIR, "sms-history.json"), JSON.stringify(sms, null, 2), "utf-8"); } catch (e) {}
+        restoredCount++;
+      }
+
+      // Check if root keys are file names (e.g. "products.json")
+      for (const key of Object.keys(rootData)) {
+        if (key.endsWith(".json") && !key.includes("/")) {
+          const targetPath = path.join(DATA_DIR, key);
+          fs.writeFileSync(targetPath, JSON.stringify(rootData[key], null, 2), "utf-8");
+          restoredCount++;
+        }
+      }
+    }
+  }
+
+  // Reload configurations
+  try {
+    if (fs.existsSync(B2B_CONFIG_FILE)) {
+      const raw = fs.readFileSync(B2B_CONFIG_FILE, "utf-8");
+      b2bConfig = { ...DEFAULT_B2B_CONFIG, ...JSON.parse(raw) };
+    }
+    if (fs.existsSync(CONFIG_FILE)) {
+      const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
+      aiConfig = { ...aiConfig, ...JSON.parse(raw) };
+    }
+  } catch (e) {}
+
+  return { restoredCount: Math.max(restoredCount, 1) };
+}
+
+// Helper function for full backup restoration logic (Supporting ZIP, JSON, and Auto Recovery)
+async function performFullRestore(buffer: Buffer, fileName?: string): Promise<{ restoredCount: number }> {
+  if (!buffer || buffer.length === 0) {
+    throw new Error("فایل پشتیبان دریافتی خالی (0 بایت) است.");
+  }
+
+  // Check if buffer starts with PK zip header (0x50, 0x4B)
+  const isZipHeader = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4B;
+  const isExplicitJson = fileName?.toLowerCase().endsWith(".json");
+
+  // If it's explicitly a JSON file or does not have zip header, try JSON restore first
+  if (isExplicitJson || !isZipHeader) {
+    try {
+      console.log(`[Restore] Processing backup as JSON document (size: ${buffer.length} bytes)...`);
+      return await restoreFromJsonBuffer(buffer);
+    } catch (jsonErr: any) {
+      if (!isZipHeader) {
+        throw new Error(`خطا در بازخوانی فایل پشتیبان: ${jsonErr.message}`);
+      }
+    }
+  }
+
+  // Try ZIP decompression
+  try {
+    console.log(`[Restore] Decompressing ZIP backup package (size: ${buffer.length} bytes)...`);
+    const zip = new AdmZip(buffer);
+    const zipEntries = zip.getEntries();
+    
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    let restoredCount = 0;
+    for (const entry of zipEntries) {
+      if (entry.entryName.startsWith("uploads/")) {
+        const persistentUploadsDir = path.join(DATA_DIR, "uploads");
+        if (!fs.existsSync(persistentUploadsDir)) {
+          fs.mkdirSync(persistentUploadsDir, { recursive: true });
+        }
+        zip.extractEntryTo(entry, DATA_DIR, true, true);
+        restoredCount++;
+      } else if (!entry.isDirectory) {
+        zip.extractEntryTo(entry, DATA_DIR, true, true);
+        restoredCount++;
+      }
+    }
+
+    // Force-sync data/uploads/* to public/uploads/*
+    const persistentUploadsDir = path.join(DATA_DIR, "uploads");
+    const publicUploadsDir = path.join(process.cwd(), "public", "uploads");
+    if (fs.existsSync(persistentUploadsDir)) {
+      if (!fs.existsSync(publicUploadsDir)) {
+        fs.mkdirSync(publicUploadsDir, { recursive: true });
+      }
+      const list = fs.readdirSync(persistentUploadsDir);
+      for (const file of list) {
+        const src = path.join(persistentUploadsDir, file);
+        const dest = path.join(publicUploadsDir, file);
+        if (fs.statSync(src).isFile()) {
+          try { fs.copyFileSync(src, dest); } catch (e) {}
+        }
+      }
+    }
+
+    // Reload internal memory configurations
+    try {
+      if (fs.existsSync(B2B_CONFIG_FILE)) {
+        const raw = fs.readFileSync(B2B_CONFIG_FILE, "utf-8");
+        const parsed = JSON.parse(raw);
+        b2bConfig = { ...DEFAULT_B2B_CONFIG, ...parsed };
+        if (b2bConfig.storagePublicUrl && b2bConfig.storagePublicUrl.startsWith("https://") && b2bConfig.storagePublicUrl.includes("parspack.net")) {
+          b2bConfig.storagePublicUrl = b2bConfig.storagePublicUrl.replace("https://", "http://");
+        }
+        console.log("[Restore Helper] B2B Configuration successfully updated.");
+      }
+      if (fs.existsSync(CONFIG_FILE)) {
+        const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
+        aiConfig = { ...aiConfig, ...JSON.parse(raw) };
+        console.log("[Restore Helper] AI Configuration successfully updated.");
+      }
+    } catch (e) {
+      console.error("[Restore Helper] State reload error:", e);
+    }
+
+    return { restoredCount };
+  } catch (zipErr: any) {
+    console.warn("[Restore Helper] ZIP extraction failed, attempting fallback to JSON parser:", zipErr.message);
+    try {
+      return await restoreFromJsonBuffer(buffer);
+    } catch (fallbackErr: any) {
+      throw new Error(`قالب فایل پشتیبان نامعتبر است (${zipErr.message}). لطفاً فایل پشتیبان سالم را انتخاب فرمایید.`);
+    }
+  }
+}
+
+app.post("/api/admin/backup/upload-restore", async (req, res) => {
+  try {
+    const { fileName, fileData } = req.body; // fileData is base64
+    if (!fileData) return res.status(400).json({ success: false, error: "فایلی دریافت نشد." });
+
+    const buffer = Buffer.from(fileData, "base64");
+    const { restoredCount } = await performFullRestore(buffer, fileName);
+
+    return res.json({ 
+      success: true, 
+      message: `فایل پشتیبان با موفقیت بازیابی شد. تعداد ${restoredCount} فایل و رکورد داده بازنشانی گردید.` 
+    });
+  } catch (e: any) {
+    console.error("[Restore-Upload Error]", e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post("/api/admin/backup/restore-permanent", async (req, res) => {
+  try {
+    const permanentPath = path.join(DATA_DIR, "latest-permanent-backup.zip");
+    if (!fs.existsSync(permanentPath)) {
+      return res.status(404).json({ success: false, error: "فایل پشتیبان محلی جهت بازیابی یافت نشد." });
+    }
+    
+    console.log("[Restore-Permanent] One-click restoration from local emergency copy started...");
+    const buffer = fs.readFileSync(permanentPath);
+    const { restoredCount } = await performFullRestore(buffer, "latest-permanent-backup.zip");
+
+    res.json({ 
+      success: true, 
+      message: "بازیابی هوشمند از حافظه محلی با موفقیت انجام شد. تمام داده‌ها و تنظیمات بازنشانی شدند.", 
+      restoredFilesCount: restoredCount
+    });
+  } catch (error: any) {
+    console.error("[Restore-Permanent Error]:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 app.post("/api/admin/backup/restore", async (req, res) => {
   const { key } = req.body;
-  if (!key) return res.status(400).json({ error: "Backup key is required" });
+  if (!key) return res.status(400).json({ error: "نام یا کلید فایل پشتیبان مشخص نشده است" });
 
   try {
-    const client = getParsPackS3Client();
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
-    
-    console.log(`[Restore] Attempting to restore backup: ${key}`);
-    const response = await client.send(new GetObjectCommand({
-      Bucket: bucket,
-      Key: key
-    }));
+    const cleanFileName = key.split("/").pop() || key;
+    let buffer: Buffer | null = null;
 
-    if (!response.Body) throw new Error("Backup file is empty");
-    
-    // Read stream to buffer
-    const stream = response.Body as any;
-    const chunks: any[] = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    const buffer = Buffer.concat(chunks);
-    
-    const zip = new AdmZip(buffer);
-    const zipEntries = zip.getEntries();
-    
-    let restoredFiles = [];
-    for (const entry of zipEntries) {
-       // Only allow specific files to be restored for safety
-       if (entry.entryName === "b2b-config.json" || entry.entryName === "ai-config.json" || entry.entryName === "ai-cache.json") {
-          zip.extractEntryTo(entry, "./", true, true);
-          restoredFiles.push(entry.entryName);
-       }
+    // 1. Try local backup file first from BACKUP_DIR, DATA_DIR, etc.
+    const localCandidates = [
+      path.join(BACKUP_DIR, cleanFileName),
+      path.join(BACKUP_DIR, key),
+      path.join(DATA_DIR, cleanFileName),
+      path.join(DATA_DIR, key)
+    ];
+
+    for (const localPath of localCandidates) {
+      if (fs.existsSync(localPath)) {
+        console.log(`[Restore] Loading backup directly from local storage: ${localPath}`);
+        buffer = fs.readFileSync(localPath);
+        break;
+      }
     }
 
-    // Reload memory state
-    if (restoredFiles.includes("b2b-config.json")) {
-       const raw = fs.readFileSync(B2B_CONFIG_FILE, "utf-8");
-       b2bConfig = { ...b2bConfig, ...JSON.parse(raw) };
+    // 2. If not found locally, fetch from S3 using resilient runner
+    if (!buffer) {
+      const cfg = sanitizeStorageConfig();
+      const s3KeysToTry = [
+        key,
+        key.startsWith("backups/") ? key.replace(/^backups\//, "") : `backups/${key}`,
+        cleanFileName,
+        `backups/${cleanFileName}`
+      ];
+
+      console.log(`[Restore] Attempting to fetch cloud backup from S3 bucket (${cfg.bucket}) for: ${cleanFileName}`);
+
+      let s3FetchSuccess = false;
+      let lastS3Error = "";
+
+      for (const targetKey of s3KeysToTry) {
+        const s3FetchResult = await executeResilientS3Operation<any>(
+          `GetObject-${targetKey}`,
+          () => new GetObjectCommand({
+            Bucket: cfg.bucket,
+            Key: targetKey
+          }),
+          undefined,
+          10000
+        );
+
+        if (s3FetchResult.success && s3FetchResult.data && s3FetchResult.data.Body) {
+          const stream = s3FetchResult.data.Body as any;
+          const chunks: any[] = [];
+          for await (const chunk of stream) {
+            chunks.push(chunk);
+          }
+          buffer = Buffer.concat(chunks);
+          if (buffer && buffer.length > 0) {
+            s3FetchSuccess = true;
+            console.log(`[Restore] Successfully downloaded backup from S3 (${targetKey}, ${buffer.length} bytes)`);
+            break;
+          }
+        } else {
+          lastS3Error = s3FetchResult.error || "کلید در باکت یافت نشد";
+        }
+      }
+
+      if (!s3FetchSuccess || !buffer || buffer.length === 0) {
+        throw new Error(`فایل پشتیبان نه در دیسک هاست و نه در باکت پارس‌پک یافت نشد (${lastS3Error})`);
+      }
     }
-    if (restoredFiles.includes("ai-config.json")) {
-       const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
-       aiConfig = { ...aiConfig, ...JSON.parse(raw) };
-    }
+
+    const { restoredCount } = await performFullRestore(buffer, cleanFileName);
 
     res.json({ 
       success: true, 
-      message: `پشتیبان ${key} با موفقیت بازیابی شد. فایل‌های بازیابی شده: ${restoredFiles.join(", ")}`, 
-      restoredFiles 
+      message: `بازیابی کامل با موفقیت انجام شد. تعداد ${restoredCount} بخش داده و فایل بازگردانی شدند.`, 
+      restoredFilesCount: restoredCount
     });
   } catch (error: any) {
     console.error("[Restore Error]:", error);
-    res.status(500).json({ error: "خطا در بازیابی بکاپ: " + error.message });
+    res.status(500).json({ error: "خطا در بازیابی بکاپ: " + (error.message || error) });
   }
 });
 
 // --- AUTO BACKUP SCHEDULER (Soft-Cron) ---
-// Runs every 24 hours to create a daily backup if storage is enabled
+// Runs every 24 hours to create a daily full backup
 setInterval(async () => {
-  if (b2bConfig.storageEnabled) {
-    console.log("[Auto-Backup] Starting scheduled daily backup...");
-    try {
-      const bucket = (b2bConfig.storageBucket || "c102393").trim();
-      const zip = new AdmZip();
-      
-      if (fs.existsSync(B2B_CONFIG_FILE)) zip.addLocalFile(B2B_CONFIG_FILE);
-      if (fs.existsSync(CONFIG_FILE)) zip.addLocalFile(CONFIG_FILE);
-      if (fs.existsSync(CACHE_FILE)) zip.addLocalFile(CACHE_FILE);
+  console.log("[Auto-Backup] Starting scheduled daily full backup...");
+  try {
+    const zip = buildFullBackupZip();
+    const buffer = zip.toBuffer();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `daily-auto-backup-${dateStr}.zip`;
+    const objectKey = `backups/${fileName}`;
 
-      const buffer = zip.toBuffer();
-      const dateStr = new Date().toISOString().slice(0, 10);
-      const fileName = `daily-auto-backup-${dateStr}.zip`;
-      const objectKey = `backups/${fileName}`;
+    // Always save local
+    fs.writeFileSync(path.join(BACKUP_DIR, fileName), buffer);
+    fs.writeFileSync(path.join(DATA_DIR, "latest-permanent-backup.zip"), buffer);
 
+    // Save to S3 if enabled
+    const cfg = sanitizeStorageConfig();
+    if (b2bConfig.storageEnabled !== false && cfg.accessKey && cfg.secretKey) {
       const client = getParsPackS3Client();
       await client.send(new PutObjectCommand({
-        Bucket: bucket,
+        Bucket: cfg.bucket,
         Key: objectKey,
         Body: buffer,
         ContentType: "application/zip"
       }));
       console.log(`[Auto-Backup] Successfully created and saved: ${objectKey}`);
-    } catch (e) {
-      console.error("[Auto-Backup] Scheduled run failed:", e);
     }
+  } catch (e) {
+    console.error("[Auto-Backup] Scheduled run failed:", e);
   }
 }, 24 * 60 * 60 * 1000);
 
@@ -2191,34 +2978,46 @@ app.get("/api/storage/file/*", async (req, res) => {
     const objectKey = req.params[0];
     if (!objectKey) return res.status(400).send("Object key is missing");
 
-    // 1. First check local public/uploads directory for instantaneous streaming
-    const cleanFileName = objectKey.split("/").pop();
-    if (cleanFileName) {
-      const localFilePath = path.join(process.cwd(), "public", "uploads", cleanFileName);
-      if (fs.existsSync(localFilePath)) {
+    const cleanFileName = objectKey.split("/").pop() || objectKey;
+
+    // 1. Check local file locations in order of priority:
+    const candidates = [
+      path.join(process.cwd(), "public", "uploads", cleanFileName),
+      path.join(DATA_DIR, "uploads", cleanFileName),
+      path.join(BACKUP_DIR, cleanFileName),
+      path.join(DATA_DIR, objectKey),
+      path.join(DATA_DIR, cleanFileName)
+    ];
+
+    for (const localPath of candidates) {
+      if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
+        if (cleanFileName.endsWith(".zip")) {
+          res.setHeader("Content-Type", "application/zip");
+          res.setHeader("Content-Disposition", `attachment; filename="${cleanFileName}"`);
+        }
         res.setHeader("Cache-Control", "public, max-age=31536000");
-        return res.sendFile(localFilePath);
+        return res.sendFile(localPath);
       }
     }
 
     // 2. Try remote S3 stream with timeout
-    const bucket = (b2bConfig.storageBucket || "c102393").trim();
-    const client = getParsPackS3Client(undefined, 4000);
+    const cfg = sanitizeStorageConfig();
+    const client = getParsPackS3Client(undefined, 5000);
 
     const command = new GetObjectCommand({
-      Bucket: bucket,
+      Bucket: cfg.bucket,
       Key: objectKey
     });
 
     const response = await Promise.race([
       client.send(command),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000))
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
     ]);
     
     // Explicitly set content type for zip files
     if (objectKey.endsWith(".zip")) {
       res.setHeader("Content-Type", "application/zip");
-      res.setHeader("Content-Disposition", `attachment; filename="${objectKey.split('/').pop()}"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${cleanFileName}"`);
     } else if (response.ContentType) {
       res.setHeader("Content-Type", response.ContentType);
     }
@@ -2233,7 +3032,6 @@ app.get("/api/storage/file/*", async (req, res) => {
       res.status(404).send("فایل یافت نشد.");
     }
   } catch (error: any) {
-    // If not found in S3 or local, return 404
     res.status(404).send("فایل مورد نظر در فضای ذخیره‌سازی یافت نشد.");
   }
 });
@@ -3301,7 +4099,81 @@ app.post("/api/b2b/users", (req, res) => {
   res.json({ success: true });
 });
 
+// B2B Config Endpoints
 app.get("/api/b2b/config", (req, res) => res.json(b2bConfig));
+
+app.delete("/api/b2b/factories/:id", (req, res) => {
+  const { id } = req.params;
+  try {
+    const originalCount = (b2bConfig.factories || []).length;
+    b2bConfig.factories = (b2bConfig.factories || []).filter((f: any) => f.id !== id);
+    
+    if (b2bConfig.factories.length !== originalCount) {
+      fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+      if (typeof OLD_B2B_CONFIG_FILE !== 'undefined' && OLD_B2B_CONFIG_FILE && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
+        try { fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+      }
+      res.json({ success: true, message: "Factory deleted successfully", factories: b2bConfig.factories });
+    } else {
+      res.status(404).json({ error: "Factory not found" });
+    }
+  } catch (error: any) {
+    console.error("Failed to delete factory:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch("/api/b2b/factories/:id/toggle-active", (req, res) => {
+  const { id } = req.params;
+  try {
+    let found = false;
+    b2bConfig.factories = (b2bConfig.factories || []).map((f: any) => {
+      if (f.id === id) {
+        found = true;
+        return { ...f, isActive: f.isActive === undefined ? false : !f.isActive };
+      }
+      return f;
+    });
+
+    if (found) {
+      fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+      if (typeof OLD_B2B_CONFIG_FILE !== 'undefined' && OLD_B2B_CONFIG_FILE && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
+        try { fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+      }
+      res.json({ success: true, factories: b2bConfig.factories });
+    } else {
+      res.status(404).json({ error: "Factory not found" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch("/api/b2b/factories/:id/toggle-featured", (req, res) => {
+  const { id } = req.params;
+  try {
+    let found = false;
+    b2bConfig.factories = (b2bConfig.factories || []).map((f: any) => {
+      if (f.id === id) {
+        found = true;
+        return { ...f, isFeatured: !f.isFeatured };
+      }
+      return f;
+    });
+
+    if (found) {
+      fs.writeFileSync(B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8");
+      if (typeof OLD_B2B_CONFIG_FILE !== 'undefined' && OLD_B2B_CONFIG_FILE && fs.existsSync(OLD_B2B_CONFIG_FILE)) {
+        try { fs.writeFileSync(OLD_B2B_CONFIG_FILE, JSON.stringify(b2bConfig, null, 2), "utf-8"); } catch (e) {}
+      }
+      res.json({ success: true, factories: b2bConfig.factories });
+    } else {
+      res.status(404).json({ error: "Factory not found" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post("/api/b2b/config", (req, res) => {
   try {
@@ -3387,6 +4259,7 @@ function saveSmsHistory(history: any[]) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(SMS_HISTORY_FILE, JSON.stringify(history, null, 2), "utf-8");
+    triggerDataChangeBackup();
   } catch (e) {
     console.error("Error saving sms history:", e);
   }
@@ -3435,7 +4308,8 @@ async function sendMeliPayamakSms(
   toRaw: string, 
   text: string, 
   patternId?: number, 
-  patternArgs?: string
+  patternArgs?: string,
+  retryCount = 0
 ): Promise<{ success: boolean; status: string; message: string; payload?: any }> {
   const to = normalizeIranianPhone(toRaw);
   if (!to || to.length < 10) {
@@ -3463,9 +4337,13 @@ async function sendMeliPayamakSms(
         // Send by Pattern (BaseServiceNumber)
         // Clean patternArgs to remove any illegal linebreaks or accidental URL prefixes in arguments
         const cleanArgs = (patternArgs || text).trim();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         const response = await fetch("https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             username,
             password,
@@ -3474,6 +4352,7 @@ async function sendMeliPayamakSms(
             text: cleanArgs
           })
         });
+        clearTimeout(timeoutId);
         const resJson: any = await response.json().catch(() => null);
         const parsed = parseMeliPayamakResponse(resJson);
         success = parsed.success;
@@ -3482,9 +4361,13 @@ async function sendMeliPayamakSms(
           : (parsed.errorDesc || JSON.stringify(resJson));
       } else {
         // Send Regular SMS (SendSMS)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
         const response = await fetch("https://rest.payamak-panel.com/api/SendSMS/SendSMS", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             username,
             password,
@@ -3494,6 +4377,7 @@ async function sendMeliPayamakSms(
             isFlash: false
           })
         });
+        clearTimeout(timeoutId);
         const resJson: any = await response.json().catch(() => null);
         const parsed = parseMeliPayamakResponse(resJson);
         success = parsed.success;
@@ -3504,6 +4388,13 @@ async function sendMeliPayamakSms(
     } catch (apiErr: any) {
       responseText = `خطای ارتباط شبکه با درگاه ملی‌پیامک: ${apiErr.message}`;
       success = false;
+    }
+
+    // STABILITY IMPROVEMENT: Automatic Retry Logic for Network/Gate Failures
+    if (!success && retryCount < 2) {
+      console.warn(`[SMS] Stability Retry ${retryCount + 1}/2 for ${to} due to: ${responseText}`);
+      await new Promise(r => setTimeout(r, 2000)); // wait 2s
+      return sendMeliPayamakSms(toRaw, text, patternId, patternArgs, retryCount + 1);
     }
   } else {
     // Sandbox simulation mode (Demo)
@@ -3701,14 +4592,16 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
   }
 
   const baseDomain = (origin || "https://dastavval.com").replace(/\/$/, "");
-  const textWithFixedLink = `جناب ${name}، پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد.\n\nلینک مشاهده پیش‌فاکتور:\n${baseDomain}/factors/${cleanCode}\n\nلغو11`;
+  // REMOVED Persian name from the link text for stability and cleanliness as requested
+  const textWithFixedLink = `پیش‌فاکتور سفارش ${cleanCode} در سامانه دست اول صادر شد.\n\nلینک مشاهده:\n${baseDomain}/factors/${cleanCode}\n\nلغو11`;
   const patternId = b2bConfig.smsInvoiceIssuedPatternId || null;
   
   let result: any = { success: false, message: "" };
 
   // 1. First try sending 1-variable pattern ({0}=cleanCode) so {0} in URL is ALWAYS pure English digits (e.g. 3360)
-  // This prevents MeliPayamak patterns like "dastavval.com/factors/{0}" from placing Farsi buyer names into the URL!
+  // This prevents MeliPayamak patterns from placing Farsi buyer names into the URL or text!
   if (patternId && Number(patternId) > 0) {
+    console.log(`[SMS] Sending invoice issued SMS for order ${cleanCode} to ${cleanPhone} using pattern ${patternId}`);
     result = await sendMeliPayamakSms(
       cleanPhone,
       textWithFixedLink,
@@ -3717,21 +4610,27 @@ app.post("/api/sms/send-invoice-sms", async (req, res) => {
     );
   }
 
-  // 2. If 1-variable pattern failed (e.g. pattern expects 2 variables), try 2-variable pattern ({0}=name; {1}=cleanCode)
-  if (!result.success && patternId && Number(patternId) > 0 && b2bConfig.smsUsername && b2bConfig.smsPassword) {
-    console.warn("Retrying invoice SMS with 2-variable pattern ({0}=name; {1}=cleanCode)...");
-    result = await sendMeliPayamakSms(
-      cleanPhone, 
-      textWithFixedLink, 
-      Number(patternId), 
-      `${name};${cleanCode}`
-    );
+  // 2. If 1-variable pattern failed or no pattern, try direct regular SMS as fallback
+  if (!result.success && b2bConfig.smsUsername && b2bConfig.smsPassword) {
+    console.warn(`[SMS] Retrying invoice SMS for ${cleanCode} as direct regular notification (Stability Fallback)...`);
+    // Simple retry logic: wait 1s and try again
+    await new Promise(r => setTimeout(r, 1000));
+    result = await sendMeliPayamakSms(cleanPhone, textWithFixedLink);
   }
 
-  // 3. If pattern sending still failed and we have live credentials, send as direct regular SMS
-  if (!result.success && b2bConfig.smsUsername && b2bConfig.smsPassword) {
-    console.warn("Retrying invoice SMS as direct regular notification...");
-    result = await sendMeliPayamakSms(cleanPhone, textWithFixedLink);
+  // Send admin notification SMS for the new order/request with stability improvements
+  try {
+    const adminPhone = normalizeIranianPhone(b2bConfig.supportPhone || "09999123001");
+    const adminText = `مدیر گرامی، سفارش جدید ${cleanCode} در سامانه ثبت شد.\nدست اول`;
+    const adminPatternId = b2bConfig.smsAdminNotificationPatternId || null;
+    
+    if (adminPatternId && Number(adminPatternId) > 0) {
+      await sendMeliPayamakSms(adminPhone, adminText, Number(adminPatternId), `سفارش ${cleanCode};${cleanPhone}`);
+    } else {
+      await sendMeliPayamakSms(adminPhone, adminText);
+    }
+  } catch (err) {
+    console.error("[SMS Admin Alert Error]", err);
   }
 
   res.json(result);
@@ -4316,7 +5215,7 @@ app.get("/api/ai/daily-presentation", async (req, res) => {
 // ==========================================
 // --- ARTICLES & GAPGPT AI MAGAZINE ENGINE ---
 // ==========================================
-const ARTICLES_FILE = path.join(process.cwd(), "articles.json");
+const ARTICLES_FILE = path.join(DATA_DIR, "articles.json");
 
 function loadArticles(): any[] {
   try {
@@ -4333,6 +5232,7 @@ function loadArticles(): any[] {
 function saveArticles(articles: any[]) {
   try {
     fs.writeFileSync(ARTICLES_FILE, JSON.stringify(articles, null, 2), "utf-8");
+    triggerDataChangeBackup();
   } catch (e) {
     console.error("Error saving articles.json:", e);
   }
@@ -4341,14 +5241,7 @@ function saveArticles(articles: any[]) {
 // ==========================================
 // AUTOMATED DATABASE BACKUP & LOG PURGE SYSTEM
 // ==========================================
-const BACKUP_DIR = path.join(DATA_DIR, "backups");
-if (!fs.existsSync(BACKUP_DIR)) {
-  try {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  } catch (e) {
-    console.error("Could not create backups directory:", e);
-  }
-}
+// BACKUP_DIR is initialized at the top with DATA_DIR
 
 // Helper: Calculate directory or file size
 function getFileSizeSafe(filePath: string): number {
@@ -4554,13 +5447,47 @@ app.get("/api/db/maintenance/status", (req, res) => {
   });
 });
 
-// POST Trigger Manual Backup
-app.post("/api/db/maintenance/backup", (req, res) => {
-  const result = performAutomatedBackup("manual_admin_trigger");
-  if (result.success) {
-    res.json({ success: true, result, message: "پشتیبان‌گیری از دیتابیس با موفقیت انجام شد." });
-  } else {
-    res.status(500).json({ success: false, error: result.error });
+// POST Trigger Manual Backup - Refactored to use Full Cohesive ZIP Backup
+app.post("/api/db/maintenance/backup", async (req, res) => {
+  try {
+    if (!b2bConfig.storageEnabled) {
+      return res.status(400).json({ success: false, error: "باکت پارس‌پک غیرفعال است. ابتدا آن را فعال کنید." });
+    }
+
+    console.log("[Cohesive-Backup] Manual trigger from old maintenance endpoint...");
+    const bucket = (b2bConfig.storageBucket || "c102393").trim();
+    const zip = buildFullBackupZip();
+    const buffer = zip.toBuffer();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const fileName = `manual-full-backup-${timestamp}.zip`;
+    const objectKey = `backups/${fileName}`;
+
+    const client = getParsPackS3Client();
+
+    // 1. Upload timestamped copy
+    await client.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: buffer,
+      ContentType: "application/zip"
+    }));
+
+    // 2. Also keep live-backup-latest.zip fully updated
+    await client.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: "backups/live-backup-latest.zip",
+      Body: buffer,
+      ContentType: "application/zip"
+    }));
+
+    res.json({ 
+      success: true, 
+      message: "پشتیبان‌گیری کامل و یکپارچه (دیتا + رسانه) با موفقیت انجام و در باکت پارس‌پک ذخیره شد.",
+      fileName
+    });
+  } catch (err: any) {
+    console.error("Manual backup error:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -5037,7 +5964,7 @@ setInterval(autoSyncCatalog, 6 * 60 * 60 * 1000); // Every 6 hours
 // ==========================================
 // 🪙 LOYALTY & REWARDS SERVER API
 // ==========================================
-const LOYALTY_FILE = path.join(process.cwd(), "loyalty_data.json");
+const LOYALTY_FILE = path.join(DATA_DIR, "loyalty_data.json");
 
 function loadLoyaltyStore(): { [phone: string]: any } {
   try {
@@ -5051,6 +5978,7 @@ function loadLoyaltyStore(): { [phone: string]: any } {
 function saveLoyaltyStore(data: any) {
   try {
     fs.writeFileSync(LOYALTY_FILE, JSON.stringify(data, null, 2), "utf-8");
+    triggerDataChangeBackup();
   } catch (e) {}
 }
 
@@ -5272,7 +6200,57 @@ function injectDynamicSeoMeta(html: string, req: express.Request): string {
   }
 }
 
+async function restoreLiveBackupOnStartup() {
+  console.log("[Restore-On-Startup] Attempting to auto-restore latest live backup from S3...");
+  try {
+    const bucket = (b2bConfig.storageBucket || "c102393").trim();
+    if (!b2bConfig.storageEnabled) {
+      console.log("[Restore-On-Startup] ParsPack storage is disabled. Skipping startup restore.");
+      return;
+    }
+
+    const client = getParsPackS3Client(undefined, 5000); // 5s connection timeout on startup
+    const backupKey = "backups/live-backup-latest.zip";
+
+    // Fetch the backup from S3
+    let response;
+    try {
+      response = await client.send(new GetObjectCommand({
+        Bucket: bucket,
+        Key: backupKey
+      }));
+    } catch (e: any) {
+      if (e.name === "NoSuchKey" || e.$metadata?.httpStatusCode === 404) {
+        console.log("[Restore-On-Startup] No existing live-backup-latest.zip found on S3. This is normal for fresh deployments.");
+        return;
+      }
+      throw e;
+    }
+
+    if (!response.Body) {
+      console.log("[Restore-On-Startup] Backup file found but body is empty.");
+      return;
+    }
+
+    // Convert response stream to buffer
+    const stream = response.Body as any;
+    const chunks: any[] = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    const { restoredCount } = await performFullRestore(buffer, "live-backup-latest.zip");
+    console.log(`[Restore-On-Startup] Successfully restored ${restoredCount} database and asset files from S3.`);
+  } catch (error: any) {
+    console.error("[Restore-On-Startup Error] Auto-recovery on startup failed gracefully:", error);
+  }
+}
+
 async function startServer() {
+  // Automatically restore latest live backup on boot
+  await restoreLiveBackupOnStartup();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(async (req, res, next) => {

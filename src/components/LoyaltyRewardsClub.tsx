@@ -265,7 +265,7 @@ export default function LoyaltyRewardsClub({
 
                   <ul className="space-y-1.5 pt-2 border-t border-slate-200/40 text-[11px]">
                     {t.perks.map((perk, i) => (
-                      <li key={i} className="flex items-start gap-1.5 leading-snug">
+                      <li key={`loyaltyrewardsclub-i-${i}`} className="flex items-start gap-1.5 leading-snug">
                         <CheckCircle2 size={13} className={`shrink-0 mt-0.5 ${isCurrent ? "text-emerald-400" : "text-emerald-600"}`} />
                         <span className={isCurrent ? "text-slate-200" : "text-slate-600"}>{perk}</span>
                       </li>

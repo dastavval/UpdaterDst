@@ -209,7 +209,7 @@ export default function LogisticsEstimatorModal({
               <span className="font-bold text-slate-700">باربری‌های همکار مجاز در این مسیر:</span>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {provinceData.carriers.map((car, idx) => (
-                  <span key={idx} className="bg-white border border-slate-200 text-slate-700 px-2.5 py-0.5 rounded-lg text-[11px] font-bold shadow-2xs">
+                  <span key={`logisticsestimatormodal-idx-${idx}`} className="bg-white border border-slate-200 text-slate-700 px-2.5 py-0.5 rounded-lg text-[11px] font-bold shadow-2xs">
                     {car}
                   </span>
                 ))}

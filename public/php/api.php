@@ -75,6 +75,15 @@ function normalize_iranian_phone_php($rawPhone) {
     return $clean;
 }
 
+function convert_to_english_digits_php($input) {
+    if (empty($input)) return '';
+    $persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    $arabic  = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    $english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    $clean = str_replace($persian, $english, (string)$input);
+    return str_replace($arabic, $english, $clean);
+}
+
 function get_b2b_config_php($pdo) {
     $config = [];
     try {
@@ -255,11 +264,297 @@ function send_melipayamak_sms_php($pdo, $toRaw, $text, $patternId = null, $patte
     ];
 }
 
+// ==========================================
+// ☁️ PARSPACK S3 STORAGE & AWS V4 SIGNATURE ENGINE IN PHP
+// ==========================================
+
+function get_parspack_storage_config_php($pdo = null, $customConfig = []) {
+    $config = [
+        'endpoint' => 'c102393.parspack.net',
+        'bucket' => 'c102393',
+        'accessKey' => 'xt3cR9wHHoATuXS3',
+        'secretKey' => '4gffDy7cBYByRjxhiXpMP1nqtQ0Sd31b',
+        'region' => 'us-east-1',
+        'forcePathStyle' => true,
+        'publicUrl' => 'http://c102393.parspack.net/c102393',
+        'enabled' => true
+    ];
+
+    $jsonFiles = [
+        dirname(__DIR__) . '/data/b2b-config.json',
+        dirname(__DIR__) . '/b2b-config.json'
+    ];
+    foreach ($jsonFiles as $jf) {
+        if (file_exists($jf)) {
+            $decoded = json_decode(@file_get_contents($jf), true);
+            if (is_array($decoded)) {
+                if (!empty($decoded['storageEndpoint'])) $config['endpoint'] = $decoded['storageEndpoint'];
+                if (!empty($decoded['storageBucket'])) $config['bucket'] = $decoded['storageBucket'];
+                if (!empty($decoded['storageAccessKey'])) $config['accessKey'] = $decoded['storageAccessKey'];
+                if (!empty($decoded['storageSecretKey'])) $config['secretKey'] = $decoded['storageSecretKey'];
+                if (!empty($decoded['storageRegion'])) $config['region'] = $decoded['storageRegion'];
+                if (isset($decoded['storageForcePathStyle'])) $config['forcePathStyle'] = (bool)$decoded['storageForcePathStyle'];
+                if (!empty($decoded['storagePublicUrl'])) $config['publicUrl'] = $decoded['storagePublicUrl'];
+                if (isset($decoded['storageEnabled'])) $config['enabled'] = (bool)$decoded['storageEnabled'];
+            }
+        }
+    }
+
+    if ($pdo) {
+        try {
+            $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_config'");
+            $stmt->execute();
+            $row = $stmt->fetch();
+            if ($row && !empty($row['setting_value'])) {
+                $dbConfig = json_decode($row['setting_value'], true);
+                if (is_array($dbConfig)) {
+                    if (!empty($dbConfig['storageEndpoint'])) $config['endpoint'] = $dbConfig['storageEndpoint'];
+                    if (!empty($dbConfig['storageBucket'])) $config['bucket'] = $dbConfig['storageBucket'];
+                    if (!empty($dbConfig['storageAccessKey'])) $config['accessKey'] = $dbConfig['storageAccessKey'];
+                    if (!empty($dbConfig['storageSecretKey'])) $config['secretKey'] = $dbConfig['storageSecretKey'];
+                    if (!empty($dbConfig['storageRegion'])) $config['region'] = $dbConfig['storageRegion'];
+                    if (isset($dbConfig['storageForcePathStyle'])) $config['forcePathStyle'] = (bool)$dbConfig['storageForcePathStyle'];
+                    if (!empty($dbConfig['storagePublicUrl'])) $config['publicUrl'] = $dbConfig['storagePublicUrl'];
+                    if (isset($dbConfig['storageEnabled'])) $config['enabled'] = (bool)$dbConfig['storageEnabled'];
+                }
+            }
+        } catch (Exception $e) {}
+    }
+
+    if (is_array($customConfig) && !empty($customConfig)) {
+        if (!empty($customConfig['storageEndpoint'])) $config['endpoint'] = $customConfig['storageEndpoint'];
+        if (!empty($customConfig['endpoint'])) $config['endpoint'] = $customConfig['endpoint'];
+        if (!empty($customConfig['storageBucket'])) $config['bucket'] = $customConfig['storageBucket'];
+        if (!empty($customConfig['bucket'])) $config['bucket'] = $customConfig['bucket'];
+        if (!empty($customConfig['storageAccessKey'])) $config['accessKey'] = $customConfig['storageAccessKey'];
+        if (!empty($customConfig['accessKey'])) $config['accessKey'] = $customConfig['accessKey'];
+        if (!empty($customConfig['storageSecretKey'])) $config['secretKey'] = $customConfig['storageSecretKey'];
+        if (!empty($customConfig['secretKey'])) $config['secretKey'] = $customConfig['secretKey'];
+        if (!empty($customConfig['storageRegion'])) $config['region'] = $customConfig['storageRegion'];
+        if (!empty($customConfig['region'])) $config['region'] = $customConfig['region'];
+    }
+
+    $config['endpoint'] = trim(str_replace(['http://', 'https://'], '', $config['endpoint']), '/');
+    if (strpos($config['endpoint'], '/') !== false) {
+        $parts = explode('/', $config['endpoint']);
+        $config['endpoint'] = $parts[0];
+        if (empty($config['bucket']) && !empty($parts[1])) {
+            $config['bucket'] = $parts[1];
+        }
+    }
+    $config['bucket'] = trim($config['bucket']);
+
+    return $config;
+}
+
+function save_parspack_storage_config_php($pdo, $newValues = []) {
+    $jsonFiles = [
+        dirname(__DIR__) . '/data/b2b-config.json',
+        dirname(__DIR__) . '/b2b-config.json'
+    ];
+    foreach ($jsonFiles as $jf) {
+        $existing = [];
+        if (file_exists($jf)) {
+            $existing = json_decode(@file_get_contents($jf), true) ?: [];
+        }
+        $merged = array_merge($existing, $newValues);
+        @file_put_contents($jf, json_encode($merged, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    }
+
+    if ($pdo) {
+        try {
+            $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_config'");
+            $stmt->execute();
+            $row = $stmt->fetch();
+            $existing = ($row && !empty($row['setting_value'])) ? (json_decode($row['setting_value'], true) ?: []) : [];
+            $merged = array_merge($existing, $newValues);
+            $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_config', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+            $jsonVal = json_encode($merged, JSON_UNESCAPED_UNICODE);
+            $saveStmt->execute([$jsonVal, $jsonVal]);
+        } catch (Exception $e) {}
+    }
+}
+
+function parspack_s3_v4_request_php($method, $host, $uri, $queryParams, $headers, $payload, $accessKey, $secretKey, $region = 'us-east-1', $protocol = 'http', $timeout = 6) {
+    $service = 's3';
+    $timestamp = gmdate('Ymd\THis\Z');
+    $datestamp = gmdate('Ymd');
+    
+    $canonicalUri = '/' . ltrim($uri, '/');
+    
+    ksort($queryParams);
+    $canonicalQueryParts = [];
+    foreach ($queryParams as $k => $v) {
+        $canonicalQueryParts[] = rawurlencode($k) . '=' . rawurlencode($v);
+    }
+    $canonicalQuerystring = implode('&', $canonicalQueryParts);
+    
+    $payloadHash = hash('sha256', $payload);
+    
+    $headers['host'] = $host;
+    $headers['x-amz-date'] = $timestamp;
+    $headers['x-amz-content-sha256'] = $payloadHash;
+    
+    ksort($headers);
+    $canonicalHeaders = '';
+    $signedHeadersArr = [];
+    foreach ($headers as $k => $v) {
+        $lk = strtolower(trim($k));
+        $lv = trim($v);
+        $canonicalHeaders .= $lk . ':' . $lv . "\n";
+        $signedHeadersArr[] = $lk;
+    }
+    $signedHeaders = implode(';', $signedHeadersArr);
+    
+    $canonicalRequest = strtoupper($method) . "\n"
+        . $canonicalUri . "\n"
+        . $canonicalQuerystring . "\n"
+        . $canonicalHeaders . "\n"
+        . $signedHeaders . "\n"
+        . $payloadHash;
+    
+    $algorithm = 'AWS4-HMAC-SHA256';
+    $credentialScope = "$datestamp/$region/$service/aws4_request";
+    $stringToSign = "$algorithm\n$timestamp\n$credentialScope\n" . hash('sha256', $canonicalRequest);
+    
+    $kSecret = 'AWS4' . $secretKey;
+    $kDate = hash_hmac('sha256', $datestamp, $kSecret, true);
+    $kRegion = hash_hmac('sha256', $region, $kDate, true);
+    $kService = hash_hmac('sha256', $service, $kRegion, true);
+    $kSigning = hash_hmac('sha256', 'aws4_request', $kService, true);
+    $signature = hash_hmac('sha256', $stringToSign, $kSigning);
+    
+    $authorization = "$algorithm Credential=$accessKey/$credentialScope, SignedHeaders=$signedHeaders, Signature=$signature";
+    
+    $httpHeaders = [];
+    foreach ($headers as $k => $v) {
+        if (strtolower($k) !== 'host') {
+            $httpHeaders[] = "$k: $v";
+        }
+    }
+    $httpHeaders[] = "Authorization: $authorization";
+    
+    $url = "$protocol://$host$canonicalUri" . ($canonicalQuerystring !== '' ? "?$canonicalQuerystring" : "");
+    
+    if (!function_exists('curl_init')) {
+        return ['code' => 0, 'body' => '', 'error' => 'ماژول cURL در PHP فعال نیست', 'url' => $url];
+    }
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
+    if ($payload !== '') {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(3, $timeout));
+    
+    $body = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr = curl_error($ch);
+    curl_close($ch);
+    
+    return [
+        'code' => $httpCode,
+        'body' => $body,
+        'error' => $curlErr,
+        'url' => $url
+    ];
+}
+
+function parspack_s3_resilient_call_php($actionName, $method, $uri, $queryParams, $headers, $payload, $cfg, $timeout = 6) {
+    $cleanHost = $cfg['endpoint'];
+    
+    $candidateHosts = [$cleanHost];
+    if ($cleanHost !== 's3.parspack.net') $candidateHosts[] = 's3.parspack.net';
+    if ($cleanHost !== 's3.ir-thr-at1.parspack.net') $candidateHosts[] = 's3.ir-thr-at1.parspack.net';
+    if ($cleanHost !== 'c102393.parspack.net') $candidateHosts[] = 'c102393.parspack.net';
+
+    $candidateEndpoints = [];
+    foreach ($candidateHosts as $host) {
+        $candidateEndpoints[] = ['host' => $host, 'protocol' => 'http'];
+        $candidateEndpoints[] = ['host' => $host, 'protocol' => 'https'];
+    }
+
+    $attempts = [];
+    $lastError = null;
+
+    foreach ($candidateEndpoints as $ep) {
+        $host = $ep['host'];
+        $protocol = $ep['protocol'];
+        $fullEp = "$protocol://$host";
+        $attempts[] = "تلاش با $fullEp";
+
+        $startTime = microtime(true);
+        $res = parspack_s3_v4_request_php(
+            $method,
+            $host,
+            $uri,
+            $queryParams,
+            $headers,
+            $payload,
+            $cfg['accessKey'],
+            $cfg['secretKey'],
+            $cfg['region'] ?: 'us-east-1',
+            $protocol,
+            $timeout
+        );
+        $latency = round((microtime(true) - $startTime) * 1000);
+
+        if ($res['code'] >= 200 && $res['code'] < 300) {
+            return [
+                'success' => true,
+                'body' => $res['body'],
+                'endpointUsed' => $fullEp,
+                'latency' => $latency,
+                'attempts' => $attempts,
+                'code' => $res['code']
+            ];
+        } else {
+            $msg = !empty($res['error']) ? $res['error'] : ("HTTP " . $res['code'] . " - " . substr(strip_tags((string)$res['body']), 0, 120));
+            $attempts[] = "خطا در $fullEp: $msg";
+            $lastError = $msg;
+        }
+    }
+
+    return [
+        'success' => false,
+        'error' => $lastError ?: 'عدم برقراری ارتباط با باکت پارس‌پک',
+        'attempts' => $attempts
+    ];
+}
+
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
-// اعمال Rate Limiter روی اکشن‌های حساس
-if (strpos($action, 'admin/') === 0 || $action === 'create_order') {
-    enforce_php_rate_limit($action, 10, 900);
+// اعمال Rate Limiter روی اکشن‌های حساس (به جز ابزارهای ادمین و باکت)
+if ((strpos($action, 'admin/') === 0 && strpos($action, 'admin/backup') !== 0 && strpos($action, 'admin/github') !== 0) || $action === 'create_order') {
+    enforce_php_rate_limit($action, 15, 900);
+}
+
+// لیست اکشن‌هایی که حتی بدون اتصال به دیتابیس هم به صورت خودکار (با فایل JSON یا فال‌بک) پاسخ می‌دهند
+$offline_capable_actions = [
+    'health', 'ping', 'status', 'version', 
+    'b2b/config', 'b2b/products', 'get_products', 
+    'articles', 'categories', 'factories', 'ai/daily-presentation',
+    'b2b/orders', 'b2b/users', 'admin/b2b-config',
+    'storage/test', 'storage/files', 'storage/upload', 'storage/delete', 'storage/file',
+    'admin/backup/list', 'admin/backup/create', 'admin/backup/restore', 
+    'admin/backup/restore-permanent', 'admin/backup/upload-restore', 'admin/backup/diagnose',
+    'proxy-fetch', 'proxy_fetch', 'proxy-image', 'proxy_image'
+];
+
+// بررسی دسترسی به دیتابیس برای سایر اکشن‌ها
+if (!$pdo && !in_array($action, $offline_capable_actions)) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'status' => 'error',
+        'success' => false,
+        'message' => 'عدم دسترسی به پایگاه داده MySQL. لطفاً از طریق installer.php وضعیت دیتابیس را بررسی کنید: ' . ($db_error ?? '')
+    ], JSON_UNESCAPED_UNICODE);
+    exit();
 }
 
 switch ($action) {
@@ -278,6 +573,25 @@ switch ($action) {
     case 'b2b/products':
         header('Content-Type: application/json; charset=utf-8');
         $method = $_SERVER['REQUEST_METHOD'];
+        if (!$pdo) {
+            $jsonProductsPath = dirname(__DIR__) . '/products.json';
+            if ($method === 'POST') {
+                $input = json_decode(file_get_contents('php://input'), true);
+                if (is_array($input)) {
+                    @file_put_contents($jsonProductsPath, json_encode($input, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+                    echo json_encode(['status' => 'success', 'count' => count($input), 'message' => 'ذخیره در فایل محلی با موفقیت انجام شد.'], JSON_UNESCAPED_UNICODE);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'دیتا معتبر ارسال نشده است.'], JSON_UNESCAPED_UNICODE);
+                }
+            } else {
+                if (file_exists($jsonProductsPath)) {
+                    echo file_get_contents($jsonProductsPath);
+                } else {
+                    echo json_encode([], JSON_UNESCAPED_UNICODE);
+                }
+            }
+            exit();
+        }
         if ($method === 'POST') {
             $input = json_decode(file_get_contents('php://input'), true);
             if (!is_array($input)) {
@@ -465,10 +779,28 @@ switch ($action) {
                 if ($row && !empty($row['setting_value'])) {
                     echo $row['setting_value'];
                 } else {
-                    echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                    // FALLBACK: Read from b2b-config.json to seed/recover if db is unconfigured
+                    $jsonPath = dirname(__DIR__) . '/b2b-config.json';
+                    if (file_exists($jsonPath)) {
+                        $configContent = file_get_contents($jsonPath);
+                        // Save it to database for future sessions and stability
+                        try {
+                            $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_config', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                            $saveStmt->execute([$configContent, $configContent]);
+                        } catch (Exception $dbErr) {}
+                        echo $configContent;
+                    } else {
+                        echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                    }
                 }
             } catch (PDOException $e) {
-                echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                // Try reading directly from file if database error occurs
+                $jsonPath = dirname(__DIR__) . '/b2b-config.json';
+                if (file_exists($jsonPath)) {
+                    echo file_get_contents($jsonPath);
+                } else {
+                    echo json_encode((object)[], JSON_UNESCAPED_UNICODE);
+                }
             }
         }
         exit();
@@ -610,7 +942,68 @@ switch ($action) {
 
         if ($code === '12345' || ($stored && $stored['code'] === $code && $stored['expiresAt'] > time())) {
             unset($_SESSION['otp_' . $cleanPhone]);
-            echo json_encode(['success' => true, 'message' => 'احراز هویت پیامکی با موفقیت انجام شد.'], JSON_UNESCAPED_UNICODE);
+            
+            $matchedUser = null;
+            $isNew = false;
+            $localUsers = [];
+            
+            try {
+                $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'b2b_users'");
+                $stmt->execute();
+                $row = $stmt->fetch();
+                if ($row && !empty($row['setting_value'])) {
+                    $decoded = json_decode($row['setting_value'], true);
+                    if (is_array($decoded)) {
+                        $localUsers = $decoded;
+                    }
+                }
+            } catch (Exception $e) {}
+            
+            foreach ($localUsers as $key => $u) {
+                if (isset($u['phone']) && normalize_iranian_phone_php($u['phone']) === $cleanPhone) {
+                    $matchedUser = $u;
+                    break;
+                }
+            }
+            
+            if (!$matchedUser) {
+                $isNew = true;
+                $uId = "usr_" . rand(100000, 999999);
+                $uCode = "CST-" . rand(1000, 9999);
+                $emailStr = $cleanPhone . "@dastavval.com";
+                
+                $matchedUser = [
+                    'id' => $uId,
+                    'name' => 'خریدار عمده (' . substr($cleanPhone, -4) . ')',
+                    'email' => $emailStr,
+                    'password' => $cleanPhone,
+                    'company' => 'فروشگاه همکار (ثبت نام آنی)',
+                    'city' => 'تهران',
+                    'phone' => $cleanPhone,
+                    'badge' => 'bronze',
+                    'role' => 'customer',
+                    'userCode' => $uCode,
+                    'customerCode' => $uCode,
+                    'status' => 'active',
+                    'createdAt' => date('c')
+                ];
+                
+                $localUsers[$emailStr] = $matchedUser;
+                $localUsers[$cleanPhone] = $matchedUser;
+                
+                try {
+                    $json = json_encode($localUsers, JSON_UNESCAPED_UNICODE);
+                    $saveStmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('b2b_users', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $saveStmt->execute([$json, $json]);
+                } catch (Exception $e) {}
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'isNew' => $isNew,
+                'message' => 'احراز هویت پیامکی با موفقیت انجام شد.',
+                'user' => $matchedUser
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'error' => 'کد تایید نامعتبر یا منقضی شده است.'], JSON_UNESCAPED_UNICODE);
         }
@@ -630,6 +1023,7 @@ switch ($action) {
 
         $cleanPhone = normalize_iranian_phone_php($phone);
         $cleanCode = preg_replace('/^[^\d]*/', '', (string)$orderId) ?: (string)$orderId;
+        $cleanCode = convert_to_english_digits_php($cleanCode);
         $textWithFixedLink = "جناب $buyerName، پیش‌فاکتور سفارش $cleanCode در سامانه دست اول صادر شد.\nمشاهده: dastavval.com/factors/$cleanCode.pdf\ndastavval.com\nلغو11";
 
         $b2bConfig = get_b2b_config_php($pdo);
@@ -1683,6 +2077,734 @@ switch ($action) {
             @unlink($tempZip);
             echo json_encode(['success' => false, 'error' => 'خطا در باز کردن و استخراج فایل فشرده ZIP.'], JSON_UNESCAPED_UNICODE);
         }
+        exit();
+
+    // ==========================================
+    // 🪙 LOYALTY & REWARDS CLUB PHP ENDPOINTS
+    // ==========================================
+    case 'loyalty/summary':
+        header('Content-Type: application/json; charset=utf-8');
+        $phone = normalize_iranian_phone_php($_GET['phone'] ?? $_GET['user_id'] ?? '');
+        if (empty($phone)) {
+            echo json_encode(['status' => 'error', 'message' => 'شماره کاربر الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            // Get user points
+            $stmt = $pdo->prepare("SELECT id, name, mobile, role, badge, COALESCE(loyalty_points, 0) as loyalty_points FROM users WHERE mobile = ? LIMIT 1");
+            $stmt->execute([$phone]);
+            $userRow = $stmt->fetch();
+
+            $currentPoints = $userRow ? (int)$userRow['loyalty_points'] : 0;
+
+            // Get transactions stats
+            $txStmt = $pdo->prepare("SELECT 
+                SUM(CASE WHEN type = 'earn' OR type = 'bonus' THEN points ELSE 0 END) as lifetime_earned,
+                SUM(CASE WHEN type = 'redeem' THEN points ELSE 0 END) as lifetime_redeemed,
+                SUM(CASE WHEN type = 'redeem' THEN discount_amount ELSE 0 END) as total_discount_saved
+                FROM loyalty_transactions WHERE user_phone = ?");
+            $txStmt->execute([$phone]);
+            $stats = $txStmt->fetch();
+
+            $lifetimeEarned = (int)($stats['lifetime_earned'] ?? $currentPoints);
+            $lifetimeRedeemed = (int)($stats['lifetime_redeemed'] ?? 0);
+            $totalSaved = (float)($stats['total_discount_saved'] ?? ($lifetimeRedeemed * 1000));
+
+            // Determine tier
+            $tier = 'bronze';
+            $tierLabel = 'برنزی';
+            $tierMultiplier = 1.0;
+            if ($lifetimeEarned >= 2000) {
+                $tier = 'platinum';
+                $tierLabel = 'پلاتینیوم';
+                $tierMultiplier = 1.5;
+            } elseif ($lifetimeEarned >= 800) {
+                $tier = 'gold';
+                $tierLabel = 'طلایی';
+                $tierMultiplier = 1.25;
+            } elseif ($lifetimeEarned >= 300) {
+                $tier = 'silver';
+                $tierLabel = 'نقره‌ای';
+                $tierMultiplier = 1.1;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'data' => [
+                    'currentPoints' => $currentPoints,
+                    'lifetimeEarnedPoints' => $lifetimeEarned,
+                    'lifetimeRedeemedPoints' => $lifetimeRedeemed,
+                    'totalDiscountSavedToman' => $totalSaved,
+                    'tier' => $tier,
+                    'tierLabel' => $tierLabel,
+                    'tierMultiplier' => $tierMultiplier,
+                    'redeemableTomanValue' => $currentPoints * 1000
+                ]
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'loyalty/transactions':
+        header('Content-Type: application/json; charset=utf-8');
+        $phone = normalize_iranian_phone_php($_GET['phone'] ?? '');
+        if (empty($phone)) {
+            echo json_encode(['status' => 'error', 'message' => 'شماره کاربر الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM loyalty_transactions WHERE user_phone = ? ORDER BY id DESC LIMIT 50");
+            $stmt->execute([$phone]);
+            $transactions = $stmt->fetchAll();
+            echo json_encode(['status' => 'success', 'data' => $transactions], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'loyalty/award':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = normalize_iranian_phone_php($input['user_phone'] ?? $input['phone'] ?? '');
+        $points = (int)($input['points'] ?? 0);
+        $orderTracking = $input['order_tracking_number'] ?? $input['orderId'] ?? '';
+        $orderAmount = (float)($input['order_amount'] ?? 0);
+        $desc = $input['description'] ?? "پاداش وفاداری خرید سفارش $orderTracking";
+
+        if (empty($phone) || $points <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'شماره و میزان امتیاز معتبر نیست.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // Insert transaction
+            $txStmt = $pdo->prepare("INSERT INTO loyalty_transactions (user_phone, type, points, description, order_tracking_number, order_amount) VALUES (?, 'earn', ?, ?, ?, ?)");
+            $txStmt->execute([$phone, $points, $desc, $orderTracking, $orderAmount]);
+
+            // Update user balance (create user record if not existing)
+            $upStmt = $pdo->prepare("INSERT INTO users (name, mobile, role, badge, loyalty_points) VALUES (?, ?, 'buyer', 'bronze', ?) ON DUPLICATE KEY UPDATE loyalty_points = COALESCE(loyalty_points, 0) + ?");
+            $upStmt->execute(['خریدار عمده', $phone, $points, $points]);
+
+            $pdo->commit();
+            echo json_encode(['status' => 'success', 'message' => "$points امتیاز پاداش با موفقیت ثبت گردید."], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'loyalty/redeem':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $phone = normalize_iranian_phone_php($input['user_phone'] ?? $input['phone'] ?? '');
+        $points = (int)($input['points'] ?? 0);
+        $orderTracking = $input['order_tracking_number'] ?? $input['orderId'] ?? '';
+        $discountAmount = (float)($input['discount_amount'] ?? ($points * 1000));
+        $desc = $input['description'] ?? "کسر $points امتیاز جهت تخفیف در سفارش $orderTracking";
+
+        if (empty($phone) || $points <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'پارامترهای کسر امتیاز نامعتبر است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // Check current balance
+            $chkStmt = $pdo->prepare("SELECT loyalty_points FROM users WHERE mobile = ? LIMIT 1");
+            $chkStmt->execute([$phone]);
+            $userRow = $chkStmt->fetch();
+            $currentPoints = $userRow ? (int)$userRow['loyalty_points'] : 0;
+
+            if ($currentPoints < $points) {
+                // Allow fallback if needed, but cap
+                $points = max(0, $currentPoints);
+            }
+
+            if ($points > 0) {
+                // Insert transaction
+                $txStmt = $pdo->prepare("INSERT INTO loyalty_transactions (user_phone, type, points, description, order_tracking_number, discount_amount) VALUES (?, 'redeem', ?, ?, ?, ?)");
+                $txStmt->execute([$phone, $points, $desc, $orderTracking, $discountAmount]);
+
+                // Deduct from user
+                $deductStmt = $pdo->prepare("UPDATE users SET loyalty_points = GREATEST(0, COALESCE(loyalty_points, 0) - ?) WHERE mobile = ?");
+                $deductStmt->execute([$points, $phone]);
+            }
+
+            $pdo->commit();
+            echo json_encode(['status' => 'success', 'message' => "$points امتیاز با موفقیت کسر و به تخفیف تبدیل شد."], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    // ==========================================
+    // ☁️ PARSPACK S3 OBJECT STORAGE & BACKUP HANDLERS
+    // ==========================================
+
+    case 'storage/test':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $customCfg = json_decode($raw, true) ?: [];
+        $cfg = get_parspack_storage_config_php($pdo, $customCfg);
+        
+        $testResult = parspack_s3_resilient_call_php('ListObjectsV2', 'GET', '/' . $cfg['bucket'], ['max-keys' => '5', 'list-type' => '2'], [], '', $cfg, 7);
+        
+        if ($testResult['success']) {
+            // Save verified working configuration
+            save_parspack_storage_config_php($pdo, [
+                'storageEndpoint' => $cfg['endpoint'],
+                'storageBucket' => $cfg['bucket'],
+                'storageAccessKey' => $cfg['accessKey'],
+                'storageSecretKey' => $cfg['secretKey'],
+                'storageRegion' => $cfg['region'],
+                'storageEnabled' => true,
+                'storagePublicUrl' => $testResult['endpointUsed'] . '/' . $cfg['bucket']
+            ]);
+
+            $fileCount = 0;
+            if (!empty($testResult['body'])) {
+                $fileCount = substr_count($testResult['body'], '<Key>');
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "اتصال زنده به باکت پارس‌پک با موفقیت برقرار شد! آدرس و پروتکل فعال: {$testResult['endpointUsed']} (زمان پاسخ: {$testResult['latency']}ms)",
+                'fileCount' => $fileCount,
+                'endpointUsed' => $testResult['endpointUsed'],
+                'latency' => $testResult['latency'],
+                'attempts' => $testResult['attempts']
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'error' => "عدم برقراری ارتباط با باکت پارس‌پک: " . ($testResult['error'] ?? 'خطای ناشناخته'),
+                'attempts' => $testResult['attempts'] ?? [],
+                'recommendations' => [
+                    "از صحت Access Key و Secret Key در پنل پارس‌پک اطمینان حاصل فرمایید.",
+                    "فایروال هاست (پورت ۸۰ و ۴۴۳ خروجی cURL) را بررسی نمایید.",
+                    "آدرس هاست باکت را روی s3.parspack.net یا {$cfg['bucket']}.parspack.net تنظیم نمایید."
+                ]
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit();
+
+    case 'storage/files':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = get_parspack_storage_config_php($pdo);
+        $files = [];
+        $s3Connected = false;
+        $s3Error = null;
+        $s3EndpointUsed = null;
+
+        // 1. Try remote S3 listing
+        if ($cfg['enabled'] && !empty($cfg['accessKey']) && !empty($cfg['secretKey'])) {
+            $s3Res = parspack_s3_resilient_call_php('ListObjectsV2', 'GET', '/' . $cfg['bucket'], ['max-keys' => '100', 'list-type' => '2'], [], '', $cfg, 7);
+            if ($s3Res['success'] && !empty($s3Res['body'])) {
+                $s3Connected = true;
+                $s3EndpointUsed = $s3Res['endpointUsed'];
+                $publicBase = $s3Res['endpointUsed'] . '/' . $cfg['bucket'];
+                
+                try {
+                    $xml = @simplexml_load_string($s3Res['body']);
+                    if ($xml && isset($xml->Contents)) {
+                        foreach ($xml->Contents as $item) {
+                            $key = (string)$item->Key;
+                            $size = (int)$item->Size;
+                            $lastModified = (string)$item->LastModified;
+                            $files[] = [
+                                'key' => $key,
+                                'size' => $size,
+                                'lastModified' => $lastModified,
+                                'url' => $publicBase . '/' . $key,
+                                'proxyUrl' => '/api/storage/file/' . rawurlencode($key),
+                                'source' => 'parspack_s3'
+                            ];
+                        }
+                    }
+                } catch (Exception $e) {
+                    $s3Error = "خطا در پردازش لیست باکت: " . $e->getMessage();
+                }
+            } else {
+                $s3Error = $s3Res['error'] ?? 'عدم پاسخ‌گویی باکت ابری';
+            }
+        }
+
+        // 2. Scan local uploads
+        $localDirs = [
+            dirname(__DIR__) . '/public/uploads',
+            dirname(__DIR__) . '/data/uploads',
+            dirname(__DIR__) . '/uploads'
+        ];
+
+        foreach ($localDirs as $dir) {
+            if (is_dir($dir)) {
+                $scan = @scandir($dir);
+                if ($scan) {
+                    foreach ($scan as $file) {
+                        if ($file === '.' || $file === '..' || strpos($file, '.') === 0) continue;
+                        $filePath = $dir . '/' . $file;
+                        if (is_file($filePath)) {
+                            $exists = false;
+                            foreach ($files as $f) {
+                                if (strpos($f['key'], $file) !== false) {
+                                    $exists = true;
+                                    break;
+                                }
+                            }
+                            if (!$exists) {
+                                $files[] = [
+                                    'key' => 'uploads/' . $file,
+                                    'size' => filesize($filePath),
+                                    'lastModified' => date('c', filemtime($filePath)),
+                                    'url' => '/uploads/' . $file,
+                                    'proxyUrl' => '/api/storage/file/' . rawurlencode('uploads/' . $file),
+                                    'source' => 'local_storage'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'count' => count($files),
+            'files' => $files,
+            's3Connected' => $s3Connected,
+            's3Error' => $s3Error,
+            's3EndpointUsed' => $s3EndpointUsed,
+            'bucket' => $cfg['bucket']
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'storage/upload':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        
+        $fileData = $input['fileData'] ?? '';
+        $fileName = $input['fileName'] ?? ('file_' . time() . '.bin');
+        $folder = trim($input['folder'] ?? 'uploads', '/');
+        $contentType = $input['contentType'] ?? 'application/octet-stream';
+
+        $buffer = null;
+        if (!empty($fileData)) {
+            if (strpos($fileData, 'data:') === 0 && strpos($fileData, ';base64,') !== false) {
+                $parts = explode(';base64,', $fileData);
+                $buffer = base64_decode($parts[1]);
+                $contentType = str_replace('data:', '', $parts[0]);
+            } else {
+                $buffer = base64_decode($fileData);
+            }
+        } elseif (!empty($_FILES['file']['tmp_name'])) {
+            $buffer = file_get_contents($_FILES['file']['tmp_name']);
+            $fileName = $_FILES['file']['name'];
+            $contentType = $_FILES['file']['type'] ?? $contentType;
+        }
+
+        if (empty($buffer)) {
+            echo json_encode(['success' => false, 'error' => 'محتوای فایلی جهت آپلود دریافت نشد.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $cleanFileName = preg_replace('/[^a-zA-Z0-9.\-_]/', '_', $fileName);
+        $timestamp = time();
+        $targetFileName = "{$timestamp}-{$cleanFileName}";
+        $objectKey = "{$folder}/{$targetFileName}";
+
+        // Save locally
+        $uploadsDir = dirname(__DIR__) . '/public/uploads';
+        $persistentUploadsDir = dirname(__DIR__) . '/data/uploads';
+        @mkdir($uploadsDir, 0755, true);
+        @mkdir($persistentUploadsDir, 0755, true);
+
+        @file_put_contents("{$uploadsDir}/{$targetFileName}", $buffer);
+        @file_put_contents("{$persistentUploadsDir}/{$targetFileName}", $buffer);
+
+        $cfg = get_parspack_storage_config_php($pdo);
+        $s3Success = false;
+        $directUrl = "/uploads/{$targetFileName}";
+        $proxyUrl = "/api/storage/file/" . rawurlencode($objectKey);
+
+        if ($cfg['enabled'] && !empty($cfg['accessKey']) && !empty($cfg['secretKey'])) {
+            $headers = ['Content-Type' => $contentType];
+            $putRes = parspack_s3_resilient_call_php('PutObject', 'PUT', "/{$cfg['bucket']}/{$objectKey}", [], $headers, $buffer, $cfg, 10);
+            if ($putRes['success']) {
+                $s3Success = true;
+                $directUrl = "{$putRes['endpointUsed']}/{$cfg['bucket']}/{$objectKey}";
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => $s3Success ? 'فایل با موفقیت روی باکت پارس‌پک آپلود شد.' : 'فایل روی هاست محلی ثبت و آماده شد.',
+            'key' => $objectKey,
+            'url' => $directUrl,
+            'proxyUrl' => $proxyUrl,
+            'size' => strlen($buffer),
+            'mimeType' => $contentType,
+            'fileName' => $cleanFileName,
+            's3Success' => $s3Success
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'storage/delete':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        $key = $input['key'] ?? '';
+        if (empty($key)) {
+            echo json_encode(['success' => false, 'error' => 'کلید فایل الزامی است.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        $cleanFileName = basename($key);
+        $localPaths = [
+            dirname(__DIR__) . "/public/uploads/{$cleanFileName}",
+            dirname(__DIR__) . "/data/uploads/{$cleanFileName}",
+            dirname(__DIR__) . "/uploads/{$cleanFileName}"
+        ];
+        foreach ($localPaths as $lp) {
+            if (file_exists($lp)) @unlink($lp);
+        }
+
+        $cfg = get_parspack_storage_config_php($pdo);
+        if ($cfg['enabled'] && !empty($cfg['accessKey']) && !empty($cfg['secretKey'])) {
+            parspack_s3_resilient_call_php('DeleteObject', 'DELETE', "/{$cfg['bucket']}/{$key}", [], [], '', $cfg, 7);
+        }
+
+        echo json_encode(['success' => true, 'message' => 'فایل با موفقیت حذف گردید.'], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'storage/file':
+        $reqUri = $_SERVER['REQUEST_URI'] ?? '';
+        $objectKey = '';
+        if (strpos($reqUri, '/api/storage/file/') !== false) {
+            $parts = explode('/api/storage/file/', $reqUri);
+            $objectKey = urldecode(explode('?', $parts[1])[0]);
+        } else {
+            $objectKey = $_GET['key'] ?? '';
+        }
+
+        if (empty($objectKey)) {
+            http_response_code(400);
+            echo "کلید فایل مشخص نشده است.";
+            exit();
+        }
+
+        $cleanFileName = basename($objectKey);
+        $localCandidates = [
+            dirname(__DIR__) . "/public/uploads/{$cleanFileName}",
+            dirname(__DIR__) . "/data/uploads/{$cleanFileName}",
+            dirname(__DIR__) . "/data/backups/{$cleanFileName}",
+            dirname(__DIR__) . "/uploads/{$cleanFileName}",
+            dirname(__DIR__) . "/data/{$cleanFileName}"
+        ];
+
+        foreach ($localCandidates as $cand) {
+            if (file_exists($cand) && is_file($cand)) {
+                $ext = strtolower(pathinfo($cand, PATHINFO_EXTENSION));
+                $mime = 'application/octet-stream';
+                if ($ext === 'jpg' || $ext === 'jpeg') $mime = 'image/jpeg';
+                elseif ($ext === 'png') $mime = 'image/png';
+                elseif ($ext === 'webp') $mime = 'image/webp';
+                elseif ($ext === 'svg') $mime = 'image/svg+xml';
+                elseif ($ext === 'zip') $mime = 'application/zip';
+                elseif ($ext === 'json') $mime = 'application/json';
+
+                header("Content-Type: $mime");
+                header("Content-Length: " . filesize($cand));
+                if ($ext === 'zip') {
+                    header("Content-Disposition: attachment; filename=\"$cleanFileName\"");
+                }
+                header("Cache-Control: public, max-age=31536000");
+                readfile($cand);
+                exit();
+            }
+        }
+
+        // Try downloading from S3
+        $cfg = get_parspack_storage_config_php($pdo);
+        if ($cfg['enabled'] && !empty($cfg['accessKey']) && !empty($cfg['secretKey'])) {
+            $getRes = parspack_s3_resilient_call_php('GetObject', 'GET', "/{$cfg['bucket']}/{$objectKey}", [], [], '', $cfg, 10);
+            if ($getRes['success'] && !empty($getRes['body'])) {
+                $ext = strtolower(pathinfo($cleanFileName, PATHINFO_EXTENSION));
+                $mime = 'application/octet-stream';
+                if ($ext === 'jpg' || $ext === 'jpeg') $mime = 'image/jpeg';
+                elseif ($ext === 'png') $mime = 'image/png';
+                elseif ($ext === 'webp') $mime = 'image/webp';
+                elseif ($ext === 'zip') $mime = 'application/zip';
+
+                header("Content-Type: $mime");
+                header("Content-Length: " . strlen($getRes['body']));
+                if ($ext === 'zip') {
+                    header("Content-Disposition: attachment; filename=\"$cleanFileName\"");
+                }
+                header("Cache-Control: public, max-age=31536000");
+                echo $getRes['body'];
+                exit();
+            }
+        }
+
+        http_response_code(404);
+        echo "فایل مورد نظر در فضای ذخیره‌سازی یافت نشد.";
+        exit();
+
+    case 'admin/backup/diagnose':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = get_parspack_storage_config_php($pdo);
+        $results = [];
+
+        // Test 1: DNS
+        $hostToTest = str_replace(['http://', 'https://'], '', $cfg['endpoint']);
+        $dnsIp = @gethostbyname($hostToTest);
+        $dnsPassed = ($dnsIp !== $hostToTest);
+        $results[] = [
+            'step' => 1,
+            'name' => 'بررسی تفکیک دامنه باکت (DNS Resolution)',
+            'passed' => $dnsPassed,
+            'message' => $dnsPassed ? "دامنه $hostToTest با موفقیت به آی‌پی $dnsIp متصل است." : "خطا در DNS: دامنه $hostToTest روی سرور شناسایی نشد."
+        ];
+
+        // Test 2: Port 80
+        $p80 = @fsockopen($hostToTest, 80, $errno, $errstr, 2.5);
+        $port80Passed = is_resource($p80);
+        if ($p80) @fclose($p80);
+        $results[] = [
+            'step' => 2,
+            'name' => 'بررسی اتصال مستقیم پورت ۸۰ (HTTP)',
+            'passed' => $port80Passed,
+            'message' => $port80Passed ? "پورت ۸۰ هاست باکت در دسترس است." : "پورت ۸۰ هاست باکت مسدود است ($errstr)."
+        ];
+
+        // Test 3: Port 443
+        $p443 = @fsockopen($hostToTest, 443, $errno, $errstr, 2.5);
+        $port443Passed = is_resource($p443);
+        if ($p443) @fclose($p443);
+        $results[] = [
+            'step' => 3,
+            'name' => 'بررسی اتصال پورت ۴۴۳ (HTTPS)',
+            'passed' => $port443Passed,
+            'message' => $port443Passed ? "پورت ۴۴۳ باز و آماده است." : "پورت ۴۴۳ پاسخ نداد."
+        ];
+
+        // Test 4: S3 Credentials
+        $s3Test = parspack_s3_resilient_call_php('ListObjectsV2', 'GET', '/' . $cfg['bucket'], ['max-keys' => '1', 'list-type' => '2'], [], '', $cfg, 5);
+        $results[] = [
+            'step' => 4,
+            'name' => 'اعتبارسنجی کلیدهای Access Key و Secret Key',
+            'passed' => $s3Test['success'],
+            'message' => $s3Test['success'] ? "احراز هویت S3 تایید شد ({$s3Test['endpointUsed']})." : ("خطای احراز هویت باکت: " . ($s3Test['error'] ?? 'عدم پاسخ'))
+        ];
+
+        // Test 5: Local Storage write
+        $dataDir = dirname(__DIR__) . '/data';
+        $testFile = "$dataDir/.test_write_" . time();
+        $writePassed = @file_put_contents($testFile, "test") !== false;
+        if ($writePassed) @unlink($testFile);
+        $results[] = [
+            'step' => 5,
+            'name' => 'بررسی دسترسی نوشتن پوشه پشتیبان محلی',
+            'passed' => $writePassed,
+            'message' => $writePassed ? "دسترسی نوشتن روی پوشه data تایید شد." : "خطا: دسترسی نوشتن روی پوشه data مسدود است (مجوز ۷۵۵ یا ۷۷۷ نیاز است)."
+        ];
+
+        $allPassed = $results[0]['passed'] && ($results[1]['passed'] || $results[2]['passed']) && $results[3]['passed'] && $results[4]['passed'];
+        echo json_encode(['success' => $allPassed, 'results' => $results], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'admin/backup/list':
+        header('Content-Type: application/json; charset=utf-8');
+        $backups = [];
+        $dataDir = dirname(__DIR__) . '/data';
+        $backupDir = $dataDir . '/backups';
+
+        // 1. Scan local
+        if (is_dir($backupDir)) {
+            $files = @scandir($backupDir);
+            if ($files) {
+                foreach ($files as $f) {
+                    if ($f === '.' || $f === '..' || strpos($f, '.') === 0) continue;
+                    $fp = "$backupDir/$f";
+                    if (is_file($fp)) {
+                        $backups[$f] = [
+                            'key' => "backups/$f",
+                            'fileName' => $f,
+                            'size' => filesize($fp),
+                            'lastModified' => date('c', filemtime($fp)),
+                            'proxyUrl' => "/api/storage/file/" . rawurlencode("backups/$f"),
+                            'source' => 'local'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 2. Scan remote S3
+        $cfg = get_parspack_storage_config_php($pdo);
+        if ($cfg['enabled'] && !empty($cfg['accessKey']) && !empty($cfg['secretKey'])) {
+            $s3Res = parspack_s3_resilient_call_php('ListObjectsV2', 'GET', '/' . $cfg['bucket'], ['prefix' => 'backups/', 'max-keys' => '100'], [], '', $cfg, 6);
+            if ($s3Res['success'] && !empty($s3Res['body'])) {
+                try {
+                    $xml = @simplexml_load_string($s3Res['body']);
+                    if ($xml && isset($xml->Contents)) {
+                        foreach ($xml->Contents as $item) {
+                            $k = (string)$item->Key;
+                            $fn = basename($k);
+                            if (!empty($fn)) {
+                                if (isset($backups[$fn])) {
+                                    $backups[$fn]['source'] = 'both';
+                                } else {
+                                    $backups[$fn] = [
+                                        'key' => $k,
+                                        'fileName' => $fn,
+                                        'size' => (int)$item->Size,
+                                        'lastModified' => (string)$item->LastModified,
+                                        'proxyUrl' => "/api/storage/file/" . rawurlencode($k),
+                                        'source' => 's3'
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception $e) {}
+            }
+        }
+
+        $list = array_values($backups);
+        usort($list, function($a, $b) {
+            return strcmp($b['lastModified'], $a['lastModified']);
+        });
+
+        echo json_encode(['success' => true, 'count' => count($list), 'backups' => $list], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'admin/backup/create':
+        header('Content-Type: application/json; charset=utf-8');
+        $dataDir = dirname(__DIR__) . '/data';
+        $backupDir = $dataDir . '/backups';
+        @mkdir($backupDir, 0755, true);
+
+        $timestamp = date('Y-m-d_H-i-s');
+        $backupFileName = "backup_{$timestamp}.json";
+        $backupFilePath = "$backupDir/$backupFileName";
+
+        // Export data
+        $payload = [
+            'createdAt' => date('c'),
+            'b2bConfig' => get_b2b_config_php($pdo),
+            'tables' => []
+        ];
+
+        if ($pdo) {
+            $tables = ['products', 'orders', 'users', 'articles', 'categories', 'site_settings'];
+            foreach ($tables as $tbl) {
+                try {
+                    $stmt = $pdo->query("SELECT * FROM `$tbl`");
+                    $payload['tables'][$tbl] = $stmt->fetchAll();
+                } catch (Exception $e) {}
+            }
+        }
+
+        $jsonStr = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        @file_put_contents($backupFilePath, $jsonStr);
+        @file_put_contents("$dataDir/latest-permanent-backup.zip", $jsonStr);
+
+        $cfg = get_parspack_storage_config_php($pdo);
+        $s3Synced = false;
+        if ($cfg['enabled'] && !empty($cfg['accessKey']) && !empty($cfg['secretKey'])) {
+            $putRes = parspack_s3_resilient_call_php('PutObject', 'PUT', "/{$cfg['bucket']}/backups/{$backupFileName}", ['Content-Type' => 'application/json'], [], $jsonStr, $cfg, 10);
+            if ($putRes['success']) $s3Synced = true;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => "پشتیبان با موفقیت ایجاد گردید." . ($s3Synced ? " (همگام در باکت پارس‌پک)" : ""),
+            'fileName' => $backupFileName,
+            'size' => strlen($jsonStr),
+            's3Synced' => $s3Synced
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+
+    case 'admin/backup/restore':
+    case 'admin/backup/restore-permanent':
+    case 'admin/backup/upload-restore':
+        header('Content-Type: application/json; charset=utf-8');
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true) ?: $_POST;
+        
+        $buffer = null;
+        if ($action === 'admin/backup/upload-restore') {
+            $fileData = $input['fileData'] ?? '';
+            if (!empty($fileData)) {
+                $buffer = base64_decode($fileData);
+            }
+        } elseif ($action === 'admin/backup/restore-permanent') {
+            $permPath = dirname(__DIR__) . '/data/latest-permanent-backup.zip';
+            if (file_exists($permPath)) $buffer = file_get_contents($permPath);
+        } else {
+            $key = $input['key'] ?? '';
+            $cleanFileName = basename($key);
+            $localPaths = [
+                dirname(__DIR__) . "/data/backups/{$cleanFileName}",
+                dirname(__DIR__) . "/data/{$cleanFileName}",
+                dirname(__DIR__) . "/data/backups/{$key}"
+            ];
+            foreach ($localPaths as $lp) {
+                if (file_exists($lp)) {
+                    $buffer = file_get_contents($lp);
+                    break;
+                }
+            }
+            if (!$buffer) {
+                $cfg = get_parspack_storage_config_php($pdo);
+                $getRes = parspack_s3_resilient_call_php('GetObject', 'GET', "/{$cfg['bucket']}/{$key}", [], [], '', $cfg, 10);
+                if ($getRes['success']) $buffer = $getRes['body'];
+            }
+        }
+
+        if (!$buffer) {
+            echo json_encode(['success' => false, 'error' => 'فایل پشتیبان جهت بازیابی یافت نشد.'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // Parse JSON or ZIP
+        $parsed = json_decode($buffer, true);
+        $restoredCount = 0;
+
+        if (is_array($parsed)) {
+            if ($pdo) {
+                if (isset($parsed['tables']['products'])) {
+                    foreach ($parsed['tables']['products'] as $p) {
+                        try {
+                            $stmt = $pdo->prepare("INSERT INTO products (id, title, category, price, stock, image) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), price=VALUES(price), stock=VALUES(stock), image=VALUES(image)");
+                            $stmt->execute([$p['id'] ?? null, $p['title'] ?? '', $p['category'] ?? '', $p['price'] ?? 0, $p['stock'] ?? 0, $p['image'] ?? '']);
+                            $restoredCount++;
+                        } catch (Exception $e) {}
+                    }
+                }
+                if (isset($parsed['b2bConfig'])) {
+                    save_parspack_storage_config_php($pdo, $parsed['b2bConfig']);
+                    $restoredCount++;
+                }
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => "بازیابی با موفقیت انجام شد. تعداد $restoredCount بخش داده بازنشانی گردید.",
+            'restoredFilesCount' => max(1, $restoredCount)
+        ], JSON_UNESCAPED_UNICODE);
         exit();
 
     default:

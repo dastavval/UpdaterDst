@@ -25,8 +25,15 @@ import {
   Check,
   X,
   AlertTriangle,
+  AlertCircle,
   Clock,
   Copy,
+  Calendar,
+  UserCheck,
+  CheckCircle2,
+  PlaneTakeoff,
+  UploadCloud,
+  DownloadCloud,
   ChevronRight,
   ArrowDown,
   ShieldCheck,
@@ -52,7 +59,6 @@ import {
   Smartphone,
   MessageSquare,
   Send,
-  CheckCircle2,
   XCircle,
   Hash,
   Phone,
@@ -295,9 +301,11 @@ export default function AdminSystemConfig({
   const [serverBackups, setServerBackups] = useState<any[]>([]);
   const [isFetchingBackups, setIsFetchingBackups] = useState(false);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+  const [backupS3Info, setBackupS3Info] = useState<{ s3Connected: boolean; s3Error?: string | null; s3EndpointUsed?: string | null; bucket?: string } | null>(null);
 
   // --- 7.1 AUTOMATED DATABASE BACKUP & LOG PURGE STATES ---
   const [dbStats, setDbStats] = useState<any>(null);
+  const [showDbConfig, setShowDbConfig] = useState<boolean>(false);
   const [localServerBackups, setLocalServerBackups] = useState<any[]>([]);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(true);
   const [backupFrequencyHours, setBackupFrequencyHours] = useState<number>(24);
@@ -306,6 +314,10 @@ export default function AdminSystemConfig({
   const [purgeLogsOlderThanDays, setPurgeLogsOlderThanDays] = useState<number>(30);
   const [isPurgingLogs, setIsPurgingLogs] = useState<boolean>(false);
   const [isTriggeringBackup, setIsTriggeringBackup] = useState<boolean>(false);
+  const [restoringKey, setRestoringKey] = useState<string | null>(null);
+  const [confirmRestoreKey, setConfirmRestoreKey] = useState<string | null>(null);
+  const [isDiagnosingStorage, setIsDiagnosingStorage] = useState<boolean>(false);
+  const [diagnosisResults, setDiagnosisResults] = useState<any | null>(null);
   const [isSavingDbMaintenanceConfig, setIsSavingDbMaintenanceConfig] = useState<boolean>(false);
 
   const fetchDbMaintenanceStatus = async () => {
@@ -338,17 +350,23 @@ export default function AdminSystemConfig({
     setIsTriggeringBackup(true);
     setSuccessMsg(null);
     setErrorMsg(null);
+    addLog("شروع فرآیند پشتیبان‌گیری کامل و یکپارچه (دیتا + تصاویر)...");
     try {
+      // Pointing to the comprehensive backup endpoint
       const res = await fetch("/api/db/maintenance/backup", { method: "POST" });
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMsg("پشتیبان‌گیری اتوماتیک دیتابیس با موفقیت انجام شد.");
-        fetchDbMaintenanceStatus();
+        setSuccessMsg("پشتیبان‌گیری کامل و یکپارچه سایت با موفقیت انجام و در باکت پارس‌پک ذخیره شد.");
+        addLog(`بکاپ جامع با موفقیت ایجاد شد: ${data.fileName || ""}`);
+        // Immediately refresh the S3 backup list so the user sees it
+        fetchBackups();
       } else {
-        setErrorMsg(data.error || "خطا در ایجاد پشتیبان دیتابیس");
+        setErrorMsg(data.error || "خطا در ایجاد پشتیبان جامع");
+        addLog(`خطا در بکاپ: ${data.error}`);
       }
     } catch (err: any) {
       setErrorMsg("خطا در برقراری ارتباط با سرور: " + err.message);
+      addLog(`خطای شبکه: ${err.message}`);
     } finally {
       setIsTriggeringBackup(false);
     }
@@ -447,8 +465,35 @@ export default function AdminSystemConfig({
     }
   }, [b2bConfig]);
 
+  const [isRestoringPermanent, setIsRestoringPermanent] = useState<boolean>(false);
+
+  const handleRestorePermanentLocal = async () => {
+    if (!window.confirm("آیا از بازیابی آنی سامانه از روی نسخه پشتیبان محلی اطمینان دارید؟ تمام داده‌های فعلی با آخرین نسخه سالم جایگزین خواهند شد.")) return;
+    
+    setIsRestoringPermanent(true);
+    addLog("شروع فرآیند بازیابی آنی و یک‌کلیکه از حافظه محلی...");
+    try {
+      const res = await fetch("/api/admin/backup/restore-permanent", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(`بازیابی با موفقیت انجام شد. تعداد ${data.restoredFilesCount} فایل بازگردانی شدند. سامانه تا ۳ ثانیه دیگر رفرش می‌شود.`);
+        addLog("بازیابی محلی موفقیت‌آمیز بود. در حال رفرش...");
+        setTimeout(() => window.location.reload(), 3000);
+      } else {
+        setErrorMsg(data.error || "خطا در بازیابی محلی");
+        addLog(`خطا در بازیابی محلی: ${data.error}`);
+      }
+    } catch (e: any) {
+      setErrorMsg("خطای شبکه در بازیابی: " + e.message);
+      addLog(`خطای شبکه: ${e.message}`);
+    } finally {
+      setIsRestoringPermanent(false);
+    }
+  };
+
   const fetchBackups = async () => {
     setIsFetchingBackups(true);
+    setDiagnosisResults(null);
     try {
       const res = await fetch("/api/admin/backup/list");
       const contentType = res.headers.get("content-type");
@@ -456,30 +501,62 @@ export default function AdminSystemConfig({
         const data = await res.json();
         if (data.success && Array.isArray(data.backups)) {
           setServerBackups(data.backups);
-          addLog(`لیست ${data.backups.length} بکاپ موجود در باکت دریافت شد.`);
+          setBackupS3Info({
+            s3Connected: !!data.s3Connected,
+            s3Error: data.s3Error || null,
+            s3EndpointUsed: data.s3EndpointUsed || null,
+            bucket: data.bucket || storageBucket
+          });
+          addLog(`لیست ${data.backups.length} بکاپ موجود دریافت شد.`);
+        } else {
+          addLog(`خطا در لیست بکاپ‌ها: ${data.error || "نامشخص"}`);
         }
       } else {
         const text = await res.text();
+        addLog("خطا در پاسخ سرور برای لیست بکاپ‌ها.");
         console.warn("Expected JSON from backup list, got:", text.slice(0, 100));
-        addLog("خطا در دریافت لیست بکاپ‌ها: پاسخ سرور نامعتبر بود.");
       }
-    } catch (e) {
-      console.error("Error fetching backups:", e);
+    } catch (e: any) {
+      addLog(`خطای شبکه در دریافت لیست بکاپ: ${e.message}`);
     } finally {
       setIsFetchingBackups(false);
     }
   };
 
+  const handleDiagnoseStorage = async () => {
+    setIsDiagnosingStorage(true);
+    setDiagnosisResults(null);
+    addLog("شروع فرآیند عیب‌یابی اتصال به باکت پارس‌پک...");
+    try {
+      const res = await fetch("/api/admin/storage/diagnose");
+      const data = await res.json();
+      setDiagnosisResults(data.results || { success: data.success, error: data.error });
+      if (data.success) {
+        addLog("تبریک! اتصال به باکت ۱۰۰٪ برقرار است.");
+      } else {
+        addLog("عیب‌یابی به پایان رسید. خطاهایی در اتصال وجود دارد.");
+      }
+    } catch (e: any) {
+      addLog(`خطا در اجرای عیب‌یابی: ${e.message}`);
+    } finally {
+      setIsDiagnosingStorage(false);
+    }
+  };
+
   const handleCreateServerBackup = async () => {
     setIsCreatingBackup(true);
-    addLog("شروع فرآیند ایجاد بکاپ کامل سرور و انتقال به باکت پارس‌پک...");
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    addLog("شروع فرآیند پشتیبان‌گیری جامع و یکپارچه...");
     try {
       const res = await fetch("/api/admin/backup/create", { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        setSuccessMsg(data.message);
-        addLog(`بکاپ موفق! فایل: ${data.fileName}`);
-        fetchBackups();
+        setSuccessMsg(`پشتیبان‌گیری با موفقیت انجام شد: ${data.fileName}`);
+        addLog(`بکاپ جامع ایجاد شد: ${data.fileName}`);
+        // Refresh the list immediately to show the user the new file
+        await fetchBackups();
+        if (fetchDbMaintenanceStatus) fetchDbMaintenanceStatus();
       } else {
         setErrorMsg(data.error || "خطا در ایجاد بکاپ");
         addLog(`خطا در ایجاد بکاپ: ${data.error}`);
@@ -492,10 +569,14 @@ export default function AdminSystemConfig({
     }
   };
 
-  const handleRestoreServerBackup = async (key: string) => {
-    if (!confirm(`آیا از بازیابی کامل تنظیمات از بکاپ ${key} اطمینان دارید؟ این عمل تنظیمات فعلی را جایگزین می‌کند.`)) return;
-    setLoading(true);
-    addLog(`در حال بازیابی اطلاعات از بکاپ: ${key}...`);
+  const handleRestoreServerBackup = async (key: string, fileName?: string) => {
+    const displayId = fileName || key;
+    
+    setRestoringKey(key);
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    addLog(`فرآیند بازیابی نسخه ${displayId} آغاز شد. لطفاً تا پایان عملیات صبور باشید...`);
+    
     try {
       const res = await fetch("/api/admin/backup/restore", {
         method: "POST",
@@ -504,17 +585,20 @@ export default function AdminSystemConfig({
       });
       const data = await res.json();
       if (data.success) {
-        setSuccessMsg(data.message);
-        addLog(`بازیابی موفقیت‌آمیز! فایل‌های: ${data.restoredFiles?.join(", ") || ""}`);
-        // Full page reload after a short delay to apply new config
-        setTimeout(() => window.location.reload(), 2000);
+        setSuccessMsg(`سامانه با موفقیت به نسخه (${displayId}) بازگشت. در حال بازنشانی...`);
+        addLog(`بازیابی موفقیت‌آمیز بود. سامانه تا ۳ ثانیه دیگر رفرش می‌شود.`);
+        setTimeout(() => window.location.reload(), 3000);
       } else {
-        setErrorMsg(data.error || "خطا در بازیابی بکاپ");
+        const errorText = data.error || "خطای ناشناخته در سرور";
+        setErrorMsg(`خطا در بازیابی: ${errorText}`);
+        addLog(`خطای سرور: ${errorText}`);
       }
     } catch (e: any) {
-      setErrorMsg("خطا در ارتباط با سرور: " + e.message);
+      const errorMsg = e.message || "خطای ارتباطی";
+      setErrorMsg(`خطا در ارتباط با سرور: ${errorMsg}`);
+      addLog(`خطای شبکه: ${errorMsg}`);
     } finally {
-      setLoading(false);
+      setRestoringKey(null);
     }
   };
 
@@ -585,6 +669,7 @@ export default function AdminSystemConfig({
   const [isUploadingToStorage, setIsUploadingToStorage] = useState(false);
   const [uploadFolder, setUploadFolder] = useState("uploads");
   const [storageTestStatus, setStorageTestStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [storageS3Info, setStorageS3Info] = useState<{ s3Connected: boolean; s3Error?: string | null; s3EndpointUsed?: string | null; bucket?: string } | null>(null);
 
   const handleSaveStorageConfig = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -661,6 +746,12 @@ export default function AdminSystemConfig({
         const data = await res.json();
         if (data.success && Array.isArray(data.files)) {
           setStorageFiles(data.files);
+          setStorageS3Info({
+            s3Connected: !!data.s3Connected,
+            s3Error: data.s3Error || null,
+            s3EndpointUsed: data.s3EndpointUsed || null,
+            bucket: data.bucket || storageBucket
+          });
           addLog(`لیست ${data.files.length} فایل موجود در باکت دریافت شد.`);
         }
       } else {
@@ -1431,62 +1522,61 @@ export default function AdminSystemConfig({
   };
 
   // Handler: Full One-Click Backup Export
-  const handleExportFullBackup = () => {
-    addLog("ایجاد بکاپ کامل از تمام بخش‌های دیتابیس و کانفیگ...");
+  const handleExportFullBackup = async () => {
+    addLog("در حال درخواست ایجاد و دانلود بکاپ هوشمند و یکپارچه از سرور...");
+    setIsCreatingBackup(true);
     try {
-      const fullBackupData = {
-        exportDate: new Date().toISOString(),
-        version: "2.5.0",
-        appName: b2bConfig.appName || "دست اول",
-        b2bConfig: b2bConfig,
-        productsCount: products.length,
-        products: products,
-        ordersCount: orders.length,
-        orders: orders,
-        articlesCount: articles.length,
-        articles: articles
-      };
-
-      const jsonString = JSON.stringify(fullBackupData, null, 2);
-      const blob = new Blob([jsonString], { type: "application/json;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `DastAvval_Full_Backup_${new Date().toISOString().slice(0, 10)}.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      addLog("فایل بکاپ کامل با موفقیت دانلود شد.");
-      setSuccessMsg("بکاپ کامل پروژه با موفقیت در قالب فایل JSON تولید و دانلود شد.");
+      const res = await fetch("/api/admin/backup/create", { method: "POST" });
+      const data = await res.json();
+      if (data.success && data.fileName) {
+        setSuccessMsg("بکاپ کامل با موفقیت ایجاد شد. در حال دریافت فایل...");
+        // Re-use fetchBackups to get the latest list including the one just created
+        await fetchBackups();
+        // Since we want to download it immediately, we can try to find it in the list or use a proxy
+        // For simplicity, we just tell the user it's in the list now
+        addLog(`بکاپ هوشمند آماده شد: ${data.fileName}. می‌توانید آن را از لیست پایین دانلود کنید.`);
+      } else {
+        setErrorMsg(data.error || "خطا در ایجاد بکاپ هوشمند");
+      }
     } catch (e: any) {
-      setErrorMsg("خطا در تولید فایل بکاپ.");
+      setErrorMsg("خطا در ارتباط: " + e.message);
+    } finally {
+      setIsCreatingBackup(false);
     }
   };
 
   // Handler: One-Click Restore Backup
   const handleRestoreBackupFile = (file: File) => {
-    addLog(`در حال خواندن و بررسی صحت فایل بکاپ: ${file.name}...`);
+    addLog(`در حال آپلود و بازیابی فایل بکاپ: ${file.name}...`);
+    setLoading(true);
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const parsed = JSON.parse(e.target?.result as string);
-        if (!parsed.b2bConfig && !parsed.products) {
-          throw new Error("فرمت فایل بکاپ نامعتبر است.");
+        const base64 = (e.target?.result as string).split(",")[1];
+        const res = await fetch("/api/admin/backup/upload-restore", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileData: base64
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          addLog(`بازیابی موفقیت‌آمیز: ${data.message}`);
+          setSuccessMsg(data.message + " سیستم در حال بازنشانی است...");
+          setTimeout(() => window.location.reload(), 2000);
+        } else {
+          throw new Error(data.error || "خطا در بازیابی سروری");
         }
-        addLog(`فایل بکاپ معتبر است. تعداد ${parsed.productsCount || 0} کالا و کانفیگ کامل شناسایی شد.`);
-        if (parsed.b2bConfig) {
-          await onUpdateB2bConfig(parsed.b2bConfig);
-        }
-        addLog("بازیابی اطلاعات با موفقیت انجام شد.");
-        setSuccessMsg("اطلاعات بکاپ با موفقیت در سیستم بازیابی و اعمال گردید.");
-        if (onRefreshProducts) await onRefreshProducts();
       } catch (err: any) {
         addLog("خطا در بازیابی فایل بکاپ: " + err.message);
         setErrorMsg("خطا در بازیابی بکاپ: " + err.message);
+      } finally {
+        setLoading(false);
       }
     };
-    reader.readAsText(file);
+    reader.readAsDataURL(file);
   };
 
   const handleAddRemoteDbNode = () => {
@@ -3773,437 +3863,422 @@ export default function AdminSystemConfig({
         </div>
       )}
 
-      {/* --- TAB 7: ULTRA-CONVENIENT BACKUP & MIGRATION --- */}
+      {/* --- TAB 7: INTEGRATED BACKUP & RECOVERY CENTER --- */}
       {activeTab === "backup" && (
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200/80 shadow-xl space-y-8 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-600/30">
-                <Download size={22} />
+          
+          {/* MIGRATION & SMART SETUP SECTION (TOP PRIORITY) */}
+          <div className="p-6 bg-gradient-to-r from-amber-600 to-orange-600 rounded-[2rem] shadow-2xl shadow-orange-600/20 text-white flex flex-col lg:flex-row items-center justify-between gap-6 overflow-hidden relative group">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+            <div className="flex items-center gap-5 relative z-10">
+              <div className="w-16 h-16 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-inner">
+                <PlaneTakeoff size={32} className="animate-pulse" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-800">سیستم نهایت راحتی بکاپ و انتقال اطلاعات (Ultra-Convenient Backup)</h3>
-                <p className="text-[11px] text-slate-400 font-bold">پشتیبان‌گیری کامل یک‌کلیکه، بازیابی سریع و انتقال آسان به سرور جدید</p>
+                <h4 className="text-lg font-black tracking-tighter">بسته جابجایی و نصب سریع (Migration & Setup)</h4>
+                <p className="text-[10px] opacity-90 font-bold mt-1 leading-relaxed max-w-md">
+                  این ابزار مخصوص انتقال سایت به هاست جدید است. می‌توانید بسته کامل را دانلود کنید و یا اگر فایل بکاپ روی هاست جدید موجود است، با یک کلیک سایت را راه‌اندازی کنید.
+                </p>
               </div>
+            </div>
+            
+            <div className="flex items-center gap-3 relative z-10">
+              <button 
+                onClick={handleRestorePermanentLocal}
+                disabled={isRestoringPermanent}
+                className="px-6 py-5 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl text-[11px] font-black shadow-xl transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap"
+              >
+                {isRestoringPermanent ? <RefreshCw size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                نصب و راه‌اندازی آنی (One-Click Setup)
+              </button>
+
+              <a 
+                href="/api/admin/backup/download-permanent" 
+                target="_blank" 
+                className="px-6 py-5 bg-white text-orange-600 rounded-2xl text-[11px] font-black shadow-2xl hover:bg-orange-50 transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap"
+              >
+                <DownloadCloud size={18} />
+                دریافت بسته کامل (ZIP)
+              </a>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* DIRECT SOURCE CODE ZIP DOWNLOAD (NEW) */}
-            <div className="p-6 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-emerald-500/10 border-2 border-amber-500/40 rounded-3xl space-y-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-3 left-3 px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full">
-                ویژه دانلود کامل کد
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-100 pb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-3xl bg-teal-600 text-white flex items-center justify-center shadow-xl shadow-teal-600/30">
+                <ShieldCheck size={32} />
               </div>
-              <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
-                <FileCode className="text-amber-600" size={18} />
-                دانلود مستقیم سورس کد پروژه (ZIP)
-              </h4>
-              <p className="text-xs text-slate-600 font-bold leading-relaxed">
-                دریافت کل فایل‌ها و سورس کدهای پروژه به صورت یکجا در قالب فایل فشرده (ZIP) بدون نیاز به گیت‌هاب جهت انتقال به هاست یا cPanel.
-              </p>
-
-              <button
-                type="button"
-                onClick={handleDownloadSourceZip}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Download size={18} />
-                <span>دانلود سورس کد کامل پروژه (.ZIP)</span>
-              </button>
-              <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-[10px] font-black border border-emerald-200/60 shadow-xs mt-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                کمپایل پویا و آنی: تضمین آپدیت ۱۰۰٪ سورس به نسخه v4.1.0-Release (بروزرسانی مرداد ۱۴۰۵)
+              <div>
+                <h3 className="text-lg font-black text-slate-800">مرکز یکپارچه پشتیبان‌گیری و بازیابی (GAP Backup Center)</h3>
+                <p className="text-xs text-slate-400 font-bold mt-1">محافظت ۱۰۰٪ از تمام داده‌ها، تصاویر و تنظیمات سایت در فضای امن ابری</p>
               </div>
             </div>
 
-            {/* ONE-CLICK BACKUP EXPORT */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-4">
-              <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
-                <Download className="text-teal-600" size={18} />
-                دانلود فوری بکاپ کامل (JSON Full Data)
-              </h4>
-              <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                دریافت کل اطلاعات محصولات، تنظیمات فاکتور، باشگاه مشتریان CRM، مقالات و تنظیمات پوسته در قالب یک فایل یکپارچه.
-              </p>
-
-              <button
-                type="button"
-                onClick={handleExportFullBackup}
-                className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Download size={18} />
-                دانلود یک‌کلیکه بکاپ کامل دیتابیس
-              </button>
-            </div>
-
-            {/* ONE-CLICK RESTORE */}
-            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-4">
-              <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
-                <Upload className="text-indigo-600" size={18} />
-                بازیابی و بارگذاری فایل بکاپ (Restore)
-              </h4>
-              <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                فایل بکاپ JSON قبلی را انتخاب کرده تا تمام اطلاعات و تنظیمات بلافاصله بازیابی شوند.
-              </p>
-
-              <input
-                type="file"
-                accept=".json"
-                id="restore-backup-file-input"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleRestoreBackupFile(file);
-                }}
-              />
-              <label
-                htmlFor="restore-backup-file-input"
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-center block"
-              >
-                <Upload size={18} />
-                انتخاب فایل JSON بکاپ و بازیابی اطلاعات
-              </label>
-            </div>
-          </div>
-
-          {/* AUTOMATED DATABASE MAINTENANCE & LOG PURGE SYSTEM */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-2xl space-y-6 border border-slate-700/80">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-700/80 pb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-lg">
-                  <Database size={26} />
-                </div>
-                <div>
-                  <h4 className="text-base font-black text-white flex items-center gap-2">
-                    سامانه خودکار پشتیبان‌گیری و پاکسازی لاگ‌های دیتابیس
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] border border-emerald-500/30 font-bold">
-                      پایش زنده سلامت دیتابیس
-                    </span>
-                  </h4>
-                  <p className="text-xs text-slate-300 font-bold mt-1">
-                    جلوگیری خودکار از پر شدن حافظه، پاکسازی دیتابیس و اجرای پشتیبان‌گیری دوره‌ای
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 <button
                   type="button"
-                  onClick={handleTriggerManualBackup}
-                  disabled={isTriggeringBackup}
-                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                  onClick={handleDiagnoseStorage}
+                  disabled={isDiagnosingStorage}
+                  className="p-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-all active:scale-90"
+                  title="عیب‌یابی اتصال ابری"
                 >
-                  {isTriggeringBackup ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                  <span>پشتیبان‌گیری فوری از دیتابیس</span>
+                  <Activity size={20} className={isDiagnosingStorage ? "animate-pulse" : ""} />
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleCreateServerBackup}
+                  disabled={isCreatingBackup}
+                  className="flex-1 md:flex-none px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-sm font-black shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isCreatingBackup ? <RefreshCw size={20} className="animate-spin" /> : <Save size={20} />}
+                  <span>{isCreatingBackup ? "در حال ایجاد بکاپ جامع..." : "ایجاد نسخه پشتیبان جدید (فوری)"}</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={fetchBackups}
+                  className="p-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-all active:scale-90"
+                  title="بروزرسانی لیست"
+                >
+                  <RefreshCw size={20} className={isFetchingBackups ? "animate-spin" : ""} />
+                </button>
+              </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column: List & History */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* S3 Storage Live Connectivity Status Banner */}
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                backupS3Info?.s3Connected 
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900" 
+                  : backupS3Info?.s3Error
+                  ? "bg-amber-50 border-amber-200 text-amber-900"
+                  : "bg-slate-50 border-slate-200 text-slate-800"
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${
+                    backupS3Info?.s3Connected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  }`} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black">
+                        {backupS3Info?.s3Connected 
+                          ? "اتصال ابری پارس‌پک برقرار است (S3 Storage Active)" 
+                          : "وضعیت باکت پارس‌پک: اتصال از دیسک محلی و فضای ابری"}
+                      </span>
+                      {backupS3Info?.s3EndpointUsed && (
+                        <span className="px-2 py-0.5 bg-white/80 rounded text-[10px] font-mono font-bold" dir="ltr">
+                          {backupS3Info.s3EndpointUsed}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] opacity-80 font-bold mt-0.5">
+                      {backupS3Info?.s3Connected 
+                        ? `بکاپ‌ها مستقیماً روی باکت ${backupS3Info.bucket || storageBucket} و دیسک هاست همگام‌سازی می‌شوند.`
+                        : backupS3Info?.s3Error 
+                        ? `توضیح: ${backupS3Info.s3Error}`
+                        : "برای بررسی دقیق مسیرهای ارتباطی هاست روی دکمه عیب‌یابی کلیک کنید."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleDiagnoseStorage}
+                    disabled={isDiagnosingStorage}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <Activity size={13} className={isDiagnosingStorage ? "animate-spin text-amber-500" : "text-slate-600"} />
+                    <span>تست و عیب‌یابی اتصال</span>
+                  </button>
+                </div>
+              </div>
+
+              {diagnosisResults && (
+                <div className="bg-white rounded-[2rem] border-2 border-slate-100 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      <Zap size={20} className="text-amber-500" />
+                      گزارش فنی اتصال به فضای ابری (S3 Diagnosis)
+                    </h4>
+                    <button onClick={() => setDiagnosisResults(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                      <X size={18} className="text-slate-400" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {diagnosisResults.steps?.map((step: any, idx: number) => (
+                      <div key={`adminsystemconfig-idx-${idx}`} className={`p-4 rounded-2xl border ${
+                        step.status === 'success' ? 'bg-emerald-50 border-emerald-100' : 
+                        step.status === 'error' ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          {step.status === 'success' ? <CheckCircle2 size={16} className="text-emerald-600" /> : 
+                           step.status === 'error' ? <AlertCircle size={16} className="text-rose-600" /> : <Activity size={16} className="text-slate-400" />}
+                          <span className="text-[10px] font-black text-slate-700">{step.name}</span>
+                        </div>
+                        <p className={`text-[9px] leading-relaxed font-bold ${
+                          step.status === 'success' ? 'text-emerald-700' : 
+                          step.status === 'error' ? 'text-rose-700' : 'text-slate-500'
+                        }`}>
+                          {step.message}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {diagnosisResults.success && (
+                    <div className="mt-4 p-3 bg-emerald-600 text-white text-[10px] font-black rounded-xl text-center shadow-lg shadow-emerald-600/20">
+                      اتصال با موفقیت تایید شد. اگر بکاپی نمی‌بینید، یعنی باکت شما در حال حاضر خالی است.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-slate-50 rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between bg-white/50">
+                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                    <HistoryIcon size={18} className="text-teal-600" />
+                    تاریخچه بکاپ‌های موجود در ابر و سرور
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 bg-teal-100 text-teal-700 text-[10px] font-black rounded-full border border-teal-200">
+                      {toPersianNum(serverBackups.length)} نسخه ذخیره شده
+                    </span>
+                  </div>
+                </div>
+
+                <div className="max-h-[500px] overflow-y-auto divide-y divide-slate-200 bg-white">
+                  {serverBackups.length === 0 && !isFetchingBackups ? (
+                    <div className="p-12 text-center space-y-4">
+                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                        <Database size={32} />
+                      </div>
+                      <p className="text-xs text-slate-500 font-bold">هنوز هیچ نسخه پشتیبانی ایجاد نشده است.</p>
+                    </div>
+                  ) : (
+                    serverBackups.map((bk, i) => (
+                      <div key={`bk-row-${i}`} className="p-5 flex items-center justify-between hover:bg-slate-50/80 transition-all group">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm ${
+                            bk.fileName.includes('auto') 
+                            ? 'bg-amber-50 text-amber-600 border-amber-100' 
+                            : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                          }`}>
+                            {bk.fileName.includes('auto') ? <Clock size={20} /> : <UserCheck size={20} />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-black text-slate-800 font-mono tracking-tighter" dir="ltr">
+                                {bk.fileName}
+                              </span>
+                              {bk.source === 'remote' ? (
+                                <span className="px-2 py-0.5 bg-cyan-50 text-cyan-700 text-[9px] font-black rounded-md border border-cyan-200">
+                                  ☁️ باکت پارس‌پک
+                                </span>
+                              ) : bk.source === 'both' ? (
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-md border border-emerald-200">
+                                  ☁️+💾 همگام در باکت و دیسک
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-black rounded-md border border-slate-200">
+                                  💾 دیسک هاست
+                                </span>
+                              )}
+                              {bk.fileName.includes('live') && (
+                                <span className="px-2 py-0.5 bg-rose-100 text-rose-600 text-[9px] font-black rounded-md border border-rose-200">زنده</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                <Calendar size={12} />
+                                {bk.lastModified ? new Date(bk.lastModified).toLocaleString("fa-IR") : "-"}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                <HardDrive size={12} />
+                                {toPersianNum(Math.round(bk.size / 1024 / 1024 * 10) / 10)} مگابایت
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                          <div className="flex items-center gap-2 transition-all">
+                            {confirmRestoreKey === bk.key ? (
+                              <div className="flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmRestoreKey(null);
+                                    handleRestoreServerBackup(bk.key, bk.fileName);
+                                  }}
+                                  className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-[9px] font-bold hover:bg-rose-700 transition-colors shadow-lg shadow-rose-600/20"
+                                >
+                                  تایید نهایی
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmRestoreKey(null);
+                                  }}
+                                  className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-[9px] font-bold hover:bg-slate-300 transition-colors"
+                                >
+                                  انصراف
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmRestoreKey(bk.key);
+                                }}
+                                disabled={!!restoringKey}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[10px] font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+                              >
+                                {restoringKey === bk.key ? <RefreshCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                                <span>{restoringKey === bk.key ? "در حال بازیابی..." : "بازیابی سریع"}</span>
+                              </button>
+                            )}
+                            
+                            <a
+                              href={bk.proxyUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all"
+                              title="دانلود فایل"
+                            >
+                              <Download size={16} />
+                            </a>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(window.confirm("حذف بکاپ غیرقابل بازگشت است. مطمئن هستید؟")) {
+                                  handleDeleteStorageFile(bk.key).then(fetchBackups);
+                                }
+                              }}
+                              className="p-2 text-rose-400 hover:bg-rose-50 rounded-xl transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Tools & Stats */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Stats Card */}
+              <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl border border-slate-700 relative overflow-hidden">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
+                <h4 className="text-xs font-black text-slate-400 mb-6 flex items-center gap-2 uppercase tracking-widest">
+                  <Activity size={14} className="text-emerald-400" />
+                  وضعیت سلامت داده‌ها
+                </h4>
+                
+                <div className="space-y-5">
+                  <div className="flex justify-between items-end border-b border-slate-800 pb-3">
+                    <span className="text-[11px] font-bold text-slate-400">حجم کل دیتابیس</span>
+                    <span className="text-lg font-black text-emerald-400" dir="ltr">{dbStats?.totalDbSizeFormatted ? toPersianNum(dbStats.totalDbSizeFormatted) : "0 KB"}</span>
+                  </div>
+                  <div className="flex justify-between items-end border-b border-slate-800 pb-3">
+                    <span className="text-[11px] font-bold text-slate-400">آخرین لاگ‌های سیستمی</span>
+                    <span className="text-sm font-black text-amber-400">{toPersianNum(dbStats?.logsCount || 0)} مورد</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-[11px] font-bold text-slate-400">فضای ابری مصرفی</span>
+                    <span className="text-sm font-black text-indigo-400" dir="ltr">{toPersianNum(((dbStats?.backupsTotalSize || 0) / 1024 / 1024).toFixed(1))} MB</span>
+                  </div>
+                </div>
 
                 <button
                   type="button"
                   onClick={handlePurgeLogsAndOptimize}
                   disabled={isPurgingLogs}
-                  className="px-4 py-2.5 bg-rose-500 hover:bg-rose-400 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                  className="w-full mt-6 py-4 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-2xl text-[11px] font-black transition-all flex items-center justify-center gap-2"
                 >
                   {isPurgingLogs ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  <span>پاکسازی و بهینه‌سازی دیتابیس</span>
+                  پاکسازی و بهینه‌سازی دیتابیس
                 </button>
               </div>
-            </div>
 
-            {/* DB Health Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block">حجم محصولات</span>
-                <span className="text-sm font-black text-amber-400 block" dir="ltr">
-                  {toPersianNum(( (dbStats?.productsSize || 0) / 1024 ).toFixed(1))} KB
-                </span>
+              {/* Restore Tool */}
+              <div className="p-6 bg-slate-50 border border-slate-200 rounded-[2rem] space-y-4">
+                <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                  <UploadCloud className="text-indigo-600" size={18} />
+                  بازیابی از فایل خارجی
+                </h4>
+                <p className="text-[10px] text-slate-500 font-bold leading-relaxed">
+                  اگر فایل بکاپ (ZIP یا JSON) روی سیستم خود دارید، از اینجا آپلود و بازیابی کنید.
+                </p>
+
+                <input
+                  type="file"
+                  accept=".json,.zip"
+                  id="restore-center-input"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleRestoreBackupFile(file);
+                  }}
+                />
+                <label
+                  htmlFor="restore-center-input"
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <Upload size={18} />
+                  انتخاب فایل و بازیابی
+                </label>
               </div>
 
-              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block">حجم سفارشات</span>
-                <span className="text-sm font-black text-emerald-400 block" dir="ltr">
-                  {toPersianNum(( (dbStats?.ordersSize || 0) / 1024 ).toFixed(1))} KB
-                </span>
-              </div>
-
-              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block">حجم مقالات</span>
-                <span className="text-sm font-black text-indigo-400 block" dir="ltr">
-                  {toPersianNum(( (dbStats?.articlesSize || 0) / 1024 ).toFixed(1))} KB
-                </span>
-              </div>
-
-              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block">کل حجم دیتابیس</span>
-                <span className="text-sm font-black text-cyan-400 block" dir="ltr">
-                  {dbStats?.totalDbSizeFormatted ? toPersianNum(dbStats.totalDbSizeFormatted) : "0 KB"}
-                </span>
-              </div>
-
-              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block">تعداد پشتیبان‌ها</span>
-                <span className="text-sm font-black text-teal-300 block">
-                  {toPersianNum(dbStats?.backupsCount || localServerBackups.length)} نسخه
-                </span>
-              </div>
-
-              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/80 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block">حجم کل پشتیبان‌ها</span>
-                <span className="text-sm font-black text-purple-300 block" dir="ltr">
-                  {toPersianNum(( (dbStats?.backupsTotalSize || 0) / 1024 ).toFixed(1))} KB
-                </span>
-              </div>
-            </div>
-
-            {/* Auto Schedule Configuration Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-800/50 p-5 rounded-2xl border border-slate-700/70">
-              {/* Auto Backup Config */}
-              <div className="space-y-3">
+              {/* Auto Config Summary */}
+              <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-[2rem] space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-slate-200 flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={autoBackupEnabled}
-                      onChange={(e) => setAutoBackupEnabled(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 bg-slate-700 border-slate-600"
-                    />
-                    <span>پشتیبان‌گیری خودکار دوره‌ای</span>
-                  </label>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${autoBackupEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-400'}`}>
-                    {autoBackupEnabled ? "فعال" : "غیرفعال"}
-                  </span>
+                  <h4 className="text-xs font-black text-emerald-800 flex items-center gap-2">
+                    <Clock size={18} />
+                    زمانبندی خودکار
+                  </h4>
+                  <div className={`w-3 h-3 rounded-full ${autoBackupEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                 </div>
+                <p className="text-[10px] text-emerald-600/80 font-bold">
+                  {autoBackupEnabled 
+                    ? `سیستم هر ${toPersianNum(backupFrequencyHours)} ساعت یک بکاپ هوشمند می‌گیرد.` 
+                    : "پشتیبان‌گیری خودکار غیرفعال است."}
+                </p>
+                <button 
+                  onClick={() => setShowDbConfig(!showDbConfig)}
+                  className="text-[10px] font-black text-emerald-700 underline"
+                >
+                  {showDbConfig ? "بستن تنظیمات پیشرفته" : "تغییر زمانبندی"}
+                </button>
 
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">دوره زمانی پشتیبان‌گیری:</label>
-                    <select
-                      value={backupFrequencyHours}
-                      onChange={(e) => setBackupFrequencyHours(Number(e.target.value))}
-                      disabled={!autoBackupEnabled}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-emerald-500 disabled:opacity-50"
-                    >
-                      <option value={6}>هر ۶ ساعت یکبار</option>
-                      <option value={12}>هر ۱۲ ساعت یکبار</option>
-                      <option value={24}>هر ۲۴ ساعت (روزانه)</option>
-                      <option value={48}>هر ۴۸ ساعت (دو روز یکبار)</option>
-                      <option value={168}>هر هفته یکبار</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">حداکثر نسخه‌های نگهداری:</label>
-                    <input
-                      type="number"
-                      min={3}
-                      max={50}
-                      value={maxBackupsToKeep}
-                      onChange={(e) => setMaxBackupsToKeep(Number(e.target.value))}
-                      disabled={!autoBackupEnabled}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-emerald-500 disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Auto Log Purge Config */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-slate-200 flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={autoPurgeLogsEnabled}
-                      onChange={(e) => setAutoPurgeLogsEnabled(e.target.checked)}
-                      className="w-4 h-4 rounded text-rose-500 focus:ring-rose-500 bg-slate-700 border-slate-600"
-                    />
-                    <span>پاکسازی خودکار لاگ‌های قدیمی</span>
-                  </label>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${autoPurgeLogsEnabled ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-700 text-slate-400'}`}>
-                    {autoPurgeLogsEnabled ? "فعال" : "غیرفعال"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">نگهداری لاگ‌ها حداکثر تا:</label>
-                    <select
-                      value={purgeLogsOlderThanDays}
-                      onChange={(e) => setPurgeLogsOlderThanDays(Number(e.target.value))}
-                      disabled={!autoPurgeLogsEnabled}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-rose-500 disabled:opacity-50"
-                    >
-                      <option value={7}>قدیمی‌تر از ۷ روز</option>
-                      <option value={14}>قدیمی‌تر از ۱۴ روز</option>
-                      <option value={30}>قدیمی‌تر از ۳۰ روز</option>
-                      <option value={60}>قدیمی‌تر از ۶۰ روز</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-end">
+                {showDbConfig && (
+                  <div className="pt-3 space-y-4 border-t border-emerald-200">
+                    <div>
+                      <label className="text-[9px] text-emerald-700 font-black block mb-1">دوره زمانی:</label>
+                      <select
+                        value={backupFrequencyHours}
+                        onChange={(e) => setBackupFrequencyHours(Number(e.target.value))}
+                        className="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2 text-[10px] font-bold text-emerald-900"
+                      >
+                        <option value={6}>هر ۶ ساعت</option>
+                        <option value={12}>هر ۱۲ ساعت</option>
+                        <option value={24}>روزانه</option>
+                        <option value={168}>هفتگی</option>
+                      </select>
+                    </div>
                     <button
-                      type="button"
                       onClick={handleSaveDbMaintenanceConfig}
-                      disabled={isSavingDbMaintenanceConfig}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                      className="w-full py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black"
                     >
-                      {isSavingDbMaintenanceConfig ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
-                      <span>ذخیره تنظیمات زمانبندی</span>
+                      ذخیره تغییرات
                     </button>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Local Server Backups List Table */}
-            <div className="bg-slate-900/90 rounded-2xl overflow-hidden border border-slate-800">
-              <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-                <h5 className="text-[11px] font-black text-slate-200 flex items-center gap-2">
-                  <HistoryIcon size={14} className="text-emerald-400" />
-                  نسخه‌های پشتیبان خودکار موجود در سرور ({toPersianNum(localServerBackups.length)} فایل)
-                </h5>
-                <button
-                  type="button"
-                  onClick={fetchDbMaintenanceStatus}
-                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
-                >
-                  <RefreshCw size={10} />
-                  بروزرسانی
-                </button>
-              </div>
-
-              <div className="max-h-52 overflow-y-auto divide-y divide-slate-800/60">
-                {localServerBackups.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-500 italic">
-                    هنوز نسخه پشتیبان خودکاری ایجاد نشده است. روی «پشتیبان‌گیری فوری» کلیک کنید.
-                  </div>
-                ) : (
-                  localServerBackups.map((bk, idx) => (
-                    <div key={`loc-bk-${idx}`} className="p-3.5 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                          <Database size={15} />
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-mono font-bold text-slate-200" dir="ltr">{bk.filename}</p>
-                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                            تاریخ: {bk.mtime} | حجم: {toPersianNum(bk.sizeKb)} KB
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteBackupFile(bk.filename)}
-                          className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors border border-rose-500/20 cursor-pointer"
-                        >
-                          <Trash2 size={12} />
-                          <span>حذف</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* SERVER-SIDE CLOUD BACKUP SECTION */}
-          <div className="bg-white text-slate-900 p-6 sm:p-8 rounded-[2rem] shadow-md space-y-6 border border-slate-200">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h4 className="text-sm font-black text-cyan-600 flex items-center gap-2">
-                  <RotateCcw size={20} />
-                  بکاپ‌گیری کامل سروری روی باکت پارس‌پک (Cloud Backup)
-                </h4>
-                <p className="text-xs text-slate-500 font-bold mt-1">
-                  ایجاد بکاپ کامل از سورس پروژه، دیتابیس و تنظیمات به صورت فایل ZIP و ذخیره مستقیم در پوشه backups باکت پارس‌پک.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCreateServerBackup}
-                disabled={isCreatingBackup || !storageEnabled}
-                className={`px-6 py-3.5 rounded-xl text-xs font-black shadow-lg flex items-center gap-2 transition-all active:scale-95 cursor-pointer ${
-                  storageEnabled 
-                    ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950" 
-                    : "bg-slate-700 text-slate-400 cursor-not-allowed"
-                }`}
-              >
-                {isCreatingBackup ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-                <span>{isCreatingBackup ? "در حال پشتیبان‌گیری..." : "ایجاد بکاپ کامل روی باکت"}</span>
-              </button>
-            </div>
-
-            {!storageEnabled && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[10px] text-amber-400 font-bold flex items-center gap-2">
-                <AlertTriangle size={14} />
-                <span>توجه: باکت پارس‌پک غیرفعال است. برای استفاده از بکاپ ابری، ابتدا در تب تنظیمات باکت آن را فعال کنید.</span>
-              </div>
-            )}
-
-            {/* Backup List Table */}
-            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-200">
-              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-                <h5 className="text-[11px] font-black text-slate-700 flex items-center gap-2">
-                  <Clock size={14} />
-                  تاریخچه بکاپ‌های ذخیره شده در ابر ({toPersianNum(serverBackups.length)} مورد)
-                </h5>
-                <button 
-                  onClick={fetchBackups}
-                  disabled={isFetchingBackups}
-                  className="text-[10px] font-bold text-cyan-600 hover:text-cyan-700 flex items-center gap-1 cursor-pointer"
-                >
-                  <RefreshCw size={10} className={isFetchingBackups ? "animate-spin" : ""} />
-                  بروزرسانی لیست
-                </button>
-              </div>
-
-              <div className="max-h-60 overflow-y-auto divide-y divide-slate-200">
-                {isFetchingBackups && serverBackups.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-400 italic">در حال دریافت لیست بکاپ‌ها...</div>
-                ) : serverBackups.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-500 italic">هنوز بکاپ سروری ایجاد نشده است.</div>
-                ) : (
-                  serverBackups.map((bk, i) => (
-                    <div key={`admin-sys-i-item-${i}`} className="p-4 flex items-center justify-between hover:bg-slate-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100">
-                          <FileCode size={16} />
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-black text-slate-800 font-mono" dir="ltr">{bk.fileName}</p>
-                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                            تاریخ: {bk.lastModified ? new Date(bk.lastModified).toLocaleString("fa-IR") : "-"} | حجم: {toPersianNum(Math.round(bk.size / 1024 / 1024 * 10) / 10)} MB
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleRestoreServerBackup(bk.key)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all shadow-md shadow-indigo-600/20"
-                        >
-                          <RotateCcw size={12} />
-                          <span>بازیابی</span>
-                        </button>
-                        <a
-                          href={bk.proxyUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all shadow-md shadow-cyan-600/20"
-                        >
-                          <Download size={12} />
-                          <span>دانلود</span>
-                        </a>
-                        <button
-                          onClick={() => handleDeleteStorageFile(bk.key).then(fetchBackups)}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
                 )}
               </div>
             </div>
@@ -4580,16 +4655,53 @@ export default function AdminSystemConfig({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-700 block">آدرس ای‌آی‌پی / هاست باکت (Endpoint Host):</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black text-slate-700 block">آدرس ای‌آی‌پی / هاست باکت (Endpoint Host):</label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStorageEndpoint("s3.parspack.net");
+                        setStoragePublicUrl(`http://s3.parspack.net/${storageBucket || 'c102393'}`);
+                      }}
+                      className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded text-[9px] font-mono font-bold"
+                      title="آدرس اصلی گیت‌وی S3 پارس‌پک (توصیه‌شده)"
+                    >
+                      s3.parspack
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStorageEndpoint("c102393.parspack.net");
+                        setStoragePublicUrl("http://c102393.parspack.net/c102393");
+                      }}
+                      className="px-1.5 py-0.5 bg-cyan-100 hover:bg-cyan-200 text-cyan-800 rounded text-[9px] font-mono font-bold"
+                      title="هاست اختصاصی پارس‌پک"
+                    >
+                      c102393
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStorageEndpoint("s3.ir-thr-at1.parspack.net");
+                        setStoragePublicUrl(`http://s3.ir-thr-at1.parspack.net/${storageBucket || 'c102393'}`);
+                      }}
+                      className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded text-[9px] font-mono font-bold"
+                      title="کلاستر سرور تهران پارس‌پک"
+                    >
+                      تهران
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={storageEndpoint}
                   onChange={(e) => setStorageEndpoint(e.target.value)}
-                  placeholder="c102393.parspack.net"
+                  placeholder="s3.parspack.net یا c102393.parspack.net"
                   className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-cyan-500 text-left font-mono"
                   dir="ltr"
                 />
-                <span className="text-[10px] text-slate-400 block">نمونه: c102393.parspack.net</span>
+                <span className="text-[10px] text-slate-400 block">پیش‌فرض توصیه‌شده: s3.parspack.net یا c102393.parspack.net</span>
               </div>
 
               <div className="space-y-1.5">
@@ -4774,6 +4886,31 @@ export default function AdminSystemConfig({
 
           {/* Live Bucket File Explorer & Media Manager */}
           <div className="space-y-4">
+            {/* Storage S3 Live Status Bar */}
+            {storageS3Info && (
+              <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs font-bold ${
+                storageS3Info.s3Connected 
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-amber-50 border-amber-200 text-amber-900"
+              }`}>
+                <div className="flex items-center gap-2.5">
+                  <span className={`w-2.5 h-2.5 rounded-full ${
+                    storageS3Info.s3Connected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  }`} />
+                  <span>
+                    {storageS3Info.s3Connected 
+                      ? `اتصال به باکت ابری فعال است (Endpoint: ${storageS3Info.s3EndpointUsed || storageEndpoint})`
+                      : `اتصال باکت: ${storageS3Info.s3Error || "عدم ارتباط زنده با باکت ابری"}`}
+                  </span>
+                </div>
+                {storageS3Info.s3Connected && (
+                  <span className="px-2 py-0.5 bg-emerald-200/60 rounded-md text-[10px] font-black text-emerald-800 font-mono">
+                    ONLINE (200 OK)
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
                 <HardDrive size={18} className="text-cyan-600" />

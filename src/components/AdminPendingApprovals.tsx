@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { uploadToParsPackStorage } from "../utils/storage";
 import { 
   CheckCircle, 
   XCircle, 
@@ -27,7 +28,11 @@ import {
   Layers,
   Zap,
   TrendingUp,
-  Edit3
+  Edit3,
+  Camera,
+  UploadCloud,
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -39,7 +44,9 @@ export type ApprovalType =
   | 'dealership'
   | 'callback'
   | 'support_ticket'
-  | 'factory_registration';
+  | 'factory_registration'
+  | 'user_registration'
+  | 'factory_product';
 
 export type PriorityLevel = 'critical' | 'high' | 'medium' | 'normal';
 
@@ -70,6 +77,7 @@ interface AdminPendingApprovalsProps {
   onUpdateSafeBuyStatus: (id: string, firebaseId: string | undefined, status: 'approved' | 'rejected' | 'pending') => Promise<void>;
   sponsoredAds: any[];
   onUpdateAdStatus: (adId: string, status: 'approved' | 'rejected' | 'pending', rejectionReason?: string) => void;
+  onEditAd?: (adId: string, updatedAd: any) => Promise<void>;
   barterDeals: any[];
   onUpdateBarterStatus: (id: string, newStatus: string) => void;
   representativesList: any[];
@@ -81,6 +89,11 @@ interface AdminPendingApprovalsProps {
   supportTickets: any[];
   onUpdateTicketStatus: (id: string, newStatus: string) => Promise<void>;
   onNavigateTab: (tab: string, param?: any) => void;
+  rawMaterialAds?: any[];
+  products?: any[];
+  onUpdateProductStatus?: (id: string, isApproved: boolean, reason?: string) => Promise<void>;
+  equipmentAds?: any[];
+  serviceAds?: any[];
 }
 
 export default function AdminPendingApprovals({
@@ -91,6 +104,7 @@ export default function AdminPendingApprovals({
   onUpdateSafeBuyStatus,
   sponsoredAds = [],
   onUpdateAdStatus,
+  onEditAd,
   barterDeals = [],
   onUpdateBarterStatus,
   representativesList = [],
@@ -101,7 +115,12 @@ export default function AdminPendingApprovals({
   onUpdateCallback,
   supportTickets = [],
   onUpdateTicketStatus,
-  onNavigateTab
+  onNavigateTab,
+  rawMaterialAds = [],
+  products = [],
+  onUpdateProductStatus,
+  equipmentAds = [],
+  serviceAds = []
 }: AdminPendingApprovalsProps) {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
@@ -114,6 +133,9 @@ export default function AdminPendingApprovals({
   const [repBadge, setRepBadge] = useState<string>("نماینده رسمی");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [isEditingItem, setIsEditingItem] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const showToast = (msg: string) => {
     setSuccessToast(msg);
@@ -122,10 +144,41 @@ export default function AdminPendingApprovals({
 
   // 1. Normalize and Aggregate all pending items from across the platform
   const aggregatedPendingItems: PendingItem[] = useMemo(() => {
+    if (products) {
+      let prodIdx = 0;
+      for (const p of products) {
+        prodIdx++;
+        if (p.approvalStatus === 'pending' || (!p.approvalStatus && p.isApproved === false)) {
+          const hasFactoryOrigin = !!(p.factoryName || p.factory_name || (p.sellerId && p.sellerId !== 'admin'));
+          if (hasFactoryOrigin) {
+            const rawDate = p.createdAt?.seconds ? p.createdAt.seconds * 1000 : Date.now() - 3600000;
+            items.push({
+              id: `prod_${p.id || prodIdx}`,
+              type: 'factory_product',
+              typeLabel: 'تایید کالا و قیمت',
+              title: `ثبت کالای تولیدی: ${p.name || p.title}`,
+              requesterName: p.factoryName || p.sellerName || 'کارخانه تولیدی',
+              requesterPhone: 'ثبت در سامانه',
+              requesterCompany: p.brand || p.factoryName || 'نامشخص',
+              valueToman: Number(p.bulk_price || p.price || 0) * (p.min_order_cartons || 10),
+              quantity: `${p.min_order_cartons || 10} کارتن (حداقل)`,
+              date: p.date || new Date(rawDate).toLocaleDateString('fa-IR'),
+              rawTimestamp: rawDate,
+              priority: 'high',
+              priorityReason: 'نیاز به ممیزی و قیمت‌گذاری',
+              details: p,
+              originalStatus: p.approvalStatus || 'pending'
+            });
+          }
+        }
+      }
+    }
     const items: PendingItem[] = [];
 
     // A. Wholesale Orders needing review/approval
+    let ordIdx = 0;
     for (const ord of orders) {
+      ordIdx++;
       const isPendingOrder = 
         !ord.status || 
         ord.status === 'order_received' || 
@@ -133,7 +186,7 @@ export default function AdminPendingApprovals({
         ord.status === 'awaiting_approval';
 
       if (isPendingOrder) {
-        const totalAmount = Number(ord.finalTotal || ord.total || 0);
+        const totalAmount = Number(ord.totalAmount || ord.finalTotal || ord.total || ord.amount || 0);
         let priority: PriorityLevel = 'high';
         let reason = 'سفارش خرید عمده جدید';
 
@@ -149,18 +202,19 @@ export default function AdminPendingApprovals({
         }
 
         const rawDate = ord.createdAt?.seconds ? ord.createdAt.seconds * 1000 : (ord.createdAt ? new Date(ord.createdAt).getTime() : Date.now());
+        const orderIdStr = String(ord.id || ord.trackingNumber || `order_idx_${ordIdx}`);
 
         items.push({
-          id: `order_${ord.id}`,
+          id: `order_${orderIdStr}`,
           type: 'wholesale_order',
           typeLabel: 'سفارش خرید عمده',
-          title: `سفارش فاکتور #${ord.id.slice(-6).toUpperCase()} (${(ord.items || []).length} قلم کالا)`,
-          requesterName: ord.customerName || ord.buyerName || ord.userFullName || 'مشتری بنکداری',
-          requesterPhone: ord.customerPhone || ord.buyerPhone || ord.phone || 'ثبت نشده',
-          requesterCompany: ord.companyName || ord.storeName || 'فروشگاه / بنکداری',
-          requesterCity: ord.city || ord.destinationCity || ord.shippingAddress?.split('،')[0] || 'تهران',
+          title: `سفارش فاکتور #${(ord.trackingNumber || ord.id || '').slice(-6).toUpperCase()} (${(ord.items || []).length} قلم کالا)`,
+          requesterName: ord.customerName || ord.buyerName || ord.userFullName || ord.buyer || 'مشتری بنکداری',
+          requesterPhone: ord.customerPhone || ord.buyerPhone || ord.phone || ord.mobile || 'ثبت نشده',
+          requesterCompany: ord.companyName || ord.buyerCompany || ord.storeName || 'فروشگاه / بنکداری',
+          requesterCity: ord.city || ord.destinationCity || ord.shippingAddress?.split('،')[0] || ord.buyerAddress?.split('،')[0] || 'تهران',
           valueToman: totalAmount,
-          quantity: `${(ord.items || []).reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0)} کارتن / بسته`,
+          quantity: `${(ord.items || []).reduce((sum: number, it: any) => sum + (Number(it.quantityCartons || it.quantity) || 1), 0)} کارتن / بسته`,
           date: ord.date || new Date(rawDate).toLocaleDateString('fa-IR'),
           rawTimestamp: rawDate,
           priority,
@@ -172,7 +226,9 @@ export default function AdminPendingApprovals({
     }
 
     // B. Safe Buy Requests (خرید امن کف بازار)
+    let sbIdx = 0;
     for (const sb of safeBuyRequests) {
+      sbIdx++;
       if (sb.status === 'pending') {
         const rawDate = sb.createdAt ? new Date(sb.createdAt).getTime() : Date.now() - 3600000;
         const numPrice = typeof sb.wholesalePrice === 'string' 
@@ -180,7 +236,7 @@ export default function AdminPendingApprovals({
           : Number(sb.wholesalePrice) || 0;
 
         items.push({
-          id: `safebuy_${sb.id}`,
+          id: `safebuy_${sb.id || `safebuy_idx_${sbIdx}`}`,
           type: 'safe_buy',
           typeLabel: 'خرید امن کف بازار',
           title: `درخواست تامین مستقیم: ${sb.productTitle || sb.productName || 'کالای سفارشی'}`,
@@ -200,8 +256,10 @@ export default function AdminPendingApprovals({
     }
 
     // C. Sponsored Ads & Billboard items pending review
+    let adIdx = 0;
     for (const ad of sponsoredAds) {
-      if (ad.status === 'pending') {
+      adIdx++;
+      if (!ad.status || ad.status === 'pending' || ad.status === 'در حال بررسی') {
         const rawDate = ad.createdAt ? new Date(ad.createdAt).getTime() : Date.now() - 7200000;
         let priority: PriorityLevel = 'high';
         if (ad.category === 'liquid' || ad.category === 'under_market') {
@@ -209,7 +267,7 @@ export default function AdminPendingApprovals({
         }
 
         items.push({
-          id: `ad_${ad.id}`,
+          id: `ad_${ad.id || `ad_idx_${adIdx}`}`,
           type: 'billboard_ad',
           typeLabel: 'آگهی تالار کف بازار',
           title: `آگهی فروش مازاد: ${ad.title}`,
@@ -224,19 +282,102 @@ export default function AdminPendingApprovals({
           priority,
           priorityReason: ad.category === 'liquid' ? 'فروش فوری بار زیر قیمت' : 'بررسی اصالت پروانه و قیمت مصوب',
           details: ad,
-          originalStatus: ad.status
+          originalStatus: ad.status || 'pending'
+        });
+      }
+    }
+
+    // C1. Raw Material Ads pending approval
+    let rawIdx = 0;
+    for (const rm of rawMaterialAds) {
+      rawIdx++;
+      if (rm.isPendingApproval || !rm.status || rm.status === 'pending' || rm.status === 'در حال بررسی' || rm.status === 'در حال بررسی و قیمت‌دهی تامین‌کننده') {
+        const rawDate = rm.createdAt ? new Date(rm.createdAt).getTime() : Date.now() - 3600000;
+        items.push({
+          id: `raw_${rm.id || `raw_idx_${rawIdx}`}`,
+          type: 'billboard_ad',
+          typeLabel: 'آگهی مواد اولیه',
+          title: `ماده اولیه: ${rm.title || rm.name}`,
+          requesterName: rm.supplierName || rm.userName || 'تامین‌کننده مواد اولیه',
+          requesterPhone: rm.phone || rm.supplierPhone || rm.contactPhone || 'ثبت نشده',
+          requesterCompany: rm.supplierName || 'تولیدکننده مواد اولیه',
+          requesterCity: rm.supplierLocation || 'ایران',
+          valueToman: Number(rm.priceEstimate || rm.price || 0),
+          quantity: rm.minOrder || 'موجودی کل',
+          date: rm.date || new Date(rawDate).toLocaleDateString('fa-IR'),
+          rawTimestamp: rawDate,
+          priority: 'medium',
+          priorityReason: 'بررسی کیفیت فنی و تطبیق استاندارد صنعتی',
+          details: rm,
+          originalStatus: rm.isPendingApproval ? 'pending' : (rm.status || 'pending')
+        });
+      }
+    }
+
+    // C2. Equipment Ads pending approval
+    let eqIdx = 0;
+    for (const eq of equipmentAds) {
+      eqIdx++;
+      if (eq.isPendingApproval || !eq.status || eq.status === 'pending' || eq.status === 'در حال بررسی') {
+        const rawDate = eq.createdAt ? new Date(eq.createdAt).getTime() : Date.now() - 7200000;
+        items.push({
+          id: `eq_${eq.id || `eq_idx_${eqIdx}`}`,
+          type: 'billboard_ad',
+          typeLabel: 'آگهی ماشین‌آلات',
+          title: `دستگاه صنعتی: ${eq.title}`,
+          requesterName: eq.contactPerson || eq.factoryName || 'فروشنده تجهیزات',
+          requesterPhone: eq.contactPhone || 'ثبت نشده',
+          requesterCompany: eq.factoryName || 'کارخانه مالک',
+          requesterCity: eq.location || 'ایران',
+          valueToman: Number(eq.wholesalePrice || eq.price || 0),
+          quantity: eq.quantity || '۱ دستگاه',
+          date: eq.date || new Date(rawDate).toLocaleDateString('fa-IR'),
+          rawTimestamp: rawDate,
+          priority: 'medium',
+          priorityReason: 'ممیزی مالکیت و سلامت فنی تجهیزات خط تولید',
+          details: eq,
+          originalStatus: eq.isPendingApproval ? 'pending' : (eq.status || 'pending')
+        });
+      }
+    }
+
+    // C3. Service Ads pending approval
+    let srvIdx = 0;
+    for (const srv of serviceAds) {
+      srvIdx++;
+      if (srv.isPendingApproval || !srv.status || srv.status === 'pending' || srv.status === 'در حال بررسی') {
+        const rawDate = srv.createdAt ? new Date(srv.createdAt).getTime() : Date.now() - 10800000;
+        items.push({
+          id: `srv_${srv.id || `srv_idx_${srvIdx}`}`,
+          type: 'billboard_ad',
+          typeLabel: 'آگهی خدمات صنعتی',
+          title: `خدمات: ${srv.title}`,
+          requesterName: srv.providerName || 'کارگزار خدمات',
+          requesterPhone: srv.phone || srv.contactPhone || 'ثبت نشده',
+          requesterCompany: srv.providerName || 'شرکت فنی مهندسی',
+          requesterCity: srv.location || 'ایران',
+          valueToman: Number(srv.rate || 0),
+          quantity: srv.deliveryDays || 'توافقی',
+          date: srv.date || new Date(rawDate).toLocaleDateString('fa-IR'),
+          rawTimestamp: rawDate,
+          priority: 'medium',
+          priorityReason: 'بررسی رزومه و تایید صلاحیت شرکت پیمانکاری',
+          details: srv,
+          originalStatus: srv.isPendingApproval ? 'pending' : (srv.status || 'pending')
         });
       }
     }
 
     // D. Barter Deals pending contract/document review
+    let bIdx = 0;
     for (const b of barterDeals) {
+      bIdx++;
       if (b.status === 'در انتظار تایید مدارک' || b.status === 'pending') {
         const rawDate = Date.now() - 14400000;
         const totalVal = Number(b.totalMaterialValue || 0);
 
         items.push({
-          id: `barter_${b.id}`,
+          id: `barter_${b.id || `barter_idx_${bIdx}`}`,
           type: 'barter_deal',
           typeLabel: 'تهاتر و تامین مواد اولیه',
           title: `مبادله ${b.materialName} با ${b.requestedProductName}`,
@@ -257,12 +398,14 @@ export default function AdminPendingApprovals({
     }
 
     // E. Dealership & Representative applications pending
+    let repIdx = 0;
     for (const rep of representativesList) {
+      repIdx++;
       if (rep.isApproved === false || rep.status === 'pending' || rep.status === 'pending_verification') {
         const rawDate = rep.createdAt ? new Date(rep.createdAt).getTime() : Date.now() - 86400000;
 
         items.push({
-          id: `rep_${rep.id || rep.agencyCode}`,
+          id: `rep_${rep.id || rep.agencyCode || `rep_idx_${repIdx}`}`,
           type: 'dealership',
           typeLabel: 'تقاضای اخذ نمایندگی',
           title: `عاملیت فروش انحصاری استان ${rep.city || rep.province || 'سراسری'}`,
@@ -282,12 +425,14 @@ export default function AdminPendingApprovals({
     }
 
     // F. Callback Requests pending
+    let cbIdx = 0;
     for (const cb of callbackRequests) {
+      cbIdx++;
       if (cb.status === 'pending') {
         const rawDate = cb.createdAt?.seconds ? cb.createdAt.seconds * 1000 : (cb.createdAt ? new Date(cb.createdAt).getTime() : Date.now() - 1800000);
 
         items.push({
-          id: `callback_${cb.id}`,
+          id: `callback_${cb.id || `callback_idx_${cbIdx}`}`,
           type: 'callback',
           typeLabel: 'استعلام فوری و تماس',
           title: `درخواست تماس کارشناسی خرید: ${cb.phone}`,
@@ -306,12 +451,14 @@ export default function AdminPendingApprovals({
     }
 
     // G. Support Tickets pending / open
+    let tkIdx = 0;
     for (const tk of supportTickets) {
+      tkIdx++;
       if (tk.status === 'pending' || tk.status === 'open' || !tk.status) {
         const rawDate = tk.createdAt?.seconds ? tk.createdAt.seconds * 1000 : (tk.createdAt ? new Date(tk.createdAt).getTime() : Date.now() - 3600000);
 
         items.push({
-          id: `ticket_${tk.id}`,
+          id: `ticket_${tk.id || `ticket_idx_${tkIdx}`}`,
           type: 'support_ticket',
           typeLabel: 'تیکت پشتیبانی و حل اختلاف',
           title: tk.subject || tk.title || 'پیگیری سفارش و باربری',
@@ -330,12 +477,14 @@ export default function AdminPendingApprovals({
     }
 
     // H. Factory/Supplier registrations pending approval
+    let supIdx = 0;
     for (const sup of suppliersList) {
+      supIdx++;
       if (sup.status === 'pending' || !sup.status) {
         const rawDate = sup.createdAt?.seconds ? sup.createdAt.seconds * 1000 : (sup.createdAt ? new Date(sup.createdAt).getTime() : Date.now() - 43200000);
         
         items.push({
-          id: `supplier_${sup.id || sup.email}`,
+          id: `supplier_${sup.id || sup.email || `sup_idx_${supIdx}`}`,
           type: 'factory_registration',
           typeLabel: 'ثبت‌نام کارخانه جدید',
           title: `تقاضای پنل تامین‌کننده: ${sup.company || sup.name}`,
@@ -353,6 +502,37 @@ export default function AdminPendingApprovals({
         });
       }
     }
+
+    // I. Registered Users / New Customers / Dealers from local storage
+    try {
+      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      const userList = Object.values(localUsers) as any[];
+      userList.forEach((u: any) => {
+        if (u && (u.status === 'pending' || u.status === 'pending_verification' || (u.role === 'representative' && !u.isRepresentativeApproved))) {
+          const rawDate = u.createdAt ? new Date(u.createdAt).getTime() : Date.now() - 3600000;
+          const userKey = `user_${u.phone || u.userCode || u.email}`;
+          if (!items.some(it => it.id === userKey || it.requesterPhone === u.phone)) {
+            items.push({
+              id: userKey,
+              type: u.role === 'representative' ? 'dealership' : 'user_registration',
+              typeLabel: u.role === 'representative' ? 'تقاضای اخذ نمایندگی' : 'ثبت‌نام کاربر جدید',
+              title: `ثبت‌نام ${u.role === 'representative' ? 'متقاضی عاملیت' : 'خریدار عمده'} (${u.name || 'کاربر جدید'})`,
+              requesterName: u.name || 'کاربر جدید',
+              requesterPhone: u.phone || u.email || 'ثبت نشده',
+              requesterCompany: u.company || '',
+              requesterCity: u.city || 'تهران',
+              quantity: u.role === 'representative' ? 'نمایندگی استانی' : 'حساب تجاری',
+              date: new Date(rawDate).toLocaleDateString('fa-IR'),
+              rawTimestamp: rawDate,
+              priority: 'high',
+              priorityReason: 'احراز هویت و فعال‌سازی دسترسی سامانه بنکداری',
+              details: u,
+              originalStatus: u.status || 'pending'
+            });
+          }
+        }
+      });
+    } catch (e) {}
 
     return items;
   }, [orders, safeBuyRequests, sponsoredAds, barterDeals, representativesList, callbackRequests, supportTickets, suppliersList]);
@@ -410,10 +590,15 @@ export default function AdminPendingApprovals({
     try {
       if (item.type === 'wholesale_order') {
         await onUpdateOrderStatus(item.details.id, 'payment_verified');
-        showToast(`سفارش خرید عمده #${item.details.id.slice(-6)} با موفقیت تایید و به مرحله تخصیص انبار رفت.`);
+        showToast(`سفارش خرید عمده #${String(item.details.id || "").slice(-6)} با موفقیت تایید و به مرحله تخصیص انبار رفت.`);
       } else if (item.type === 'safe_buy') {
         await onUpdateSafeBuyStatus(item.details.id, item.details.firebaseId, 'approved');
         showToast(`درخواست خرید امن ${item.details.id} تایید شد.`);
+      } else if (item.type === 'factory_product') {
+        if (onUpdateProductStatus) {
+          await onUpdateProductStatus(item.details.id, true);
+          showToast(`کالای "${item.details.name || item.details.title || ''}" تایید و در کاتالوگ منتشر شد.`);
+        }
       } else if (item.type === 'billboard_ad') {
         onUpdateAdStatus(item.details.id, 'approved');
         showToast(`آگهی "${item.details.title}" تایید و در تالار کف بازار منتشر گردید.`);
@@ -432,6 +617,17 @@ export default function AdminPendingApprovals({
       } else if (item.type === 'factory_registration') {
         await onUpdateSupplierStatus(item.details.id || item.details.email, 'active');
         showToast(`پنل کارخانه ${item.details.company || item.details.name} با موفقیت تایید و فعال گردید.`);
+      } else if (item.type === 'user_registration') {
+        try {
+          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+          const phoneOrEmail = item.details.phone || item.details.email;
+          if (localUsers[phoneOrEmail]) {
+            localUsers[phoneOrEmail].status = 'active';
+            localUsers[phoneOrEmail].badge = repBadge || 'bronze';
+            localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          }
+        } catch (e) {}
+        showToast(`کاربر ${item.requesterName} تایید و دسترسی پنل فعال گردید.`);
       }
     } catch (e: any) {
       console.error(e);
@@ -450,10 +646,15 @@ export default function AdminPendingApprovals({
     try {
       if (item.type === 'wholesale_order') {
         await onUpdateOrderStatus(item.details.id, 'cancelled');
-        showToast(`سفارش خرید #${item.details.id.slice(-6)} لغو گردید.`);
+        showToast(`سفارش خرید #${String(item.details.id || "").slice(-6)} لغو گردید.`);
       } else if (item.type === 'safe_buy') {
         await onUpdateSafeBuyStatus(item.details.id, item.details.firebaseId, 'rejected');
         showToast(`درخواست خرید امن رد شد.`);
+      } else if (item.type === 'factory_product') {
+        if (onUpdateProductStatus) {
+          await onUpdateProductStatus(item.details.id, false, reason);
+          showToast(`کالای "${item.details.name || item.details.title || ''}" رد شد.`);
+        }
       } else if (item.type === 'billboard_ad') {
         onUpdateAdStatus(item.details.id, 'rejected', reason);
         showToast(`آگهی به علت "${reason || 'عدم انطباق شرایط'}" رد شد.`);
@@ -472,6 +673,16 @@ export default function AdminPendingApprovals({
       } else if (item.type === 'factory_registration') {
         await onUpdateSupplierStatus(item.details.id || item.details.email, 'suspended');
         showToast(`درخواست ثبت‌نام کارخانه رد و به حالت تعلیق درآمد.`);
+      } else if (item.type === 'user_registration') {
+        try {
+          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+          const phoneOrEmail = item.details.phone || item.details.email;
+          if (localUsers[phoneOrEmail]) {
+            localUsers[phoneOrEmail].status = 'suspended';
+            localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+          }
+        } catch (e) {}
+        showToast(`ثبت‌نام کاربر ${item.requesterName} رد شد.`);
       }
     } catch (e: any) {
       console.error(e);
@@ -1141,35 +1352,187 @@ export default function AdminPendingApprovals({
                 )}
 
                 {/* Raw Message / Description */}
-                {(viewingDetailItem.details.buyerMessage || viewingDetailItem.details.description || viewingDetailItem.details.message) && (
-                  <div className="space-y-1.5">
-                    <h4 className="text-xs font-black text-slate-900">توضیحات و یادداشت متقاضی:</h4>
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 font-bold leading-relaxed">
-                      {viewingDetailItem.details.buyerMessage || viewingDetailItem.details.description || viewingDetailItem.details.message}
+                {viewingDetailItem.type === 'billboard_ad' && isEditingItem ? (
+                  <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl">
+                    <h4 className="text-xs font-black text-indigo-900 flex items-center gap-2">
+                      <Edit3 size={14} />
+                      ویرایش مشخصات آگهی
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 mb-1 block">عنوان آگهی:</label>
+                        <input 
+                          type="text"
+                          value={editFormData?.title || ''}
+                          onChange={e => setEditFormData({...editFormData, title: e.target.value})}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 mb-1 block">توضیحات:</label>
+                        <textarea 
+                          value={editFormData?.description || ''}
+                          onChange={e => setEditFormData({...editFormData, description: e.target.value})}
+                          rows={3}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-500 mb-1 block">قیمت عمده:</label>
+                          <input 
+                            type="text"
+                            value={editFormData?.wholesalePrice || ''}
+                            onChange={e => setEditFormData({...editFormData, wholesalePrice: e.target.value})}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-500 mb-1 block">قیمت بازار:</label>
+                          <input 
+                            type="text"
+                            value={editFormData?.marketPrice || ''}
+                            onChange={e => setEditFormData({...editFormData, marketPrice: e.target.value})}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Image Editing */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 block">تصاویر آگهی:</label>
+                        <div className="flex flex-wrap gap-2">
+                          {(editFormData?.imageUrls || (editFormData?.imageUrl ? [editFormData.imageUrl] : [])).map((url: string, idx: number) => (
+                            <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group">
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => {
+                                  const currentUrls = editFormData.imageUrls || (editFormData.imageUrl ? [editFormData.imageUrl] : []);
+                                  const filtered = currentUrls.filter((_: any, i: number) => i !== idx);
+                                  setEditFormData({ ...editFormData, imageUrls: filtered, imageUrl: filtered[0] || '' });
+                                }}
+                                className="absolute top-0 right-0 p-1 bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
+                          ))}
+                          <label className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 hover:border-indigo-400 transition-all cursor-pointer">
+                            {isUploading ? (
+                              <Loader2 size={16} className="text-indigo-500 animate-spin" />
+                            ) : (
+                              <>
+                                <Camera size={16} className="text-slate-400" />
+                                <span className="text-[8px] font-black text-slate-400 mt-1">افزودن</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setIsUploading(true);
+                                  const result = await uploadToParsPackStorage(file, "ads");
+                                  if (result.success && result.url) {
+                                    const currentUrls = editFormData.imageUrls || (editFormData.imageUrl ? [editFormData.imageUrl] : []);
+                                    const newUrls = [...currentUrls, result.url];
+                                    setEditFormData({ ...editFormData, imageUrls: newUrls, imageUrl: newUrls[0] });
+                                  }
+                                  setIsUploading(null as any);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2 border-t border-indigo-100">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingItem(false)}
+                          className="px-3 py-1.5 bg-white text-slate-600 rounded-lg text-[10px] font-black border border-slate-200 cursor-pointer"
+                        >
+                          انصراف
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (onEditAd && viewingDetailItem.details.id) {
+                              setActionLoadingId(viewingDetailItem.id);
+                              await onEditAd(viewingDetailItem.details.id, editFormData);
+                              setActionLoadingId(null);
+                              setIsEditingItem(false);
+                              showToast("تغییرات آگهی با موفقیت ثبت شد");
+                              // Update the viewing item's details locally
+                              setViewingDetailItem({
+                                ...viewingDetailItem,
+                                title: editFormData.title,
+                                details: { ...viewingDetailItem.details, ...editFormData }
+                              });
+                            }
+                          }}
+                          className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black shadow-md shadow-indigo-600/20 cursor-pointer"
+                        >
+                          ذخیره تغییرات
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  (viewingDetailItem.details.buyerMessage || viewingDetailItem.details.description || viewingDetailItem.details.message) && (
+                    <div className="space-y-1.5">
+                      <h4 className="text-xs font-black text-slate-900">توضیحات و یادداشت متقاضی:</h4>
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 font-bold leading-relaxed">
+                        {viewingDetailItem.details.buyerMessage || viewingDetailItem.details.description || viewingDetailItem.details.message}
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
 
               {/* Modal Footer Actions */}
               <div className="p-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const t = viewingDetailItem.type;
-                    setViewingDetailItem(null);
-                    if (t === 'wholesale_order') onNavigateTab('orders');
-                    else if (t === 'safe_buy') onNavigateTab('safe_buy');
-                    else if (t === 'billboard_ad') onNavigateTab('ads');
-                    else if (t === 'barter_deal') onNavigateTab('barter');
-                    else if (t === 'dealership') onNavigateTab('representatives');
-                    else if (t === 'callback' || t === 'support_ticket') onNavigateTab('crm');
-                  }}
-                  className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <ArrowUpRight size={14} />
-                  <span>انتقال به برگه تخصصی</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = viewingDetailItem.type;
+                      setViewingDetailItem(null);
+                      if (t === 'wholesale_order') onNavigateTab('orders');
+                      else if (t === 'safe_buy') onNavigateTab('safe_buy');
+                      else if (t === 'billboard_ad') onNavigateTab('ads');
+                      else if (t === 'barter_deal') onNavigateTab('barter');
+                      else if (t === 'dealership') onNavigateTab('representatives');
+                      else if (t === 'callback' || t === 'support_ticket') onNavigateTab('crm');
+                    }}
+                    className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <ArrowUpRight size={14} />
+                    <span>انتقال به برگه تخصصی</span>
+                  </button>
+
+                  {viewingDetailItem.type === 'billboard_ad' && !isEditingItem && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingItem(true);
+                        setEditFormData({
+                          title: viewingDetailItem.details.title,
+                          description: viewingDetailItem.details.description,
+                          wholesalePrice: viewingDetailItem.details.wholesalePrice,
+                          marketPrice: viewingDetailItem.details.marketPrice,
+                          imageUrl: viewingDetailItem.details.imageUrl,
+                          imageUrls: viewingDetailItem.details.imageUrls || (viewingDetailItem.details.imageUrl ? [viewingDetailItem.details.imageUrl] : [])
+                        });
+                      }}
+                      className="px-4 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Edit3 size={14} />
+                      <span>ویرایش آگهی</span>
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2">
                   <button

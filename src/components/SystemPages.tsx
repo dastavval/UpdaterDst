@@ -353,7 +353,7 @@ export default function SystemPages({
               const ActionIcon = action.icon;
               return (
                 <button
-                  key={idx}
+                  key={`systempages-idx-${idx}`}
                   type="button"
                   onClick={action.action}
                   disabled={isRetrying}

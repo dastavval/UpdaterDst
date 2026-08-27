@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && mkdir -p dist/php && cp -f index.php .htaccess installer.php install.php database.sql b2b-config.json articles.json dist/ 2>/dev/null || true && cp -f php/* dist/php/ && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && mkdir -p dist/php && cp -f index.php .htaccess installer.php install.php database.sql b2b-config.json dist/ 2>/dev/null || true && cp -f php/* dist/php/ && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -33,6 +33,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "react-is": "^19.2.8",
     "react-markdown": "^10.1.0",
     "react-window": "^2.3.0",
     "recharts": "^3.10.1",
@@ -50,5 +51,10 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "overrides": {
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-is": "^19.2.8"
   }
 }

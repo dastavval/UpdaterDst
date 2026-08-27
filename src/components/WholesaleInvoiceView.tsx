@@ -117,7 +117,7 @@ export default function WholesaleInvoiceView({
     : rawBuyerCompany;
   
   const initialBuyerName = isFactoryView
-    ? `کد مشتری: ${buyerInfoAny.customerCode || (order?.id ? `CST-${order.id.slice(-5).toUpperCase()}` : 'CST-2048')}`
+    ? `کد مشتری: ${buyerInfoAny.customerCode || (order?.id ? `CST-${String(order.id).slice(-5).toUpperCase()}` : 'CST-2048')}`
     : rawBuyerName;
 
   const initialBuyerPhone = isFactoryView
@@ -137,7 +137,7 @@ export default function WholesaleInvoiceView({
   // Shipping & Invoice serial
   const [invoiceSerial] = useState<string>(() => {
     if (order?.trackingNumber) return order.trackingNumber;
-    return order?.id ? `DX-${order.id.slice(-6).toUpperCase()}` : `DX-${Math.floor(100000 + Math.random() * 900000)}`;
+    return order?.id ? `DX-${String(order.id || "").slice(-6).toUpperCase()}` : `DX-${Math.floor(100000 + Math.random() * 900000)}`;
   });
 
   // Filter Items strictly for factory if isFactoryView

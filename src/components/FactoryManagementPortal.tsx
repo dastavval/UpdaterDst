@@ -353,10 +353,34 @@ export default function FactoryManagementPortal({
         buyerProfit: `${toPersianNum(discountPct)}٪ تخفیف نقدی کف بازار`,
         date: newDeal.createdAt,
         imageUrl: newDeal.imageUrl,
-        status: "approved",
+        status: "pending",
         isHotFireDeal: true
       };
       localStorage.setItem("dastavval_ads", JSON.stringify([adFormatted, ...existingAds]));
+      
+      const existingSponsored = JSON.parse(localStorage.getItem("dastavval_sponsored_ads_v2") || "[]");
+      const newSponsoredAd = {
+        id: newDeal.id,
+        title: newDeal.title,
+        description: newDeal.description,
+        factoryName: newDeal.factoryName,
+        contactPerson: user?.name || "مدیر فروش کارخانه",
+        contactPhone: user?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
+        badgeText: newDeal.badgeText,
+        category: lotDealType === 'surplus' ? "under_market" : lotDealType === 'urgent_cash' ? "liquid" : "direct_supply",
+        quantity: newDeal.quantity,
+        wholesalePrice: `${toPersianNum(newDeal.floorPrice.toLocaleString('fa-IR'))} تومان`,
+        marketPrice: `${toPersianNum((newDeal.floorPrice * 1.3).toLocaleString('fa-IR'))} تومان`,
+        buyerProfit: `${toPersianNum(discountPct)}٪ تخفیف نقدی کف بازار`,
+        isSponsored: false,
+        date: newDeal.createdAt,
+        imageUrl: newDeal.imageUrl,
+        imageUrls: newDeal.imageUrl ? [newDeal.imageUrl] : [],
+        status: "pending"
+      };
+      localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify([newSponsoredAd, ...existingSponsored]));
+      window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+
     } catch (e) {}
 
     setFloorSuccessMsg("آگهی فروش بار مازاد با موفقیت در بخش کف بازار منتشر شد.");
@@ -1321,7 +1345,7 @@ export default function FactoryManagementPortal({
                   return sum + Number(it.quantityCartons || it.quantity || 1);
                 }, 0);
 
-                const buyerCode = (order as any).buyerInfo?.customerCode || (order.id ? `CST-${order.id.slice(-5).toUpperCase()}` : 'CST-2048');
+                const buyerCode = (order as any).buyerInfo?.customerCode || (order.id ? `CST-${String(order.id || "").slice(-5).toUpperCase()}` : 'CST-2048');
                 const buyerCity = (order as any).buyerInfo?.city || order.city || (order as any).buyerInfo?.province || 'مقصد تایید شده';
 
                 // Cloned factory-specific order for invoice view
@@ -1352,7 +1376,7 @@ export default function FactoryManagementPortal({
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black text-slate-900">
-                            کد سفارش: #{order.id.slice(-6)}
+                            کد سفارش: #{String(order.id || "").slice(-6)}
                           </span>
                           <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                             {order.status === 'completed' ? 'تکمیل شده' : 'آماده بارگیری'}

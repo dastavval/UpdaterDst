@@ -13,7 +13,7 @@ export default function AIAdvisor({ mascotUrl }: AIAdvisorProps) {
   };
 
   return (
-    <div className="fixed bottom-20 right-4 sm:bottom-22 sm:right-6 lg:bottom-8 lg:right-8 z-40 flex flex-col items-end gap-3 pointer-events-none" dir="rtl">
+    <div className="fixed bottom-22 right-4 sm:bottom-24 sm:right-6 lg:bottom-8 lg:right-8 z-40 flex flex-col items-end gap-3 pointer-events-none" dir="rtl">
       {/* Floating Call Button with Soft Pulse Animation */}
       <div className="relative pointer-events-auto">
         <span className="absolute inset-0 rounded-full bg-emerald-500/25 animate-ping z-0" />

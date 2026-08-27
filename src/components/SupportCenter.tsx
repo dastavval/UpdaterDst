@@ -114,6 +114,16 @@ export default function SupportCenter({ theme = 'light' }: { theme?: 'light' | '
         source: "support_form"
       });
 
+      // Trigger SMS notification to user and admin via send-callback-sms
+      fetch("/api/sms/send-callback-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          phone: ticketPhone, 
+          details: `تیکت پشتیبانی: ${ticketCategory}` 
+        })
+      }).catch(err => console.warn("Ticket SMS trigger notice:", err));
+
       setTicketId(docRef.id.substring(0, 8).toUpperCase());
       setSubmitStatus('success');
       setFormError("");

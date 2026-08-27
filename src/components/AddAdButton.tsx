@@ -155,6 +155,28 @@ export default function AddAdButton({
       localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
 
+      // Sync with server b2b config so admin never misses the ad
+      (async () => {
+        try {
+          const cfgRes = await fetch("/api/b2b/config");
+          if (cfgRes.ok) {
+            const currentConfig = await cfgRes.json();
+            const serverAds = Array.isArray(currentConfig.sponsoredAds) ? currentConfig.sponsoredAds : adsList;
+            const mergedAds = [newAd, ...serverAds.filter((a: any) => a.id !== newAd.id)];
+            await fetch("/api/b2b/config", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...currentConfig,
+                sponsoredAds: mergedAds
+              })
+            });
+          }
+        } catch (e) {
+          console.error("Failed to sync new ad with server config:", e);
+        }
+      })();
+
       setSubmitSuccess(true);
       setIsPreviewMode(false);
       

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   FileText, 
   Save, 
@@ -19,7 +20,8 @@ import {
   Sparkles,
   Image as ImageIcon,
   Camera,
-  PenTool
+  PenTool,
+  Loader2
 } from 'lucide-react';
 import WholesaleInvoiceView from './WholesaleInvoiceView';
 import { OfficialUnifiedSealSignature } from './OfficialDigitalStamp';
@@ -88,6 +90,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
   const [successMsg, setSuccessMsg] = useState("");
   const [showLivePreview, setShowLivePreview] = useState(false);
   const [isCaptureModalOpen, setIsCaptureModalOpen] = useState(false);
@@ -142,9 +145,21 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setSaveProgress(10);
     setSuccessMsg("");
 
     try {
+      // Simulate progress for "precision" feel
+      const progressTimer = setInterval(() => {
+        setSaveProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressTimer);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
       const updatedInvoiceSettings = {
         sellerTitle,
         sellerNationalId,
@@ -186,11 +201,19 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
       };
 
       await onUpdateB2bConfig(updatedB2bConfig);
-      setSuccessMsg("تنظیمات و عناوین فاکتور رسمی با موفقیت ذخیره شد.");
+      clearInterval(progressTimer);
+      setSaveProgress(100);
+      
+      setTimeout(() => {
+        setSuccessMsg("تنظیمات و عناوین فاکتور با دقت تمام ذخیره و تثبیت شد.");
+        setIsSaving(false);
+        setSaveProgress(0);
+      }, 500);
+
     } catch (err) {
       console.error(err);
-    } finally {
       setIsSaving(false);
+      setSaveProgress(0);
     }
   };
 
@@ -372,6 +395,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                   type="number"
                   min="0"
                   max="50"
+                  step="any"
                   value={cashDiscountPercent}
                   onChange={e => setCashDiscountPercent(Number(e.target.value))}
                   className="w-full bg-white border border-emerald-300 rounded-xl px-4 py-2.5 text-sm font-black text-emerald-900 outline-none"
@@ -392,7 +416,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                   type="number"
                   min="0"
                   max="20"
-                  step="0.5"
+                  step="any"
                   value={maxSedimentDiscountPercent}
                   onChange={e => setMaxSedimentDiscountPercent(Number(e.target.value))}
                   className="w-full bg-white border border-amber-300 rounded-xl px-4 py-2.5 text-sm font-black text-amber-900 outline-none"
@@ -487,6 +511,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                           type="number"
                           required
                           min="1"
+                          step="any"
                           value={tier.threshold}
                           onChange={(e) => {
                             const updated = [...quantityDiscountTiers];
@@ -505,6 +530,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                           required
                           min="0"
                           max="100"
+                          step="any"
                           value={tier.discountPercent}
                           onChange={(e) => {
                             const updated = [...quantityDiscountTiers];
@@ -559,7 +585,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                           type="number"
                           required
                           min="1"
-                          step="100000"
+                          step="any"
                           value={tier.threshold}
                           onChange={(e) => {
                             const updated = [...volumeDiscountTiers];
@@ -578,6 +604,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                           required
                           min="0"
                           max="100"
+                          step="any"
                           value={tier.discountPercent}
                           onChange={(e) => {
                             const updated = [...volumeDiscountTiers];
@@ -1031,6 +1058,63 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
           </button>
         </div>
       </form>
+
+      {/* Saving Progress Overlay */}
+      <AnimatePresence>
+        {isSaving && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-slate-200 text-center space-y-6"
+            >
+              <div className="relative w-24 h-24 mx-auto">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 border-4 border-emerald-100 border-t-emerald-600 rounded-full"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Save className="text-emerald-600 animate-pulse" size={32} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-slate-900">در حال ذخیره با نهایت دقت...</h3>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                  سیستم در حال ثبت و تثبیت اطلاعات صادرکننده، حساب‌ها و مهر/امضا جهت صدور فاکتورهای رسمی شماست.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-black text-slate-400">
+                  <span>پیشرفت فرآیند</span>
+                  <span>{saveProgress}%</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${saveProgress}%` }}
+                    className="h-full bg-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>امنیت ثبت اطلاعات برقرار است</span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Live Sample Invoice Preview Modal */}
       {showLivePreview && (

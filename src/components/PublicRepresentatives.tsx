@@ -80,7 +80,9 @@ export default function PublicRepresentatives({
     }
 
     if (b2bConfig?.factories && Array.isArray(b2bConfig.factories)) {
-      b2bConfig.factories.forEach((f: any) => {
+      b2bConfig.factories
+        .filter((f: any) => f && f.isActive !== false)
+        .forEach((f: any) => {
         if (f?.name && typeof f.name === 'string' && !isWarehouseBrand(f.name)) {
           brandSet.add(f.name.trim());
         }

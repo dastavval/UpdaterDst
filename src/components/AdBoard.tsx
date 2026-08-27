@@ -65,11 +65,27 @@ interface AdBoardProps {
   user?: any;
   products?: Product[];
   onSelectProduct?: (product: Product) => void;
+  sponsoredAds?: AdItem[];
+  onUpdateB2bConfig?: (updatedConfig: any) => Promise<void>;
+  b2bConfig?: any;
 }
 
-export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateToBillboard, onNavigateHome, user, products, onSelectProduct }: AdBoardProps) {
-  const [ads, setAds] = useState<AdItem[]>([]);
+export default function AdBoard({ 
+  onTriggerPayment, 
+  isMini = false, 
+  onNavigateToBillboard, 
+  onNavigateHome, 
+  user, 
+  products, 
+  onSelectProduct,
+  sponsoredAds = [],
+  onUpdateB2bConfig,
+  b2bConfig
+}: AdBoardProps) {
+  const [ads, setAds] = useState<AdItem[]>(sponsoredAds);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAd, setEditingAd] = useState<AdItem | null>(null);
   const [selectedAdDetail, setSelectedAdDetail] = useState<AdItem | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,22 +124,26 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   // Validation Warnings
   const [phoneWarning, setPhoneWarning] = useState("");
 
+  // Sync ads with props when they change
+  useEffect(() => {
+    setAds(sponsoredAds);
+  }, [sponsoredAds]);
+
   const loadAds = () => {
+    // We now prefer props, but keep local fallback for offline/temp state if needed
+    if (sponsoredAds && sponsoredAds.length > 0) {
+      setAds(sponsoredAds);
+      return;
+    }
     const savedAds = localStorage.getItem("dastavval_sponsored_ads_v2");
     if (savedAds) {
       try {
         const parsed = JSON.parse(savedAds);
         if (Array.isArray(parsed)) {
-          const cleaned = parsed.filter((item: any) => !item.id.startsWith("ad-init-") && item.category !== ("service" as any) && item.category !== ("raw_material" as any) && item.category !== "equipment");
+          const cleaned = parsed.filter((item: any) => !(item.id && typeof item.id === 'string' && item.id.startsWith("ad-init-")) && item.category !== ("service" as any) && item.category !== ("raw_material" as any) && item.category !== "equipment");
           setAds(cleaned);
-        } else {
-          setAds([]);
         }
-      } catch (e) {
-        setAds([]);
-      }
-    } else {
-      setAds([]);
+      } catch (e) {}
     }
   };
 
@@ -135,9 +155,17 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
     };
   }, []);
 
-  const saveAdsToStorage = (newAds: AdItem[]) => {
+  const saveAdsToStorage = async (newAds: AdItem[]) => {
     setAds(newAds);
     localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+    
+    // Sync with server via b2bConfig
+    if (onUpdateB2bConfig && b2bConfig) {
+      await onUpdateB2bConfig({
+        ...b2bConfig,
+        sponsoredAds: newAds
+      });
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -317,7 +345,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
   const effectiveKafProducts = (products || []).filter(p => !p.disabled && p.isKafBazaar === true);
 
   const allOpportunities = [
-    ...ads.filter(ad => !ad.id.startsWith("ad-init-")),
+    ...ads.filter(ad => !(ad.id && typeof ad.id === 'string' && ad.id.startsWith("ad-init-"))),
     ...effectiveKafProducts.map((p: any) => {
         const rolePricing = getProductRolePricing(p, user);
         const userWholesalePrice = rolePricing.unitWholesalePrice;
@@ -358,7 +386,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
 
   const filteredAds = allOpportunities.filter((ad) => {
     // Show only approved ones on the main public dashboard
-    // We strictly exclude "rejected" status. "pending" is also hidden by default.
+    // We strictly exclude "rejected" or "pending" status for public view.
     const isApproved = ad.status === "approved";
     
     const searchLow = searchQuery.toLowerCase();
@@ -467,6 +495,16 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
       // 2. Also save to localStorage as a fallback
       const existing = JSON.parse(localStorage.getItem("dastavval_safe_buy_requests") || "[]");
       localStorage.setItem("dastavval_safe_buy_requests", JSON.stringify([newReq, ...existing]));
+
+      // 3. Trigger SMS notification to user and admin via send-callback-sms
+      fetch("/api/sms/send-callback-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          phone: buyerPhoneInput, 
+          details: `خرید امن: ${escrowModalAd.title || 'کالا'}` 
+        })
+      }).catch(err => console.warn("Safe Buy SMS trigger notice:", err));
     } catch (err) {
       console.error("Error saving safe buy request", err);
     }
@@ -957,83 +995,7 @@ export default function AdBoard({ onTriggerPayment, isMini = false, onNavigateTo
         </div>
       </div>
 
-      {/* REAL-TIME AUDIT & INSPECTION PANEL (COLLAPSIBLE) */}
-      <AnimatePresence>
-        {isAdminPanelOpen && user?.role === "admin" && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-amber-50/80 border border-amber-200 rounded-2xl p-5 mb-5 text-right overflow-hidden shadow-xs"
-          >
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-amber-200 pb-3 mb-3 gap-2">
-              <div className="flex items-center gap-2">
-                <UserCheck size={18} className="text-amber-800" />
-                <h3 className="font-black text-xs sm:text-sm text-amber-900">میز کارشناس ناظر و ارزیاب کیفیت دست‌اول (تأیید فاکتور و تناژ)</h3>
-              </div>
-              <div className="flex items-center gap-2 self-end">
-                <button 
-                  onClick={handleResetDemoData}
-                  className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
-                >
-                  بازنشانی لیست به پیش‌فرض
-                </button>
-                <span className="text-[10px] text-amber-800 font-black bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300">
-                  {pendingAds.length} پرونده در دست بررسی
-                </span>
-              </div>
-            </div>
 
-            {pendingAds.length === 0 ? (
-              <p className="text-xs text-amber-800 font-bold text-center py-4">
-                هیچ درخواست جدیدی در صف بازرسی فنی وجود ندارد.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {pendingAds.map((pAd, pIdx) => (
-                  <div key={`pending-ad-row-${pAd.id || pIdx}-${pIdx}`} className="bg-white border border-amber-200 rounded-xl p-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
-                    <div className="space-y-1 max-w-3xl">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-md">
-                          ⏳ در انتظار تأیید
-                        </span>
-                        <span className="text-slate-400 text-[10px]">{pAd.date}</span>
-                        <span className="text-[10px] text-slate-600 font-bold">متقاضی: {pAd.contactPerson}</span>
-                        <span className="text-[10px] text-indigo-700 font-black bg-indigo-50 px-2 py-0.5 rounded-md">تلفن محفوظ: {pAd.contactPhone}</span>
-                      </div>
-                      <h4 className="font-black text-xs text-slate-800">{pAd.title}</h4>
-                      <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{pAd.description}</p>
-                      
-                      <div className="flex flex-wrap gap-3 text-[10px] font-bold text-slate-700 pt-1">
-                        <span>💰 قیمت کف: <strong className="text-emerald-600">{pAd.wholesalePrice}</strong></span>
-                        <span>💸 قیمت بازار: <strong className="text-slate-500">{pAd.marketPrice}</strong></span>
-                        <span>📈 سود خریدار: <strong className="text-amber-600">{pAd.buyerProfit}</strong></span>
-                        <span>📦 میزان: <strong>{pAd.quantity}</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                      <button
-                        onClick={() => handleApproveAd(pAd.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-1 shadow-xs"
-                      >
-                        <Check size={11} />
-                        <span>تأیید و انتشار</span>
-                      </button>
-                      <button
-                        onClick={() => handleRejectAd(pAd.id)}
-                        className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-black px-3 py-1.5 rounded-xl cursor-pointer transition-colors"
-                      >
-                        رد درخواست
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* 📉 کالاهای منتخب کف بازار (تحویل فوری) */}
       {!isMini && products && products.length > 0 && (

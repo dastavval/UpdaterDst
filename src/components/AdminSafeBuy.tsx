@@ -313,7 +313,7 @@ export default function AdminSafeBuy({
                   </h5>
                   <div className="space-y-2">
                     {selectedSafeBuyDetail.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all">
+                      <div key={`adminsafebuy-idx-${idx}`} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all">
                         <div className="w-12 h-12 bg-white rounded-xl border border-slate-100 p-1 flex items-center justify-center shrink-0">
                           {item.image ? (
                              <img src={item.image} className="w-full h-full object-contain rounded-lg" />

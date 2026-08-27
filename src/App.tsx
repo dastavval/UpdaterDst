@@ -2214,7 +2214,7 @@ export default function App() {
         <LiveWholesaleMarketTicker 
           products={activeProducts}
           ads={b2bConfig?.ads || []}
-          factories={b2bConfig?.factories || []}
+          factories={(b2bConfig?.factories || []).filter((f: any) => f && f.isActive !== false)}
           news={b2bConfig?.news || []}
           userBadge={userBadge}
           userCity={userCity}
@@ -2982,7 +2982,7 @@ export default function App() {
               <Suspense fallback={<SectionSkeleton />}>
                 <FadeInContainer>
                   <FactoriesView 
-                    factories={b2bConfig?.factories || []}
+                    factories={(b2bConfig?.factories || []).filter((f: any) => f && f.isActive !== false)}
                     products={products}
                     b2bConfig={b2bConfig}
                     initialFactoryId={initialFactoryIdParam}
@@ -2996,6 +2996,7 @@ export default function App() {
                       setSelectedDetailProduct(product);
                       setIsDetailModalOpen(true);
                     }}
+                    onUpdateB2bConfig={handleUpdateB2bConfig}
                   />
                 </FadeInContainer>
               </Suspense>
@@ -3033,7 +3034,7 @@ export default function App() {
                 <FadeInContainer>
                   <B2BNews 
                     articles={articles} 
-                    factories={b2bConfig?.factories || []} 
+                    factories={(b2bConfig?.factories || []).filter((f: any) => f && f.isActive !== false)} 
                     b2bConfig={b2bConfig} 
                     initialSubTab="news" 
                     userBadge={userBadge}
@@ -3108,7 +3109,7 @@ export default function App() {
                 <FadeInContainer>
                   <B2BNews 
                     articles={articles} 
-                    factories={b2bConfig?.factories || []} 
+                    factories={(b2bConfig?.factories || []).filter((f: any) => f && f.isActive !== false)} 
                     b2bConfig={b2bConfig} 
                     initialSubTab="education" 
                     userBadge={userBadge}
@@ -3171,6 +3172,9 @@ export default function App() {
                     onNavigateHome={() => setActiveTab('presentation')}
                     user={user}
                     products={products}
+                    sponsoredAds={b2bConfig?.sponsoredAds || []}
+                    onUpdateB2bConfig={handleUpdateB2bConfig}
+                    b2bConfig={b2bConfig}
                     onSelectProduct={(prod) => {
                       setSelectedDetailProduct(prod);
                       setIsDetailModalOpen(true);
@@ -4063,7 +4067,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToTop}
-            className="fixed bottom-20 left-4 sm:bottom-22 sm:left-6 lg:bottom-8 lg:left-8 z-40 p-3 bg-white/95 backdrop-blur-md hover:bg-slate-50 text-slate-800 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-slate-200 flex items-center justify-center group"
+            className="fixed bottom-22 left-4 sm:bottom-24 sm:left-6 lg:bottom-8 lg:left-8 z-40 p-3 bg-white/95 backdrop-blur-md hover:bg-slate-50 text-slate-800 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-slate-200 flex items-center justify-center group"
             title="بازگشت به بالای صفحه"
           >
             <ArrowUp size={20} className="text-slate-800 group-hover:-translate-y-0.5 transition-transform" />

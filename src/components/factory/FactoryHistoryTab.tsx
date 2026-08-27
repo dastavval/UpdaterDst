@@ -278,7 +278,7 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
                       <Truck size={15} className="text-indigo-600" />
-                      <span className="font-black text-slate-900">سفارش #{ord.id.slice(-6)}</span>
+                      <span className="font-black text-slate-900">سفارش #{String(ord.id || "").slice(-6)}</span>
                       <span className="bg-blue-50 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-md">تحویل مقصد گردید</span>
                     </div>
                     <span className="text-[11px] text-slate-500">

@@ -472,7 +472,7 @@ export default function AdminArticles({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {articles.map((article, idx) => (
             <div 
-              key={article.id || `news-${idx}`} 
+              key={`news-item-${article.id || idx}-${idx}`} 
               className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-material-md hover transition-all duration-500 group flex gap-6"
             >
               <div className="w-32 h-32 rounded-2xl overflow-hidden shrink-0 shadow-inner border border-slate-50">

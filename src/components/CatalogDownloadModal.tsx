@@ -247,7 +247,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user }
                   ${p.category ? `<span style="font-size: 9px; color: #64748b; font-weight: normal; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${p.category}</span>` : ''}
                 </div>
                 <div style="font-size: 12px; margin-top: 3px; color: #0f172a; font-weight: 800;">${p.name}</div>
-                <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">کد کالا: DAST-${p.id.slice(0,6)}</div>
+                <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">کد کالا: DAST-${String(p.id || "").slice(0,6)}</div>
               </div>
             </div>
           </td>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ShoppingCart, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale, Bot, Wand2 } from "lucide-react";
+import { Plus, Menu, Edit2, Trash2, CheckCircle, XCircle, Package, Layers, Image, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowLeft, Layers2, Sparkles, Cpu, MapPin, Palette, Edit3, Settings, Save, Users, Search, Phone, Building2, Map, Tag, ShoppingBag, ShoppingCart, ClipboardList, Check, Clock, Truck, ShieldCheck, CreditCard, Activity, Printer, X, Award, ChevronRight, Percent, UserPlus, User, BookOpen, LogOut, PlusCircle, Zap, Calendar, Newspaper, FileSpreadsheet, Download, Upload, FileText, Copy, HelpCircle, FileCode, MessageSquare, Eye, Code2, Server, Terminal, Network, Share2, Github, Megaphone, TrendingDown, HardDrive, Globe, Pin, Scale, Bot, Wand2, Smartphone } from "lucide-react";
 import Papa from "papaparse";
 import { logoutUser, changePassword, updateDisplayName } from "../lib/auth-helper";
 import { motion, AnimatePresence } from "motion/react";
@@ -17,6 +17,7 @@ import AdminPendingApprovals from "./AdminPendingApprovals";
 import AdminFactoryProductAudit from "./AdminFactoryProductAudit";
 import AdminChannelPosts from "./AdminChannelPosts";
 import AdminSafeBuy from "./AdminSafeBuy";
+import AdminAdsManagement from "./AdminAdsManagement";
 import AdminOrders from "./AdminOrders";
 import AdminCRM from "./AdminCRM";
 import AdminArticles from "./AdminArticles";
@@ -67,10 +68,10 @@ interface AdminPanelProps {
 }
 
 import { AdminSalesCharts } from "./AdminSalesCharts";
-import { getCacheStatus, CacheStatus } from "../lib/db";
+import { getCacheStatus, CacheStatus, cacheProducts } from "../lib/db";
 import ProductSyncStatusView from "./ProductSyncStatusView";
 
-type SubTab = 'dashboard' | 'approvals' | 'products' | 'factory_audit' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy' | 'parspack_storage' | 'product_sync_status' | 'channel_posts';
+type SubTab = 'dashboard' | 'approvals' | 'products' | 'factory_audit' | 'branding' | 'crm' | 'factories' | 'orders' | 'accounting' | 'system' | 'pages' | 'catalog' | 'profile' | 'reports' | 'categories' | 'barter' | 'news' | 'invoice' | 'brands' | 'representatives' | 'ads' | 'safe_buy' | 'parspack_storage' | 'sms' | 'product_sync_status' | 'channel_posts';
 
 export default function AdminPanel({ 
   products, 
@@ -451,22 +452,26 @@ export default function AdminPanel({
       localStorage.setItem("dastavval_orders_cache", JSON.stringify(finalOrders));
     } else {
       // Sample fallback order
-      setOrders([
-        {
-          id: "3001",
-          trackingNumber: "DO-3001",
-          buyerName: "شرکت پخش مواد غذایی پاک",
-          buyerPhone: "09123456789",
-          buyerCompany: "پخش پاک",
-          totalAmount: 185000000,
-          items: [
-            { name: "روغن مایع آفتابگردان ۱.۵ لیتری", quantityCartons: 50, pricePerCarton: 420000, brand: "کارخانه کشت و صنعت" },
-            { name: "تن ماهی ۱۸۰ گرمی", quantityCartons: 30, pricePerCarton: 2900000, brand: "صنایع غذایی شیلات" }
-          ],
-          status: "confirmed",
-          createdAt: new Date().toISOString()
-        }
-      ]);
+      if (localStorage.getItem("dastavval_hide_mock_data") === "true") {
+        setOrders([]);
+      } else {
+        setOrders([
+          {
+            id: "3001",
+            trackingNumber: "DO-3001",
+            buyerName: "شرکت پخش مواد غذایی پاک",
+            buyerPhone: "09123456789",
+            buyerCompany: "پخش پاک",
+            totalAmount: 185000000,
+            items: [
+              { name: "روغن مایع آفتابگردان ۱.۵ لیتری", quantityCartons: 50, pricePerCarton: 420000, brand: "کارخانه کشت و صنعت" },
+              { name: "تن ماهی ۱۸۰ گرمی", quantityCartons: 30, pricePerCarton: 2900000, brand: "صنایع غذایی شیلات" }
+            ],
+            status: "confirmed",
+            createdAt: new Date().toISOString()
+          }
+        ]);
+      }
     }
 
     setOrdersLoading(false);
@@ -499,6 +504,7 @@ export default function AdminPanel({
       fetchOrders();
       loadCallbackRequests();
       loadSupportTickets();
+      onUpdateReps();
     }
   }, [activeSubTab]);
 
@@ -519,6 +525,7 @@ export default function AdminPanel({
     fetchSafeBuyRequests();
     loadCallbackRequests();
     loadSupportTickets();
+    onUpdateReps();
 
     const handleNewCallback = () => {
       loadCallbackRequests();
@@ -529,6 +536,7 @@ export default function AdminPanel({
       fetchSafeBuyRequests();
       loadCallbackRequests();
       loadSupportTickets();
+      onUpdateReps();
     };
 
     window.addEventListener("dastavval_callback_added", handleNewCallback);
@@ -742,16 +750,19 @@ export default function AdminPanel({
   const [bFormStatus, setBFormStatus] = useState("در انتظار تایید مدارک");
 
   const [cacheStatus, setCacheStatus] = useState<CacheStatus>({ isHealthy: false, itemCount: 0, lastUpdate: null });
+  const [isCacheExpanded, setIsCacheExpanded] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+
+  const checkCacheStatus = async () => {
+    const status = await getCacheStatus();
+    setCacheStatus(status);
+  };
 
   useEffect(() => {
-    const checkCache = async () => {
-      const status = await getCacheStatus();
-      setCacheStatus(status);
-    };
-    if (activeSubTab === 'dashboard') {
-      checkCache();
-    }
-  }, [activeSubTab]);
+    checkCacheStatus();
+    const interval = setInterval(checkCacheStatus, 15000);
+    return () => clearInterval(interval);
+  }, [products]);
 
   // AI Settings states
   const [showAiSettings, setShowAiSettings] = useState(false);
@@ -930,9 +941,10 @@ export default function AdminPanel({
   const [adToEdit, setAdToEdit] = useState<any>(null);
   const [editAdForm, setEditAdForm] = useState<any>(null);
 
-  const updateAdsState = (newAds: any[], msg: string) => {
+  const updateAdsState = async (newAds: any[], msg: string) => {
     setSponsoredAds(newAds);
     localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
+    if (onUpdateB2bConfig && b2bConfig) { await onUpdateB2bConfig({ ...b2bConfig, sponsoredAds: newAds }); }
     window.dispatchEvent(new Event("storage"));
     window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
     setSuccessMsg(msg);
@@ -948,26 +960,50 @@ export default function AdminPanel({
   };
 
   const handleUpdateAdStatus = async (adId: string, status: 'approved' | 'rejected' | 'pending', rejectionReason?: string) => {
-    const ad = sponsoredAds.find(a => a.id === adId);
-    const newAds = sponsoredAds.map(a => a.id === adId ? { ...a, status, rejectionReason: rejectionReason || '' } : a);
-    updateAdsState(newAds, status === 'approved' ? "آگهی با موفقیت تایید و در تالار منتشر شد." : "وضعیت آگهی بروزرسانی شد.");
-
-    // Trigger SMS on approval
-    if (status === 'approved' && ad && ad.phone) {
-      try {
-        await fetch("/api/sms/send-ad-status-sms", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: ad.phone,
-            userName: ad.userName || ad.ownerName || "کاربر گرامی",
-            adTitle: ad.title,
-            status: 'approved'
-          })
-        });
-      } catch (err) {
-        console.error("Failed to send ad approval SMS:", err);
+    let found = false;
+    if (sponsoredAds.some(a => a.id === adId)) {
+      found = true;
+      const ad = sponsoredAds.find(a => a.id === adId);
+      const newAds = sponsoredAds.map(a => a.id === adId ? { ...a, status, rejectionReason: rejectionReason || '' } : a);
+      updateAdsState(newAds, status === 'approved' ? "آگهی با موفقیت تایید و در تالار منتشر شد." : "وضعیت آگهی بروزرسانی شد.");
+      if (status === 'approved' && ad && ad.phone) {
+        try {
+          fetch("/api/sms/send-ad-status-sms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: ad.phone, userName: ad.userName || ad.ownerName || "کاربر گرامی", adTitle: ad.title || "آگهی شما", status: 'approved' }) });
+        } catch (e) {}
       }
+      return;
+    }
+    if (rawMaterialAds.some(a => a.id === adId)) {
+      found = true;
+      const newAds = rawMaterialAds.map(a => a.id === adId ? { ...a, status, isPendingApproval: status !== 'approved', rejectionReason: rejectionReason || '' } : a);
+      setRawMaterialAds(newAds);
+      localStorage.setItem("dastavval_raw_materials", JSON.stringify(newAds));
+      if (onUpdateB2bConfig && b2bConfig) await onUpdateB2bConfig({ ...b2bConfig, rawMaterialAds: newAds });
+    } else if (equipmentAds.some(a => a.id === adId)) {
+      found = true;
+      const newAds = equipmentAds.map(a => a.id === adId ? { ...a, status, isPendingApproval: status !== 'approved', rejectionReason: rejectionReason || '' } : a);
+      setEquipmentAds(newAds);
+      localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(newAds));
+      if (onUpdateB2bConfig && b2bConfig) await onUpdateB2bConfig({ ...b2bConfig, equipmentAds: newAds });
+    } else if (serviceAds.some(a => a.id === adId)) {
+      found = true;
+      const newAds = serviceAds.map(a => a.id === adId ? { ...a, status, isPendingApproval: status !== 'approved', rejectionReason: rejectionReason || '' } : a);
+      setServiceAds(newAds);
+      localStorage.setItem("dastavval_industrial_services", JSON.stringify(newAds));
+      if (onUpdateB2bConfig && b2bConfig) await onUpdateB2bConfig({ ...b2bConfig, serviceAds: newAds });
+    }
+    if (found) {
+      setSuccessMsg(status === 'approved' ? "آگهی با موفقیت تایید و منتشر شد." : "وضعیت آگهی بروزرسانی شد.");
+      setTimeout(() => setSuccessMsg(null), 2000);
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
+  const handleEditAdFromApprovals = async (adId: string, updatedFields: any) => {
+    const newAds = sponsoredAds.map(a => a.id === adId ? { ...a, ...updatedFields } : a);
+    updateAdsState(newAds, "آگهی با موفقیت ویرایش شد.");
+    if (onUpdateB2bConfig && b2bConfig) {
+      await onUpdateB2bConfig({ ...b2bConfig, sponsoredAds: newAds });
     }
   };
 
@@ -986,6 +1022,43 @@ export default function AdminPanel({
     );
     setRepresentativesList(updated);
     localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
+
+    // Also synchronize registered user in dastavval_local_users & push to backend
+    try {
+      const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+      let userUpdated = false;
+      const targetRep = updated.find(r => r.id === id || r.agencyCode === id);
+      
+      Object.keys(localUsers).forEach(key => {
+        const u = localUsers[key];
+        if (u && (u.userCode === id || u.agencyCode === id || (targetRep && (u.phone === targetRep.phone || u.email === targetRep.email)))) {
+          localUsers[key] = {
+            ...u,
+            role: 'representative',
+            isRepresentativeApproved: isApproved,
+            agencyApproved: isApproved,
+            status: isApproved ? 'active' : 'rejected',
+            agencyCode: targetRep?.agencyCode || u.agencyCode,
+            badge: badge || targetRep?.badge || u.badge || 'نماینده رسمی'
+          };
+          userUpdated = true;
+        }
+      });
+
+      if (userUpdated) {
+        localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+        try {
+          fetch("/api/b2b/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(localUsers)
+          }).catch(() => {});
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn("Error updating user status for rep:", err);
+    }
+
     setSuccessMsg(isApproved ? "درخواست عاملیت و نمایندگی با موفقیت تایید شد." : "درخواست نمایندگی رد شد.");
     setTimeout(() => setSuccessMsg(null), 3000);
   };
@@ -1279,10 +1352,12 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   useEffect(() => {
     if (activeSubTab === 'dashboard' || activeSubTab === 'reports') {
       setAdminCategory('monitoring');
-    } else if (activeSubTab === 'products' || activeSubTab === 'categories' || activeSubTab === 'brands' || activeSubTab === 'factories' || activeSubTab === 'catalog' || activeSubTab === 'branding') {
+    } else if (activeSubTab === 'products' || activeSubTab === 'categories' || activeSubTab === 'brands' || activeSubTab === 'factories' || activeSubTab === 'catalog' || activeSubTab === 'branding' || (activeSubTab as any) === 'factory_audit' || (activeSubTab as any) === 'product_sync_status') {
       setAdminCategory('catalog');
-    } else if (activeSubTab === 'orders' || activeSubTab === 'crm' || activeSubTab === 'representatives' || activeSubTab === 'invoice' || activeSubTab === 'accounting' || activeSubTab === 'barter' || activeSubTab === ('vip-wallet' as any) || activeSubTab === ('ai-marketing' as any)) {
+    } else if (activeSubTab === 'approvals' || activeSubTab === 'orders' || activeSubTab === 'crm' || activeSubTab === 'representatives' || activeSubTab === 'invoice' || activeSubTab === 'accounting' || activeSubTab === 'barter' || activeSubTab === ('vip-wallet' as any) || activeSubTab === ('ai-marketing' as any)) {
       setAdminCategory('sales');
+    } else if (activeSubTab === 'ads' || activeSubTab === 'safe_buy' || activeSubTab === 'channel_posts') {
+      setAdminCategory('ads');
     } else {
       setAdminCategory('system');
     }
@@ -1332,6 +1407,46 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
       console.warn("Failed to sync representative local users to representativesList:", err);
     }
   }, []);
+
+  const handlePurgeMockData = async () => {
+    confirmAction(
+      "پاک‌سازی داده‌های نمونه و فرضی",
+      "آیا از حذف تمام سفارشات نمونه، تیکت‌های فرضی و داده‌های آزمایشی اطمینان دارید؟ سیستم بعد از پاک‌سازی آماده ثبت سفارشات کاملاً واقعی خواهد بود.",
+      async () => {
+        setLoading(true);
+        try {
+          // 1. Set the flag to hide/prevent mock data in lists
+          localStorage.setItem("dastavval_hide_mock_data", "true");
+
+          // 2. Clear all mock caches
+          localStorage.removeItem("dastavval_orders_cache");
+          localStorage.removeItem("dastavval_raw_orders");
+          localStorage.removeItem("dastavval_callback_requests");
+          localStorage.removeItem("dastavval_tickets");
+          localStorage.removeItem("dastavval_representatives_kyc");
+          localStorage.removeItem("dastavval_crm_leads");
+
+          // 3. Clear states
+          setOrders([]);
+          setCallbackRequests([]);
+          setSupportTickets([]);
+
+          // 4. Force reload empty/real data from database
+          await fetchOrders();
+          await loadCallbackRequests();
+          await loadSupportTickets();
+
+          setSuccessMsg("کلیه سفارشات نمونه و داده‌های فرضی آزمایشی با موفقیت پاک‌سازی شدند. پلتفرم آماده فعالیت واقعی است.");
+          setTimeout(() => setSuccessMsg(null), 5000);
+        } catch (err: any) {
+          console.error(err);
+          setErrorMsg(`خطا در پاک‌سازی داده‌ها: ${err.message}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+  };
 
   const handleDeleteAllProducts = async () => {
     confirmAction(
@@ -3411,15 +3526,21 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const handleToggleFactoryActive = async (factoryId: string) => {
     setLoading(true);
     try {
-      const updatedFactories = factories.map(f => f.id === factoryId ? { ...f, isActive: f.isActive === undefined ? false : !f.isActive } : f);
-      const updatedConfig = {
-        ...b2bConfig,
-        factories: updatedFactories
-      };
-      await onUpdateB2bConfig(updatedConfig);
-      setFactories(updatedFactories);
-      setSuccessMsg("وضعیت فعال‌سازی کارخانه با موفقیت تغییر یافت.");
+      const res = await fetch(`/api/b2b/factories/${factoryId}/toggle-active`, {
+        method: "PATCH"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFactories(data.factories);
+        if (onUpdateB2bConfig) {
+          onUpdateB2bConfig({ ...b2bConfig, factories: data.factories });
+        }
+        setSuccessMsg("وضعیت فعال‌سازی کارخانه با موفقیت تغییر یافت.");
+      } else {
+        throw new Error(data.error || "Failed to toggle status");
+      }
     } catch (err: any) {
+      console.error("Factory toggle error:", err);
       setErrorMsg("خطا در تغییر وضعیت فعال‌سازی کارخانه.");
     } finally {
       setLoading(false);
@@ -3429,12 +3550,21 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
   const handleToggleFactoryFeatured = async (factoryId: string) => {
     setLoading(true);
     try {
-      const updatedFactories = factories.map(f => f.id === factoryId ? { ...f, isFeatured: !f.isFeatured } : f);
-      const updatedConfig = { ...b2bConfig, factories: updatedFactories };
-      await onUpdateB2bConfig(updatedConfig);
-      setFactories(updatedFactories);
-      setSuccessMsg("وضعیت ویژه کارخانه بروزرسانی شد.");
+      const res = await fetch(`/api/b2b/factories/${factoryId}/toggle-featured`, {
+        method: "PATCH"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFactories(data.factories);
+        if (onUpdateB2bConfig) {
+          onUpdateB2bConfig({ ...b2bConfig, factories: data.factories });
+        }
+        setSuccessMsg("وضعیت ویژه کارخانه بروزرسانی شد.");
+      } else {
+        throw new Error(data.error || "Failed to toggle featured");
+      }
     } catch (err) {
+      console.error("Factory featured toggle error:", err);
       setErrorMsg("خطا در تغییر وضعیت ویژه.");
     } finally {
       setLoading(false);
@@ -3445,12 +3575,21 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
     confirmAction("حذف کارخانه", "آیا از حذف این کارخانه اطمینان دارید؟", async () => {
       setLoading(true);
       try {
-        const updatedFactories = factories.filter(f => f.id !== factoryId);
-        const updatedConfig = { ...b2bConfig, factories: updatedFactories };
-        await onUpdateB2bConfig(updatedConfig);
-        setFactories(updatedFactories);
-        setSuccessMsg("کارخانه با موفقیت حذف شد.");
+        const res = await fetch(`/api/b2b/factories/${factoryId}`, {
+          method: "DELETE"
+        });
+        const data = await res.json();
+        if (data.success) {
+          setFactories(data.factories);
+          if (onUpdateB2bConfig) {
+            onUpdateB2bConfig({ ...b2bConfig, factories: data.factories });
+          }
+          setSuccessMsg("کارخانه با موفقیت حذف شد.");
+        } else {
+          throw new Error(data.error || "Failed to delete factory");
+        }
       } catch (err) {
+        console.error("Factory delete error:", err);
         setErrorMsg("خطا در حذف کارخانه.");
       } finally {
         setLoading(false);
@@ -3512,6 +3651,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             <section>
               <p className="text-[10px] font-black text-slate-400 mb-4 px-2 uppercase tracking-tighter opacity-60 font-sans">SETTINGS</p>
               <nav className="space-y-1.5">
+                <button
+                  onClick={() => { setActiveSubTab('sms'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+                    activeSubTab === 'sms'
+                      ? "bg-rose-600 text-white shadow-xl shadow-rose-600/25"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  }`}
+                >
+                  <Smartphone size={18} />
+                  تنظیمات پنل پیامک (SMS)
+                </button>
                 <button
                   onClick={() => { setActiveSubTab('parspack_storage'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); setIsSidebarOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
@@ -3636,6 +3786,8 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                 <div className="w-2 h-8 bg-emerald-600 rounded-full hidden sm:block" />
                 <h2 className="text-xl sm lg font-black text-slate-800 tracking-tight">
                   {activeSubTab === 'dashboard' && !showImporterDashboard && !showAiSettings && "مانیتورینگ توزیع"}
+                  {activeSubTab === 'approvals' && "صف تایید و مدیریت تقاضاها"}
+                  {activeSubTab === 'representatives' && "مدیریت نمایندگان و شعب"}
                   {activeSubTab === 'products' && "مدیریت کاتالوگ"}
                   {activeSubTab === 'orders' && "سفارشات عمده"}
                   {activeSubTab === 'crm' && "باشگاه مشتریان"}
@@ -3727,6 +3879,42 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* PENDING APPROVALS URGENT ALERT BANNER - ENSURES NO AD IS EVER LOST OR FORGOTTEN */}
+        {(() => {
+          const pendingAds = (sponsoredAds || []).filter((a: any) => !a.status || a.status === 'pending' || a.status === 'در حال بررسی').length;
+          const pendingRaw = (rawMaterialAds || []).filter((a: any) => a.isPendingApproval || !a.status || a.status === 'pending' || a.status === 'در حال بررسی').length;
+          const pendingEq = (equipmentAds || []).filter((a: any) => a.isPendingApproval || !a.status || a.status === 'pending' || a.status === 'در حال بررسی').length;
+          const pendingSrv = (serviceAds || []).filter((a: any) => a.isPendingApproval || !a.status || a.status === 'pending' || a.status === 'در حال بررسی').length;
+          const totalPending = pendingAds + pendingRaw + pendingEq + pendingSrv;
+          if (totalPending > 0 && activeSubTab !== 'approvals') {
+            return (
+              <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 text-white p-5 rounded-3xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-amber-400/40">
+                <div className="flex items-center gap-3 text-right">
+                  <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white">
+                    <Zap size={22} className="animate-bounce" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black tracking-tight">
+                      🔔 توجه مدیریت: ${totalPending} آگهی و تقاضای جدید در صف انتظار تأیید و انتشار است!
+                    </h4>
+                    <p className="text-[10px] text-amber-100 font-bold mt-0.5">
+                      برای جلوگیری از گم شدن یا ماندن آگهی‌های کاربران، لطفاً صف تایید را بررسی و منتشر کنید.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setActiveSubTab('approvals'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className="px-5 py-3 bg-white text-slate-950 hover:bg-amber-50 rounded-2xl text-xs font-black shadow-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap active:scale-95"
+                >
+                  <span>بررسی فوری صف تایید</span>
+                  <ArrowLeft size={16} />
+                </button>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* ROLE SELECTOR BAR & PERMISSION NOTICE */}
         <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-900">
@@ -3872,7 +4060,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               <span className="text-[10px] font-bold text-slate-400">۰۴</span>
             </div>
             <h3 className="text-xs font-black text-slate-800">تنظیمات و زیرساخت</h3>
-            <p className="text-[9px] text-slate-400 font-medium mt-1">بروزرسانی گیت‌هاب، هوش مصنوعی</p>
+            <p className="text-[9px] text-slate-400 font-medium mt-1">پنل پیامک، باکت پارس‌پک، پشتیبان‌گیری و مالی</p>
             {adminCategory === 'system' && <div className="absolute bottom-0 right-0 left-0 h-1 bg-purple-600" />}
           </button>
 
@@ -4148,6 +4336,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             {adminCategory === 'system' && (
               <>
                 <button
+                  onClick={() => { setActiveSubTab('sms'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    activeSubTab === 'sms'
+                      ? "bg-rose-600 text-white border-rose-500 shadow-xs"
+                      : "text-slate-600 bg-white border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <Smartphone size={12} />
+                  <span>💬 تنظیمات پنل پیامک (SMS)</span>
+                </button>
+                <button
                   onClick={() => { setActiveSubTab('parspack_storage'); setShowForm(false); setShowAiSettings(false); setShowImporterDashboard(false); }}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
                     activeSubTab === 'parspack_storage'
@@ -4167,7 +4366,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   }`}
                 >
                   <Server size={12} />
-                  <span>بروزرسانی از گیت‌هاب</span>
+                  <span>⚙️ سایر تنظیمات و گیت‌هاب</span>
                 </button>
                 <button
                   onClick={() => { setShowImporterDashboard(true); setShowForm(false); setShowAiSettings(false); }}
@@ -4529,8 +4728,139 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
                   </h3>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </motion.div>          </motion.div>
+
+          {/* ⚡ میز کار ویژه اقدامات و هماهنگی‌های مدیریت دست‌اول ⚡ */}
+          <div className="bg-slate-50/70 border border-slate-100 p-6 sm:p-8 rounded-[2.5rem] space-y-6 my-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 text-right">
+                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">اقدامات مدیریتی دست‌اول</span>
+                <h2 className="text-base font-black text-slate-800">میز کار هماهنگی، اصالت فاکتورها و تایید هویت</h2>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold max-w-xs text-right leading-relaxed">
+                این بخش به صورت زنده ثبت‌نام‌های جدید و تنظیمات قانونی فاکتور رسمی را پایش می‌کند.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* بخش اول: تایید هویت نمایندگان جدید */}
+              <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-xs flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                      <Users size={18} />
+                    </div>
+                    <h3 className="text-xs font-black text-slate-800">📋 ثبت‌نام‌های معلق عاملیت و نمایندگی</h3>
+                  </div>
+                  
+                  {(() => {
+                    const pendingReps = representativesList.filter(r => r.isApproved === false || r.status === 'pending');
+                    if (pendingReps.length > 0) {
+                      return (
+                        <div className="space-y-2 text-right">
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            تعداد <span className="font-bold text-indigo-600">{toPersianNum(pendingReps.length)} نماینده جدید</span> ثبت‌نام کرده و منتظر تایید است:
+                          </p>
+                          <div className="max-h-32 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                            {pendingReps.map((rep, idx) => (
+                              <div key={rep.id || idx} className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between gap-2">
+                                <div className="text-right">
+                                  <p className="text-[10px] font-black text-slate-800">{rep.name || "نماینده ناشناس"}</p>
+                                  <p className="text-[9px] text-slate-400 font-bold">{toPersianNum(rep.phone || "")} | {rep.city || "ثبت نشده"}</p>
+                                </div>
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await handleUpdateRepStatus(rep.id, true);
+                                      setSuccessMsg(`نمایندگی ${rep.name} با موفقیت تایید و فعال گردید.`);
+                                      setTimeout(() => setSuccessMsg(null), 3000);
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }}
+                                  className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black rounded-md transition-colors whitespace-nowrap"
+                                >
+                                  تایید سریع
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="text-[10px] text-slate-400 font-bold py-4 text-center leading-relaxed">
+                        ✅ تمامی درخواست‌های عاملیت و نمایندگی بررسی شده و نماینده معلقی وجود ندارد.
+                      </p>
+                    );
+                  })()}
+                </div>
+                
+                <button 
+                  onClick={() => { setActiveSubTab('representatives'); setIsSidebarOpen(false); }}
+                  className="mt-4 w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-100 text-[10px] font-black rounded-xl transition-colors flex items-center justify-center gap-1"
+                >
+                  <span>مدیریت و مشاهده کل نمایندگان پلتفرم</span>
+                  <ArrowLeft size={10} />
+                </button>
+              </div>
+
+              {/* بخش دوم: تنظیم مهر و امضای رسمی فاکتورها */}
+              <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-xs flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                      <Award size={18} />
+                    </div>
+                    <h3 className="text-xs font-black text-slate-800">✍️ ثبت مهر و امضای رسمی مدیریت</h3>
+                  </div>
+                  
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-semibold text-right">
+                    فاکتورهای صادر شده در حال حاضر از مهر و امضای فرضی دیجیتال سامانه استفاده می‌کنند.
+                  </p>
+                  
+                  <p className="text-[9px] text-slate-400 leading-relaxed text-right">
+                    جهت رسمی و معتبرسازی پیش‌فاکتورهای بنکداری، لطفا تصویر مهر یا امضای خطی مدیریت را از بخش تنظیمات ترسیم یا بارگذاری کنید تا جایگزین پیش‌فرض شود.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => { setActiveSubTab('invoice'); setIsSidebarOpen(false); }}
+                  className="mt-4 w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black rounded-xl transition-colors flex items-center justify-center gap-1 shadow-xs"
+                >
+                  <span>✍️ ثبت و طراحی مهر و امضای اختصاصی مدیر</span>
+                  <ArrowLeft size={10} />
+                </button>
+              </div>
+
+              {/* بخش سوم: اقدامات اضطراری و پاکسازی داده‌ها */}
+              <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-xs flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+                      <Trash2 size={18} />
+                    </div>
+                    <h3 className="text-xs font-black text-slate-800">🧹 پاک‌سازی سفارشات فرضی و سمپل</h3>
+                  </div>
+                  
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-semibold text-right">
+                    برای جلوگیری از تداخل فاکتورهای آزمایشی با سفارشات واقعی، پلتفرم امکان پاک‌سازی امن را فراهم آورده است.
+                  </p>
+                  
+                  <p className="text-[9px] text-slate-400 leading-relaxed text-right">
+                    سفارشات تست، تیکت‌های پشتیبانی آزمایشی و تراکنش‌های تستی را به طور کامل پاک کنید تا سیستم صرفاً داده‌های واقعی فروشگاه را پردازش کند.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={handlePurgeMockData}
+                  className="mt-4 w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 text-[10px] font-black rounded-xl transition-colors flex items-center justify-center gap-1"
+                >
+                  <span>🧹 پاک‌سازی کلیه سفارشات و داده‌های آزمایشی</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* REAL-TIME PRIORITIZED PENDING APPROVALS QUEUE */}
           <AdminPendingApprovals
@@ -4538,6 +4868,17 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             onEditOrder={handleStartEditOrder}
             safeBuyRequests={safeBuyRequests}
             sponsoredAds={sponsoredAds}
+            products={products}
+            onUpdateProductStatus={async (id, isApproved, reason) => {
+              await onUpdateProduct(id, {
+                approvalStatus: isApproved ? 'approved' : 'rejected',
+                isApproved: isApproved,
+                rejectionReason: reason
+              });
+            }}
+            rawMaterialAds={rawMaterialAds}
+            equipmentAds={equipmentAds}
+            serviceAds={serviceAds}
             barterDeals={barterDeals}
             representativesList={representativesList}
             onUpdateRepStatus={handleUpdateRepStatus}
@@ -4548,6 +4889,7 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
             onUpdateAdStatus={handleUpdateAdStatus}
+            onEditAd={handleEditAdFromApprovals}
             onUpdateBarterStatus={handleUpdateBarterStatus}
             onUpdateCallback={handleUpdateCallback}
             onUpdateTicketStatus={handleUpdateTicketStatus}
@@ -6102,8 +6444,45 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           onUpdateArticles={onUpdateArticles}
         />
       )}
-
-      {/* --- TAB: REPRESENTATIVES MANAGEMENT --- */}
+      {activeSubTab === 'approvals' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <AdminPendingApprovals
+            orders={orders}
+            onEditOrder={handleStartEditOrder}
+            safeBuyRequests={safeBuyRequests}
+            sponsoredAds={sponsoredAds}
+            products={products}
+            onUpdateProductStatus={async (id, isApproved, reason) => {
+              await onUpdateProduct(id, {
+                approvalStatus: isApproved ? 'approved' : 'rejected',
+                isApproved: isApproved,
+                rejectionReason: reason
+              });
+            }}
+            rawMaterialAds={rawMaterialAds}
+            equipmentAds={equipmentAds}
+            serviceAds={serviceAds}
+            barterDeals={barterDeals}
+            representativesList={representativesList}
+            onUpdateRepStatus={handleUpdateRepStatus}
+            suppliersList={suppliersList}
+            onUpdateSupplierStatus={handleUpdateSupplierStatus}
+            callbackRequests={callbackRequests}
+            supportTickets={supportTickets}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
+            onUpdateSafeBuyStatus={handleUpdateSafeBuyStatus}
+            onUpdateAdStatus={handleUpdateAdStatus}
+            onEditAd={handleEditAdFromApprovals}
+            onUpdateBarterStatus={handleUpdateBarterStatus}
+            onUpdateCallback={handleUpdateCallback}
+            onUpdateTicketStatus={handleUpdateTicketStatus}
+            onNavigateTab={(tab) => {
+              setActiveSubTab(tab as any);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
+        </div>
+      )}
       {activeSubTab === 'representatives' && (
         <AdminRepresentatives
           representativesList={representativesList}
@@ -6116,8 +6495,200 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           onUpdateReps={onUpdateReps}
         />
       )}
-
-      {/* --- TAB 1: PRODUCT CATALOG & STOCK --- */}
+      {activeSubTab === 'orders' && (
+        <AdminOrders
+          orders={orders}
+          ordersLoading={ordersLoading}
+          ordersSearch={ordersSearch}
+          setOrdersSearch={setOrdersSearch}
+          fetchOrders={fetchOrders}
+          handleUpdateOrderStatus={handleUpdateOrderStatus}
+          panelRole="admin"
+          formatOrderDate={formatOrderDate}
+          getStatusLabel={getStatusLabel}
+          setLoading={setLoading}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          confirmAction={confirmAction}
+          setShowPrintInvoice={setShowPrintInvoice}
+        />
+      )}
+      {activeSubTab === 'crm' && (
+        <AdminCRM
+          crmCustomers={crmCustomers}
+          crmLoading={crmLoading}
+          products={products}
+          setLoading={setLoading}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          confirmAction={confirmAction}
+          loadCrmCustomers={loadCrmCustomers}
+          onUpdateOrders={async () => { await fetchOrders(); }}
+        />
+      )}
+      {(activeSubTab === 'invoice' || activeSubTab === 'accounting') && (
+        <AdminInvoiceSettings
+          b2bConfig={b2bConfig}
+          onUpdateB2bConfig={onUpdateB2bConfig}
+        />
+      )}
+      {activeSubTab === 'safe_buy' && (
+        <AdminSafeBuy
+          products={products}
+          sponsoredAds={sponsoredAds}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+          setLoading={setLoading}
+        />
+      )}
+      {activeSubTab === 'ads' && (
+        <AdminAdsManagement
+          sponsoredAds={sponsoredAds}
+          onUpdateAdStatus={handleUpdateAdStatus}
+          onEditAd={handleEditAdFromApprovals}
+          onUpdateB2bConfig={onUpdateB2bConfig}
+          b2bConfig={b2bConfig}
+          setSuccessMsg={setSuccessMsg}
+          setErrorMsg={setErrorMsg}
+        />
+      )}
+      {(activeSubTab as any) === 'product_sync_status' && (
+        <ProductSyncStatusView products={products} b2bConfig={b2bConfig} onSaveB2bConfig={onUpdateB2bConfig} />
+      )}
+      {(activeSubTab as any) === 'factory_audit' && (
+        <AdminFactoryProductAudit 
+          products={products}
+          onUpdateProduct={onUpdateProduct}
+        />
+      )}
+      {activeSubTab === 'channel_posts' && (
+        <AdminChannelPosts
+          setSuccessMsg={setSuccessMsg}
+          autoPostSettings={autoPostSettings}
+          setAutoPostSettings={setAutoPostSettings}
+        />
+      )}
+      {activeSubTab === 'dashboard' && <AdminSalesCharts />}
+      {(activeSubTab as any) === 'system' && !showAiSettings && !showImporterDashboard && (
+        <AdminSystemConfig
+          b2bConfig={b2bConfig}
+          onUpdateB2bConfig={onUpdateB2bConfig}
+          products={products}
+          orders={orders}
+          articles={articles}
+          onRefreshProducts={onRefreshProducts}
+        />
+      )}
+      {(activeSubTab as any) === 'parspack_storage' && !showAiSettings && !showImporterDashboard && (
+        <AdminSystemConfig
+          defaultTab="parspack_storage"
+          b2bConfig={b2bConfig}
+          onUpdateB2bConfig={onUpdateB2bConfig}
+          products={products}
+          orders={orders}
+          articles={articles}
+          onRefreshProducts={onRefreshProducts}
+        />
+      )}
+      {(activeSubTab as any) === 'sms' && !showAiSettings && !showImporterDashboard && (
+        <AdminSystemConfig
+          defaultTab="sms"
+          b2bConfig={b2bConfig}
+          onUpdateB2bConfig={onUpdateB2bConfig}
+          products={products}
+          orders={orders}
+          articles={articles}
+          onRefreshProducts={onRefreshProducts}
+        />
+      )}
+      {(activeSubTab as any) === 'reports' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+            <div>
+              <h3 className="text-xl font-black text-slate-900">گزارشات تحلیل بازار و فروش</h3>
+              <p className="text-xs text-slate-400 font-bold mt-1">مانیتورینگ هوشمند عملکرد کارخانجات و توزیع‌کنندگان عمده</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-2xl text-[11px] font-black text-slate-700 shadow-sm hover:shadow-md transition-all">
+                <Download size={14} />
+                خروجی PDF
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-2xl text-[11px] font-black shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all">
+                <RefreshCw size={14} />
+                بروزرسانی داده‌ها
+              </button>
+            </div>
+          </div>
+          <AdminSalesCharts />
+        </div>
+      )}
+      {(activeSubTab as any) === 'profile' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl">
+          <h3 className="text-sm font-black text-slate-900">مدیریت حساب کاربری و امنیت</h3>
+          <div className="space-y-4">
+            <input 
+               type="text" 
+               placeholder="نام نمایشی جدید" 
+               value={newDisplayName}
+              onChange={(e) => setNewDisplayName(e.target.value)}
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black"
+            />
+            <button 
+               onClick={() => updateDisplayName(newDisplayName)}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black"
+            > 
+              به‌روزرسانی نام
+            </button>
+          </div>
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <input 
+               type="password" 
+               placeholder="رمز عبور جدید" 
+               value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black"
+            />
+            <button 
+               onClick={() => changePassword(newPassword)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black"
+            >
+              تغییر رمز عبور
+            </button>
+          </div>
+          <div className="pt-4 border-t border-gray-100">
+            <button 
+               onClick={async () => {
+                await logoutUser();
+                if (onLogout) onLogout();
+              }}
+              className="px-4 py-2 bg-rose-600 hover transition-colors text-white rounded-xl text-[10px] font-black cursor-pointer"
+            >
+              خروج از حساب
+            </button>
+          </div>
+        </div>
+      )}
+      {activeSubTab === 'categories' && (
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center">
+          <Layers size={64} className="mx-auto text-indigo-200 mb-6" />
+          <h3 className="text-xl font-black text-slate-900">مدیریت دسته‌بندی‌های کالا</h3>
+          <p className="text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto">لیست دسته‌بندی‌ها به صورت خودکار از کاتالوگ محصولات استخراج می‌شود. بزودی امکان ویرایش دستی و تغییر آیکون‌ها فراهم می‌گردد.</p>
+        </div>
+      )}
+      {activeSubTab === 'brands' && (
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center">
+          <Award size={64} className="mx-auto text-indigo-200 mb-6" />
+          <h3 className="text-xl font-black text-slate-900">مدیریت برندهای تجاری</h3>
+          <p className="text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto">برندها بر اساس محصولات موجود در انبار دسته‌بندی می‌شوند. می‌توانید از بخش برندینگ برای مدیریت لوگوها استفاده کنید.</p>
+        </div>
+      )}
+      {activeSubTab === 'barter' && (
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center">
+          <RefreshCw size={64} className="mx-auto text-indigo-200 mb-6" />
+          <h3 className="text-xl font-black text-slate-900">سامانه تهاتر کالا و خدمات</h3>
+          <p className="text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto">بخش تهاتر هوشمند در حال توسعه است. فعلاً درخواست‌های تهاتر را از بخش صف تایید پیگیری کنید.</p>
+        </div>
+      )}
       {activeSubTab === 'products' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           
@@ -6381,88 +6952,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
               </div>
             </div>
           )}
-      {(activeSubTab as any) === 'profile' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl">
-          <h3 className="text-sm font-black text-slate-900">مدیریت حساب کاربری و امنیت</h3>
-          <div className="space-y-4">
-            <input 
-              type="text" 
-              placeholder="نام نمایشی جدید" 
-              value={newDisplayName}
-              onChange={(e) => setNewDisplayName(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black"
-            />
-            <button 
-              onClick={() => updateDisplayName(newDisplayName)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black"
-            >
-              به‌روزرسانی نام
-            </button>
-          </div>
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <input 
-              type="password" 
-              placeholder="رمز عبور جدید" 
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black"
-            />
-            <button 
-              onClick={() => changePassword(newPassword)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black"
-            >
-              تغییر رمز عبور
-            </button>
-          </div>
-          <div className="pt-4 border-t border-gray-100">
-            <button 
-              onClick={async () => {
-                await logoutUser();
-                if (onLogout) onLogout();
-              }}
-              className="px-4 py-2 bg-rose-600 hover transition-colors text-white rounded-xl text-[10px] font-black cursor-pointer"
-            >
-              خروج از حساب
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* --- SYSTEM & INFRASTRUCTURE TAB --- */}
-      {(activeSubTab as any) === 'system' && !showAiSettings && !showImporterDashboard && (
-        <AdminSystemConfig
-          b2bConfig={b2bConfig}
-          onUpdateB2bConfig={onUpdateB2bConfig}
-          products={products}
-          orders={orders}
-          articles={articles}
-          onRefreshProducts={onRefreshProducts}
-        />
-      )}
 
       {/* --- TAB 3: REPORTS --- */}
-      {(activeSubTab as any) === 'reports' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-            <div>
-              <h3 className="text-xl font-black text-slate-900">گزارشات تحلیل بازار و فروش</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1">مانیتورینگ هوشمند عملکرد کارخانجات و توزیع‌کنندگان عمده</p>
-            </div>
-            <div className="flex gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-2xl text-[11px] font-black text-slate-700 shadow-sm hover:shadow-md transition-all">
-                <Download size={14} />
-                خروجی PDF
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-2xl text-[11px] font-black shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all">
-                <RefreshCw size={14} />
-                بروزرسانی داده‌ها
-              </button>
-            </div>
-          </div>
-
-          <AdminSalesCharts />
-        </div>
-      )}
 
           {/* Form container */}
           <AnimatePresence>
@@ -7300,123 +7793,6 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
           </div>
         </div>
       )}
-
-                        {/* --- TAB: SITE BUILDER / PAGES --- */}
-      {activeSubTab === 'pages' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden p-8">
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
-              <div>
-                <h3 className="text-base font-black text-slate-900">مدیریت محتوای صفحات و نوشته‌ها</h3>
-                <p className="text-[10px] text-gray-400 font-bold">متن‌ها، تصاویر و چیدمان صفحات سایت را ویرایش کنید.</p>
-              </div>
-              <button className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 hover transition-all">
-                <Plus size={16} />
-                ایجاد صفحه جدید
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              {/* Sidebar: Page List */}
-              <div className="md:col-span-1 space-y-2 border-l border-gray-50 pl-6">
-                <p className="text-[10px] font-black text-slate-400 mb-4 px-2 uppercase tracking-widest">لیست صفحات فعال</p>
-                {sitePages.map((page, idx) => (
-                  <button
-                    key={`admin-site-page-${page.id || idx}-${idx}`}
-                    onClick={() => {
-                      setActivePageId(page.id);
-                      setPageEditorContent(page.content);
-                    }}
-                    className={`w-full text-right p-4 rounded-2xl transition-all flex items-center justify-between group ${
-                      activePageId === page.id 
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10" 
-                        : "bg-slate-50 text-slate-600 hover"
-                    }`}
-                  >
-                    <span className="text-xs font-black">{page.title}</span>
-                    <ChevronRight size={14} className={activePageId === page.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"} />
-                  </button>
-                ))}
-              </div>
-
-              {/* Main: Editor Area */}
-              <div className="md:col-span-3">
-                {activePageId ? (
-                  <div className="space-y-6 animate-in fade-in duration-500">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-slate-900">ویرایشگر محتوا: {sitePages.find(p => p.id === activePageId)?.title}</h4>
-                      <div className="flex gap-2">
-                        <button onClick={() => setActivePageId(null)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black">انصراف</button>
-                        <button onClick={handleSavePage} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black flex items-center gap-2 shadow-lg shadow-emerald-600/10">
-                          <Save size={14} />
-                          ذخیره نهایی صفحه
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-center gap-3">
-                        <Sparkles size={20} className="text-amber-500" />
-                        <p className="text-[10px] font-bold text-amber-900">می‌توانید از تگ‌های HTML و یا متون ساده برای ویرایش استفاده کنید. بزودی ویرایشگر بصری کامل فعال می‌شود.</p>
-                      </div>
-                      
-                      <textarea
-                        value={pageEditorContent}
-                        onChange={(e) => setPageEditorContent(e.target.value)}
-                        className="w-full min-h-[400px] p-6 bg-slate-50 border border-slate-100 rounded-3xl font-mono text-xs leading-relaxed focus focus outline-none"
-                        placeholder="محتوای صفحه را اینجا وارد کنید..."
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-full min-h-[400px] flex flex-col items-center justify-center space-y-4 text-center p-12 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
-                    <div className="p-4 bg-white rounded-full shadow-sm">
-                      <Edit3 size={32} className="text-slate-300" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-800">هیچ صفحه‌ای برای ویرایش انتخاب نشده است</h4>
-                      <p className="text-xs text-slate-400 font-bold mt-1">یک صفحه از لیست سمت راست انتخاب کنید تا ویرایشگر بارگذاری شود.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* --- TAB: PRODUCT SYNC & BUCKET STATUS --- */}
-      {activeSubTab === 'product_sync_status' && (
-        <ProductSyncStatusView
-          products={products}
-          onUpdateProducts={async (updatedProds) => {
-            if (onBulkUpdateProducts) {
-              await onBulkUpdateProducts(updatedProds);
-            } else {
-              updatedProds.forEach(p => {
-                const existing = products.find(oldP => oldP.id === p.id || oldP.sku === p.sku);
-                if (existing) {
-                  onUpdateProduct(p.id, p);
-                } else {
-                  onAddProduct(p);
-                }
-              });
-            }
-          }}
-          b2bConfig={{ catalogPdfUrl }}
-          onSaveB2bConfig={async (cfg) => {
-            if (cfg.catalogPdfUrl) setCatalogPdfUrl(cfg.catalogPdfUrl);
-            try {
-              await fetch(getApiUrl("/api/admin/b2b-config"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...b2bConfig, catalogPdfUrl: cfg.catalogPdfUrl })
-              });
-            } catch (e) {}
-          }}
-        />
-      )}
-
-      {/* --- TAB: CATALOG GENERATION --- */}
       {activeSubTab === 'catalog' && (
         <div className="space-y-6">
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl p-12 text-center space-y-6">
@@ -8751,6 +9127,27 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
         </div>
       )}
 {/* --- TAB: FACTORY MANAGEMENT --- */}
+            {(activeSubTab === 'vip-wallet' as any) && (
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center">
+          <CreditCard size={64} className="mx-auto text-indigo-200 mb-6" />
+          <h3 className="text-xl font-black text-slate-900">مدیریت کیف پول VIP و اعتبار بنکداری</h3>
+          <p className="text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto">بزودی ابزارهای مدیریت خط اعتباری و تسویه حساب‌های عمده در این بخش فعال خواهد شد.</p>
+        </div>
+      )}
+      {(activeSubTab === 'ai-marketing' as any) && (
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center">
+          <Bot size={64} className="mx-auto text-indigo-200 mb-6" />
+          <h3 className="text-xl font-black text-slate-900">بازاریابی هوشمند (AI Marketing)</h3>
+          <p className="text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto">هسته هوش مصنوعی در حال یادگیری الگوهای خرید مشتریان شماست تا بهترین پیشنهادهای فروش را به صورت خودکار ارسال کند.</p>
+        </div>
+      )}
+      {(activeSubTab === 'pages' as any) && (
+        <div className="bg-white p-12 rounded-[3rem] border border-slate-100 shadow-xl text-center">
+          <FileText size={64} className="mx-auto text-indigo-200 mb-6" />
+          <h3 className="text-xl font-black text-slate-900">مدیریت صفحات ثابت و محتوا</h3>
+          <p className="text-sm text-slate-400 font-bold mt-4 max-w-md mx-auto">امکان ویرایش صفحات «درباره ما»، «قوانین» و سایر صفحات اطلاع‌رسانی بزودی اضافه می‌شود.</p>
+        </div>
+      )}
       {activeSubTab === 'factories' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
@@ -9098,2837 +9495,10 @@ PRD-102,"کالای نمونه دو",1,0,visible,"واحد: بسته","شرح ک
 
                   <div className="space-y-4 border-t border-slate-100 pt-6">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-[11px] font-black text-slate-500">حالت طراحی صفحه اختصاصی کارخانه:</div>
-                      <div className="flex bg-slate-100 p-1 rounded-xl">
-                        <button
-                          type="button"
-                          onClick={() => setFactoryProfileDesignMode('simple')}
-                          className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${factoryProfileDesignMode === 'simple' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`}
-                        >
-                          حالت ساده (پیش‌فرض)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFactoryProfileDesignMode('advanced')}
-                          className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${factoryProfileDesignMode === 'advanced' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
-                        >
-                          <Code2 size={12} className="inline ml-1" />
-                          حالت پیشرفته (HTML/CSS)
-                        </button>
-                      </div>
-                    </div>
-
-                    {factoryProfileDesignMode === 'advanced' && (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 flex items-center gap-1">
-                              کدهای سفارشی HTML:
-                            </label>
-                            <textarea 
-                              rows={8}
-                              value={factoryCustomHtml}
-                              onChange={e => setFactoryCustomHtml(e.target.value)}
-                              placeholder="<div>...</div>"
-                              className="w-full px-4 py-3 bg-slate-50 text-emerald-700 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed"
-                              dir="ltr"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 flex items-center gap-1">
-                              کدهای سفارشی CSS:
-                            </label>
-                            <textarea 
-                              rows={8}
-                              value={factoryCustomCss}
-                              onChange={e => setFactoryCustomCss(e.target.value)}
-                              placeholder=".custom-class { ... }"
-                              className="w-full px-4 py-3 bg-slate-50 text-blue-700 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed"
-                              dir="ltr"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 flex items-center gap-1">
-                            کدهای سفارشی JavaScript:
-                          </label>
-                          <textarea 
-                            rows={3}
-                            value={factoryCustomJs}
-                            onChange={e => setFactoryCustomJs(e.target.value)}
-                            placeholder="console.log('Factory Page Loaded');"
-                            className="w-full px-4 py-3 bg-slate-50 text-amber-700 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed"
-                            dir="ltr"
-                          />
-                        </div>
-                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[10px] text-blue-700 font-bold leading-relaxed">
-                          در حالت پیشرفته، شما می‌توانید ساختار نمایشی پروفایل کارخانه را کاملاً تغییر دهید. این کدها در صفحه اختصاصی کارخانه رندر خواهند شد.
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-black text-slate-500 block">توضیحات و بیوگرافی تولیدکننده:</label>
-                    <textarea 
-                      rows={3}
-                      value={factoryDesc}
-                      onChange={e => setFactoryDesc(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold leading-relaxed"
-                    />
-                  </div>
-
-                  {/* Catalogs Manager Section */}
-                  <div className="border-t border-slate-100 pt-6 space-y-4">
-                    <label className="text-[11px] font-black text-slate-500 block">افزودن و مدیریت کاتالوگ‌های کارخانه:</label>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input 
-                        type="text"
-                        placeholder="عنوان کاتالوگ (مثال: کاتالوگ تخصصی تیرماه)"
-                        value={newCatalogName}
-                        onChange={e => setNewCatalogName(e.target.value)}
-                        className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
-                      />
-                      <input 
-                        type="text"
-                        placeholder="لینک دانلود کاتالوگ (URL)"
-                        value={newCatalogUrl}
-                        onChange={e => setNewCatalogUrl(e.target.value)}
-                        className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono"
-                        dir="ltr"
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          if (!newCatalogName || !newCatalogUrl) {
-                            alert("لطفا هر دو فیلد نام و لینک کاتالوگ را پر کنید.");
-                            return;
-                          }
-                          setFactoryCatalogs(prev => [...prev, { name: newCatalogName, url: newCatalogUrl }]);
-                          setNewCatalogName("");
-                          setNewCatalogUrl("");
-                        }}
-                        className="px-4 py-2 bg-slate-100 text-white rounded-xl text-xs font-black hover transition-all cursor-pointer"
-                      >
-                        + افزودن کاتالوگ
-                      </button>
-                    </div>
-
-                    {factoryCatalogs.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                        {factoryCatalogs.map((cat, idx) => (
-                          <div key={`admin-panel-cat-item-${cat.name || idx}-${idx}`} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-150">
-                            <button 
-                              type="button"
-                              onClick={() => setFactoryCatalogs(prev => prev.filter((_, i) => i !== idx))}
-                              className="text-red-500 hover text-[10px] font-black bg-white shadow-sm px-2.5 py-1.5 rounded-lg border border-slate-100 cursor-pointer"
-                            >
-                              حذف
-                            </button>
-                            <div className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
-                              <span>📄</span>
-                              <span>{cat.name}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button 
-                      type="button"
-                      onClick={() => setShowFactoryForm(false)}
-                      className="px-6 py-2.5 rounded-xl text-xs font-black text-slate-400 hover transition-all cursor-pointer"
-                    >
-                      انصراف
-                    </button>
-                    <button 
-                      type="submit"
-                      className="px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 cursor-pointer"
-                    >
-                      {isEditingFactory ? "بروزرسانی پروفایل کارخانه" : "ثبت نهایی در دیتابیس"}
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-right">
-            {factories.map((f, idx) => {
-              const activeProducts = products.filter(p => p.brand === f.name || (p.sellerName && p.sellerName.includes(f.name)));
-              const isCurrentlyActive = f.isActive !== false;
-
-              return (
-                <motion.div 
-                  key={`admin-fac-item-${f.id || idx}-${idx}`}
-                  className={`bg-white border rounded-[2rem] p-6 shadow-sm hover transition-all group relative overflow-hidden flex flex-col justify-between ${
-                    isCurrentlyActive ? 'border-slate-100' : 'border-rose-200 bg-rose-50/5'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-4 mb-4">
-                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-full ${
-                        isCurrentlyActive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-100 text-rose-600'
-                      }`}>
-                        {isCurrentlyActive ? '🟢 فعال در پرتال' : '🔴 غیرفعال موقت'}
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-black text-slate-800">{f.name}</h4>
-                          <p className="text-[10px] text-slate-400 font-bold">{f.location}</p>
-                        </div>
-                        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 p-2 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                          <img 
-                            src={getDisplayImageUrl(f.logoUrl)} 
-                            alt={f.name} 
-                            className="w-full h-full object-contain" 
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] text-slate-500 font-bold leading-relaxed mb-6 line-clamp-2">
-                      {f.description}
-                    </p>
-
-                    {/* Admin-only direct phone box */}
-                    {f.contactPhone && (
-                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-150 text-[10px] font-bold text-slate-600 mb-4 flex justify-between items-center">
-                        <span className="font-mono text-xs text-indigo-600 font-black" dir="ltr">{f.contactPhone}</span>
-                        <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[8px] font-black">ویژه ادمین (مخفی از مشتری)</span>
-                      </div>
-                    )}
-
-                    {/* Catalogs List */}
-                    {f.catalogs && f.catalogs.length > 0 && (
-                      <div className="space-y-1.5 mb-4 border-t border-slate-100 pt-3">
-                        <span className="block text-[9px] text-slate-400 font-black">کاتالوگ‌های ضمیمه شده:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {f.catalogs.map((cat: any, i: number) => (
-                            <a 
-                              key={`admin-panel-f-cat-${cat.id || i}-${i}`} 
-                              href={cat.url} 
-                              target="_blank" 
-                              rel="referrer" 
-                              className="text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-lg flex items-center gap-1 hover transition-all"
-                            >
-                              📥 {cat.name}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-3 pt-4 border-t border-slate-50">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                          {f.rating} ⭐
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">تاسیس {f.establishedYear}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-bold">
-                        {toPersianNum(activeProducts.length)} محصول متصل
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => handleToggleFactoryActive(f.id)}
-                          className={`px-2.5 py-1.5 text-[9px] font-black rounded-lg transition-all border ${
-                            isCurrentlyActive 
-                              ? 'bg-rose-50 hover text-rose-600 border-rose-100' 
-                              : 'bg-emerald-50 hover text-emerald-600 border-emerald-100'
-                          } cursor-pointer`}
-                        >
-                          {isCurrentlyActive ? 'غیرفعال‌سازی' : 'فعال‌سازی'}
-                        </button>
-                        <button 
-                          onClick={() => handleToggleFactoryFeatured(f.id)}
-                          className={`px-2.5 py-1.5 text-[9px] font-black rounded-lg transition-all border ${
-                            f.isFeatured || f.isPinned
-                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                              : 'bg-slate-50 text-slate-500 border-slate-200'
-                          } cursor-pointer`}
-                        >
-                          {f.isFeatured || f.isPinned ? '⭐ ویژه (سنجاق)' : '⭐ عادی'}
-                        </button>
-                        <button 
-                          onClick={() => setSelectedFactoryForProducts(f)}
-                          className="px-2.5 py-1.5 bg-slate-50 hover text-slate-600 border border-slate-200 text-[9px] font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer"
-                        >
-                          🔍 کالاها
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button 
-                          onClick={() => handleEditFactory(f)}
-                          className="p-2 bg-slate-50 text-slate-400 hover hover rounded-lg transition-all cursor-pointer"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteFactory(f.id)}
-                          className="p-2 bg-slate-50 text-slate-400 hover hover rounded-lg transition-all cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* --- TAB: CRM --- */}
-      {activeSubTab === 'crm' && (
-        <AdminCRM
-          crmCustomers={crmCustomers}
-          crmLoading={crmLoading}
-          products={products}
-          setLoading={setLoading}
-          setSuccessMsg={setSuccessMsg}
-          setErrorMsg={setErrorMsg}
-          confirmAction={confirmAction}
-          loadCrmCustomers={loadCrmCustomers}
-          onUpdateOrders={onUpdateOrders}
-        />
-      )}
-
-      {/* --- TAB: ORDERS MANAGEMENT --- */}
-      {activeSubTab === 'orders' && (
-        <AdminOrders
-          orders={orders}
-          ordersLoading={ordersLoading}
-          ordersSearch={ordersSearch}
-          setOrdersSearch={setOrdersSearch}
-          fetchOrders={fetchOrders}
-          handleUpdateOrderStatus={handleUpdateOrderStatus}
-          panelRole={panelRole}
-          formatOrderDate={formatOrderDate}
-          getStatusLabel={getStatusLabel}
-          setLoading={setLoading}
-          setSuccessMsg={setSuccessMsg}
-          setErrorMsg={setErrorMsg}
-          confirmAction={confirmAction}
-          setShowPrintInvoice={setShowPrintInvoice}
-        />
-      )}
-
-      {/* Invoice & Seal Settings Tab */}
-      {activeSubTab === 'invoice' && (
-        <AdminInvoiceSettings 
-          b2bConfig={b2bConfig} 
-          onUpdateB2bConfig={onUpdateB2bConfig} 
-        />
-      )}
-
-      {/* Accounting and Finance Tab */}
-      {activeSubTab === 'accounting' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-              <div className="text-xs font-black text-slate-400 mb-2">کل فروش ناخالص</div>
-              <div className="text-2xl font-black text-slate-800 font-mono">
-                {toPersianNum(orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0).toLocaleString())} <span className="text-xs">تومان</span>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-              <div className="text-xs font-black text-slate-400 mb-2">سود ناخالص تخمینی (۱۵٪)</div>
-              <div className="text-2xl font-black text-emerald-600 font-mono">
-                {toPersianNum(Math.round(orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) * 0.15).toLocaleString())} <span className="text-xs">تومان</span>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-              <div className="text-xs font-black text-slate-400 mb-2">تعداد فاکتورهای جاری</div>
-              <div className="text-2xl font-black text-blue-600 font-mono">{toPersianNum(orders.length)}</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm overflow-hidden">
-            <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center gap-2">
-              <Activity size={18} className="text-blue-600" />
-              تراز مالی و جریان وجوه نقد
-            </h3>
-            <div className="space-y-4">
-              {orders.slice(0, 10).map((o, idx) => (
-                <div key={`admin-panel-fin-order-${o.id || idx}-${idx}`} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${o.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                      <DollarSign size={20} />
-                    </div>
-                    <div>
-                      <div className="text-xs font-black text-slate-800">{o.buyerCompany || "خریدار ناشناس"}</div>
-                      <div className="text-[10px] text-slate-400 font-bold">{formatOrderDate(o.createdAt)}</div>
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm font-black text-slate-900 font-mono">
-                      {o.paymentMethod === 'cash' ? '+' : ''}{toPersianNum(o.totalAmount.toLocaleString())}
-                    </div>
-                    <div className={`text-[10px] font-black ${o.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {o.paymentStatus === 'paid' ? 'وصول شده' : 'در انتظار واریز'}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- TAB: PARSPACK BUCKET STORAGE --- */}
-      {activeSubTab === 'parspack_storage' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-right" dir="rtl">
-          <AdminSystemConfig
-            b2bConfig={b2bConfig}
-            onUpdateB2bConfig={onUpdateB2bConfig}
-            products={products}
-            orders={orders}
-            articles={articles}
-            onRefreshProducts={onRefreshProducts}
-            defaultTab="parspack_storage"
-          />
-        </div>
-      )}
-
-      {/* --- TAB: SYSTEM MANAGEMENT --- */}
-      {activeSubTab === 'system' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-right" dir="rtl">
-          <AdminSystemConfig
-            b2bConfig={b2bConfig}
-            onUpdateB2bConfig={onUpdateB2bConfig}
-            products={products}
-            orders={orders}
-            articles={articles}
-            onRefreshProducts={onRefreshProducts}
-          />
-        </div>
-      )}
-
-      {/* AI Marketing Suite Tab (Sellers Role) */}
-      {activeSubTab === ('ai-marketing' as any) && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-[2.5rem] p-8 border border-slate-800 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-slate-800">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-amber-400 text-xs font-black">
-                  <Sparkles size={12} className="animate-pulse" />
-                  دستیار تبلیغات و مارکتینگ مجهز به هوش مصنوعی (Gemini API)
-                </div>
-                <h3 className="text-xl font-black">اتاق عملیات مارکتینگ و سناریونویسی هوشمند</h3>
-                <p className="text-slate-400 text-xs font-bold">برای هر کدام از کالاهای کاتالوگ خود، متن تبلیغاتی و راهنمای سود بنویسید</p>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-6 relative z-10">
-              <div className="bg-white/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-                <h4 className="text-sm font-black text-amber-400">۱. محصول مورد نظر را جهت تحلیل انتخاب کنید</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-black text-slate-400">کالاهای فعال در انبار شما:</label>
-                    <select
-                      value={aiMarketingProduct}
-                      onChange={(e) => setAiMarketingProduct(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-800 rounded-xl px-4 py-3.5 text-xs font-bold outline-none text-white focus transition-colors"
-                    >
-                      <option value="">-- انتخاب یک کالا از انبار بازرگانی --</option>
-                      {products.map((p, idx) => (
-                        <option key={`fin-prod-opt-${p.id || idx}-${idx}`} value={p.id}>
-                          {p.name} ({p.brand}) • قیمت عمده: {toPersianNum(p.bulk_price.toLocaleString())} تومان
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={handleGenerateAiMarketing}
-                    disabled={aiMarketingLoading || !aiMarketingProduct}
-                    className="w-full bg-amber-600 hover disabled:opacity-35 text-white font-black py-4 px-6 rounded-xl transition-all shadow-lg shadow-amber-600/15 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {aiMarketingLoading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    {aiMarketingLoading ? "در حال دریافت ایده..." : "تحلیل و تولید محتوای مارکتینگ"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Loader */}
-              {aiMarketingLoading && (
-                <div className="py-12 flex flex-col items-center justify-center space-y-4 bg-white/30 rounded-2xl border border-dashed border-slate-800">
-                  <div className="w-12 h-12 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin" />
-                  <div className="text-center space-y-1">
-                    <div className="text-xs font-black text-white">در حال تجزیه و تحلیل ویژگی‌های کالا با مدل هوش مصنوعی...</div>
-                    <div className="text-[10px] text-slate-500 font-bold">ما هم‌زمان سه سناریوی کاتالوگ، پیامک و سوددهی را استخراج می‌کنیم.</div>
-                  </div>
-                </div>
-              )}
-
-              {/* RESULTS BLOCK */}
-              {!aiMarketingLoading && (aiMarketingDesc || aiMarketingPitch || aiMarketingAdvice) && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500 text-right" dir="rtl">
-                  
-                  {/* ADVANCED B2B CATALOG COPY */}
-                  <div className="bg-slate-50/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                        <span className="text-[11px] font-black text-amber-400">توصیف کاتالوگ عمده B2B</span>
-                        <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-bold">برای خریداران</span>
-                      </div>
-                      <p className="text-[10px] text-slate-300 leading-relaxed min-h-[12rem] text-justify whitespace-pre-wrap">
-                        {aiMarketingDesc || "توصیفی تولید نشد."}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(aiMarketingDesc);
-                          setSuccessMsg("متن کاتالوگ عمده با موفقیت کپی شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="flex-1 bg-slate-100 hover text-white text-[10px] font-bold py-2.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        کپی متن کاتالوگ
-                      </button>
-                      <button
-                        onClick={handleApplyAiDescription}
-                        className="flex-1 bg-emerald-600 hover text-white text-[10px] font-black py-2.5 rounded-lg transition-all cursor-pointer"
-                      >
-                        اعمال روی کالا
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* SMS / TELEGRAM CAMPAIGN SCRIPT */}
-                  <div className="bg-slate-50/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                        <span className="text-[11px] font-black text-blue-400">سناریوی پیامک / تلگرام عمده‌فروشان</span>
-                        <span className="text-[8px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold">کمپین توزیع مویرگی</span>
-                      </div>
-                      <p className="text-[10px] text-slate-300 leading-relaxed min-h-[12rem] text-justify whitespace-pre-wrap font-mono">
-                        {aiMarketingPitch || "پیچی تولید نشد."}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(aiMarketingPitch);
-                        setSuccessMsg("متن پیامک تبلیغاتی کپی شد.");
-                        setTimeout(() => setSuccessMsg(null), 3000);
-                      }}
-                      className="w-full bg-slate-100 hover text-white text-[10px] font-bold py-2.5 rounded-lg transition-all cursor-pointer"
-                    >
-                      کپی سناریوی تبلیغاتی
-                    </button>
-                  </div>
-
-                  {/* STRATEGIC PRICING ADVISORY */}
-                  <div className="bg-slate-50/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                        <span className="text-[11px] font-black text-rose-400">تحلیل سودآوری و ترفندهای توزیع</span>
-                        <span className="text-[8px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full font-bold">مشاوره Gemini</span>
-                      </div>
-                      <p className="text-[10px] text-slate-300 leading-relaxed min-h-[12rem] text-justify whitespace-pre-wrap">
-                        {aiMarketingAdvice || "مشاوره‌ای ثبت نشد."}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(aiMarketingAdvice);
-                        setSuccessMsg("راهنمای مشاور کپی شد.");
-                        setTimeout(() => setSuccessMsg(null), 3000);
-                      }}
-                      className="w-full bg-slate-100 hover text-white text-[10px] font-bold py-2.5 rounded-lg transition-all cursor-pointer"
-                    >
-                      کپی تحلیل راهبردی
-                    </button>
-                  </div>
-
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* VIP Wholesaler Wallet Tab (Customers Role) */}
-      {activeSubTab === ('vip-wallet' as any) && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* VIP CO BRANDED CARD */}
-            <div className="bg-gradient-to-tr from-amber-600 via-amber-700 to-yellow-500 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[16rem]">
-              <div className="absolute top-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-              <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-              
-              <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <div className="text-[10px] font-black tracking-widest text-amber-100 uppercase">عضویت طلایی همکاران</div>
-                  <h4 className="text-lg font-black mt-1">دست اول • VIP GOLD</h4>
-                </div>
-                <div className="w-10 h-8 bg-amber-400/20 backdrop-blur-md rounded-lg border border-amber-300/30 flex items-center justify-center text-xs font-black">
-                  VIP
-                </div>
-              </div>
-
-              <div className="my-6 relative z-10">
-                <div className="text-xs text-amber-100 font-bold mb-1">کارت اعتباری متمرکز دست اول</div>
-                <div className="text-xl font-black font-mono tracking-widest text-center" dir="ltr">
-                  ۶۲۷۴ - ۱۹۲۸ - ۳۳۰۴ - ۰۰۴۲
-                </div>
-              </div>
-
-              <div className="flex justify-between items-end relative z-10">
-                <div>
-                  <div className="text-[8px] text-amber-200">دارنده اعتبار:</div>
-                  <div className="text-xs font-black">جناب آقای حاج علیرضا اکبری</div>
-                </div>
-                <div className="text-left">
-                  <div className="text-[8px] text-amber-200">کد شناسه:</div>
-                  <div className="text-xs font-black font-mono">D1-8402</div>
-                </div>
-              </div>
-            </div>
-
-            {/* WALLET METRICS */}
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full">تسهیلات بانکی تجاری</span>
-                  <div className="text-xs font-black text-slate-400 mt-3">حد اعتباری خرید امانی (چکی)</div>
-                </div>
-                <div className="text-xl font-black text-slate-800 font-mono mt-4">
-                  {toPersianNum("۵۰۰,۰۰۰,۰۰۰")} <span className="text-xs font-black">تومان</span>
-                </div>
-                <p className="text-[8px] text-emerald-600 font-bold mt-1">● دارای تاییدیه رسمی از بانک تجارت</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full">سود انباشته خرید مستقیم</span>
-                  <div className="text-xs font-black text-slate-400 mt-3">صرفه‌جویی کل خریدها (حذف واسطه)</div>
-                </div>
-                <div className="text-xl font-black text-emerald-600 font-mono mt-4">
-                  {toPersianNum("۴۲,۸۰۰,۰۰۰")} <span className="text-xs font-black">تومان</span>
-                </div>
-                <p className="text-[8px] text-slate-400 font-bold mt-1">میانگین ۲۸٪ سود بیشتر در هر خرید</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full">باشگاه مشتریان ممتاز</span>
-                  <div className="text-xs font-black text-slate-400 mt-3">امتیاز وفاداری دست اول</div>
-                </div>
-                <div className="text-xl font-black text-amber-600 font-mono mt-4">
-                  {toPersianNum("۲,۴۵۰")} <span className="text-xs font-black">امتیاز</span>
-                </div>
-                <p className="text-[8px] text-indigo-500 font-bold mt-1">تراز سطح طلایی فعال</p>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ACTIVE DISCOUNTS CODES */}
-          <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm text-right" dir="rtl">
-            <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center gap-2">
-              <Award size={18} className="text-amber-500" />
-              کدهای تخفیف فعال و اعتباری اختصاصی شما
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { code: "CHEE-TOZ-VIP", title: "۱۰٪ تخفیف کل بار چی‌توز", desc: "ویژه خریدهای بالای ۵۰ کارتن", expires: "تا ۳ روز دیگر" },
-                { code: "MAZMAZ-GOLD", title: "۸٪ تخفیف بار مزمز", desc: "بدون محدودیت حداقل سفارش", expires: "تا انتهای هفته" },
-                { code: "SUNICH-VIP", title: "۱۲٪ تخفیف اختصاصی سن‌ایچ", desc: "ویژه خریدهای نقدی خط تولید", expires: "تا فردا شب" }
-              ].map((c, i) => (
-                <div key={`admin-panel-discount-${c.code}-${i}`} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between space-y-3">
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800">{c.title}</h4>
-                    <p className="text-[9px] text-slate-400 font-bold mt-1">{c.desc}</p>
-                  </div>
-                  <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-100">
-                    <span className="text-[10px] font-mono font-bold text-slate-600">{c.code}</span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(c.code);
-                        setSuccessMsg("کد تخفیف با موفقیت کپی شد.");
-                        setTimeout(() => setSuccessMsg(null), 3000);
-                      }}
-                      className="text-[9px] font-black text-amber-600 hover cursor-pointer"
-                    >
-                      کپی کد
-                    </button>
-                  </div>
-                  <div className="text-[8px] text-rose-500 font-bold text-left">{c.expires}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- TAB: CATEGORIES MANAGEMENT (Enhanced) --- */}
-      {activeSubTab === 'categories' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-fuchsia-50 text-fuchsia-600 rounded-2xl shadow-inner">
-                <Layers size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg sm font-black text-slate-900 font-sans">معماری دسته‌بندی کاتالوگ مرکزی</h3>
-                <p className="text-[11px] text-slate-400 font-bold mt-1">ساختار درختی و بصری گروه‌های کالایی سامانه را با دقت مهندسی کنید.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-100">
-                {((b2bConfig.categories && b2bConfig.categories.length > 0) ? b2bConfig.categories : [1,2,3,4,5]).length} دسته فعال
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 items-start">
-            
-            {/* List of Existing Categories */}
-            <div className="lg:col-span-3 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <h4 className="text-xs font-black text-slate-500 font-sans flex items-center gap-2">
-                  لیست گروه‌های کالایی ثبت شده ({toPersianNum((b2bConfig.categories || []).length)} دسته):
-                </h4>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={async () => {
-                      setLoading(true);
-                      try {
-                        const pCatSet = new Set<string>();
-                        products.forEach((p: any) => {
-                          if (p.category && p.category.trim()) pCatSet.add(p.category.trim());
-                          if (p.tags && Array.isArray(p.tags)) {
-                            p.tags.forEach((t: string) => { if (t && t.trim()) pCatSet.add(t.trim()); });
-                          }
-                        });
-                        const currentCats = b2bConfig.categories || [];
-                        const catMap = new globalThis.Map<string, any>();
-                        currentCats.forEach((c: any) => {
-                          const name = typeof c === 'string' ? c : (c.name || c.id);
-                          if (name) catMap.set(name.trim(), typeof c === 'object' ? c : { id: name, name });
-                        });
-                        pCatSet.forEach(catName => {
-                          if (!catMap.has(catName)) {
-                            catMap.set(catName, {
-                              id: `cat-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                              name: catName,
-                              icon: "🏷️",
-                              description: "استخراج شده از کاتالوگ محصولات"
-                            });
-                          }
-                        });
-                        const mergedArray = Array.from(catMap.values());
-                        await onUpdateB2bConfig({ ...b2bConfig, categories: mergedArray as any });
-                        setSuccessMsg("دسته‌بندی‌ها با موفقیت بر اساس محصولات همگام‌سازی شدند!");
-                        setTimeout(() => setSuccessMsg(null), 3000);
-                      } catch (e) {
-                        console.error(e);
-                      }
-                      setLoading(false);
-                    }}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 shadow-sm"
-                  >
-                    <RefreshCw size={12} />
-                    <span>همگام‌سازی با محصولات</span>
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                      const list = b2bConfig.categories || [];
-                      const allCats = list.map((c: any) => typeof c === 'string' ? c : (c.name || c.id));
-                      if (selectedCategoryNames.length === allCats.length) {
-                        setSelectedCategoryNames([]);
-                      } else {
-                        setSelectedCategoryNames(allCats);
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black transition-all cursor-pointer"
-                  >
-                    {selectedCategoryNames.length > 0 ? "لغو انتخاب" : "انتخاب همه"}
-                  </button>
-                  {selectedCategoryNames.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setBulkCatEmoji("");
-                          setBulkCatDesc("");
-                          setBulkCatImageUrl("");
-                          setShowBulkEditCatModal(true);
-                        }}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black transition-all shadow-md cursor-pointer flex items-center gap-1"
-                      >
-                        <Edit2 size={11} />
-                        ویرایش گروهی ({toPersianNum(selectedCategoryNames.length)})
-                      </button>
-
-                      <button 
-                        onClick={() => {
-                          confirmAction(
-                            "حذف دسته‌جمعی",
-                            `آیا از حذف دسته جمعی ${selectedCategoryNames.length} گروه کالایی مطمئن هستید؟`,
-                            async () => {
-                              setLoading(true);
-                              try {
-                                const currentList = b2bConfig.categories || [];
-                                const updatedCats = currentList.filter(
-                                  (c: any) => {
-                                    const name = typeof c === 'string' ? c : (c.name || c.id);
-                                    const id = typeof c === 'object' ? c.id : c;
-                                    return !selectedCategoryNames.includes(name) && !selectedCategoryNames.includes(id) && !selectedCategoryNames.includes(c);
-                                  }
-                                );
-                                await onUpdateB2bConfig({ ...b2bConfig, categories: updatedCats });
-                                setSelectedCategoryNames([]);
-                                setSuccessMsg(`${toPersianNum(selectedCategoryNames.length)} گروه کالایی با موفقیت حذف شدند.`);
-                                setTimeout(() => setSuccessMsg(null), 3000);
-                              } catch (err: any) {
-                                setErrorMsg("خطا در حذف دسته جمعی گروه‌ها.");
-                              } finally {
-                                setLoading(false);
-                              }
-                            }
-                          );
-                        }}
-                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black transition-all shadow-md cursor-pointer flex items-center gap-1"
-                      >
-                        <Trash2 size={11} />
-                        حذف گروهی ({toPersianNum(selectedCategoryNames.length)})
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {(b2bConfig.categories || []).length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-300 space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-200/80 text-slate-600 flex items-center justify-center mx-auto">
-                    <Tag size={20} />
-                  </div>
-                  <h4 className="text-xs font-black text-slate-700">هیچ دسته‌بندی فعالی یافت نشد!</h4>
-                  <p className="text-[10px] text-slate-500 font-bold max-w-sm mx-auto leading-relaxed">
-                    دسته‌بندی‌های قبلی پاک شده‌اند. می‌توانید از فرم زیر دسته‌بندی‌های جدید و اختصاصی خود را وارد کرده یا روی «همگام‌سازی با محصولات» کلیک کنید.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
-                  {(b2bConfig.categories || []).map((cat: any, idx: number) => {
-                  const catKey = cat.name || cat.id || cat;
-                  const isCatSelected = selectedCategoryNames.includes(catKey);
-
-                  return (
-                    <div 
-                      key={`b2b-cat-${cat.id || cat.name || idx}-${idx}`} 
-                      className={`group relative p-4 rounded-3xl border transition-all flex flex-col gap-3 ${
-                        isCatSelected ? "bg-amber-50/60 border-amber-400 shadow-md" : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="checkbox"
-                            checked={isCatSelected}
-                            onChange={() => {
-                              setSelectedCategoryNames(prev => 
-                                prev.includes(catKey) ? prev.filter(k => k !== catKey) : [...prev, catKey]
-                              );
-                            }}
-                            className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
-                          />
-                          <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                            <img 
-                              src={cat.imageUrl || "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?w=200"} 
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                              alt={cat.name} 
-                            />
-                          </div>
-                          <div>
-                            <span className="text-sm font-black text-slate-800 block">{cat.name}</span>
-                            <span className="text-[9px] text-slate-400 font-bold block mt-0.5">{cat.description || "بدون توضیحات فنی"}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => {
-                              setEditingCategory(cat);
-                              setNewCatName(cat.name);
-                              setNewCatIcon(cat.imageUrl || "");
-                              setNewCatEmoji(cat.icon || "🏷️");
-                              setNewCatDesc(cat.description || "");
-                            }}
-                            className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all cursor-pointer"
-                            title="ویرایش"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              confirmAction(
-                                "حذف دسته‌بندی",
-                                'آیا از حذف این دسته مطمئن هستید؟',
-                                async () => {
-                                  const updatedCats = (b2bConfig.categories || []).filter((c: any) => (c.id || c.name || c) !== (cat.id || cat.name || cat));
-                                  setLoading(true);
-                                  try {
-                                    await onUpdateB2bConfig({ ...b2bConfig, categories: updatedCats });
-                                    setSuccessMsg("دسته با موفقیت حذف شد.");
-                                    setTimeout(() => setSuccessMsg(null), 3000);
-                                  } catch (err: any) {
-                                    setErrorMsg("خطا در حذف دسته.");
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }
-                              );
-                            }}
-                            className="p-2 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl transition-all cursor-pointer"
-                            title="حذف"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              )}
-            </div>
-
-            {/* Add/Edit Form */}
-            <div className="lg:col-span-2 sticky top-6">
-              <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 shadow-inner space-y-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-fuchsia-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-fuchsia-600/20">
-                    {editingCategory ? <Edit3 size={18} /> : <PlusCircle size={18} />}
-                  </div>
-                  <h4 className="text-sm font-black text-slate-800 font-sans">
-                    {editingCategory ? "ویرایش مشخصات گروه" : "ایجاد دسته‌بندی جدید"}
-                  </h4>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-black flex items-center gap-1.5">
-                      <Tag size={10} /> نام فارسی دسته‌بندی:
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newCatName}
-                      onChange={e => setNewCatName(e.target.value)}
-                      placeholder="مثال: تنقلات و شکلات"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-black outline-none focus focus transition-all"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 font-black flex items-center gap-1.5">
-                        <Sparkles size={10} /> ایموجی/آیکون (اختیاری):
-                      </label>
-                      <input 
-                        type="text" 
-                        value={newCatEmoji}
-                        onChange={e => setNewCatEmoji(e.target.value)}
-                        placeholder="🍿"
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs text-center font-black outline-none focus focus transition-all"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 font-black flex items-center gap-1.5">
-                        <Image size={10} /> تصویر دسته‌بندی (انتخاب فایل یا URL):
-                      </label>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <label className="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200 text-[11px] font-black py-2 px-3 rounded-xl cursor-pointer text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                            <Upload size={13} />
-                            <span>بارگذاری تصویر از گالری</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (event) => {
-                                    if (event.target?.result) {
-                                      setNewCatIcon(event.target.result as string);
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                            />
-                          </label>
-
-                          {newCatIcon && (
-                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-white p-0.5 shadow-sm">
-                              <img src={newCatIcon} alt="Category" className="w-full h-full object-cover rounded-lg" />
-                            </div>
-                          )}
-                        </div>
-
-                        <input 
-                          type="text" 
-                          dir="ltr"
-                          value={newCatIcon}
-                          onChange={e => setNewCatIcon(e.target.value)}
-                          placeholder="یا وارد کردن لینک https://..."
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono outline-none focus transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-black flex items-center gap-1.5">
-                      <ClipboardList size={10} /> شرح مختصر کاربردی:
-                    </label>
-                    <textarea 
-                      value={newCatDesc}
-                      onChange={e => setNewCatDesc(e.target.value)}
-                      rows={2}
-                      placeholder="توضیح کوتاهی برای نمایش در کاتالوگ..."
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus focus transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  {editingCategory && (
-                    <button 
-                      onClick={() => {
-                        setEditingCategory(null);
-                        setNewCatName("");
-                        setNewCatIcon("");
-                        setNewCatEmoji("");
-                        setNewCatDesc("");
-                      }}
-                      className="flex-1 py-3 bg-slate-200 text-slate-600 rounded-2xl text-xs font-black transition-all cursor-pointer hover"
-                    >
-                      انصراف
-                    </button>
-                  )}
-                  <button 
-                    onClick={async () => {
-                      if (!newCatName.trim()) {
-                        setErrorMsg("نام دسته الزامی است.");
-                        return;
-                      }
-                      
-                      setLoading(true);
-                      try {
-                        let updatedCats = [];
-                        const catPayload = {
-                          name: newCatName,
-                          icon: newCatEmoji || "🏷️",
-                          imageUrl: newCatIcon,
-                          description: newCatDesc
-                        };
-
-                        if (editingCategory) {
-                          updatedCats = (b2bConfig.categories || []).map((c: any) => 
-                            (c.id === editingCategory.id || c.name === editingCategory.name) 
-                              ? { ...c, ...catPayload }
-                              : c
-                          );
-                        } else {
-                          updatedCats = [
-                            ...(b2bConfig.categories || []),
-                            { id: Date.now().toString(), ...catPayload }
-                          ];
-                        }
-                        
-                        await onUpdateB2bConfig({ ...b2bConfig, categories: updatedCats });
-                        setSuccessMsg(editingCategory ? "تغییرات با موفقیت اعمال شد." : "دسته جدید در کاتالوگ ثبت گردید.");
-                        setEditingCategory(null);
-                        setNewCatName("");
-                        setNewCatIcon("");
-                        setNewCatEmoji("");
-                        setNewCatDesc("");
-                        setTimeout(() => setSuccessMsg(null), 3000);
-                      } catch (err: any) {
-                        setErrorMsg("خطا در ذخیره‌سازی داده‌های جدید.");
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    className="flex-[2] py-3 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-2xl text-xs font-black shadow-lg shadow-fuchsia-600/20 cursor-pointer transition-all flex items-center justify-center gap-2"
-                  >
-                    {loading ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                    {editingCategory ? "بروزرسانی نهایی دسته" : "ثبت دسته در هسته مرکزی"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Bulk Edit Category Modal */}
-          <AnimatePresence>
-            {showBulkEditCatModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/70 backdrop-blur-md">
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 text-right space-y-5"
-                  dir="rtl"
-                >
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
-                        <Edit2 size={20} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-slate-900">ویرایش گروهی دسته‌بندی‌ها</h4>
-                        <p className="text-[11px] text-slate-500 font-bold">
-                          اعمال تغییرات روی {toPersianNum(selectedCategoryNames.length)} گروه کالایی انتخاب شده
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowBulkEditCatModal(false)}
-                      className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">آیکون / ایموجی جدید (در صورت نیاز به تغییر):</label>
-                      <input
-                        type="text"
-                        value={bulkCatEmoji}
-                        onChange={e => setBulkCatEmoji(e.target.value)}
-                        placeholder="مثال: 📦 (خالی بگذارید تا تغییر نکند)"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">تصویر شاخص جدید (URL):</label>
-                      <input
-                        type="text"
-                        value={bulkCatImageUrl}
-                        onChange={e => setBulkCatImageUrl(e.target.value)}
-                        placeholder="https://... (خالی بگذارید تا تغییر نکند)"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-indigo-500 text-left dir-ltr"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-700 block">شرح یا توضیحات جدید:</label>
-                      <textarea
-                        value={bulkCatDesc}
-                        onChange={e => setBulkCatDesc(e.target.value)}
-                        rows={2}
-                        placeholder="توضیح جدید برای گروه‌های انتخابی (خالی بگذارید تا تغییر نکند)..."
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
-                    <button
-                      onClick={async () => {
-                        if (!bulkCatEmoji.trim() && !bulkCatDesc.trim() && !bulkCatImageUrl.trim()) {
-                          setErrorMsg("حداقل یکی از فیلدها را برای اعمال تغییرات گروهی تکمیل نمایید.");
-                          return;
-                        }
-
-                        setLoading(true);
-                        try {
-                          const currentList = b2bConfig.categories || [];
-                          const updatedCats = currentList.map((c: any) => {
-                            const name = typeof c === 'string' ? c : (c.name || c.id);
-                            const id = typeof c === 'object' ? c.id : c;
-                            const isMatch = selectedCategoryNames.includes(name) || selectedCategoryNames.includes(id) || selectedCategoryNames.includes(c);
-                            
-                            if (isMatch) {
-                              const baseObj = typeof c === 'object' ? c : { id: name, name };
-                              return {
-                                ...baseObj,
-                                icon: bulkCatEmoji.trim() ? bulkCatEmoji.trim() : baseObj.icon,
-                                imageUrl: bulkCatImageUrl.trim() ? bulkCatImageUrl.trim() : baseObj.imageUrl,
-                                description: bulkCatDesc.trim() ? bulkCatDesc.trim() : baseObj.description
-                              };
-                            }
-                            return c;
-                          });
-
-                          await onUpdateB2bConfig({ ...b2bConfig, categories: updatedCats });
-                          setShowBulkEditCatModal(false);
-                          setSelectedCategoryNames([]);
-                          setSuccessMsg(`تغییرات با موفقیت روی ${toPersianNum(selectedCategoryNames.length)} گروه کالایی اعمال گردید.`);
-                          setTimeout(() => setSuccessMsg(null), 3500);
-                        } catch (err) {
-                          setErrorMsg("خطا در بروزرسانی گروهی دسته‌بندی‌ها.");
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-2"
-                    >
-                      <Save size={15} />
-                      <span>اعمال تغییرات روی گروه‌های انتخابی</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowBulkEditCatModal(false)}
-                      className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-200 cursor-pointer"
-                    >
-                      انصراف
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* --- TAB: BRANDS MANAGEMENT --- */}
-      {activeSubTab === 'brands' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl shadow-inner">
-                <Award size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت برندها و کارخانجات همکار</h3>
-                <p className="text-[11px] text-slate-400 font-bold mt-1">برندهای تجاری فعال در سامانه دست اول را تعریف، ویرایش و مدیریت کنید.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={async () => {
-                  const productBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean))).filter(b => !isWarehouseBrand(b));
-                  const currentNames = new Set(brands.map(b => b.name));
-                  const newBrands: BrandItem[] = [...brands];
-                  let addedCount = 0;
-
-                  productBrands.forEach((bName, idx) => {
-                    if (!currentNames.has(bName)) {
-                      newBrands.push({
-                        id: `brand_auto_${Date.now()}_${idx}`,
-                        name: bName,
-                        type: "تولیدکننده رسمی",
-                        icon: "🏬"
-                      });
-                      addedCount++;
-                    }
-                  });
-
-                  setBrands(newBrands);
-                  await onUpdateB2bConfig({ ...b2bConfig, brands: newBrands });
-                  setSuccessMsg(`تعداد ${toPersianNum(addedCount)} برند جدید از کاتالوگ استخراج و ذخیره گردید.`);
-                  setTimeout(() => setSuccessMsg(null), 3500);
-                }}
-                className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center gap-1.5"
-              >
-                <Sparkles size={14} />
-                <span>استخراج خودکار برندها از محصولات ({toPersianNum(brands.length)})</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 items-start">
-            
-            {/* List of Existing Brands */}
-            <div className="lg:col-span-3 space-y-4">
-              <h4 className="text-xs font-black text-slate-500 font-sans flex items-center gap-2">
-                لیست برندهای ثبت‌شده در ویترین کارخانجات ({toPersianNum(brands.length)} برند):
-              </h4>
-
-              {brands.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl space-y-2">
-                  <p className="text-xs font-bold text-slate-500">هیچ برندی ثبت نشده است.</p>
-                  <p className="text-[11px] text-slate-400">از فرم مقابل برای اضافه کردن اولین برند استفاده کنید.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {brands.map((brand, idx) => (
-                    <div 
-                      key={`admin-brand-${brand.id || brand.name || idx}-${idx}`}
-                      className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 hover:bg-white hover:border-amber-400 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-sm text-2xl overflow-hidden">
-                          {brand.logoUrl ? (
-                            <img src={getDisplayImageUrl(brand.logoUrl)} alt={brand.name} className="w-full h-full object-contain" />
-                          ) : (
-                            <span>{brand.icon || "🏬"}</span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h5 className="text-xs font-black text-slate-900 truncate flex items-center gap-1.5">
-                            <span>{brand.name}</span>
-                          </h5>
-                          <p className="text-[10px] text-slate-500 font-bold truncate mt-0.5">{brand.type || "صنایع غذایی"}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => {
-                            window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
-                          }}
-                          className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl transition-all cursor-pointer"
-                          title="مشاهده کالاهای این برند در کاتالوگ"
-                        >
-                          <Eye size={13} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingBrandId(brand.id);
-                            setBrandFormName(brand.name);
-                            setBrandFormType(brand.type || "");
-                            setBrandFormIcon(brand.icon || "🏭");
-                            setBrandFormLogoUrl(brand.logoUrl || "");
-                          }}
-                          className="p-2 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl transition-all cursor-pointer"
-                          title="ویرایش برند"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            confirmAction(
-                              "حذف برند",
-                              `آیا از حذف برند "${brand.name}" مطمئن هستید؟`,
-                              async () => {
-                                const updated = brands.filter(b => (b.id || b.name) !== (brand.id || brand.name));
-                                setBrands(updated);
-                                await onUpdateB2bConfig({ ...b2bConfig, brands: updated });
-                                setSuccessMsg("برند با موفقیت حذف گردید.");
-                                setTimeout(() => setSuccessMsg(null), 3000);
-                              }
-                            );
-                          }}
-                          className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition-all cursor-pointer"
-                          title="حذف برند"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Add/Edit Brand Form */}
-            <div className="lg:col-span-2 bg-slate-50/70 p-6 rounded-3xl border border-slate-200/80 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                <h4 className="text-xs font-black text-slate-900 font-sans flex items-center gap-2">
-                  <PlusCircle size={16} className="text-amber-500" />
-                  {editingBrandId ? "ویرایش مشخصات برند" : "ثبت برند جدید"}
-                </h4>
-                {editingBrandId && (
-                  <button
-                    onClick={() => {
-                      setEditingBrandId(null);
-                      setBrandFormName("");
-                      setBrandFormType("");
-                      setBrandFormIcon("🏭");
-                      setBrandFormLogoUrl("");
-                    }}
-                    className="text-[10px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100"
-                  >
-                    انصراف
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-3.5">
-                <div>
-                  <label className="text-[11px] font-black text-slate-700 block mb-1">نام برند تجاری (الزامی):</label>
-                  <input
-                    type="text"
-                    value={brandFormName}
-                    onChange={(e) => setBrandFormName(e.target.value)}
-                    placeholder="مثال: چی‌توز، کاله، سن‌ایچ..."
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-black text-slate-700 block mb-1">نام شرکت / کارخانه مادر:</label>
-                  <input
-                    type="text"
-                    value={brandFormType}
-                    onChange={(e) => setBrandFormType(e.target.value)}
-                    placeholder="مثال: صنایع دینا، سولیکو کاله..."
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-black text-slate-700 block mb-1">ایموجی / آیکون:</label>
-                    <input
-                      type="text"
-                      value={brandFormIcon}
-                      onChange={(e) => setBrandFormIcon(e.target.value)}
-                      placeholder="🍿"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 text-center focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-black text-slate-700 block mb-1">پیش‌نمایش:</label>
-                    <div className="h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-xl">
-                      {brandFormLogoUrl ? (
-                        <img src={brandFormLogoUrl} alt="Logo" className="h-7 w-auto object-contain" />
-                      ) : (
-                        <span>{brandFormIcon || "🏭"}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-black text-slate-700 block mb-1">لوگوی برند (بارگذاری فایل PNG یا URL):</label>
-                  <div className="space-y-2">
-                    <label className="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black py-2.5 px-3 rounded-xl cursor-pointer text-center transition-colors flex items-center justify-center gap-2 shadow-sm">
-                      <Upload size={14} className="text-amber-600" />
-                      <span>بارگذاری لوگوی PNG/JPG از گالری دستگاه</span>
-                      <input
-                        type="file"
-                        accept="image/png, image/jpeg, image/webp, image/svg+xml, image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              if (event.target?.result) {
-                                setBrandFormLogoUrl(event.target.result as string);
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-
-                    <input
-                      type="text"
-                      value={brandFormLogoUrl}
-                      onChange={(e) => setBrandFormLogoUrl(e.target.value)}
-                      placeholder="یا وارد کردن مستقیم لینک https://.../logo.png"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500 text-left dir-ltr"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={async () => {
-                    if (!brandFormName.trim()) {
-                      setErrorMsg("لطفا نام برند را وارد نمایید.");
-                      return;
-                    }
-
-                    let updated: BrandItem[] = [];
-                    if (editingBrandId) {
-                      updated = brands.map(b => b.id === editingBrandId ? {
-                        ...b,
-                        name: brandFormName.trim(),
-                        type: brandFormType.trim() || "صنایع غذایی",
-                        icon: brandFormIcon || "🏭",
-                        logoUrl: brandFormLogoUrl.trim()
-                      } : b);
-                    } else {
-                      const newB: BrandItem = {
-                        id: `brand_${Date.now()}`,
-                        name: brandFormName.trim(),
-                        type: brandFormType.trim() || "صنایع غذایی",
-                        icon: brandFormIcon || "🏭",
-                        logoUrl: brandFormLogoUrl.trim()
-                      };
-                      updated = [newB, ...brands];
-
-                      if (autoPostSettings.new_factory) {
-                        triggerAutoChannelPost(
-                          `🏭 کارخانه جدید همکار: ${brandFormName.trim()}`,
-                          `برند تجاری و کارخانه تولیدی جدید "${brandFormName.trim()}" به خانواده بزرگ تولیدکنندگان بدون واسطه سامانه دست اول پیوست.\n\nنوع تولیدات: ${brandFormType.trim() || "صنایع غذایی"}\nهم‌اکنون بنکداران و مراجعین محترم می‌توانند کالاهای بی‌واسطه خط تولید این کارخانه را در کاتالوگ سامانه به طور زنده دنبال کنند.`,
-                          "system",
-                          "مشاهده کاتالوگ محصولات",
-                          `#brands`
-                        );
-                      }
-                    }
-
-                    setBrands(updated);
-                    setLoading(true);
-                    try {
-                      await onUpdateB2bConfig({ ...b2bConfig, brands: updated });
-                      setSuccessMsg(editingBrandId ? "مشخصات برند با موفقیت به روز شد." : "برند جدید با موفقیت اضافه شد.");
-                      setEditingBrandId(null);
-                      setBrandFormName("");
-                      setBrandFormType("");
-                      setBrandFormIcon("🏭");
-                      setBrandFormLogoUrl("");
-                      setTimeout(() => setSuccessMsg(null), 3000);
-                    } catch (err) {
-                      setErrorMsg("خطا در ذخیره‌سازی اطلاعات برند.");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl text-xs font-black shadow-lg shadow-amber-500/20 cursor-pointer transition-all flex items-center justify-center gap-2"
-                >
-                  <Save size={15} />
-                  <span>{editingBrandId ? "ذخیره تغییرات برند" : "افزودن برند به لیست"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeSubTab === 'ads' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white p-6 sm:p-10 rounded-[3rem] border border-slate-100 shadow-2xl text-right" dir="rtl">
-          {/* Ad Sections Navigation Tabs */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl flex-wrap gap-2 mb-2">
-            {[
-              { id: 'billboard', label: '📢 بیلبورد و آگهی‌های عمومی', count: sponsoredAds.length },
-              { id: 'equipment', label: '⚙️ ماشین‌آلات و تجهیزات', count: equipmentAds.length },
-              { id: 'services', label: '🛠️ خدمات صنعتی و بازرگانی', count: serviceAds.length },
-              { id: 'raw_materials', label: '🌾 تامین مواد اولیه و ملزومات', count: rawMaterialAds.length },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setAdsMainTab(tab.id as any)}
-                className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  adsMainTab === tab.id
-                    ? "bg-white text-indigo-700 shadow-md border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  adsMainTab === tab.id ? "bg-indigo-100 text-indigo-800" : "bg-slate-200 text-slate-700"
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {adsMainTab === 'billboard' && (
-          <>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-50">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl shadow-inner">
-                <Megaphone size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 font-sans">مدیریت بیلبورد آگهی‌ها</h3>
-                <p className="text-[11px] text-slate-400 font-bold mt-1">تایید، رد، ویرایش و حذف گروهی آگهی‌های ثبت شده کاربران.</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                {[
-                  { id: 'pending', label: 'در انتظار تایید', count: sponsoredAds.filter(a => (a.status || 'pending') === 'pending').length },
-                  { id: 'approved', label: 'تایید شده', count: sponsoredAds.filter(a => a.status === 'approved').length },
-                  { id: 'rejected', label: 'رد شده', count: sponsoredAds.filter(a => a.status === 'rejected').length },
-                  { id: 'all', label: 'همه', count: sponsoredAds.length },
-                ].map((f, fIdx) => (
-                  <button
-                    key={`ads-filter-${f.id}-${fIdx}`}
-                    onClick={() => setAdsFilter(f.id as any)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                      adsFilter === f.id 
-                        ? "bg-white text-indigo-600 shadow-sm" 
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    {f.label} ({f.count})
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                {[
-                  { id: 'all', label: 'همه دسته‌ها' },
-                  { id: 'under_market', label: '📉 زیر قیمت' },
-                  { id: 'buy', label: '📥 خرید' },
-                  { id: 'sell', label: '📤 فروش' },
-                ].map((f, fIdx) => (
-                  <button
-                    key={`ads-cat-filter-${f.id}-${fIdx}`}
-                    onClick={() => setAdsCategoryFilter(f.id as any)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                      adsCategoryFilter === f.id 
-                        ? "bg-white text-rose-600 shadow-sm" 
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-               <button
-                 onClick={() => {
-                   const adsRaw = localStorage.getItem("dastavval_sponsored_ads_v2");
-                   if (adsRaw) {
-                     try { setSponsoredAds(JSON.parse(adsRaw)); } catch(e){}
-                     setSuccessMsg("اطلاعات آگهی‌ها مجددا بارگیری شد.");
-                     setTimeout(() => setSuccessMsg(null), 3000);
-                   }
-                 }}
-                 className="p-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl cursor-pointer transition-all"
-                 title="بروزرسانی"
-               >
-                 <RefreshCw size={14} />
-               </button>
-            </div>
-          </div>
-
-          {/* Batch Operations Bar */}
-          {selectedAdIds.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in">
-              <div className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-black">
-                  {selectedAdIds.length}
-                </span>
-                <span className="text-xs font-black text-amber-900">آگهی انتخاب شده</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (autoPostSettings.new_ad) {
-                      selectedAdIds.forEach(id => {
-                        const ad = sponsoredAds.find(a => a.id === id);
-                        if (ad && ad.status !== 'approved') {
-                          triggerAutoChannelPost(
-                            `📢 آگهی جدید همکار: ${ad.title}`,
-                            `یک آگهی همکار جدید تایید و در سامانه منتشر شد:\n\nعنوان: "${ad.title}"\nتوسط: ${ad.factoryName}\nتوضیحات: ${ad.description}`,
-                            "announcement",
-                            "مشاهده جزئیات آگهی",
-                            `#ads`
-                          );
-                        }
-                      });
-                    }
-
-                    const newAds = sponsoredAds.map(a => selectedAdIds.includes(a.id) ? { ...a, status: 'approved', rejectionReason: undefined } : a);
-                    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                    setSponsoredAds(newAds);
-                    window.dispatchEvent(new Event("storage"));
-                    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                    setSuccessMsg(`${selectedAdIds.length} آگهی با موفقیت تایید و منتشر شدند.`);
-                    setSelectedAdIds([]);
-                    setTimeout(() => setSuccessMsg(null), 3000);
-                  }}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <CheckCircle size={14} />
-                  <span>تایید گروهی</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const newAds = sponsoredAds.map(a => selectedAdIds.includes(a.id) ? { ...a, status: 'rejected', rejectionReason: 'رد گروهی توسط مدیریت' } : a);
-                    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                    setSponsoredAds(newAds);
-                    window.dispatchEvent(new Event("storage"));
-                    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                    setSuccessMsg(`${selectedAdIds.length} آگهی رد شدند.`);
-                    setSelectedAdIds([]);
-                    setTimeout(() => setSuccessMsg(null), 3000);
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <XCircle size={14} />
-                  <span>رد گروهی</span>
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`آیا از حذف ${selectedAdIds.length} آگهی انتخاب شده اطمینان دارید؟`)) {
-                      const newAds = sponsoredAds.filter(a => !selectedAdIds.includes(a.id));
-                      localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                      setSponsoredAds(newAds);
-                      window.dispatchEvent(new Event("storage"));
-                      window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                      setSuccessMsg(`${selectedAdIds.length} آگهی حذف شدند.`);
-                      setSelectedAdIds([]);
-                      setTimeout(() => setSuccessMsg(null), 3000);
-                    }
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
-                >
-                  <Trash2 size={14} />
-                  <span>حذف گروهی</span>
-                </button>
-                <button
-                  onClick={() => setSelectedAdIds([])}
-                  className="px-4 py-2 bg-white text-slate-600 hover:bg-slate-100 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                >
-                  لغو انتخاب
-                </button>
-              </div>
-            </div>
-          )}
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-right border-separate border-spacing-y-2">
-              <thead>
-                <tr className="text-[10px] font-black text-slate-400">
-                  <th className="px-3 py-2 w-10 text-center">
-                    {(() => {
-                      const filtered = sponsoredAds.filter(ad => {
-                        const statusMatch = adsFilter === 'all' || (ad.status || 'pending') === adsFilter;
-                        const categoryMatch = adsCategoryFilter === 'all' || ad.category === adsCategoryFilter;
-                        return statusMatch && categoryMatch;
-                      });
-                      const allIds = filtered.map(a => a.id);
-                      const isAllSelected = allIds.length > 0 && allIds.every(id => selectedAdIds.includes(id));
-                      return (
-                        <input 
-                          type="checkbox"
-                          checked={isAllSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedAdIds(allIds);
-                            } else {
-                              setSelectedAdIds([]);
-                            }
-                          }}
-                          className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                          title="انتخاب همه این لیست"
-                        />
-                      );
-                    })()}
-                  </th>
-                  <th className="px-4 py-2 font-black text-right">تصویر</th>
-                  <th className="px-4 py-2 font-black text-right">عنوان آگهی / کاربر</th>
-                  <th className="px-4 py-2 font-black text-right">دسته‌بندی و قیمت</th>
-                  <th className="px-4 py-2 font-black text-right">وضعیت</th>
-                  <th className="px-4 py-2 font-black text-right">ویژه</th>
-                  <th className="px-4 py-2 font-black text-left">عملیات</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs">
-                {(() => {
-                  const filtered = sponsoredAds.filter(ad => {
-                    const statusMatch = adsFilter === 'all' || (ad.status || 'pending') === adsFilter;
-                    const categoryMatch = adsCategoryFilter === 'all' || ad.category === adsCategoryFilter;
-                    return statusMatch && categoryMatch;
-                  });
-
-                  if (filtered.length === 0) {
-                    return <tr><td colSpan={7} className="text-center py-12 text-slate-400 font-bold">هیچ آگهی در این وضعیت یافت نشد.</td></tr>;
-                  }
-
-                  return filtered.map((ad: any, idx: number) => {
-                    const isSelected = selectedAdIds.includes(ad.id);
-                    return (
-                      <tr key={`ad-row-${ad.id || idx}-${idx}`} className={`transition-colors ${isSelected ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50/50 hover:bg-slate-50'}`}>
-                        <td className="px-3 py-3 rounded-r-2xl border-y border-r border-slate-100 text-center">
-                          <input 
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedAdIds(prev => [...prev, ad.id]);
-                              } else {
-                                setSelectedAdIds(prev => prev.filter(id => id !== ad.id));
-                              }
-                            }}
-                            className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-4 py-3 border-y border-slate-100">
-                          <div className="relative group">
-                            <img 
-                              src={ad.imageUrl} 
-                              alt={ad.title} 
-                              className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm" 
-                              referrerPolicy="no-referrer"
-                            />
-                            {ad.specialRequest && (
-                              <div className="absolute -top-1 -right-1 bg-amber-500 text-white p-1 rounded-full border-2 border-white shadow-sm" title="درخواست ویژه سازی">
-                                <Sparkles size={8} />
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 border-y border-slate-100">
-                          <div className="font-black text-slate-800 text-sm">{ad.title}</div>
-                          <div className="text-[10px] text-slate-500 font-bold mt-1 flex items-center gap-2">
-                            <span>👤 {ad.factoryName}</span>
-                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span>📞 {ad.contactPhone}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 border-y border-slate-100">
-                          <div className="flex flex-col gap-1.5">
-                            <span className={`inline-block w-fit px-2 py-1 rounded-lg text-[10px] font-black ${
-                              ad.category === "under_market" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
-                            }`}>
-                              {ad.category === "under_market" ? "📉 زیر قیمت بازار" : ad.category === "liquid" ? "🔄 تهاتر" : ad.category === "buy" ? "📥 خرید" : ad.category === "sell" ? "📤 فروش" : ad.category === "jobs" ? "💼 استخدام" : ad.category === "services" ? "🛠️ خدمات" : ad.category}
-                            </span>
-                            {(ad.wholesalePrice || ad.marketPrice) && (
-                              <div className="text-[10px] font-bold text-indigo-700 flex items-center gap-2">
-                                <span>💰 عمده: {ad.wholesalePrice}</span>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 border-y border-slate-100">
-                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border ${
-                            (ad.status || 'pending') === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
-                            ad.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
-                            'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${
-                              (ad.status || 'pending') === 'pending' ? 'bg-amber-500' : 
-                              ad.status === 'rejected' ? 'bg-rose-500' : 
-                              'bg-emerald-500'
-                            }`} />
-                            {(ad.status || 'pending') === 'pending' ? 'در انتظار تایید' : 
-                             ad.status === 'rejected' ? 'رد شده' : 'تایید شده'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 border-y border-slate-100">
-                          <button
-                            onClick={() => {
-                               const newAds = sponsoredAds.map(a => a.id === ad.id ? {...a, isSponsored: !a.isSponsored} : a);
-                               localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                               setSponsoredAds(newAds);
-                               setSuccessMsg(ad.isSponsored ? "آگهی از حالت ویژه خارج شد." : "آگهی ویژه شد.");
-                               setTimeout(() => setSuccessMsg(null), 2000);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border flex items-center gap-1.5 cursor-pointer ${ad.isSponsored ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:border-amber-300 hover:text-amber-600'}`}
-                          >
-                            <Sparkles size={12} />
-                            {ad.isSponsored ? "ویژه" : "عادی"}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 rounded-l-2xl border-y border-l border-slate-100 text-left">
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              onClick={() => setSelectedAdForView(ad)}
-                              className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors shadow-sm cursor-pointer"
-                              title="مشاهده جزئیات و تایید"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setAdToEdit(ad);
-                                setEditAdForm({...ad});
-                              }}
-                              className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors shadow-sm cursor-pointer"
-                              title="ویرایش سریع آگهی"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                               onClick={() => {
-                                  if(window.confirm("آیا از حذف این آگهی مطمئن هستید؟")) {
-                                     const newAds = sponsoredAds.filter(a => a.id !== ad.id);
-                                     localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                                     setSponsoredAds(newAds);
-                                     window.dispatchEvent(new Event("storage"));
-                                     window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                                     setSuccessMsg("آگهی حذف شد.");
-                                     setTimeout(() => setSuccessMsg(null), 2000);
-                                  }
-                               }}
-                               className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm cursor-pointer"
-                               title="حذف آگهی"
-                            >
-                               <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </>
-        )}
-
-        {/* Equipment Tab */}
-        {adsMainTab === 'equipment' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
-              <div>
-                <h4 className="text-base font-black text-slate-900">مدیریت آگهی‌های ماشین‌آلات و تجهیزات صنعتی</h4>
-                <p className="text-xs text-slate-500 font-bold mt-1">بررسی، تایید، ویرایش و حذف آگهی‌های دستگاه‌ها و ماشین‌آلات تولیدی.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-amber-50 text-amber-800 text-xs font-black px-3 py-1.5 rounded-xl border border-amber-200">
-                  تعداد کل: {equipmentAds.length} دستگاه
-                </span>
-              </div>
-            </div>
-
-            {equipmentAds.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <Cpu className="mx-auto text-slate-300 mb-2" size={32} />
-                <p className="text-xs font-bold text-slate-500">هیچ آگهی ماشین‌آلاتی ثبت نشده است.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {equipmentAds.map((item) => (
-                  <div key={item.id} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all">
-                    <div className="flex items-start gap-3">
-                      <img src={item.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400"} alt={item.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">{item.category || "تجهیزات صنعتی"}</span>
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
-                            item.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                            item.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {item.status === 'approved' ? 'تایید شده' : item.status === 'rejected' ? 'رد شده' : 'در انتظار تایید'}
-                          </span>
-                        </div>
-                        <h5 className="text-xs font-black text-slate-900 line-clamp-1 mb-1">{item.title}</h5>
-                        <p className="text-[11px] font-bold text-slate-600 line-clamp-2 mb-2">{item.description}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500">
-                          <span>🏭 {item.factoryName || "نامشخص"}</span>
-                          <span>📍 {item.location || "نامشخص"}</span>
-                          <span>📞 {item.contactPhone || "نامشخص"}</span>
-                          <span className="text-emerald-700 font-black">💰 {item.wholesalePrice || "توافقی"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
-                      <button
-                        onClick={() => {
-                          const updated = equipmentAds.map(e => e.id === item.id ? { ...e, status: 'approved', isPendingApproval: false } : e);
-                          setEquipmentAds(updated);
-                          localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
-                          window.dispatchEvent(new Event("dastavval-ads-sync"));
-                          setSuccessMsg("آگهی تایید شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <CheckCircle size={13} />
-                        <span>تایید</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const updated = equipmentAds.map(e => e.id === item.id ? { ...e, status: 'rejected', isPendingApproval: true } : e);
-                          setEquipmentAds(updated);
-                          localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
-                          window.dispatchEvent(new Event("dastavval-ads-sync"));
-                          setSuccessMsg("آگهی رد شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <XCircle size={13} />
-                        <span>رد</span>
-                      </button>
-                      <button
-                        onClick={() => setEditingAdItem({ type: 'equipment', data: { ...item } })}
-                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit2 size={13} />
-                        <span>ویرایش</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          confirmAction("حذف آگهی", "آیا از حذف این آگهی ماشین‌آلات اطمینان دارید؟", async () => {
-                            const updated = equipmentAds.filter(e => e.id !== item.id);
-                            setEquipmentAds(updated);
-                            localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
-                            if (onUpdateB2bConfig) {
-                              await onUpdateB2bConfig({ ...b2bConfig, equipmentAds: updated });
-                            }
-                            window.dispatchEvent(new Event("dastavval-ads-sync"));
-                            window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                            setSuccessMsg("آگهی حذف شد.");
-                            setTimeout(() => setSuccessMsg(null), 3000);
-                          });
-                        }}
-                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-black rounded-lg transition-colors cursor-pointer"
-                        title="حذف"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Services Tab */}
-        {adsMainTab === 'services' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
-              <div>
-                <h4 className="text-base font-black text-slate-900">مدیریت آگهی‌های خدمات صنعتی و بازرگانی</h4>
-                <p className="text-xs text-slate-500 font-bold mt-1">بررسی و مدیریت خدمات بسته‌بندی، ترخیص، طراحی و آزمایشگاهی.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-amber-50 text-amber-800 text-xs font-black px-3 py-1.5 rounded-xl border border-amber-200">
-                  تعداد کل: {serviceAds.length} خدمت
-                </span>
-              </div>
-            </div>
-
-            {serviceAds.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <Layers className="mx-auto text-slate-300 mb-2" size={32} />
-                <p className="text-xs font-bold text-slate-500">هیچ آگهی خدماتی ثبت نشده است.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {serviceAds.map((item) => (
-                  <div key={item.id} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all">
-                    <div className="flex items-start gap-3">
-                      <img src={item.imageUrl || "https://images.unsplash.com/photo-1542744094-3a31b272c490?auto=format&fit=crop&q=80&w=400"} alt={item.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">{item.category || "خدمات صنعتی"}</span>
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
-                            item.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                            item.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {item.status === 'approved' ? 'تایید شده' : item.status === 'rejected' ? 'رد شده' : 'در انتظار تایید'}
-                          </span>
-                        </div>
-                        <h5 className="text-xs font-black text-slate-900 line-clamp-1 mb-1">{item.title}</h5>
-                        <p className="text-[11px] font-bold text-slate-600 line-clamp-2 mb-2">{item.description}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500">
-                          <span>🛠️ {item.providerName || "نامشخص"}</span>
-                          <span>📍 {item.location || "نامشخص"}</span>
-                          <span className="text-indigo-700 font-black">🏷️ {item.rate || "توافقی"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
-                      <button
-                        onClick={() => {
-                          const updated = serviceAds.map(s => s.id === item.id ? { ...s, status: 'approved', isPendingApproval: false } : s);
-                          setServiceAds(updated);
-                          localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
-                          window.dispatchEvent(new Event("dastavval-ads-sync"));
-                          setSuccessMsg("خدمت تایید شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <CheckCircle size={13} />
-                        <span>تایید</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const updated = serviceAds.map(s => s.id === item.id ? { ...s, status: 'rejected', isPendingApproval: true } : s);
-                          setServiceAds(updated);
-                          localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
-                          window.dispatchEvent(new Event("dastavval-ads-sync"));
-                          setSuccessMsg("خدمت رد شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <XCircle size={13} />
-                        <span>رد</span>
-                      </button>
-                      <button
-                        onClick={() => setEditingAdItem({ type: 'service', data: { ...item } })}
-                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit2 size={13} />
-                        <span>ویرایش</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          confirmAction("حذف آگهی خدمات", "آیا از حذف این آگهی خدمات اطمینان دارید؟", async () => {
-                            const updated = serviceAds.filter(s => s.id !== item.id);
-                            setServiceAds(updated);
-                            localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
-                            if (onUpdateB2bConfig) {
-                              await onUpdateB2bConfig({ ...b2bConfig, serviceAds: updated });
-                            }
-                            window.dispatchEvent(new Event("dastavval-ads-sync"));
-                            window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                            setSuccessMsg("آگهی خدمات حذف شد.");
-                            setTimeout(() => setSuccessMsg(null), 3000);
-                          });
-                        }}
-                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-black rounded-lg transition-colors cursor-pointer"
-                        title="حذف"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Raw Materials Tab */}
-        {adsMainTab === 'raw_materials' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
-              <div>
-                <h4 className="text-base font-black text-slate-900">مدیریت آگهی‌های تامین مواد اولیه و ملزومات</h4>
-                <p className="text-xs text-slate-500 font-bold mt-1">بررسی آگهی‌های تامین شکر، روغن، آرد و سایر مواد اولیه کارخانجات.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-amber-50 text-amber-800 text-xs font-black px-3 py-1.5 rounded-xl border border-amber-200">
-                  تعداد کل: {rawMaterialAds.length} آگهی
-                </span>
-              </div>
-            </div>
-
-            {rawMaterialAds.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <Package className="mx-auto text-slate-300 mb-2" size={32} />
-                <p className="text-xs font-bold text-slate-500">هیچ آگهی مواد اولیه‌ای ثبت نشده است.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {rawMaterialAds.map((item) => (
-                  <div key={item.id} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col justify-between gap-4 transition-all">
-                    <div className="flex items-start gap-3">
-                      <img src={item.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400"} alt={item.name || item.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">{item.category || "مواد اولیه"}</span>
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
-                            item.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                            item.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {item.status === 'approved' ? 'تایید شده' : item.status === 'rejected' ? 'رد شده' : 'در انتظار تایید'}
-                          </span>
-                        </div>
-                        <h5 className="text-xs font-black text-slate-900 line-clamp-1 mb-1">{item.name || item.title}</h5>
-                        <p className="text-[11px] font-bold text-slate-600 line-clamp-2 mb-2">{item.description}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500">
-                          <span>🌾 {item.supplierName || "تامین‌کننده"}</span>
-                          <span>📍 {item.supplierLocation || item.location || "نامشخص"}</span>
-                          <span className="text-emerald-700 font-black">💰 {item.priceEstimate || "قیمت روز"}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
-                      <button
-                        onClick={() => {
-                          const updated = rawMaterialAds.map(r => r.id === item.id ? { ...r, status: 'approved', isPendingApproval: false } : r);
-                          setRawMaterialAds(updated);
-                          localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
-                          window.dispatchEvent(new Event("dastavval-ads-sync"));
-                          setSuccessMsg("آگهی مواد اولیه تایید شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <CheckCircle size={13} />
-                        <span>تایید</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const updated = rawMaterialAds.map(r => r.id === item.id ? { ...r, status: 'rejected', isPendingApproval: true } : r);
-                          setRawMaterialAds(updated);
-                          localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
-                          window.dispatchEvent(new Event("dastavval-ads-sync"));
-                          setSuccessMsg("آگهی مواد اولیه رد شد.");
-                          setTimeout(() => setSuccessMsg(null), 3000);
-                        }}
-                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <XCircle size={13} />
-                        <span>رد</span>
-                      </button>
-                      <button
-                        onClick={() => setEditingAdItem({ type: 'raw_material', data: { ...item } })}
-                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-black rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit2 size={13} />
-                        <span>ویرایش</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          confirmAction("حذف آگهی مواد اولیه", "آیا از حذف این آگهی مواد اولیه اطمینان دارید؟", async () => {
-                            const updated = rawMaterialAds.filter(r => r.id !== item.id);
-                            setRawMaterialAds(updated);
-                            localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
-                            if (onUpdateB2bConfig) {
-                              await onUpdateB2bConfig({ ...b2bConfig, rawMaterialAds: updated });
-                            }
-                            window.dispatchEvent(new Event("dastavval-ads-sync"));
-                            window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-                            setSuccessMsg("آگهی مواد اولیه حذف شد.");
-                            setTimeout(() => setSuccessMsg(null), 3000);
-                          });
-                        }}
-                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-black rounded-lg transition-colors cursor-pointer"
-                        title="حذف"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-      {/* Edit Ad Modal */}
-      {adToEdit && editAdForm && (
-        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" dir="rtl">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100"
-          >
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-amber-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500 text-white rounded-xl">
-                  <Edit2 size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-800">ویرایش آگهی: {adToEdit.title}</h3>
-              </div>
-              <button onClick={() => setAdToEdit(null)} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-8 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 block px-1">عنوان آگهی کالا</label>
-                <input 
-                  type="text" 
-                  value={editAdForm.title}
-                  onChange={(e) => setEditAdForm({...editAdForm, title: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 block px-1">قیمت پیشنهادی عمده</label>
-                  <input 
-                    type="text" 
-                    value={editAdForm.wholesalePrice}
-                    onChange={(e) => setEditAdForm({...editAdForm, wholesalePrice: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-                    placeholder="مثال: ۱۲۵,۰۰۰ تومان"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 block px-1">قیمت کف بازار</label>
-                  <input 
-                    type="text" 
-                    value={editAdForm.marketPrice}
-                    onChange={(e) => setEditAdForm({...editAdForm, marketPrice: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-                    placeholder="مثال: ۱۵۰,۰۰۰ تومان"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 block px-1">دسته‌بندی</label>
-                <select 
-                  value={editAdForm.category}
-                  onChange={(e) => setEditAdForm({...editAdForm, category: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-                >
-                  <option value="under_market">📉 زیر قیمت بازار</option>
-                  <option value="liquid">🔥 حراج مازاد</option>
-                  <option value="direct_supply">📦 تامین مستقیم</option>
-                  <option value="barter">🔄 تهاتر کالا</option>
-                  <option value="sell">📤 فروش عادی</option>
-                  <option value="buy">📥 درخواست خرید</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button 
-                onClick={() => setAdToEdit(null)}
-                className="px-6 py-3 rounded-2xl text-xs font-bold text-slate-500 hover:bg-white transition-all"
-              >
-                انصراف
-              </button>
-              <button 
-                onClick={handleUpdateAd}
-                className="px-10 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2"
-              >
-                <Save size={16} />
-                <span>ذخیره تغییرات آگهی</span>
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-      {showPrintInvoice && (
-        <WholesaleInvoiceView 
-          order={showPrintInvoice} 
-          b2bConfig={b2bConfig} 
-          onClose={() => setShowPrintInvoice(null)} 
-          isAdmin={true}
-        />
-      )}
-
-      {selectedAdForView && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-white/60 backdrop-blur-md">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row text-right font-sans"
-            dir="rtl"
-          >
-            {/* Ad Image Container */}
-            <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-slate-100 overflow-hidden group">
-              <img 
-                src={selectedAdForView.imageUrl} 
-                alt={selectedAdForView.title}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <button 
-                onClick={() => setSelectedAdForView(null)}
-                className="absolute top-6 right-6 p-2.5 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl hover:bg-white transition-all md:hidden text-slate-800"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Ad Content Container */}
-            <div className="w-full md:w-1/2 p-6 sm:p-10 flex flex-col overflow-y-auto max-h-[60vh] md:max-h-none custom-scrollbar">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="bg-indigo-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-md shadow-indigo-600/20">
-                      {selectedAdForView.category === "under_market" ? "📉 زیر قیمت بازار" : selectedAdForView.category === "liquid" ? "🔥 حراج مازاد" : selectedAdForView.category === "direct_supply" ? "📦 تامین مستقیم" : selectedAdForView.category === "barter" ? "🔄 تهاتر" : selectedAdForView.category === "buy" ? "📥 خرید" : selectedAdForView.category === "sell" ? "📤 فروش" : selectedAdForView.category === "jobs" ? "💼 استخدام" : "🛠️ خدمات"}
-                    </span>
-                    {selectedAdForView.isSponsored && (
-                      <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-4 py-1.5 rounded-full border border-amber-200 flex items-center gap-1.5 animate-pulse">
-                        <Sparkles size={12} />
-                        آگهی ویژه
-                      </span>
-                    )}
-                    {selectedAdForView.specialRequest && (
-                      <span className="bg-rose-50 text-rose-700 text-[10px] font-black px-4 py-1.5 rounded-full border border-rose-100">
-                        🔔 درخواست ارتقا به ویژه
-                      </span>
-                    )}
-                  </div>
-                  <button 
-                    onClick={() => setSelectedAdForView(null)}
-                    className="hidden md:block p-3 hover:bg-slate-100 rounded-2xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <h3 className="text-2xl font-black text-slate-800 mb-6 leading-tight">
-                  {selectedAdForView.title}
-                </h3>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                  <div className="bg-slate-50 p-4 rounded-[1.5rem] border border-slate-100">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 mb-2">
-                      <Building2 size={14} className="text-indigo-500" />
-                      <span>واحد تجاری / کارفرما</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-700">{selectedAdForView.factoryName}</div>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-[1.5rem] border border-slate-100">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 mb-2">
-                      <Phone size={14} className="text-indigo-500" />
-                      <span>شماره تماس مستقیم</span>
-                    </div>
-                    <div className="text-sm font-black text-slate-700 font-mono tracking-wider">{selectedAdForView.contactPhone}</div>
-                  </div>
-                  {/* Pricing metrics for Under Market Price items */}
-                  {selectedAdForView.wholesalePrice && (
-                    <div className="bg-emerald-50/50 p-4 rounded-[1.5rem] border border-emerald-100">
-                      <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 mb-2">
-                        <DollarSign size={14} />
-                        <span>قیمت عمده پیشنهادی</span>
-                      </div>
-                      <div className="text-sm font-black text-emerald-700">{selectedAdForView.wholesalePrice}</div>
-                    </div>
-                  )}
-                  {selectedAdForView.marketPrice && (
-                    <div className="bg-rose-50/50 p-4 rounded-[1.5rem] border border-rose-100">
-                      <div className="flex items-center gap-2 text-[10px] font-black text-rose-600 mb-2">
-                        <Tag size={14} />
-                        <span>قیمت بازار آزاد</span>
-                      </div>
-                      <div className="text-sm font-black text-rose-700 line-through opacity-70">{selectedAdForView.marketPrice}</div>
-                    </div>
-                  )}
-                </div>
-
-                {selectedAdForView.specialRequest && selectedAdForView.specialRequestMessage && (
-                  <div className="bg-amber-50 border border-amber-100 p-5 rounded-[1.5rem] mb-8">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-amber-600 mb-3 uppercase tracking-tighter">
-                      <Sparkles size={14} />
-                      <span>پیام درخواست ویژه سازی:</span>
-                    </div>
-                    <p className="text-xs font-bold text-amber-800 leading-relaxed italic">
-                      " {selectedAdForView.specialRequestMessage} "
-                    </p>
-                  </div>
-                )}
-
-                <div className="bg-slate-50 p-6 rounded-[1.5rem] border border-slate-100">
-                  <label className="block text-[10px] font-black text-slate-400 mb-4 flex items-center gap-2">
-                    <FileText size={14} className="text-slate-400" />
-                    شرح جزئیات و شرایط آگهی:
-                  </label>
-                  <div className="text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                    {selectedAdForView.description}
-                  </div>
-                </div>
-
-                {selectedAdForView.rejectionReason && (
-                   <div className="bg-rose-50 border border-rose-100 p-5 rounded-[1.5rem] mt-6">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-rose-600 mb-3">
-                      <ShieldAlert size={14} />
-                      <span>دلیل رد قبلی:</span>
-                    </div>
-                    <p className="text-xs font-bold text-rose-800 leading-relaxed">
-                      {selectedAdForView.rejectionReason}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-10 pt-6 border-t border-slate-100 flex items-center gap-4">
-                <button
-                  onClick={() => {
-                    const wasApproved = selectedAdForView.status === "approved";
-                    const newAds = sponsoredAds.map(a => a.id === selectedAdForView.id ? {...a, status: "approved", rejectionReason: undefined} : a);
-                    localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                    setSponsoredAds(newAds);
-                    setSelectedAdForView({...selectedAdForView, status: "approved", rejectionReason: undefined});
-                    setSuccessMsg("آگهی با موفقیت تایید و منتشر شد.");
-
-                    if (!wasApproved && autoPostSettings.new_ad) {
-                      triggerAutoChannelPost(
-                        `📢 آگهی جدید همکار: ${selectedAdForView.title}`,
-                        `یک آگهی همکار جدید تایید و در سامانه منتشر شد:\n\nعنوان: "${selectedAdForView.title}"\nتوسط: ${selectedAdForView.factoryName}\nتوضیحات: ${selectedAdForView.description}`,
-                        "announcement",
-                        "مشاهده جزئیات آگهی",
-                        `#ads`
-                      );
-                    }
-
-                    setTimeout(() => setSuccessMsg(null), 2000);
-                  }}
-                  className={`flex-1 py-4 rounded-2xl text-[13px] font-black transition-all shadow-xl flex items-center justify-center gap-2.5 ${selectedAdForView.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30 hover:-translate-y-0.5 cursor-pointer active:translate-y-0'}`}
-                >
-                  {selectedAdForView.status === 'approved' ? <CheckCircle size={18} /> : null}
-                  {selectedAdForView.status === 'approved' ? "آگهی تایید شده" : "تایید و انتشار آگهی"}
-                </button>
-                <button
-                  onClick={() => {
-                    setAdToReject(selectedAdForView);
-                    setShowRejectionReasonModal(true);
-                  }}
-                  className={`flex-1 py-4 rounded-2xl text-[13px] font-black transition-all border flex items-center justify-center gap-2.5 ${selectedAdForView.status === 'rejected' ? 'bg-rose-50 text-rose-600 border-rose-100 cursor-default' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-rose-300 hover:text-rose-600 cursor-pointer'}`}
-                >
-                  {selectedAdForView.status === 'rejected' ? <XCircle size={18} /> : null}
-                  {selectedAdForView.status === 'rejected' ? "رد شده" : "رد و اعلام نقص"}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {showRejectionReasonModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-white/40 backdrop-blur-sm">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-right" dir="rtl"
-          >
-            <h4 className="text-lg font-black text-slate-800 mb-2">علت رد آگهی</h4>
-            <p className="text-[10px] text-slate-400 font-bold mb-6">دلیل رد یا موارد اصلاحی را برای کاربر بنویسید:</p>
-            
-            <textarea
-              value={rejectionReasonInput}
-              onChange={(e) => setRejectionReasonInput(e.target.value)}
-              placeholder="مثال: تصویر آگهی نامناسب است یا اطلاعات تماس اشتباه وارد شده..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-800 outline-none focus:border-rose-500 h-32 resize-none mb-6"
-              autoFocus
-            />
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  if (!rejectionReasonInput.trim()) return;
-                  const newAds = sponsoredAds.map(a => a.id === adToReject.id ? {...a, status: "rejected", rejectionReason: rejectionReasonInput} : a);
-                  localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(newAds));
-                  setSponsoredAds(newAds);
-                  if (selectedAdForView && selectedAdForView.id === adToReject.id) {
-                    setSelectedAdForView({...selectedAdForView, status: "rejected", rejectionReason: rejectionReasonInput});
-                  }
-                  setShowRejectionReasonModal(false);
-                  setRejectionReasonInput("");
-                  setAdToReject(null);
-                  setSuccessMsg("آگهی رد و علت ثبت شد.");
-                  setTimeout(() => setSuccessMsg(null), 2000);
-                }}
-                className="flex-1 bg-rose-600 text-white py-3.5 rounded-2xl text-xs font-black hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20"
-              >
-                تایید نهایی رد آگهی
-              </button>
-              <button
-                onClick={() => {
-                  setShowRejectionReasonModal(false);
-                  setRejectionReasonInput("");
-                  setAdToReject(null);
-                }}
-                className="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-2xl text-xs font-black hover:bg-slate-200 transition-all"
-              >
-                انصراف
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-      </div>
-      )}
-
-      {/* Representative Certificate Print View */}
-      {selectedRepForCertificate && (
-        <RepresentativeCertificateView
-          repName={selectedRepForCertificate.name}
-          companyName={selectedRepForCertificate.company || selectedRepForCertificate.badge || "شرکت پخش همکار"}
-          city={selectedRepForCertificate.city}
-          agencyCode={selectedRepForCertificate.agencyCode || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`}
-          badge={selectedRepForCertificate.badge || "نماینده انحصاری توزیع"}
-          isApproved={selectedRepForCertificate.isApproved}
-          onClose={() => setSelectedRepForCertificate(null)}
-          b2bConfig={b2bConfig}
-        />
-      )}
-
-      {/* Invoice Editing Modal */}
-      <AnimatePresence>
-        {selectedFactoryForProducts && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden text-right font-sans"
-              dir="rtl"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                <button onClick={() => setSelectedFactoryForProducts(null)} className="p-2 hover rounded-full transition-all cursor-pointer">
-                  <X size={20} className="text-slate-500" />
-                </button>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  📦 لیست محصولات کارخانه «{selectedFactoryForProducts.name}»
-                </h3>
-              </div>
-              <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                {products.filter(p => p.brand === selectedFactoryForProducts.name || (p.sellerName && p.sellerName.includes(selectedFactoryForProducts.name))).length === 0 ? (
-                  <p className="text-center text-xs font-bold text-slate-400 py-8">هیچ محصولی در کاتالوگ جاری برای این تولیدکننده یافت نشد.</p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {products.filter(p => p.brand === selectedFactoryForProducts.name || (p.sellerName && p.sellerName.includes(selectedFactoryForProducts.name))).map((p, idx) => (
-                      <div key={`fac-prod-item-${p.id || idx}-${idx}`} className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex items-center gap-3">
-                        <img src={getDisplayImageUrl(p.image_url)} alt={p.name} className="w-12 h-12 object-cover rounded-xl border shrink-0" referrerPolicy="no-referrer" />
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-black text-slate-800">{p.name}</h4>
-                          <p className="text-[9px] text-slate-400 font-bold">بسته‌بندی: {toPersianNum(p.carton_pack_count || 24)} عددی</p>
-                          <p className="text-[10px] text-indigo-600 font-black">{toPersianNum((p.bulk_price || p.price || 0).toLocaleString())} تومان</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-
-
-
-        {showDirectInvoiceModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden text-right font-sans"
-              dir="rtl"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                <button onClick={() => setShowDirectInvoiceModal(null)} className="p-2 hover rounded-full transition-all cursor-pointer">
-                  <X size={20} className="text-slate-500" />
-                </button>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  🧾 صدور مستقیم فاکتور کارخانه‌ای برای {showDirectInvoiceModal.company}
-                </h3>
-              </div>
-              <form onSubmit={handleCreateDirectInvoice} className="p-8 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">نحوه تسویه مالی فاکتور:</label>
-                    <select 
-                      value={directPaymentStatus} 
-                      onChange={e => setDirectPaymentStatus(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus font-sans"
-                    >
-                      <option value="pending">در انتظار پرداخت حواله</option>
-                      <option value="paid">تسویه نقدی کامل</option>
-                      <option value="unpaid">فروش امانی / چک صیادی</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">شرکت باربری و روش ارسال:</label>
-                    <select 
-                      value={directShippingMethod} 
-                      onChange={e => setDirectShippingMethod(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus focus font-sans"
-                    >
-                      <option value="باربری همکار">باربری تخصصی و معتبر (سراسری)</option>
-                      <option value="تحویل درب کارخانه">تحویل مستقیم درب کارخانه (EXW)</option>
-                      <option value="پست پیشتاز">ارسال فوری پست پیشتاز</option>
-                    </select>
-                  </div>
-                  <div className="col-span-full space-y-1">
-                    <label className="text-[10px] font-black text-slate-400">آدرس دقیق تخلیه و تحویل بار:</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={directAddress} 
-                      onChange={e => setDirectAddress(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus focus" 
-                    />
-                  </div>
-                </div>
-
-                {/* Add Item Builder */}
-                <div className="border-t border-slate-100 pt-4 space-y-3">
-                  <label className="text-xs font-black text-slate-800">افزودن کالا به فاکتور صادر شده:</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select 
-                      id="direct-product-selector"
-                      className="col-span-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black font-sans"
-                    >
-                      {products.map((p, idx) => (
-                        <option key={`direct-inv-opt-${p.id || idx}-${idx}`} value={p.id}>
-                          {p.name} ({p.brand}) • {toPersianNum((p.bulk_price || p.price || 0).toLocaleString())} تومان
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex gap-1">
-                      <input 
-                        type="number" 
-                        id="direct-product-quantity"
-                        defaultValue={10} 
-                        min={1}
-                        className="w-16 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-black font-mono text-center" 
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const select = document.getElementById("direct-product-selector") as HTMLSelectElement;
-                          const qtyInput = document.getElementById("direct-product-quantity") as HTMLInputElement;
-                          const pId = select.value;
-                          const qty = Number(qtyInput.value);
-                          const prod = products.find(p => p.id === pId);
-                          if (prod) {
-                            setDirectInvoiceItems(prev => [...prev, { product: prod, quantity: qty }]);
-                          }
-                        }}
-                        className="flex-1 bg-emerald-600 hover text-white rounded-xl text-xs font-black transition-all cursor-pointer"
-                      >
-                        + افزودن
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Added items list */}
-                {directInvoiceItems.length > 0 && (
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-2">
-                    <span className="block text-[10px] text-slate-400 font-black">کالاهای موجود در پیش‌نویس فاکتور:</span>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                      {directInvoiceItems.map((item, idx) => (
-                        <div key={`admin-panel-draft-item-${(item as any).id || (item as any).product?.id || idx}-${idx}`} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 font-sans">
-                          <button 
-                            type="button"
-                            onClick={() => setDirectInvoiceItems(prev => prev.filter((_, i) => i !== idx))}
-                            className="text-rose-600 hover text-[10px] font-black bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100 cursor-pointer"
-                          >
-                            حذف
-                          </button>
-                          <div className="text-right">
-                            <span className="text-xs font-black text-slate-800 block">{item.product.name}</span>
-                            <span className="text-[10px] text-slate-400 block font-bold">
-                              تعداد: {toPersianNum(item.quantity)} کارتن • فی: {toPersianNum((item.product.bulk_price || item.product.price || 0).toLocaleString())} تومان
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs font-black text-indigo-600">
-                      <span>جمع کل فاکتور:</span>
-                      <span>
-                        {toPersianNum(directInvoiceItems.reduce((sum, item) => sum + ((item.product.bulk_price || item.product.price || 0) * item.quantity), 0).toLocaleString())} تومان
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-4">
-                  <button 
-                    type="submit" 
-                    className="flex-1 bg-white hover text-white font-black py-3 rounded-xl text-xs transition-all cursor-pointer shadow-lg shadow-slate-950/15"
-                  >
-                    ثبت و صدور نهایی فاکتور رسمی
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowDirectInvoiceModal(null)}
-                    className="px-6 bg-slate-150 hover text-slate-600 font-bold py-3 rounded-xl text-xs transition-all cursor-pointer"
-                  >
-                    انصراف
-                  </button>
-                </div>
-
-              </form>
-            </motion.div>
-          </div>
-        )}
-
-        {/* IMPORT SUCCESS SUMMARY MODAL */}
-        {showImportSuccessModal && importSummary && (
-          <div className="fixed inset-0 bg-slate-50/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 shadow-2xl space-y-6 text-center"
-            >
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle size={44} />
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-xl font-black text-slate-900">
-                  عملیات درون‌ریزی و همگام‌سازی با موفقیت انجام شد!
-                </h3>
-                <p className="text-xs text-slate-500 font-bold">
-                  اطلاعات فایل CSV ووکامرس در دیتابیس انبار مرکزی بروزرسانی گردید.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-right">
-                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 space-y-1">
-                  <span className="text-[10px] text-emerald-600 font-black">کالاهای جدید ثبت‌شده</span>
-                  <div className="text-xl font-black text-emerald-700 font-mono">
-                    {toPersianNum(importSummary.imported)} کالا
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 space-y-1">
-                  <span className="text-[10px] text-amber-600 font-black">کالاهای بروزرسانی/اورواید شده</span>
-                  <div className="text-xl font-black text-amber-700 font-mono">
-                    {toPersianNum(importSummary.updated)} کالا
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-1">
-                  <span className="text-[10px] text-blue-600 font-black">دسته‌بندی‌های جدید</span>
-                  <div className="text-xl font-black text-blue-700 font-mono">
-                    {toPersianNum(importSummary.newCats)} دسته
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-black">مجموع پردازش‌شده</span>
-                  <div className="text-xl font-black text-slate-800 font-mono">
-                    {toPersianNum(importSummary.total)} کالا
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowImportSuccessModal(false);
-                  setActiveSubTab('products');
-                }}
-                className="w-full py-4 bg-emerald-600 hover text-white font-black text-sm rounded-2xl transition-all shadow-xl shadow-emerald-600/20 cursor-pointer"
-              >
-                مشاهده لیست کالاهای انبار
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-
-
-      {activeSubTab === 'safe_buy' && (
-        <AdminSafeBuy
-          products={products}
-          sponsoredAds={sponsoredAds}
-          setSuccessMsg={setSuccessMsg}
-          setErrorMsg={setErrorMsg}
-          setLoading={setLoading}
-        />
-      )}
-
-      {activeSubTab === 'channel_posts' && (
-        <AdminChannelPosts
-          autoPostSettings={autoPostSettings}
-          setAutoPostSettings={setAutoPostSettings}
-          setSuccessMsg={setSuccessMsg}
-        />
-      )}
-
-
-
-      </main>
-    </div>
-  );
-}
+                      <div className="text-[11px] font-black text-slate-500">حالت طراحی صفحه اخ�x��[[o�F~ﯘE-wCɲ��U$��A$A�i��`C�#�o )_V�b;�z�����ŉ���[�Ce���O�s����)��6+ 5�g�9�w.39������}r�.^�G��dw��j�mc���i�=��e׽%�S��t�tU��e�J��%bK�XCS����Wx�Pݡ�Y&�>!޶�����u]�=茪���F\�]�{��l�v����/����MK��W3l�.,����7�ooI��ޖ��tY�J<��IwK��=ҷLO��r���t5O�LI�u��ϙ�t:$���,�7�G���AYW�+ Pw +֦��E��@�ͥ���}�B��'�����?$�+P��d�T'�������y����E���J~k�����Q�7���t����Czq�m������	��X�񪙺fRb�R�B�,$����!��W_߼Q_�s��"`��V�����#R-�_�-���f �����Lҗ�������eH�eK�D:23���%��ޣ:�B��Գt(�PZ���D�miU0�`��~�S��T������V�8����ԣ�G6�F��� � \��
+���k����ϴΦZ����P��ñ6���S�gC4v"�Z��e|�zQ?���l�Е&�i6D��`�*�j�%B^j�KW�ө���j�Z 	I�'��M�?~��me柛KI��	h�k9��+|n�g><���bX�Et*+��J��-�MN�`=�爟ґ0*a��� N}O���D�p.p�zl�)�����U�0�����gDϻ�9���N��lO��)	� :+b����������I@�g���Ӛn�ՅpXr[V)�aA�a�U�����Z�~ʠG��9�a�e��L/��6rV""I->@?��
+#�c�/<��';����C2�O0�����d��?D�H�wJA�_`�'�����TI���k���;&!0�ϧ��f���k�uޝ�4���{$xu~�^1��?b�ß��l���E?�����b��[��5��A��c���?�>99FEL!��#��(��� �]�xKHp��V@jI:���{�Kbة,���f��8���/�x˝E.g��dT���˞뒛�	��;���"���kt)�
+�%W��j�t�L���;�-�%��1����!��"�!b�(pę�����`�-v�Ȣ�.�5�z|T�p�|�����O0yƓ�u�*�;��J߁�#`�7�(&����"��!�L��	J����8���Y>H�\j��tn(��u����'�'��ߠ>F���?ܘG5�8��H3�������-����+�떫�j�#A���I�R/��Cr)��E���:u�*���op�Z��a��b�y�1�ю!FI.�w*�W�Y���)zF��b�ЧTm�n���B��ח!�5A$-��e2t�x#���	��e��x}�>?.���G��L;(�s������(I��{Cǵɶ4�3yf��G~1i��ST/S䎔^ө�z�F��kg���\���e*��Ff.�lW�=ٻL4e���7�����辬�)ٲIu	�K��K��f����Є_�Ǚ �[����ԥ�&�f�tgJ�Ň13ɣ�FST�gs/���O�],�pw�2���Z_�ai��A֬�F.u:L�t��$0��_���PM����0�d�2���Z�)��B����QA=�h#�=��FqH�	�@UXL��A�n���ܮ��R�O�0.ӫ�.~�oC�6'pLM%��V	7��%:Bx��e�w�f�k�cT����O&�Lbڈ�֚6-G�,fe)�w�p�;2��10�d��8>I�J��v��+�+wu�tF��R�r��l�kՌ�6~R"&�Ϛ�nD��u�U�����|�i��x��Fe��I���?bY�^����E����w��(�&ו|��Tǁs��O��놅�e�$`Ю��v�K�M�� 74�#V��-��e� �Ш����.�I�ec�L�DM��w�<j��z%+'S��P�d�EHX��GX��yg7�H��f\�)�}�uC�A[�x���Ѕ�d���#�_��ZVX�T�ȳnS��d���/�W~.���=���jւ��(=;��(Ȇ���:\:"˙��iM/y�l�D}������^�;�
+di`(U �7jZ_B�E�Iz`�ʲ;x����~���q� u��XFE�Kt5�s�YP��S�b�~�Eds[��L8���<BG��_���$֧�}��n.'�'ɚb��M��gR���h�u"2�5\Ov���&g��F���
+H��u@�wXX��+��W�:��znj��r�N��u�2��L�$j������d��-��Ѳf�2w��]�e8�O�:�-���;Ӓ��3�r(��ԁW�T�	�f�$�W�"��6ƶy��\�4��U ��+a��c�ޘ��2`�#�MeL�p�����ш�L����i@�8�H�T�Y.s-SSd�M���/z��AY������h��n�N�;h��u�0'��<�	[���H>�N�?��	BɟY�5�5"N<EE+6�����RU�T���q��X�쏁U���KNQ$�QB|~/��0�]�e��"Յ�Ȧ�S�W°��/y�󵕨Z4%o��EL�W��%���V�0|�J���4y�ax.B`"�'���L�L�|�1W�_[���P�}T1$+�+���T��Keי��N(��
+�����sH�SIY��5�iSQa���~&��-d�Q���ʪ\��t��Q����̅䵋&Q�0�����!8���ԣ��4q�T4՚�]�3kvፄ���ʚyj[n���j��q$&�ۧ;��O�N��ɾ}�;kxl�K�S�N]�<6ZI��<�<n7�rF�[�����N������I��4��2���'����	/6�w�~0�/   �� 1Q$k

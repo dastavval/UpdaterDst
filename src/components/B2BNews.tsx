@@ -82,7 +82,8 @@ export default function B2BNews({
     ? ALL_NEWS 
     : ALL_NEWS.filter(n => n.category === newsFilter);
 
-  const ALL_FACTORIES = factories.length > 0 ? factories : (b2bConfig?.factories || FACTORIES_DATA);
+  const ALL_FACTORIES = (factories.length > 0 ? factories : (b2bConfig?.factories || FACTORIES_DATA))
+    .filter((f: any) => f && f.isActive !== false);
 
   const filteredFactories = activeFactory === "all"
     ? ALL_FACTORIES
@@ -143,41 +144,41 @@ export default function B2BNews({
 
       {exploreSubTab === 'news' && (
         <>
-          {/* --- HERO HEADER: EXPLORE & FACTORY HUB --- */}
-      <section className="relative rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 border border-emerald-800/40 p-6 sm:p-10 overflow-hidden shadow-2xl text-white">
-        <div className="absolute top-[-30%] left-[-20%] w-[70%] h-[70%] bg-emerald-500/15 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+          {/* --- HERO HEADER: EXPLORE & FACTORY HUB (REDESIGNED TO WHITE) --- */}
+      <section className="relative rounded-[2.5rem] bg-white border border-slate-200 p-6 sm:p-10 overflow-hidden shadow-material-sm text-slate-900">
+        <div className="absolute top-[-30%] left-[-20%] w-[70%] h-[70%] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none animate-pulse" />
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           <div className="lg:col-span-8 space-y-4">
-            <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/35 px-4 py-1.5 rounded-full text-emerald-300 text-[10px] font-black uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-4 py-1.5 rounded-full text-emerald-600 text-[10px] font-black uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               رصدخانه هوشمند خطوط تولید و زنجیره تامین
             </div>
 
-            <h1 className="text-2xl sm font-black leading-tight">
-              شناسایی <span className="text-emerald-400">تولیدی‌های برتر</span> <br />
+            <h1 className="text-2xl sm font-black leading-tight text-slate-900">
+              شناسایی <span className="text-emerald-600">تولیدی‌های برتر</span> <br />
               و کاتالوگ محصولات واقعی
             </h1>
 
-            <p className="text-slate-300 text-xs sm font-medium leading-relaxed max-w-xl">
+            <p className="text-slate-500 text-xs sm font-medium leading-relaxed max-w-xl">
             در این بخش می‌توانید اطلاعات کارخانه‌ها، ظرفیت تولید و جدیدترین اخبار بازار را رصد کنید. سامانه تحلیل‌گر هوشمند دست اول به شما کمک می‌کند تا مستقیم و با آگاهی کامل خرید کنید.
             </p>
           </div>
 
-          {/* AI Advisor Card */}
-          <div className="lg:col-span-4 bg-white/5 backdrop-blur-md rounded-3xl p-5 border border-white/10 flex flex-col items-center text-center space-y-3 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-400/10 rounded-full blur-2xl" />
+          {/* AI Advisor Card (Light Mode Refined) */}
+          <div className="lg:col-span-4 bg-slate-50 rounded-3xl p-5 border border-slate-200 flex flex-col items-center text-center space-y-3 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
             
-            <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 text-3xl relative animate-pulse shadow-xl text-emerald-400">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-emerald-100 text-3xl relative animate-pulse shadow-sm text-emerald-600">
               🧠
             </div>
 
             <div className="space-y-1">
-              <div className="text-[10px] bg-emerald-400 text-slate-950 px-3 py-0.5 rounded-full font-black inline-block">
+              <div className="text-[10px] bg-emerald-600 text-white px-3 py-0.5 rounded-full font-black inline-block">
                 دستیار هوش مصنوعی تجاری
               </div>
-              <h4 className="text-sm font-black text-white">«خطوط تولید را شفاف رصد کنید!»</h4>
-              <p className="text-[10px] text-emerald-100/90 leading-relaxed font-bold">
+              <h4 className="text-sm font-black text-slate-900">«خطوط تولید را شفاف رصد کنید!»</h4>
+              <p className="text-[10px] text-slate-500 leading-relaxed font-bold">
                 سیستم هوش مصنوعی دست اول وضعیت موجودی مواد خام کارخانه‌ها، مجوزهای حمل و پلمپ جاده‌ای را پایش کرده و بهترین زمان ثبت فاکتور مستقیم را پیشنهاد می‌دهد.
               </p>
             </div>
@@ -185,22 +186,22 @@ export default function B2BNews({
         </div>
       </section>
 
-      {/* --- GOLDEN VIP ADVERTISEMENT SPOT (جایگاه ویژه تبلیغات طلایی) --- */}
+      {/* --- GOLDEN VIP ADVERTISEMENT SPOT (REDESIGNED TO LIGHT) --- */}
       {b2bConfig?.showTopAnnouncement && b2bConfig?.topAnnouncement && (
-        <section className="relative rounded-[2rem] p-6 sm:p-8 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 border-2 border-emerald-400/50 overflow-hidden shadow-2xl text-white group">
+        <section className="relative rounded-[2rem] p-6 sm:p-8 bg-emerald-50 border-2 border-emerald-100 overflow-hidden shadow-sm text-slate-900 group">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
             <div className="space-y-4 text-right">
-              <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1 rounded-full text-[9px] font-black tracking-widest text-emerald-100 uppercase">
-                <Award size={12} className="animate-pulse text-emerald-300" />
+              <div className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase">
+                <Award size={12} className="animate-pulse text-white" />
                 {b2bConfig?.topAnnouncementPopupTitle || "اطلاعیه ویژه دست اول"}
               </div>
-              <h2 className="text-xl sm font-black text-white leading-tight">
+              <h2 className="text-xl sm font-black text-slate-900 leading-tight">
                 {b2bConfig?.topAnnouncement}
               </h2>
             </div>
             <button
               onClick={triggerWholesaleTab}
-              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 text-xs shadow-xl cursor-pointer"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 text-xs shadow-lg cursor-pointer"
             >
               <ShoppingBag size={15} />
               مشاهده محصولات
@@ -282,8 +283,8 @@ export default function B2BNews({
                     {fac.desc || fac.description}
                   </p>
 
-                  {/* Technical Corporate Stats Panel */}
-                  <div className="bg-[#F8F9FA] p-5 rounded-2xl border border-slate-100/80 space-y-3.5">
+                  {/* Technical Corporate Stats Panel (Clean White) */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 space-y-3.5 shadow-sm">
                     <div className="flex justify-between items-center text-xs font-bold">
                       <span className="text-slate-400 font-black">📍 آدرس کارخانه مرکزی:</span>
                       <span className="text-slate-700">{fac.location || "—"}</span>
