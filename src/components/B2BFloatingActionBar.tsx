@@ -50,7 +50,7 @@ export default function B2BFloatingActionBar({
             {/* Quick Bulk Order Matrix */}
             <button
               onClick={onOpenQuickOrder}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-amber-700 text-slate-950 font-black text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
               title="ثبت سریع سفارش ردیفی عمده"
             >
               <Zap size={15} className="fill-slate-950" />
@@ -61,7 +61,7 @@ export default function B2BFloatingActionBar({
             {/* Logistics Freight Estimator */}
             <button
               onClick={onOpenLogistics}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs border border-indigo-500/30 transition-all active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 whitespace-nowrap"
               title="استعلام کرایه باربری و لجستیک سراسری"
             >
               <Truck size={15} className="text-indigo-400" />
@@ -82,7 +82,7 @@ export default function B2BFloatingActionBar({
             {/* Loyalty & Rewards */}
             <button
               onClick={onOpenLoyalty}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/30 transition-all active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-amber-300 font-bold text-xs border border-emerald-500/30 transition-all active:scale-95 whitespace-nowrap"
               title="باشگاه مشتریان و امتیازات خرید"
             >
               <Sparkles size={14} className="text-amber-400" />
@@ -92,7 +92,7 @@ export default function B2BFloatingActionBar({
             {/* Cart & Proforma Invoice */}
             <button
               onClick={onOpenCart}
-              className="relative flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
+              className="relative flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
               title="مشاهده پیش‌فاکتور رسمی و سبد خرید"
             >
               <ShoppingCart size={15} />
@@ -133,7 +133,7 @@ export default function B2BFloatingActionBar({
             <Zap size={14} className="text-amber-400" />
             <span>نوار ابزار معاملات عمده</span>
             {cartCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
+              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center">
                 {cartCount}
               </span>
             )}

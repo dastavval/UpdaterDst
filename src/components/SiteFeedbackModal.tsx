@@ -65,7 +65,7 @@ export default function SiteFeedbackModal({ isOpen, onClose, userPhone }: SiteFe
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-md">
                 <Lightbulb size={20} />
               </div>
               <div className="text-right">
@@ -82,7 +82,7 @@ export default function SiteFeedbackModal({ isOpen, onClose, userPhone }: SiteFe
                   onClick={() => setFeedbackType("idea")}
                   className={`p-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
                     feedbackType === "idea"
-                      ? "bg-amber-500 text-slate-950 border-amber-600 shadow-sm"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
@@ -94,7 +94,7 @@ export default function SiteFeedbackModal({ isOpen, onClose, userPhone }: SiteFe
                   onClick={() => setFeedbackType("bug")}
                   className={`p-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
                     feedbackType === "bug"
-                      ? "bg-rose-600 text-white border-rose-700 shadow-sm"
+                      ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
@@ -106,7 +106,7 @@ export default function SiteFeedbackModal({ isOpen, onClose, userPhone }: SiteFe
                   onClick={() => setFeedbackType("other")}
                   className={`p-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
                     feedbackType === "other"
-                      ? "bg-indigo-600 text-white border-indigo-700 shadow-sm"
+                      ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >

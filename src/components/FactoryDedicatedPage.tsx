@@ -36,10 +36,14 @@ import {
   Truck,
   ArrowUpRight,
   Maximize2,
-  TrendingDown
+  TrendingDown,
+  Users,
+  Tag
 } from "lucide-react";
 import { FactoryProfile, Product, FactoryReview } from "../types";
 import FactoryChatSystem from "./FactoryChatSystem";
+import { LUXURY_PRESET_BADGES } from "./AdminFactoriesManagement";
+import { toPersianDigits } from "../lib/pricing";
 
 interface FactoryDedicatedPageProps {
   factory: FactoryProfile;
@@ -176,19 +180,42 @@ export default function FactoryDedicatedPage({
     factory.mainProducts?.some(mp => p.name.includes(mp) || mp.includes(p.name))
   );
 
-  // Dynamic health license
+  // Dynamic health license, ISO certificates & luxury badges
   const customCertificates = [];
   if (factory.healthLicense || factory.factoryHealthLicense) {
     customCertificates.push({
-      name: `سیب سلامت / پروانه بهداشت: ${factory.healthLicense || factory.factoryHealthLicense}`,
+      name: `سیب سلامت / پروانه بهداشت: ${toPersianDigits(factory.healthLicense || factory.factoryHealthLicense || "")}`,
       issuer: "سازمان غذا و دارو ایران",
       year: "دارای اعتبار جاری"
     });
   }
 
-  // Default certificates list
+  // Include configured ISO certificates
+  if (factory.isoCertificates && Array.isArray(factory.isoCertificates)) {
+    factory.isoCertificates.forEach(iso => {
+      customCertificates.push({
+        name: `استاندارد کیفیت و ایمنی ${iso}`,
+        issuer: "مرجع بین‌المللی ارزیابی انطباق و ایزو",
+        year: "دارای تاییدیه رسمی"
+      });
+    });
+  }
+
+  // Include configured Luxury Badges
+  if (factory.selectedBadges && Array.isArray(factory.selectedBadges)) {
+    factory.selectedBadges.forEach(bName => {
+      const foundPreset = LUXURY_PRESET_BADGES.find(p => p.label === bName);
+      customCertificates.push({
+        name: foundPreset ? foundPreset.title : bName,
+        issuer: foundPreset ? foundPreset.description : "مرجع صدور نشان عالی صنعت کشور",
+        year: "افتخار ملی اعطا شده"
+      });
+    });
+  }
+
+  // Final certificates list
   const defaultCertificates = (factory.certificates && factory.certificates.length > 0)
-    ? factory.certificates
+    ? [...customCertificates, ...factory.certificates]
     : [
         ...customCertificates,
         { name: "سیب سلامت (پروانه بهداشتی ساخت)", issuer: "سازمان غذا و دارو", year: "۱۴۰۲" },
@@ -245,7 +272,7 @@ export default function FactoryDedicatedPage({
       userCity: reviewerCity.trim() || "عمده‌فروش همکار",
       rating: reviewRating,
       comment: reviewComment.trim(),
-      createdAt: new Date().toLocaleDateString('fa-IR'),
+      createdAt: new Intl.DateTimeFormat('fa-IR').format(new Date()),
       isVerifiedBuyer: true
     };
 
@@ -257,6 +284,7 @@ export default function FactoryDedicatedPage({
     setReviewerName("");
     setReviewerCity("");
     setReviewComment("");
+    setReviewRating(5);
   };
 
   const logoImage = getDisplayImageUrl(factory.logoUrl || factory.logo || "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=200&q=80");
@@ -282,7 +310,7 @@ export default function FactoryDedicatedPage({
 
   if (factory.profileDesignMode === 'advanced' && factory.customHtml) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-indigo-600 font-sans" dir="rtl">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-emerald-600 font-sans" dir="rtl">
         {factory.customCss && (
           <style dangerouslySetInnerHTML={{ __html: factory.customCss }} />
         )}
@@ -356,44 +384,61 @@ export default function FactoryDedicatedPage({
         </div>
 
         {/* HERO COVER BANNER */}
-        <div className="relative h-44 sm:h-80 w-full bg-slate-900 overflow-hidden">
+        <div className="relative h-64 sm:h-96 w-full bg-slate-900 overflow-hidden">
           <img 
             src={coverImage} 
             alt={factory.name} 
-            className="w-full h-full object-cover opacity-60 scale-105 transition-transform duration-700 hover:scale-100"
+            className="w-full h-full object-cover opacity-70 scale-105 transition-transform duration-1000 hover:scale-100"
             onError={(e) => {
               e.currentTarget.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80";
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
+          
+          {/* Animated decorative element */}
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl" />
 
           {/* Banner Badges */}
-          <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-1.5 max-w-[50%] sm:max-w-none">
-            <span className="bg-emerald-500/95 backdrop-blur-md border border-emerald-400/40 text-slate-950 font-black text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full shadow-lg flex items-center gap-1">
-              <ShieldCheck size={14} className="sm:w-4 sm:h-4" />
-              <span className="truncate">احراز هویت شده</span>
+          <div className="absolute top-6 right-6 z-20 flex flex-col items-end gap-2">
+            <span className="bg-emerald-500 text-slate-950 font-black text-[10px] sm:text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 border border-emerald-400/30 backdrop-blur-sm">
+              <ShieldCheck size={14} />
+              <span>واحد تولیدی احراز هویت شده</span>
             </span>
             {factory.isPremium && (
-              <span className="bg-amber-400/95 backdrop-blur-md border border-amber-300 text-slate-950 font-black text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                <Award size={14} className="sm:w-4 sm:h-4" />
-                <span>ممتاز</span>
+              <span className="bg-amber-400 text-amber-950 font-black text-[10px] sm:text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 border border-amber-300 backdrop-blur-sm">
+                <Award size={14} />
+                <span>برند ممتاز و منتخب</span>
               </span>
             )}
+            {/* Additional Luxury Badges Chips in Header */}
+            {factory.selectedBadges && factory.selectedBadges.slice(0, 2).map((bName, bIdx) => {
+              const preset = LUXURY_PRESET_BADGES.find(p => p.label === bName);
+              return (
+                <span 
+                  key={`banner-badge-${bIdx}`}
+                  className="bg-white/10 text-white font-black text-[10px] sm:text-xs px-3 py-1.5 rounded-xl shadow-lg border border-white/20 flex items-center gap-1.5 backdrop-blur-md"
+                >
+                  <Sparkles size={12} className="text-amber-400" />
+                  <span className="truncate">{preset ? preset.badgeText : bName}</span>
+                </span>
+              );
+            })}
           </div>
         </div>
 
         {/* FACTORY PROFILE DETAILS CONTAINER */}
-        <div className="relative px-4 pb-4 pt-4 sm:p-0 sm:absolute sm:-bottom-12 sm:left-6 sm:right-6 sm:z-20">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 w-full sm:w-auto">
+        <div className="relative px-4 sm:px-6 pb-6 pt-0 -mt-16 sm:-mt-24 z-20">
+          <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-4 sm:gap-6">
+            <div className="flex flex-col md:flex-row items-center md:items-end gap-4 sm:gap-6 w-full md:w-auto">
               
-              {/* Logo Container */}
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl sm:rounded-3xl bg-white p-1.5 sm:p-2 shadow-xl sm:shadow-2xl border-4 border-emerald-400 shrink-0 overflow-hidden relative flex items-center justify-center -mt-16 sm:mt-0 z-10 self-center sm:self-auto">
+              {/* Logo Container - Large & Prominent */}
+              <div className="w-28 h-28 sm:w-40 sm:h-40 rounded-[2rem] sm:rounded-[2.5rem] bg-white p-1.5 sm:p-2 shadow-2xl border-4 border-white shrink-0 overflow-hidden relative flex items-center justify-center z-10 group transition-transform hover:scale-[1.02]">
+                <div className="absolute inset-0 bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity" />
                 {logoImage && typeof logoImage === 'string' && (logoImage.startsWith('http') || logoImage.startsWith('data:image/') || logoImage.startsWith('/') || logoImage.startsWith('.') || logoImage.includes('.') || logoImage.includes('/') || logoImage.includes('%2F')) ? (
                   <img 
                     src={logoImage} 
                     alt={factory.name} 
-                    className="w-full h-full object-contain p-0.5 rounded-xl sm:rounded-2xl clean-logo-filter" 
+                    className="w-full h-full object-contain p-2 rounded-2xl sm:rounded-3xl relative z-10 mix-blend-multiply" 
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -406,39 +451,39 @@ export default function FactoryDedicatedPage({
                   />
                 ) : null}
                 <div 
-                  className="fac-hero-vector-fallback absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white flex-col items-center justify-center p-2 text-center rounded-xl sm:rounded-2xl shadow-inner"
+                  className="fac-hero-vector-fallback absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950 text-white flex-col items-center justify-center p-4 text-center rounded-2xl sm:rounded-3xl shadow-inner"
                   style={{ display: !logoImage || (typeof logoImage === 'string' && !(logoImage.startsWith('http') || logoImage.startsWith('data:image/') || logoImage.startsWith('/') || logoImage.startsWith('.') || logoImage.includes('.') || logoImage.includes('/') || logoImage.includes('%2F'))) ? 'flex' : 'none' }}
                 >
-                  <span className="text-2xl sm:text-3xl mb-0.5 sm:mb-1">🏭</span>
-                  <span className="text-[10px] sm:text-xs font-black leading-tight text-amber-300 line-clamp-2">{factory.name}</span>
+                  <Building2 size={32} className="mb-2 text-emerald-400 sm:w-10 sm:h-10" />
+                  <span className="text-[9px] sm:text-[10px] font-black leading-tight text-white/80 uppercase tracking-widest">Brand Hub</span>
                 </div>
               </div>
 
               {/* Textual Info */}
-              <div className="space-y-1.5 text-slate-800 sm:text-white w-full sm:w-auto text-center sm:text-right mt-2 sm:mt-0">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <span className="bg-emerald-600 sm:bg-emerald-600/80 backdrop-blur-md text-emerald-100 sm:text-emerald-50 text-[10px] sm:text-[11px] font-black px-2 py-0.5 sm:px-2.5 rounded">
-                    {factory.category || "صنایع غذایی"}
+              <div className="flex-1 space-y-2 text-center md:text-right pb-2 min-w-0">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 sm:gap-2">
+                  <span className="bg-emerald-600 text-white text-[9px] sm:text-[11px] font-black px-2 sm:px-3 py-1 rounded-lg shadow-sm">
+                    {factory.category || "صنایع غذایی و تولیدی"}
                   </span>
-                  <span className="text-[11px] sm:text-xs text-slate-500 sm:text-slate-300 font-bold">
-                    تاسیس: {factory.establishedYear || "۱۳۸۰"}
+                  <span className="bg-white/10 text-white backdrop-blur-md text-[9px] sm:text-[11px] font-black px-2 sm:px-3 py-1 rounded-lg border border-white/20">
+                    تاسیس {toPersianDigits(factory.establishedYear || "۱۳۸۰")}
                   </span>
                 </div>
                 
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 sm:text-white drop-shadow-none sm:drop-shadow-md leading-tight">
+                <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-white drop-shadow-lg leading-tight tracking-tight break-words">
                   {factory.name}
                 </h1>
                 
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-xs text-slate-600 sm:text-slate-200 font-medium">
-                  <span className="flex items-center gap-1 bg-slate-100 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-full">
-                    <MapPin size={13} className="text-emerald-600 sm:text-emerald-400" />
-                    <span>{factory.location}</span>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[10px] sm:text-sm font-bold">
+                  <span className="flex items-center gap-1.5 text-slate-200">
+                    <MapPin size={14} className="text-emerald-400 sm:w-4 sm:h-4" />
+                    <span>استان {factory.province || factory.location || "تهران"}، {factory.city || "قطب صنعتی"}</span>
                   </span>
-                  <span className="hidden sm:inline">•</span>
-                  <div className="flex items-center gap-1.5 bg-slate-100 sm:bg-black/40 backdrop-blur-md px-2.5 py-1 sm:py-0.5 rounded-full border border-slate-200 sm:border-amber-400/40">
+                  <span className="hidden md:inline text-white/20">|</span>
+                  <div className="flex items-center gap-2 bg-black/30 backdrop-blur-md px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-white/10 shrink-0">
                     <StarRating 
                       rating={computedRating} 
-                      size={13} 
+                      size={12} 
                       interactive={true} 
                       showCount={true} 
                       count={localReviews.length}
@@ -454,19 +499,17 @@ export default function FactoryDedicatedPage({
             </div>
 
             {/* Quick Action CTA */}
-            <div className="w-full sm:w-auto mt-4 sm:mt-0 z-10">
-              {onDirectOrderFactory && (
-                <button
-                  onClick={() => {
-                    onDirectOrderFactory(factory.name);
-                    onClose();
-                  }}
-                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black px-6 py-3.5 sm:py-3 rounded-2xl text-xs sm:text-sm shadow-xl hover:shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <ShoppingBag size={16} />
-                  <span>ثبت سفارش مستقیم</span>
-                </button>
-              )}
+            <div className="w-full md:w-auto z-10 flex flex-col sm:flex-row gap-3 mt-2 sm:mt-0">
+              <button
+                onClick={() => {
+                  if (onDirectOrderFactory) onDirectOrderFactory(factory.name);
+                  setActiveTab('products');
+                }}
+                className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl shadow-xl hover:shadow-emerald-500/20 flex items-center justify-center gap-2.5 transition-all active:scale-95 group text-sm sm:text-base"
+              >
+                <ShoppingBag size={18} className="group-hover:bounce sm:w-5 sm:h-5" />
+                <span>استعلام قیمت و خرید مستقیم</span>
+              </button>
             </div>
           </div>
         </div>
@@ -481,7 +524,7 @@ export default function FactoryDedicatedPage({
               onClick={() => setActiveTab('overview')}
               className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'overview'
-                  ? "bg-indigo-600 text-white shadow-md"
+                  ? "bg-emerald-600 text-white shadow-md"
                   : "text-slate-600 hover:bg-white hover:shadow-sm"
               }`}
             >
@@ -543,7 +586,7 @@ export default function FactoryDedicatedPage({
               onClick={() => setActiveTab('qrcode')}
               className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'qrcode'
-                  ? "bg-amber-500 text-slate-950 shadow-md"
+                  ? "bg-emerald-600 text-white shadow-md"
                   : "text-slate-600 hover:bg-white hover:shadow-sm"
               }`}
             >
@@ -581,32 +624,180 @@ export default function FactoryDedicatedPage({
                 </p>
               </div>
 
+              {/* Luxury Badges & Honours Showcase */}
+              {((factory.selectedBadges && factory.selectedBadges.length > 0) || factory.badge) && (
+                <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-amber-500/10 rounded-3xl p-6 border border-amber-300/80 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 text-white flex items-center justify-center font-black shadow-md shadow-amber-500/20">
+                        <Award size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900">تندیس‌ها، نشان‌های عالی و افتخارات ملی</h3>
+                        <p className="text-[11px] text-amber-900/80 font-medium">احراز صلاحیت شده و دارای نشان‌های برگزیده صنعت، بازرگانی و سلامت کشور</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black bg-amber-200/80 text-amber-950 px-3 py-1 rounded-full border border-amber-300">
+                      نشان ویژه ملی
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {factory.selectedBadges && factory.selectedBadges.length > 0 ? (
+                      factory.selectedBadges.map((bName, idx) => {
+                        const preset = LUXURY_PRESET_BADGES.find(p => p.label === bName);
+                        return (
+                          <div 
+                            key={`badge-card-${idx}`}
+                            className={`p-4 rounded-2xl border transition-all ${
+                              preset 
+                                ? `${preset.bgClass}` 
+                                : "bg-white border-amber-200"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="text-2xl shrink-0 pt-0.5">
+                                {preset ? preset.badgeText.split(" ")[0] : "🏆"}
+                              </div>
+                              <div className="space-y-1">
+                                <h4 className="text-xs font-black text-slate-900 leading-snug">
+                                  {preset ? preset.title : bName}
+                                </h4>
+                                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                                  {preset ? preset.description : "تاییدیه و گواهینامه اعتبارسنجی شده توسط مراجع ذیصلاح صنعتی کشور."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-4 rounded-2xl border bg-white border-amber-200">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">🏆</span>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900">{factory.badge}</h4>
+                            <p className="text-[11px] text-slate-600">نشان افتخار اعطا شده در ارزیابی کیفی تولید و تامین کالا</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Technical Specifications Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
-                    <Zap size={20} />
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-bold block">ظرفیت تولید:</span>
-                  <span className="text-sm font-black text-slate-900 block">{factory.dailyCapacity || factory.capacity || "۵,۰۰۰ کارتن در روز"}</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-6 bg-teal-600 rounded-full" />
+                  <h3 className="text-sm font-black text-slate-900">مشخصات فنی، ظرفیت تولید و مهندسی خطوط</h3>
                 </div>
 
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
-                    <Clock size={20} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
+                      <Zap size={20} />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-bold block">ظرفیت اسمی و روزانه:</span>
+                    <span className="text-sm font-black text-slate-900 block">{factory.dailyCapacity || factory.capacity || "۵,۰۰۰ کارتن در روز"}</span>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-bold block">شيفت‌های کاری:</span>
-                  <span className="text-sm font-black text-slate-900 block">۳ شیفت کاری (پیوسته)</span>
-                </div>
 
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">
-                  <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-black">
-                    <Truck size={20} />
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-black">
+                      <Users size={20} />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-bold block">کادر فنی و پرسنل فعال:</span>
+                    <span className="text-sm font-black text-slate-900 block">
+                      {factory.personnelCount ? `${toPersianDigits(factory.personnelCount)} نفر پرسنل متخصص` : "۱۸۰ نفر کادر فنی و تولید"}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-bold block">امکان ارسال بار:</span>
-                  <span className="text-sm font-black text-slate-900 block">سراسر کشور (تریلی/خاور)</span>
+
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black">
+                      <Layers size={20} />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-bold block">خطوط تولید فعال و مکانیزه:</span>
+                    <span className="text-sm font-black text-slate-900 block">
+                      {factory.activeProductionLines ? `${toPersianDigits(factory.activeProductionLines)} خط تمام اتوماتیک` : "۴ خط مکانیزه"}
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center font-black">
+                      <Building2 size={20} />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-bold block">وسعت کل عرصه و سالن‌ها:</span>
+                    <span className="text-sm font-black text-slate-900 block">
+                      {factory.factoryArea ? toPersianDigits(factory.factoryArea) : "۱۴,۰۰۰ متر مربع"}
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-black">
+                      <Clock size={20} />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-bold block">شیفت‌های کاری فعال:</span>
+                    <span className="text-sm font-black text-slate-900 block">۳ شیفت کاری (پیوسته ۲۴ ساعته)</span>
+                  </div>
+
+                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
+                    <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-black">
+                      <Truck size={20} />
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-bold block">امکان ارسال و بارگیری:</span>
+                    <span className="text-sm font-black text-slate-900 block">سراسر کشور (تریلی/کامیون/خاور)</span>
+                  </div>
                 </div>
               </div>
+
+              {/* ISO & International Certifications Section */}
+              {((factory.isoCertificates && factory.isoCertificates.length > 0) || factory.factoryHealthLicense || factory.healthLicense) && (
+                <div className="bg-slate-50 rounded-3xl p-6 border border-slate-200/80 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-6 bg-blue-600 rounded-full" />
+                    <h3 className="text-sm font-black text-slate-900">گواهینامه‌های کیفیت و استانداردهای بین‌المللی</h3>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2.5 pt-1">
+                    {factory.isoCertificates && factory.isoCertificates.map((iso, idx) => (
+                      <span 
+                        key={`iso-pill-${idx}`}
+                        className="bg-white border border-blue-200 text-blue-900 font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs flex items-center gap-2"
+                      >
+                        <CheckCircle2 size={15} className="text-blue-600" />
+                        <span>{iso}</span>
+                      </span>
+                    ))}
+                    {(factory.factoryHealthLicense || factory.healthLicense) && (
+                      <span className="bg-white border border-emerald-200 text-emerald-900 font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
+                        <ShieldCheck size={15} className="text-emerald-600" />
+                        <span>شماره پروانه بهداشت: {toPersianDigits(factory.factoryHealthLicense || factory.healthLicense || "")}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Owned Brands & Commercial Labels */}
+              {factory.ownedBrands && factory.ownedBrands.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-6 bg-purple-600 rounded-full" />
+                    <h3 className="text-sm font-black text-slate-900">برندهای تجاری تحت مالکیت و تولید</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {factory.ownedBrands.map((bName, idx) => (
+                      <div 
+                        key={`owned-brand-${idx}`}
+                        className="bg-purple-50 border border-purple-200 text-purple-900 font-black text-xs px-4 py-2 rounded-2xl flex items-center gap-2"
+                      >
+                        <Tag size={14} className="text-purple-600" />
+                        <span>{bName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Main Products List */}
               {factory.mainProducts && factory.mainProducts.length > 0 && (
@@ -616,7 +807,7 @@ export default function FactoryDedicatedPage({
                     {factory.mainProducts.map((prod, idx) => (
                       <div key={`fact-dedicated-prod-${prod}-${idx}`} className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3">
                         <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-                        <span className="text-xs font-black text-emerald-950">{prod}</span>
+                        <span className="text-xs font-black text-slate-900">{prod}</span>
                       </div>
                     ))}
                   </div>
@@ -644,7 +835,7 @@ export default function FactoryDedicatedPage({
                       className="relative h-32 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group"
                     >
                       <img src={getDisplayImageUrl(img.url)} alt={img.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-indigo-600/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      <div className="absolute inset-0 bg-emerald-600/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                         <Maximize2 size={20} />
                       </div>
                     </div>
@@ -833,7 +1024,7 @@ export default function FactoryDedicatedPage({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {defaultCertificates.map((cert, idx) => (
                   <div key={`fact-dedicated-cert-${cert.name || idx}-${idx}`} className="bg-white rounded-3xl p-5 border border-slate-200/80 flex items-start gap-4 shadow-sm hover:border-emerald-300 transition-all">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0 border border-amber-200">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0 border border-emerald-200">
                       <Award size={24} />
                     </div>
                     <div className="space-y-1">
@@ -860,7 +1051,7 @@ export default function FactoryDedicatedPage({
 
                 <button
                   onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-2xl transition-all cursor-pointer shadow-md"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl transition-all cursor-pointer shadow-md"
                 >
                   {showReviewForm ? "بستن فرم" : "✍️ ثبت تجربه جدید"}
                 </button>
@@ -984,7 +1175,7 @@ export default function FactoryDedicatedPage({
                 ].map((item, idx) => (
                   <div key={`fact-dedicated-raw-mat-${item.name.slice(0, 10)}-${idx}`} className="bg-white rounded-3xl p-5 border border-slate-200/80 space-y-3 shadow-sm hover:border-emerald-300 transition-all">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg">
+                      <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-1 rounded-lg">
                         {item.category}
                       </span>
                       <span className="text-xs font-black text-slate-700">حجم نیاز: {item.volume}</span>
@@ -1051,7 +1242,7 @@ export default function FactoryDedicatedPage({
                   <div className="pt-2 space-y-2">
                     <button
                       onClick={handleDownloadQR}
-                      className="w-full bg-indigo-600 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+                      className="w-full bg-emerald-600 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
                     >
                       <Download size={16} className="text-amber-400" />
                       <span>دانلود فایل تصویری QR کد (PNG)</span>
@@ -1085,7 +1276,7 @@ export default function FactoryDedicatedPage({
               >
                 <X size={28} />
               </button>
-              <div className="bg-indigo-600 p-2 rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
+              <div className="bg-emerald-600 p-2 rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
                 <img src={getDisplayImageUrl(activeLightboxImage.url)} alt={activeLightboxImage.title} className="max-h-[80vh] w-full object-contain mx-auto rounded-2xl" />
               </div>
               <p className="text-sm font-black text-white">{activeLightboxImage.title}</p>
@@ -1111,7 +1302,7 @@ export default function FactoryDedicatedPage({
                 <X size={20} />
               </button>
 
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto font-black">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto font-black">
                 <QrCode size={24} />
               </div>
 

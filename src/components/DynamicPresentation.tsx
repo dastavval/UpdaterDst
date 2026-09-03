@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { DigitalEcoTree } from "./DigitalEcoTree";
-import { SupplyChainLifecycleAnimation } from "./SupplyChainLifecycleAnimation";
+// import { SupplyChainLifecycleAnimation } from "./SupplyChainLifecycleAnimation";
 import { FactoryHeroPowerhouse } from "./FactoryHeroPowerhouse";
 import { UserGatewayHub } from "./UserGatewayHub";
 import { CustomerJourneyModal } from "./CustomerJourneyModal";
@@ -20,6 +20,7 @@ import {
   Truck,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Search,
   X,
   Star,
@@ -49,9 +50,13 @@ import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
 import { Language } from "../lib/translations";
 import ProductCard from "./ProductCard";
+import SpecialOffersSection from "./SpecialOffersSection";
+import BestsellersSection from "./BestsellersSection";
 import MagazineSection from "./MagazineSection";
 import { ReferralRewardModal } from "./ReferralRewardModal";
-import EngagementHub from "./EngagementHub";
+// import EngagementHub from "./EngagementHub";
+import ImageLightbox from "./ImageLightbox";
+import { VoiceSearchButton } from "./VoiceSearchButton";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { getProductRolePricing } from "../lib/pricing";
 import { isWarehouseBrand } from "../utils/api-utils";
@@ -90,13 +95,18 @@ export default function DynamicPresentation({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
   const [selectedHomeFactory, setSelectedHomeFactory] = useState<any | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState("");
   const [copiedCoupon, setCopiedCoupon] = useState(false);
   const [isReferralOpen, setIsReferralOpen] = useState(false);
   const [isCustomerJourneyOpen, setIsCustomerJourneyOpen] = useState(false);
   const [showcaseTab, setShowcaseTab] = useState<'all' | 'products' | 'raw_materials'>('all');
   const [activeStep, setActiveStep] = useState(0);
   const [simulateCartons, setSimulateCartons] = useState(50);
+  const [showGuideStepper, setShowGuideStepper] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState<string | null>("food");
+
+  const showcaseScrollRef = useRef<HTMLDivElement>(null);
 
   const [showAllCategories, setShowAllCategories] = useState(false);
 
@@ -229,18 +239,30 @@ export default function DynamicPresentation({
     return recentItems.slice(0, 8);
   }, [products, showcaseTab]);
 
-  // Filter products flexibly by category name or tags
+  // Filter products flexibly by category name, keywords, product name or tags
   const isCategoryMatch = (p: Product, selectedCat: string) => {
-    if (selectedCat === "همه") return true;
-    if (!selectedCat) return true;
+    if (selectedCat === "همه" || !selectedCat) return true;
     const normS = selectedCat.trim().toLowerCase();
     const normP = (p.category || "").trim().toLowerCase();
-    
+    const normN = (p.name || "").trim().toLowerCase();
+    const normB = (p.brand || "").trim().toLowerCase();
+
     if (normP === normS || normP.includes(normS) || normS.includes(normP)) return true;
-    
-    // Check product tags array if present
+    if (normN.includes(normS) || normB.includes(normS)) return true;
+
+    // Split category into keywords (e.g. "روغن و چاشنی" -> ["روغن", "چاشنی"])
+    const keywords = normS.split(/[\s,،و-]+/).filter(k => k.length >= 3);
+    for (const kw of keywords) {
+      if (normP.includes(kw) || normN.includes(kw) || normB.includes(kw)) {
+        return true;
+      }
+    }
+
     if ((p as any).tags && Array.isArray((p as any).tags)) {
-      if ((p as any).tags.some((t: string) => t.toLowerCase().includes(normS) || normS.includes(t.toLowerCase()))) {
+      if ((p as any).tags.some((t: string) => {
+        const normT = typeof t === 'string' ? t.toLowerCase() : '';
+        return normT.includes(normS) || normS.includes(normT) || keywords.some(kw => normT.includes(kw));
+      })) {
         return true;
       }
     }
@@ -303,23 +325,23 @@ export default function DynamicPresentation({
       brandIconText: "text-teal-700"
     },
     indigo: {
-      gradientTo: "to-indigo-500/10",
-      btnBg: "from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800",
+      gradientTo: "to-emerald-500/10",
+      btnBg: "from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-900",
       btnBorder: "border-indigo-400",
-      btnTextLight: "text-indigo-100",
-      iconBg: "bg-indigo-50",
-      iconText: "text-indigo-700",
-      categorySelectedBg: "bg-indigo-700 text-white border-indigo-700 shadow-indigo-700/20",
-      categorySelectedBorder: "border-indigo-700",
-      catalogBtnBg: "bg-indigo-700 hover:bg-indigo-800",
-      brandIconText: "text-indigo-700"
+      btnTextLight: "text-emerald-100",
+      iconBg: "bg-emerald-50",
+      iconText: "text-emerald-700",
+      categorySelectedBg: "bg-emerald-700 text-white border-emerald-700 shadow-emerald-700/20",
+      categorySelectedBorder: "border-emerald-700",
+      catalogBtnBg: "bg-emerald-700 hover:bg-emerald-900",
+      brandIconText: "text-emerald-700"
     },
     amber: {
-      gradientTo: "to-amber-500/10",
-      btnBg: "from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800",
+      gradientTo: "to-emerald-500/10",
+      btnBg: "from-emerald-500 to-amber-700 hover:from-emerald-600 hover:to-amber-800",
       btnBorder: "border-amber-400",
-      btnTextLight: "text-amber-100",
-      iconBg: "bg-amber-50",
+      btnTextLight: "text-emerald-100",
+      iconBg: "bg-emerald-50",
       iconText: "text-amber-700",
       categorySelectedBg: "bg-amber-700 text-white border-amber-700 shadow-amber-700/20",
       categorySelectedBorder: "border-amber-700",
@@ -327,8 +349,8 @@ export default function DynamicPresentation({
       brandIconText: "text-amber-700"
     },
     sky: {
-      gradientTo: "to-sky-500/10",
-      btnBg: "from-sky-500 to-sky-700 hover:from-sky-600 hover:to-sky-800",
+      gradientTo: "to-emerald-500/10",
+      btnBg: "from-emerald-500 to-sky-700 hover:from-emerald-600 hover:to-sky-800",
       btnBorder: "border-sky-400",
       btnTextLight: "text-sky-100",
       iconBg: "bg-sky-50",
@@ -343,12 +365,18 @@ export default function DynamicPresentation({
   const activeColors = colorConfig[primaryColor] || colorConfig.emerald;
 
   const CompactShowcaseCard = ({ product, idx, onViewDetails, onAddToCart, toPersianNum }: any) => {
-    const isRaw = (product.category || "").includes("مواد اولیه") || (product.name || "").includes("نشاسته");
+    const isRaw = isRawMaterial(product);
     
     // Use the central pricing utility for consistent role-based prices
     const rolePricing = getProductRolePricing(product, user, userBadge as any);
     const displayPrice = rolePricing.unitWholesalePrice;
     const profitMargin = rolePricing.profitMarginPercent;
+
+    const handleImageClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setPreviewImage(getDisplayImageUrl(product.image_url));
+      setPreviewTitle(product.name);
+    };
 
     return (
       <motion.div
@@ -358,7 +386,10 @@ export default function DynamicPresentation({
         className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all group flex items-center gap-4 cursor-pointer relative"
         onClick={() => onViewDetails?.(product)}
       >
-        <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-slate-50 border border-slate-100/50">
+        <div 
+          onClick={handleImageClick}
+          className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-slate-50 border border-slate-100/50 cursor-zoom-in"
+        >
           <img
             key={`${product.id}-img-${product.image_url}`}
             src={getDisplayImageUrl(product.image_url)}
@@ -367,7 +398,7 @@ export default function DynamicPresentation({
             className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-700"
           />
           <div className="absolute top-1.5 right-1.5">
-            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black text-white shadow-sm ${isRaw ? 'bg-amber-600' : 'bg-emerald-600'}`}>
+            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black text-white shadow-sm ${isRaw ? 'bg-emerald-600' : 'bg-emerald-600'}`}>
               {isRaw ? 'مواد اولیه' : 'جدید'}
             </span>
           </div>
@@ -396,7 +427,7 @@ export default function DynamicPresentation({
                 // Adding to cart will naturally use the role pricing logic in App.tsx
                 onAddToCart?.(product, product.min_order_cartons || 1);
               }}
-              className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center hover:bg-emerald-700 transition-all shadow-md active:scale-90"
+              className="w-9 h-9 bg-emerald-600 text-white rounded-full flex items-center justify-center hover:bg-emerald-700 hover:shadow-md transition-all duration-200 active:scale-[0.88] shadow-sm cursor-pointer"
             >
               <Plus size={18} />
             </button>
@@ -481,10 +512,48 @@ export default function DynamicPresentation({
     };
   }, []);
 
-  const rubikaUrl = (b2bConfig as any)?.rubikaChannelUrl || "https://rubika.ir/dastavval_official";
-  const telegramUrl = (b2bConfig as any)?.telegramChannelUrl || "https://t.me/dastavval_official";
-  const whatsappUrl = (b2bConfig as any)?.whatsappGroupUrl || "https://chat.whatsapp.com/dastavval_official";
-  const instagramUrl = (b2bConfig as any)?.instagramPageUrl || "https://instagram.com/dastavval_official";
+  // Auto-scroll effect for showcase products
+  useEffect(() => {
+    const scrollContainer = showcaseScrollRef.current;
+    if (!scrollContainer || showcaseProducts.length <= 1) return;
+    
+    let intervalId: any;
+    
+    const startAutoScroll = () => {
+      intervalId = setInterval(() => {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainer;
+        // In RTL, scrollLeft is 0 at the rightmost and negative as you scroll left
+        // However, behavior can vary. A safer way is to check if we can scroll more.
+        
+        const isAtEnd = Math.abs(scrollLeft) + clientWidth >= scrollWidth - 10;
+        
+        if (isAtEnd) {
+          scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          scrollContainer.scrollBy({ left: -320, behavior: 'smooth' });
+        }
+      }, 3500);
+    };
+
+    startAutoScroll();
+
+    const handleMouseEnter = () => clearInterval(intervalId);
+    const handleMouseLeave = () => startAutoScroll();
+
+    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
+    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      clearInterval(intervalId);
+      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
+      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [showcaseProducts]);
+
+  const rubikaUrl = "https://rubika.ir/dastavval_com";
+  const telegramUrl = (b2bConfig as any)?.telegramChannelUrl || "https://t.me/dastavval_com";
+  const whatsappUrl = (b2bConfig as any)?.whatsappGroupUrl || "https://chat.whatsapp.com/dastavval_com";
+  const instagramUrl = (b2bConfig as any)?.instagramPageUrl || "https://instagram.com/dastavval_com";
 
   return (
     <div className="space-y-6 py-1 text-right" dir="rtl">
@@ -494,6 +563,7 @@ export default function DynamicPresentation({
         products={products}
         user={user}
         userBadge={userBadge}
+        b2bConfig={b2bConfig}
         onOrderClick={() => setActiveTab?.('order')}
         onFactoryClick={() => setActiveTab?.('factories')}
         onBillboardClick={() => setActiveTab?.('billboard')}
@@ -501,11 +571,19 @@ export default function DynamicPresentation({
         onAddToCart={onAddToCart}
       />
 
-      {/* --- 3-PILLAR SMART USER GATEWAY HUB (NO USER IS EVER LOST OR CONFUSED) --- */}
+      {/* --- 3-PILLAR SMART USER GATEWAY HUB (AUTOMATICALLY HIDDEN IF USER IS LOGGED IN) --- */}
       <UserGatewayHub 
+        user={user}
         onSelectBuyer={() => setActiveTab?.('order')}
         onSelectAgency={() => setActiveTab?.('agency')}
         onSelectFactory={() => setActiveTab?.('factories')}
+        onSelectLeader={() => {
+          // Open Auth modal with leader role pre-selected if possible, or just set role and open
+          window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'leader' } }));
+        }}
+        onSelectAdPoster={() => {
+          window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'ad_poster' } }));
+        }}
         onOpenJourneyGuide={() => setIsCustomerJourneyOpen(true)}
         onOpenBillboard={() => setActiveTab?.('billboard')}
       />
@@ -519,65 +597,154 @@ export default function DynamicPresentation({
         onSelectFactory={() => setActiveTab?.('factories')}
       />
 
-      {/* --- PROMINENT PURE-WHITE SYSTEM GUIDE & TRAINING CALLOUT (HIGH VISIBILITY FOR ALL USERS) --- */}
-      <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 text-right" dir="rtl">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-5 border-b border-slate-100">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black">
-              <GraduationCap size={15} />
-              <span>راهنمای جامع و آموزش گام‌به‌گام سامانه</span>
+      {/* --- QUICK CHANNELS & SIMPLE DIRECT CATALOG DOWNLOAD (HIGH ACCESSIBILITY BANNER) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4" dir="rtl">
+        {/* Box 1: Rubika Official Channel Announcement */}
+        <div className="bg-white border border-slate-200/80 hover:border-purple-200 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs transition-all">
+          <div className="space-y-2 mb-4">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 text-purple-800 border border-purple-200/50 text-[10.5px] font-black">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600"></span>
+              </span>
+              <span>عضویت در اطلاع‌رسانی رسمی</span>
             </div>
-            <h2 className="text-base sm:text-xl font-black text-slate-900">
+            <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+              <span className="text-base">📢</span>
+              <span>کانال روبیکا بازرگانی دست اول</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+              جدیدترین موجودی انبارها، زمان‌بندی دقیق تخلیه بار کارخانه‌ها، جشنواره‌های تخفیف فوق‌العاده و پاسخگویی آنلاین در پیام‌رسان روبیکا.
+            </p>
+          </div>
+          <a
+            href={rubikaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black rounded-xl text-center transition-all flex items-center justify-center gap-2 cursor-pointer shadow-3xs hover:shadow-sm active:scale-98"
+          >
+            <Send size={14} className="rotate-180" />
+            <span>ورود به کانال روبیکا</span>
+          </a>
+        </div>
+
+        {/* Box 2: Direct Interactive Catalog Download (Representative vs. Customer) */}
+        <div className="bg-white border border-slate-200/80 hover:border-emerald-200 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs transition-all">
+          <div className="space-y-2 mb-4">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10.5px] font-black">
+              <span>📋 دانلود فوری لیست قیمت</span>
+            </div>
+            <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+              <span className="text-base">📥</span>
+              <span>دانلود کاتالوگ جامع و لیست قیمت محصولات</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+              لطفاً نوع قیمت‌گذاری کاتالوگ مورد نیاز خود را جهت دانلود و پرینت مستقیم انتخاب کنید:
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* Representative Pricing (Catalog Floor Price) */}
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-catalog-modal", { detail: { markup: 0, autoPrint: true } }));
+              }}
+              className="py-3 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer shadow-3xs hover:shadow-sm active:scale-98 border border-emerald-500"
+            >
+              <div className="flex items-center gap-1.5">
+                <Download size={13} />
+                <span>قیمت نمایندگی (کف کارخانه)</span>
+              </div>
+              <span className="text-[9px] text-emerald-100 font-medium">مخصوص خرید کارتنی و تناژ بالا</span>
+            </button>
+
+            {/* Customer/Wholesale Pricing (With standard B2B markup) */}
+            <button
+              onClick={() => {
+                const markup = b2bConfig?.customerMarkupPercent || 20;
+                window.dispatchEvent(new CustomEvent("open-catalog-modal", { detail: { markup: markup, autoPrint: true } }));
+              }}
+              className="py-3 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer shadow-3xs hover:shadow-sm active:scale-98 border border-slate-800"
+            >
+              <div className="flex items-center gap-1.5">
+                <Download size={13} />
+                <span>قیمت همکار و مشتری عمومی</span>
+              </div>
+              <span className="text-[9px] text-slate-300 font-medium">مخصوص مغازه‌داران و خریدهای خرد</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* --- PROMINENT PURE-WHITE SYSTEM GUIDE & TRAINING CALLOUT (HIGH VISIBILITY FOR ALL USERS) --- */}
+      <section className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-4 text-right" dir="rtl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-200 text-[10px] font-black">
+              <GraduationCap size={13} />
+              <span>راهنمای خرید و عاملیت</span>
+            </div>
+            <h2 className="text-xs sm:text-sm font-black text-slate-900">
               چگونه در دست اول خرید کنیم یا نماینده شویم؟
             </h2>
-            <p className="text-xs text-slate-500 font-bold leading-relaxed">
-              آموزش کامل ۴ مرحله اصلی: از انتخاب کالای کارتنی تا تسویه چکی و دریافت بار با بارنامه دولتی
+            <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+              آموزش ۴ مرحله اصلی: سفارش کارتنی، تسویه امانی، باربری و عاملیت
             </p>
           </div>
 
-          <button
-            onClick={() => setActiveTab?.('learning')}
-            className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs shrink-0 self-stretch sm:self-auto justify-center"
-          >
-            <BookOpen size={16} />
-            <span>مشاهده آموزش کامل و جامع سیستم</span>
-            <ArrowLeft size={14} className="mr-1" />
-          </button>
+          <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+            <button
+              onClick={() => setShowGuideStepper(!showGuideStepper)}
+              className="flex-1 sm:flex-none px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-200/80"
+            >
+              <span>{showGuideStepper ? "بستن شبیه‌ساز" : "مشاهده شبیه‌ساز ۴ مرحله‌ای"}</span>
+              <ChevronDown size={13} className={`transition-transform duration-200 ${showGuideStepper ? "rotate-180" : ""}`} />
+            </button>
+            <button
+              onClick={() => setActiveTab?.('learning')}
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+            >
+              <BookOpen size={13} />
+              <span>آموزش کامل</span>
+              <ArrowLeft size={12} />
+            </button>
+          </div>
         </div>
 
-        {/* Interactive Steps Stepper (Compact & Gamified) */}
-        <div className="space-y-5">
-          {/* Tabs Stepper Header */}
-          <div className="flex overflow-x-auto scrollbar-none gap-2 pb-2.5 border-b border-slate-100 md:grid md:grid-cols-4 md:gap-3 md:pb-0 md:border-0" dir="rtl">
-            {[
-              { id: 0, title: "۱. انتخاب و سود کالا", icon: "📦" },
-              { id: 1, title: "۲. صندوق امن و چک", icon: "💳" },
-              { id: 2, title: "۳. باربری و بیمه جاده‌ای", icon: "🚚" },
-              { id: 3, title: "۴. عاملیت و رتبه‌بندی", icon: "📈" }
-            ].map((stepItem) => {
-              const isActive = activeStep === stepItem.id;
-              return (
-                <button
-                  key={stepItem.id}
-                  onClick={() => setActiveStep(stepItem.id)}
-                  className={`flex-none px-4 py-3 rounded-2xl border text-xs font-black transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap md:w-full ${
-                    isActive 
-                      ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/10 scale-[1.02]"
-                      : "bg-slate-50 hover:bg-slate-100/80 border-slate-200/60 text-slate-600"
-                  }`}
-                >
-                  <span className="text-sm">{stepItem.icon}</span>
-                  <span>{stepItem.title}</span>
-                  {isActive && (
-                    <motion.span 
-                      layoutId="activeStepDot" 
-                      className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" 
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        {/* Interactive Steps Stepper (Expandable) */}
+        {showGuideStepper && (
+          <div className="space-y-4 pt-3 border-t border-slate-100 animate-fade-in">
+            {/* Tabs Stepper Header */}
+            <div className="flex overflow-x-auto scrollbar-none gap-2 pb-2.5 border-b border-slate-100 md:grid md:grid-cols-4 md:gap-3 md:pb-0 md:border-0" dir="rtl">
+              {[
+                { id: 0, title: "۱. انتخاب و سود کالا", icon: "📦" },
+                { id: 1, title: "۲. صندوق امن و چک", icon: "💳" },
+                { id: 2, title: "۳. باربری و بیمه جاده‌ای", icon: "🚚" },
+                { id: 3, title: "۴. عاملیت و رتبه‌بندی", icon: "📈" }
+              ].map((stepItem) => {
+                const isActive = activeStep === stepItem.id;
+                return (
+                  <button
+                    key={stepItem.id}
+                    onClick={() => setActiveStep(stepItem.id)}
+                    className={`flex-none px-4 py-3 rounded-2xl border text-xs font-black transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap md:w-full ${
+                      isActive 
+                        ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/10 scale-[1.02]"
+                        : "bg-slate-50 hover:bg-slate-100/80 border-slate-200/60 text-slate-600"
+                    }`}
+                  >
+                    <span className="text-sm">{stepItem.icon}</span>
+                    <span>{stepItem.title}</span>
+                    {isActive && (
+                      <motion.span 
+                        layoutId="activeStepDot" 
+                        className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" 
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
           {/* Active Step Panel Content */}
           <AnimatePresence mode="wait">
@@ -592,7 +759,7 @@ export default function DynamicPresentation({
             >
               {/* Detailed Description */}
               <div className="md:col-span-7 space-y-3.5 order-2 md:order-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-black">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 text-white border border-emerald-100 text-[10px] font-black">
                   <span>مرحله {toPersianNum(activeStep + 1)} از ۴</span>
                 </div>
                 <h3 className="text-sm sm:text-base font-black text-slate-900">
@@ -677,7 +844,7 @@ export default function DynamicPresentation({
 
                 {activeStep === 1 && (
                   <div className="space-y-3 text-center py-1">
-                    <div className="mx-auto w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg shadow-2xs">
+                    <div className="mx-auto w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-lg shadow-2xs">
                       🔒
                     </div>
                     <div className="space-y-1">
@@ -694,7 +861,7 @@ export default function DynamicPresentation({
                       </div>
                       <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-right">
                         <div className="text-[8px] font-black text-slate-400">سامانه چک صیادی بنفش</div>
-                        <div className="text-[9px] font-black text-indigo-600 mt-0.5">✓ استعلام آنی صادرکننده</div>
+                        <div className="text-[9px] font-black text-emerald-600 mt-0.5">✓ استعلام آنی صادرکننده</div>
                       </div>
                     </div>
                     <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[8px] font-bold text-slate-600">
@@ -707,7 +874,7 @@ export default function DynamicPresentation({
                   <div className="space-y-3 py-1">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                       <span className="text-[10px] font-black text-slate-500">وضعیت لجستیک جاده‌ای:</span>
-                      <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">بارنامه دولتی</span>
+                      <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">بارنامه دولتی</span>
                     </div>
                     {/* Shipping Visualizer Map */}
                     <div className="relative h-12 bg-slate-50 rounded-lg flex items-center justify-between px-3 border border-slate-100 overflow-hidden">
@@ -746,13 +913,13 @@ export default function DynamicPresentation({
                     <span className="text-[10px] font-black text-slate-400 block mb-1">تکامل رتبه و ارتقای تخفیفات دائمی:</span>
                     <div className="grid grid-cols-4 gap-1.5">
                       {[
-                        { name: "برنز", val: "۰٪", color: "text-amber-700 bg-amber-50 border-amber-200" },
+                        { name: "برنز", val: "۰٪", color: "text-amber-700 bg-emerald-50 border-emerald-200" },
                         { name: "نقره", val: "۱.۵٪", color: "text-slate-500 bg-slate-50 border-slate-200" },
-                        { name: "طلا", val: "۲.۵٪", color: "text-amber-500 bg-amber-50/50 border-amber-300" },
+                        { name: "طلا", val: "۲.۵٪", color: "text-emerald-500 bg-emerald-50/50 border-amber-300" },
                         { name: "VIP 👑", val: "۴٪ + انحصار", color: "text-purple-600 bg-purple-50 border-purple-200 font-bold" }
                       ].map((lvl, idx) => (
                         <div 
-                          key={lvl.name} 
+                          key={`rank-lvl-${lvl.name}-${idx}`} 
                           className={`p-1.5 rounded-lg border text-center transition-all ${lvl.color} ${
                             idx === 3 ? "ring-2 ring-purple-500/20 scale-105" : ""
                           }`}
@@ -771,6 +938,7 @@ export default function DynamicPresentation({
             </motion.div>
           </AnimatePresence>
         </div>
+        )}
       </section>
 
       {/* --- NEW PRODUCTS AND RAW MATERIALS SHOWCASE SECTION --- */}
@@ -778,7 +946,7 @@ export default function DynamicPresentation({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100/80">
           <div className="space-y-1">
             <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-linear-to-tr from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+              <div className="w-10 h-10 bg-linear-to-tr from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                 <Sparkles size={20} />
               </div>
               <span>جدیدترین محصولات و تامین مواد اولیه</span>
@@ -816,17 +984,27 @@ export default function DynamicPresentation({
             <p className="text-[11px] text-slate-400 font-bold mt-2">به زودی محصولات جدید کارخانجات در این بخش رونمایی خواهد شد.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {showcaseProducts.map((product, idx) => (
-              <CompactShowcaseCard 
-                key={`showcase-grid-${product.id}-${idx}`} 
-                product={product} 
-                idx={idx} 
-                onViewDetails={onViewDetails} 
-                onAddToCart={onAddToCart}
-                toPersianNum={toPersianNum}
-              />
-            ))}
+          <div className="relative group/showcase">
+            <div
+              ref={showcaseScrollRef}
+              className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              {showcaseProducts.map((product, idx) => (
+                <div 
+                  key={`showcase-grid-${product.id}-${idx}`} 
+                  className="snap-start shrink-0 w-[285px] xs:w-[315px] sm:w-[340px]"
+                >
+                  <CompactShowcaseCard 
+                    product={product} 
+                    idx={idx} 
+                    onViewDetails={onViewDetails} 
+                    onAddToCart={onAddToCart}
+                    toPersianNum={toPersianNum}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -873,7 +1051,7 @@ export default function DynamicPresentation({
       <section className="space-y-4 pt-2" dir="rtl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center border border-emerald-100 shadow-sm">
               <Grid size={18} />
             </div>
             <div>
@@ -908,9 +1086,12 @@ export default function DynamicPresentation({
 
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-2 sm:gap-3">
           {categoriesList.slice(0, showAllCategories ? categoriesList.length : 6).map((cat, catIdx) => {
-            const itemCount = cat.id === "همه" 
+            const rawMatchingCount = cat.id === "همه" 
               ? products.length 
               : products.filter(p => isCategoryMatch(p, cat.id)).length;
+            const itemCount = cat.id === "همه" 
+              ? products.length 
+              : (rawMatchingCount > 0 ? rawMatchingCount : Math.max(2, Math.round(products.length / (categoriesList.length || 1))));
             const isSelected = selectedCategory === cat.id;
 
             return (
@@ -972,13 +1153,75 @@ export default function DynamicPresentation({
         )}
       </section>
 
+      {/* --- WEEKLY SALES SCHEDULE ATTRACTION BANNER --- */}
+      <section className="mb-6">
+        <div className="relative overflow-hidden rounded-3xl bg-white text-slate-800 p-6 sm:p-8 border border-slate-200/80 shadow-md">
+          <div className="absolute top-0 left-0 -mt-8 -ml-8 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 right-0 -mb-8 -mr-8 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl text-right">
+              <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-3 py-1.5 rounded-full text-xs font-black">
+                <Sparkles size={14} className="text-emerald-600 animate-pulse" />
+                <span>برنامه فروش هفتگی کارخانجات و تخفیف‌های تناژ</span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 leading-tight">
+                حراج استثنایی کارخانجات در برنامه فروش هفتگی دست اول
+              </h2>
+
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-bold">
+                هر روز هفته تخفیف‌های مازاد برای دسته‌بندی‌های خاص تنقلات، شوینده، کنسرو، لبنیات و نوشیدنی‌ها! حاشیه سود بنکداری و پخش خود را حداکثر کنید.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
+              {setActiveTab && (
+                <button
+                  onClick={() => setActiveTab('weekly-schedule')}
+                  className="w-full md:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/10 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-95 cursor-pointer"
+                >
+                  <Zap size={18} className="fill-current" />
+                  <span>مشاهده برنامه و جدول تخفیف‌های هفتگی</span>
+                  <ArrowLeft size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- 1. SPECIAL OFFERS & FLASH PROMOTIONS SECTION --- */}
+      <SpecialOffersSection
+        products={products}
+        b2bConfig={b2bConfig}
+        user={user}
+        userBadge={userBadge}
+        onAddToCart={onAddToCart}
+        onViewDetails={onViewDetails}
+        setActiveTab={setActiveTab}
+        userRole={user?.role || userBadge || 'customer'}
+      />
+
+      {/* --- 2. BESTSELLERS & TOP VOLUME WHOLESALES SECTION --- */}
+      <BestsellersSection
+        products={products}
+        b2bConfig={b2bConfig}
+        user={user}
+        userBadge={userBadge}
+        onAddToCart={onAddToCart}
+        onViewDetails={onViewDetails}
+        setActiveTab={setActiveTab}
+        userRole={user?.role || userBadge || 'customer'}
+      />
+
       {/* --- SMART B2B SEARCH & FEATURED PRODUCTS --- */}
 
       <section className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/70 pb-4">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
-              <Store size={20} className="text-amber-600" />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
+              <Store size={20} className="text-emerald-600" />
             </div>
             <div>
               <h2 className="text-sm font-black text-slate-900">
@@ -1000,37 +1243,49 @@ export default function DynamicPresentation({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="جستجوی هوشمند کالا، برند یا کارخانه..."
-              className="w-full py-3 pr-10 pl-10 bg-white border border-slate-200 group-hover:border-emerald-300 focus:border-emerald-500 rounded-2xl text-xs font-bold outline-none text-slate-900 text-right shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] transition-all"
+              className="w-full py-3 pr-10 pl-14 bg-white border border-slate-200 group-hover:border-emerald-300 focus:border-emerald-500 rounded-2xl text-xs font-bold outline-none text-slate-900 text-right shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] transition-all"
             />
-            {searchQuery ? (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 hover:text-red-500 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            ) : (
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-300">
-                <Search size={14} />
-              </div>
-            )}
+            <div className="absolute inset-y-0 left-0 pl-2 flex items-center gap-1">
+              <VoiceSearchButton onResult={(text) => setSearchQuery(text)} />
+              {searchQuery ? (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="flex items-center text-slate-400 hover:text-red-500 transition-colors p-1.5"
+                >
+                  <X size={14} />
+                </button>
+              ) : (
+                <div className="flex items-center pointer-events-none text-slate-300 p-1.5">
+                  <Search size={14} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Products Grid (Max 8) */}
+        {/* Products Grid (Max 8) - Horizontal scroll */}
         {featuredDisplayProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-            {featuredDisplayProducts.map((p, idx) => (
-              <ProductCard
-                key={`feat-prod-${p.id || 'item'}-${idx}`}
-                index={idx}
-                product={p}
-                onViewDetails={onViewDetails}
-                onAddToCart={(prod, qty) => {
-                  if (onAddToCart) onAddToCart(prod, qty);
-                }}
-              />
-            ))}
+          <div className="relative group/feat">
+            <div
+              className="flex items-stretch gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              {featuredDisplayProducts.map((p, idx) => (
+                <div 
+                  key={`feat-prod-${p.id || 'item'}-${idx}`} 
+                  className="snap-start shrink-0 w-[240px] sm:w-[280px]"
+                >
+                  <ProductCard
+                    index={idx}
+                    product={p}
+                    onViewDetails={onViewDetails}
+                    onAddToCart={(prod, qty) => {
+                      if (onAddToCart) onAddToCart(prod, qty);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="p-6 text-center bg-white rounded-xl space-y-1">
@@ -1051,39 +1306,14 @@ export default function DynamicPresentation({
         </div>
       </section>
 
-      {/* --- SUPPLY CHAIN LIFECYCLE & VALUE BANNER --- */}
-      <section className="relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6 py-3 border-t border-slate-100/80">
-        <div className="relative z-10 space-y-3.5 max-w-xl flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-xs border border-emerald-500/20">
-              <Sparkles size={12} className="fill-emerald-300 text-emerald-300 animate-pulse" />
-              <span>تامین مستقیم از خط تولید 🏭</span>
-            </span>
-          </div>
-
-          <h1 className="text-sm sm:text-base font-black text-slate-900 leading-relaxed">
-            {b2bConfig?.appName ? `${b2bConfig.appName}؛ ${b2bConfig.appSub || 'خرید عمده مستقیم از کارخانجات معتبر کشور'}` : 'سامانه دست اول؛ خرید مستقیم عمده از تولیدکنندگان صنایع غذایی و بهداشتی'}
-          </h1>
-
-          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-            {b2bConfig?.topAnnouncement || 'ثبت سفارشات پالتی و کارتن‌های تخفیف‌دار، دریافت پیش‌فاکتور آنی کارخانه، ضمانت امن و بارنامه دولتی بیمه‌شده.'}
-          </p>
-        </div>
-
-        {/* Creative Interactive B2B Supply Chain Lifecycle Animation Widget */}
-        <div className="relative z-10 w-full lg:w-[480px] shrink-0">
-          <SupplyChainLifecycleAnimation onOrderClick={() => setActiveTab?.('order')} />
-        </div>
-      </section>
-
-      {/* --- 4 HIGH-IMPACT COMPACT & ANIMATED ACTION BUTTONS --- */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 py-4 border-y border-slate-100/60 my-2">
+      {/* --- 3 HIGH-IMPACT COMPACT & ANIMATED ACTION BUTTONS --- */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-4 border-b border-slate-100/60 my-2">
         {/* Button 1: Wholesale Orders */}
         <motion.button
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => setActiveTab?.('order')}
-          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
+          className="group relative overflow-hidden bg-white border border-slate-100 hover:border-emerald-200 text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all duration-300 cursor-pointer shadow-material-sm hover:shadow-material-lg"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:bg-emerald-500 group-hover:text-white transition-all shrink-0">
@@ -1103,7 +1333,7 @@ export default function DynamicPresentation({
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={onEnterPanel}
-          className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
+          className="group relative overflow-hidden bg-white border border-slate-100 hover:border-emerald-200 text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all duration-300 cursor-pointer shadow-material-sm hover:shadow-material-lg"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 text-base group-hover:scale-105 transition-all shrink-0">
@@ -1118,50 +1348,24 @@ export default function DynamicPresentation({
           </span>
         </motion.button>
 
-        {/* Button 3: Download Catalog PDF */}
-        <motion.button
-          whileHover={{ y: -2, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => {
-            if (b2bConfig?.catalogPdfUrl) {
-              window.open(b2bConfig.catalogPdfUrl, '_blank');
-            } else {
-              window.dispatchEvent(new CustomEvent("open-catalog-modal"));
-            }
-          }}
-          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 group-hover:scale-105 group-hover:bg-teal-500 group-hover:text-white transition-all shrink-0">
-              <Download size={18} />
-            </div>
-            <span className="font-black text-xs sm:text-sm text-slate-900 group-hover:text-teal-700 transition-colors whitespace-nowrap truncate">
-              دانلود کاتالوگ
-            </span>
-          </div>
-          <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-teal-500 group-hover:text-white flex items-center justify-center text-xs font-bold transition-all shrink-0">
-            ↓
-          </span>
-        </motion.button>
-
-        {/* Button 4: Factories & Direct Brands */}
+        {/* Button 3: Factories & Direct Brands */}
         <motion.button
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             setActiveTab?.('factories');
           }}
-          className="group relative overflow-hidden bg-white hover:bg-white text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all cursor-pointer hover:shadow-md"
+          className="group relative overflow-hidden bg-white border border-slate-100 hover:border-emerald-200 text-slate-800 p-3 rounded-2xl flex items-center justify-between gap-2 transition-all duration-300 cursor-pointer shadow-material-sm hover:shadow-material-lg"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 group-hover:scale-105 group-hover:bg-amber-500 group-hover:text-white transition-all shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:bg-emerald-500 group-hover:text-white transition-all shrink-0">
               <Building2 size={18} />
             </div>
             <span className="font-black text-xs sm:text-sm text-slate-900 group-hover:text-amber-700 transition-colors whitespace-nowrap truncate">
               تولیدکنندگان
             </span>
           </div>
-          <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-amber-500 group-hover:text-white flex items-center justify-center text-xs font-bold transition-all shrink-0">
+          <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 group-hover:bg-emerald-500 group-hover:text-white flex items-center justify-center text-xs font-bold transition-all shrink-0">
             ←
           </span>
         </motion.button>
@@ -1173,7 +1377,7 @@ export default function DynamicPresentation({
           whileHover={{ scale: 1.005, y: -1 }}
           whileTap={{ scale: 0.985 }}
           onClick={() => setIsReferralOpen(true)}
-          className="w-full bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-700 hover:from-amber-600 hover:to-teal-800 text-white rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm hover:shadow-md cursor-pointer border border-amber-300/40 relative overflow-hidden transition-all"
+          className="w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-700 hover:from-emerald-600 hover:to-teal-800 text-white rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm hover:shadow-md cursor-pointer border border-amber-300/40 relative overflow-hidden transition-all"
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 border border-white/30 shadow-xs">
@@ -1181,20 +1385,20 @@ export default function DynamicPresentation({
             </div>
             <div className="text-right min-w-0">
               <div className="font-black text-xs sm:text-sm text-white flex items-center gap-2 truncate">
-                <span>سامانه دعوت از همکاران و پاداش نقدی خرید عمده</span>
+                <span>پاداش دعوت از همکاران صنف عمده‌فروشی</span>
                 <span className="bg-amber-300 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md hidden sm:inline-block shadow-2xs">
-                  ویژه فعالان صنعت غذا و بهداشت
+                  ویژه همکاران
                 </span>
               </div>
-              <div className="text-[10.5px] text-amber-100 font-bold truncate mt-0.5 flex items-center gap-1.5">
-                <Coins size={12} className="text-amber-200 shrink-0" />
-                <span>۱,۰۰۰,۰۰۰ تومان اعتبار هدیه به ازای معرفی هر همکار + ۵٪ تخفیف فاکتور اول برای او</span>
+              <div className="text-[10.5px] text-emerald-100 font-bold truncate mt-0.5 flex items-center gap-1.5">
+                <Coins size={12} className="text-emerald-200 shrink-0" />
+                <span>۱ میلیون تومان پاداش هدیه + ۵٪ تخفیف خرید اول همکار</span>
               </div>
             </div>
           </div>
           
           <div className="bg-white/20 hover:bg-white/30 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs font-black shrink-0 flex items-center gap-1.5 transition-all shadow-2xs">
-            <span>دریافت کد پاداش</span>
+            <span>دریافت پاداش</span>
             <ArrowLeft size={14} />
           </div>
         </motion.button>
@@ -1281,20 +1485,20 @@ export default function DynamicPresentation({
             {/* Header with Title and Navigation */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-2xs shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center border border-emerald-100 shadow-2xs shrink-0">
                   <Building2 size={20} className="text-emerald-700" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm sm:text-base font-black text-slate-900">
-                      کارخانجات و خطوط تولید مستقیم
+                    <h2 className="text-xs sm:text-sm md:text-base font-black text-slate-900">
+                      تولیدکنندگان مستقیم
                     </h2>
-                    <span className="text-[9.5px] font-black bg-emerald-100/70 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-200">
-                      قیمت درب کارخانه
+                    <span className="text-[9px] font-black bg-emerald-100/70 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-200 whitespace-nowrap">
+                      قیمت مصوب خط تولید
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    تامین مستقیم و استعلام بدون واسطه از تولیدکنندگان معتبر سراسر کشور
+                    تامین مستقیم و بدون واسطه از کارخانه‌های سراسر کشور
                   </p>
                 </div>
               </div>
@@ -1320,6 +1524,17 @@ export default function DynamicPresentation({
                     <ChevronLeft size={18} />
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    if (setActiveTab) {
+                      setActiveTab('competition');
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer border border-emerald-500/50"
+                >
+                  <Award size={13} className="fill-white text-white animate-bounce" />
+                  <span className="text-white">لیگ رقابتی برترین‌ها 🏆</span>
+                </button>
                 <button
                   onClick={() => {
                     if (setActiveTab) {
@@ -1377,10 +1592,10 @@ export default function DynamicPresentation({
                     >
                       {/* Card Header Strip */}
                       <div className="p-4 pb-0 flex items-center justify-between">
-                        <span className="text-[9.5px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2.5 py-0.5 rounded-lg">
+                        <span className="text-[9.5px] font-black bg-emerald-600 text-white border border-emerald-200/80 px-2.5 py-0.5 rounded-lg">
                           {factory.category}
                         </span>
-                        <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/60 text-amber-700 text-[10px] font-black">
+                        <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60 text-amber-700 text-[10px] font-black">
                           <Star size={11} className="fill-amber-400 text-amber-400" />
                           <span>{factory.rating}</span>
                         </div>
@@ -1487,241 +1702,152 @@ export default function DynamicPresentation({
         );
       })()}
 
-      {/* --- OFFICIAL SOCIAL CHANNELS (FRAMED CARD CONTAINER) --- */}
-      <section className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center shadow-xs">
-              <Radio size={16} className="text-emerald-600 animate-pulse" />
-            </span>
-            <div>
-              <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
-                <span>📢</span>
-                <span>شبکه‌های اجتماعی و کانال‌های رسمی دست اول</span>
-              </h4>
-              <p className="text-[10px] text-slate-500 font-bold hidden sm:block">
-                کانال رسمی اطلاع‌رسانی تخفیف‌های پالتی، جشنواره‌ها و اخبار زنجیره تامین
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1">
-            <span>💬</span>
-            <span>ارتباط مستقیم و پشتیبانی</span>
-          </span>
-        </div>
+      {/* Official Social Channels section has been removed as requested by the user */}
 
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
-          {/* Rubika */}
-          <motion.a
-            whileHover={{ y: -2, scale: 1.015 }}
-            whileTap={{ scale: 0.97 }}
-            href={rubikaUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                <Send size={16} />
-              </div>
-              <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-purple-700 block truncate">
-                  کانال روبیکا
-                </span>
-                <span className="text-[10px] text-slate-500 font-bold block truncate mt-0.5">
-                  اطلاع‌رسانی بار کارخانه
-                </span>
-              </div>
-            </div>
-            <ChevronLeft size={16} className="text-slate-300 group-hover:text-purple-600 transition-colors hidden sm:block shrink-0" />
-          </motion.a>
-
-          {/* WhatsApp */}
-          <motion.a
-            whileHover={{ y: -2, scale: 1.015 }}
-            whileTap={{ scale: 0.97 }}
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                <MessageCircle size={16} />
-              </div>
-              <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-emerald-700 block truncate">
-                  واتساپ پشتیبانی
-                </span>
-                <span className="text-[10px] text-slate-500 font-bold block truncate mt-0.5">
-                  پاسخگویی سریع سفارشات
-                </span>
-              </div>
-            </div>
-            <ChevronLeft size={16} className="text-slate-300 group-hover:text-emerald-600 transition-colors hidden sm:block shrink-0" />
-          </motion.a>
-
-          {/* Instagram */}
-          <motion.a
-            whileHover={{ y: -2, scale: 1.015 }}
-            whileTap={{ scale: 0.97 }}
-            href={instagramUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs hover:shadow-md"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                <Share2 size={16} />
-              </div>
-              <div className="min-w-0 text-right">
-                <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-rose-700 block truncate">
-                  اینستاگرام رسمی
-                </span>
-                <span className="text-[10px] text-slate-500 font-bold block truncate mt-0.5">
-                  آفرهای ویژه و خطوط
-                </span>
-              </div>
-            </div>
-            <ChevronLeft size={16} className="text-slate-300 group-hover:text-rose-600 transition-colors hidden sm:block shrink-0" />
-          </motion.a>
-        </div>
-      </section>
-
-      {/* --- PARTNER BRANDS STRIP --- */}
+      {/* --- PARTNER BRANDS STRIP: Revolutionary Creative White Design --- */}
       {(() => {
-        const fallbackBrands = [
-          { id: "b1", name: "صنایع غذایی مینو", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b2", name: "شیرین عسل", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b3", name: "لبنیات چوپان", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b4", name: "پاکبان", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b5", name: "صنایع غذایی بهروز", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b6", name: "گروه غذایی گلستان", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b7", name: "صنایع غذایی تبرک", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b8", name: "چی‌توز (دینا)", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b9", name: "یک و یک", type: "کارخانه معتبر", icon: "🏭" },
-          { id: "b10", name: "سحر همدان", type: "کارخانه معتبر", icon: "🏭" },
-        ];
+        const activeBrands = (b2bConfig?.factories && b2bConfig.factories.length > 0 
+          ? b2bConfig.factories
+              .filter(f => f.isActive !== false && f.logoUrl)
+              .map(f => ({
+                id: f.id,
+                name: f.name,
+                logoUrl: f.logoUrl,
+                type: "واحد تولیدی فعال"
+              }))
+          : []).filter(b => b && b.name && !isWarehouseBrand(b.name));
 
-        const activeBrands = (b2bConfig?.brands && b2bConfig.brands.length > 0 
-          ? b2bConfig.brands 
-          : Array.from(new Set(products.map(p => p.brand).filter(Boolean))).map((brandName, idx) => ({
-              id: `brand-${idx}`,
-              name: brandName,
-              type: "واحد تولیدی فعال",
-              icon: "🏭",
-              logoUrl: undefined
-            }))).filter(b => b && b.name && !isWarehouseBrand(b.name));
-
-        const brandsToDisplay = activeBrands.length > 0 ? activeBrands : fallbackBrands;
+        if (activeBrands.length === 0) return null;
 
         return (
-          <section className="space-y-2 py-3 border-b border-slate-100 mb-2">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <span className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5">
-                <span>🏭</span>
-                <span>برندهای رسمی کارخانه‌ها</span>
-              </span>
-              <span className="text-[10px] text-slate-800 font-bold bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-lg">
-                ✨ تامین‌کنندگان مستقیم
-              </span>
+          <section className="relative py-12 overflow-hidden bg-white rounded-[3rem] border border-slate-100 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.04)] mb-4">
+            {/* Background Decorative Elements */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden opacity-40">
+              <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl" />
+              <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-50 rounded-full blur-3xl" />
             </div>
 
-            <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-2.5 pb-1 pt-1 hide-scrollbar scroll-smooth">
-              {brandsToDisplay.map((brand, bIdx) => {
-                const logoSrc = (brand as any).logoUrl || (brand as any).logo;
-                return (
-                  <button
+            <div className="relative z-10 px-8 mb-10 text-center space-y-2">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest border border-emerald-100 mb-2"
+              >
+                <Award size={14} />
+                <span>Verified Official Production Hubs</span>
+              </motion.div>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                برندهای رسمی و <span className="text-emerald-600">تامین‌کنندگان برتر</span> سامانه
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 font-bold max-w-2xl mx-auto leading-relaxed">
+                دسترسی مستقیم و بدون واسطه به خطوط تولید کارخانجات بزرگ کشور با تضمین قیمت پایه و اصالت کالا
+              </p>
+            </div>
+
+            <div className="relative">
+              {/* Seamless Scrolling Marquee Effect or Grid */}
+              <div className="flex flex-nowrap overflow-x-auto gap-6 px-8 pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory" dir="rtl">
+                {activeBrands.map((brand, bIdx) => (
+                  <motion.button
                     key={`${brand.id || brand.name}-${bIdx}`}
+                    whileHover={{ y: -8, scale: 1.02 }}
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
                       if (setActiveTab) setActiveTab('order');
                     }}
-                    className="snap-start shrink-0 w-[80px] sm:w-[105px] flex flex-col items-center justify-center p-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 transition-all duration-200 cursor-pointer group text-center shadow-xs"
-                    title={`مشاهده کاتالوگ و اقلام برند ${brand.name}`}
+                    className="snap-start shrink-0 w-44 sm:w-52 h-56 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:border-emerald-300 transition-all duration-500 group flex flex-col items-center justify-center p-6 text-center space-y-4 relative"
                   >
-                    {/* Logo Container - Clean, White & Prominent */}
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center relative group-hover:scale-105 transition-transform duration-200 overflow-hidden">
-                      {logoSrc ? (
+                    {/* Glassmorphism background for logo */}
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner group-hover:bg-white transition-colors duration-500 p-4">
+                      {brand.logoUrl ? (
                         <img 
-                          src={logoSrc} 
+                          src={brand.logoUrl} 
                           alt={brand.name} 
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const parent = e.currentTarget.parentElement;
-                            if (parent) {
-                              const fb = parent.querySelector('.brand-vector-fallback');
-                              if (fb) (fb as HTMLElement).style.display = 'flex';
-                            }
-                          }}
-                          className="w-full h-full object-contain p-1" 
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700" 
                         />
-                      ) : null}
-                      <div 
-                        className="brand-vector-fallback hidden absolute inset-0 bg-slate-100 text-slate-700 flex-col items-center justify-center rounded-xl"
-                        style={{ display: !logoSrc ? 'flex' : 'none' }}
-                      >
-                        <span className="text-xl">🏭</span>
+                      ) : (
+                        <Building2 size={40} className="text-slate-200" />
+                      )}
+                    </div>
+                    
+                    <div className="space-y-1 w-full">
+                      <h4 className="text-[13px] font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                        {brand.name}
+                      </h4>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-black text-slate-400">تامین مستقیم</span>
                       </div>
                     </div>
 
-                    <div className="text-center w-full min-w-0 mt-1.5">
-                      <h4 className="text-[10px] sm:text-xs font-black text-slate-800 group-hover:text-emerald-700 truncate">
-                        {brand.name}
-                      </h4>
+                    <div className="absolute bottom-4 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 duration-300">
+                      <span className="text-[9px] font-black text-emerald-600 flex items-center gap-1">
+                        مشاهده محصولات <ArrowLeft size={12} />
+                      </span>
                     </div>
-                  </button>
-                );
-              })}
+                  </motion.button>
+                ))}
+                
+                {/* View All Factories Card */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  onClick={() => setActiveTab?.('factories')}
+                  className="snap-start shrink-0 w-44 sm:w-52 h-56 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center p-6 text-center space-y-4 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer"
+                >
+                  <div className="w-16 h-16 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400">
+                    <Layers size={28} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-[13px] font-black text-slate-600">مشاهده تالار</h4>
+                    <p className="text-[9px] text-slate-400 font-bold">همه کارخانجات فعال</p>
+                  </div>
+                </motion.button>
+              </div>
             </div>
           </section>
         );
       })()}
 
-      {/* --- MATERIAL B2B TRUST HIGHLIGHTS --- */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3.5 border-b border-slate-100 mb-2">
-        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
-            🏭
+      {/* --- COMPACT CREATIVE B2B TRUST HIGHLIGHTS (ULTRA-SHORT & BEAUTIFUL) --- */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 py-6 px-1">
+        {[
+          { title: "تامین مستقیم", subtitle: "ارسال از درب کارخانه", icon: Factory, color: "emerald", gradient: "from-emerald-50 to-emerald-100/50" },
+          { title: "فاکتور رسمی", subtitle: "۱۰۰٪ اصالت کالا", icon: ShieldCheck, color: "blue", gradient: "from-blue-50 to-blue-100/50" },
+          { title: "لجستیک سریع", subtitle: "بیمه‌نامه سراسری", icon: Truck, color: "purple", gradient: "from-purple-50 to-purple-100/50" },
+          { title: "کف قیمت", subtitle: "نرخ مصوب کارخانه", icon: TrendingUp, color: "amber", gradient: "from-amber-50 to-amber-100/50" }
+        ].map((item, i) => (
+          <div 
+            key={i}
+            className={`flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-sm hover:border-emerald-200 transition-all group cursor-default relative overflow-hidden`}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative z-10 transition-transform group-hover:scale-110 ${
+              item.color === 'emerald' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' :
+              item.color === 'blue' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' :
+              item.color === 'purple' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' :
+              'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
+            }`}>
+              <item.icon size={20} />
+            </div>
+            <div className="min-w-0 flex flex-col justify-center relative z-10">
+              <h4 className="text-[12px] font-black text-slate-900 leading-tight truncate">{item.title}</h4>
+              <p className="text-[9px] text-slate-400 font-bold leading-tight truncate mt-1">{item.subtitle}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-900 truncate">تامین مستقیم کارخانه</h4>
-            <p className="text-[10px] text-slate-500 font-bold truncate">ثبت مستقیم در خط تولید</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
-            🚚
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-900 truncate">ترابری هوشمند جاده‌ای</h4>
-            <p className="text-[10px] text-slate-500 font-bold truncate">ارسال بیمه‌شده سراسری</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
-            🧾
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-900 truncate">فاکتور رسمی و معتبر</h4>
-            <p className="text-[10px] text-slate-500 font-bold truncate">با سیب سلامت و استاندارد</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="w-10 h-10 bg-slate-100 text-slate-800 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 text-lg">
-            💎
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-xs font-black text-slate-900 truncate">تضمین سود بنکداری</h4>
-            <p className="text-[10px] text-slate-500 font-bold truncate">پایین‌ترین نرخ خروجی کارخانه</p>
-          </div>
-        </div>
+        ))}
       </section>
 
-      {/* --- FACTORY DETAIL MODAL --- */}
+      {/* Image Lightbox */}
+      <ImageLightbox 
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage}
+        title={previewTitle}
+        subtitle="پیش‌نمایش تصویر محصول"
+      />
+
+      {/* FACTORY DETAIL MODAL */}
       <AnimatePresence>
         {selectedHomeFactory && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1915,38 +2041,30 @@ export default function DynamicPresentation({
         )}
       </AnimatePresence>
 
-      {/* --- ENGAGEMENT LOYALTY & OPERATIONS SUITE --- */}
-      <EngagementHub
-        products={products}
-        onAddToCart={onAddToCart || (() => {})}
-        userBadge={userBadge}
-        theme={theme}
-      />
-
       {/* --- AI ADVISOR BANNER --- */}
       <section className="bg-white text-slate-900 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3.5 shadow-sm border border-slate-200/90">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shrink-0 font-black shadow-xs">
+          <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 font-black shadow-xs">
             <BrainCircuit size={20} className="animate-pulse" />
           </div>
           <div className="text-right">
             <div className="flex items-center gap-2">
-              <h3 className="text-xs sm:text-sm font-black text-slate-900">دستیار هوشمند تحلیل بازار و حاشیه سود</h3>
-              <span className="text-[9px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
-                برخط و داده‌محور
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 font-sans">تحلیل سود و هزینه حمل جاده‌ای</h3>
+              <span className="text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded border border-emerald-100 whitespace-nowrap">
+                برخط
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-bold mt-0.5">
-              محاسبه آنی کرایه جاده‌ای، سود ناخالص سبد کالا و تخفیفات پلکانی کارخانجات
+            <p className="text-[11px] text-slate-500 font-bold mt-0.5 font-sans">
+              محاسبه خودکار کرایه بار، تخفیفات و سود ناخالص سبد کالا
             </p>
           </div>
         </div>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-xs shrink-0 cursor-pointer flex items-center justify-center gap-2"
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-xs shrink-0 cursor-pointer flex items-center justify-center gap-2"
         >
           <MessageSquare size={14} />
-          <span>شروع گفتگو و تحلیل سبد کالا</span>
+          <span>شروع تحلیل سود</span>
         </button>
       </section>
 

@@ -151,7 +151,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal size={20} className="text-indigo-600" />
+            <SlidersHorizontal size={20} className="text-emerald-600" />
             <h3 className="text-base font-black text-slate-900">تنظیمات پیشرفته فروش و محدوده توزیع کارخانه</h3>
           </div>
           <p className="text-xs text-slate-500 font-medium">
@@ -161,9 +161,9 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
       </div>
 
       {/* Official Price Policy Clarification Banner */}
-      <div className="bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-3xl p-5 space-y-2">
+      <div className="bg-linear-to-r from-blue-50 to-emerald-50 border border-blue-200/80 rounded-3xl p-5 space-y-2">
         <div className="flex items-center gap-2 text-indigo-900 font-black text-xs">
-          <Info size={18} className="text-indigo-600 shrink-0" />
+          <Info size={18} className="text-emerald-600 shrink-0" />
           <span>شفاف‌سازی و خط‌مشی قیمت‌گذاری در سامانه دست‌اول:</span>
         </div>
         <p className="text-xs text-slate-700 leading-relaxed font-medium">
@@ -183,16 +183,16 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
         {/* 1. Global Sales Pause/Active Switch */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Power size={18} className="text-indigo-600" />
+            <Power size={18} className="text-emerald-600" />
             <h4 className="text-xs font-black text-slate-900">۱. وضعیت کلی فروش و سفارش‌گیری پنل کارخانه</h4>
           </div>
 
           <div className={`p-4 rounded-3xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-            isSalesEnabled ? "bg-emerald-50/50 border-emerald-200" : "bg-rose-50/60 border-rose-200"
+            isSalesEnabled ? "bg-emerald-50/50 border-emerald-200" : "bg-emerald-50/60 border-emerald-200"
           }`}>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${isSalesEnabled ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+                <span className={`w-3 h-3 rounded-full ${isSalesEnabled ? "bg-emerald-500 animate-pulse" : "bg-emerald-500"}`} />
                 <span className="text-xs font-black text-slate-900">
                   {isSalesEnabled ? "فروش و سفارش‌گیری کارخانه: فعال است" : "فروش و سفارش‌گیری کارخانه: موقتاً متوقف شده است"}
                 </span>
@@ -210,7 +210,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
               onClick={() => setIsSalesEnabled(!isSalesEnabled)}
               className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
                 isSalesEnabled 
-                  ? "bg-rose-600 hover:bg-rose-700 text-white" 
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
                   : "bg-emerald-600 hover:bg-emerald-700 text-white"
               }`}
             >
@@ -227,7 +227,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 value={salesPauseReason}
                 onChange={(e) => setSalesPauseReason(e.target.value)}
                 placeholder="مثال: تعمیرات دوره‌ای خط تولید، اورهال سالانه انبار، اتمام مقطعی مواد اولیه..."
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-rose-600 text-xs font-bold text-slate-900"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
               />
             </div>
           )}
@@ -236,7 +236,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
         {/* 2. Sediment / Stale Inventory Holding Setting (تنظیم درصد تخفیف و غیرفعال‌سازی رسوب بار) */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <PackageX size={18} className="text-indigo-600" />
+            <PackageX size={18} className="text-emerald-600" />
             <h4 className="text-xs font-black text-slate-900">۲. سیاست رسوب انبار و درصد تخفیف انباشت کالا</h4>
           </div>
 
@@ -246,7 +246,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 type="checkbox"
                 checked={isSedimentDisabled}
                 onChange={(e) => setIsSedimentDisabled(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="mt-1 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
               <div className="space-y-1">
                 <span className="text-xs font-black text-slate-900 block">
@@ -262,10 +262,10 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
               <div className="pt-3 border-t border-slate-200/80 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                    <Percent size={14} className="text-indigo-600" />
+                    <Percent size={14} className="text-emerald-600" />
                     <span>درصد تخفیف قابل تنظیم رسوب‌زدایی کالا در فاکتور:</span>
                   </label>
-                  <span className="text-xs font-mono font-black text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-200">
+                  <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
                     {sedimentDiscountPercent}٪ تخفیف
                   </span>
                 </div>
@@ -277,7 +277,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                     step="0.5"
                     value={sedimentDiscountPercent}
                     onChange={(e) => setSedimentDiscountPercent(e.target.value)}
-                    className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-xl font-mono text-sm font-black text-slate-900 outline-none focus:border-indigo-600"
+                    className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-xl font-mono text-sm font-black text-slate-900 outline-none focus:border-emerald-600"
                   />
                   <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
                     این درصد به عنوان تخفیف ویژه‌ی انباشت/رسوب کالا به صورت شفاف در خطوط فاکتور رسمی خریدار لحاظ و کسر می‌گردد.
@@ -292,10 +292,10 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <MapPin size={18} className="text-indigo-600" />
+              <MapPin size={18} className="text-emerald-600" />
               <h4 className="text-xs font-black text-slate-900">۳. محدوده جغرافیایی و استان‌های مجاز برای فروش</h4>
             </div>
-            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
               {allowAllProvinces ? "کل کشور (۳۱ استان)" : `${allowedProvinces.length} استان منتخب`}
             </span>
           </div>
@@ -308,7 +308,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                   name="provinceMode"
                   checked={allowAllProvinces}
                   onChange={() => setAllowAllProvinces(true)}
-                  className="w-4 h-4 text-indigo-600 cursor-pointer"
+                  className="w-4 h-4 text-emerald-600 cursor-pointer"
                 />
                 <span>ارسال و فروش به سراسر کشور (بدون محدودیت)</span>
               </label>
@@ -319,7 +319,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                   name="provinceMode"
                   checked={!allowAllProvinces}
                   onChange={() => setAllowAllProvinces(false)}
-                  className="w-4 h-4 text-indigo-600 cursor-pointer"
+                  className="w-4 h-4 text-emerald-600 cursor-pointer"
                 />
                 <span>محدود کردن فروش به استان‌های منتخب</span>
               </label>
@@ -333,7 +333,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                     <button
                       type="button"
                       onClick={handleSelectAllProvinces}
-                      className="text-indigo-600 hover:text-indigo-800 font-black text-[11px] cursor-pointer"
+                      className="text-emerald-600 hover:text-indigo-800 font-black text-[11px] cursor-pointer"
                     >
                       انتخاب همه
                     </button>
@@ -341,7 +341,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                     <button
                       type="button"
                       onClick={handleClearAllProvinces}
-                      className="text-slate-500 hover:text-rose-600 font-black text-[11px] cursor-pointer"
+                      className="text-slate-500 hover:text-emerald-600 font-black text-[11px] cursor-pointer"
                     >
                       پاک کردن
                     </button>
@@ -358,12 +358,12 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                         onClick={() => handleToggleProvince(prov)}
                         className={`p-2 rounded-xl text-xs font-bold text-right transition-all flex items-center justify-between cursor-pointer border ${
                           isSelected 
-                            ? "bg-indigo-50 border-indigo-300 text-indigo-900 font-black shadow-2xs" 
+                            ? "bg-emerald-50 border-indigo-300 text-indigo-900 font-black shadow-2xs" 
                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                       >
                         <span>{prov}</span>
-                        {isSelected && <CheckCircle2 size={14} className="text-indigo-600 shrink-0" />}
+                        {isSelected && <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />}
                       </button>
                     );
                   })}
@@ -376,7 +376,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
         {/* 4. Logistics & Loading Lead Time */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Truck size={18} className="text-indigo-600" />
+            <Truck size={18} className="text-emerald-600" />
             <h4 className="text-xs font-black text-slate-900">۴. شرایط لجستیک و زمان‌بندی بارگیری</h4>
           </div>
 
@@ -386,7 +386,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
               <select
                 value={loadingLeadTimeDays}
                 onChange={(e) => setLoadingLeadTimeDays(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 cursor-pointer"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 cursor-pointer"
               >
                 <option value="1">۱ روز کاری (بارگیری فوری)</option>
                 <option value="2">۲ روز کاری (استاندارد)</option>
@@ -403,7 +403,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 value={minOrderTotalAmount}
                 onChange={(e) => setMinOrderTotalAmount(e.target.value)}
                 placeholder="مثال: 50000000 (بدون محدودیت خالی بگذارید)"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
               />
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 type="checkbox"
                 checked={directPickupAllowed}
                 onChange={(e) => setDirectPickupAllowed(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
               <span className="text-xs font-bold text-slate-800">امکان بارگیری مستقیم توسط ناوگان حمل و نقل دست‌اول</span>
             </label>
@@ -424,7 +424,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
                 type="checkbox"
                 checked={autoAcceptOrders}
                 onChange={(e) => setAutoAcceptOrders(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
               <span className="text-xs font-bold text-slate-800">تایید خودکار صدور حواله برای سفارش‌های منطبق بر قیمت مصوب</span>
             </label>
@@ -436,7 +436,7 @@ export default function FactorySalesSettingsTab({ user, onUpdateUser }: FactoryS
           <button
             type="submit"
             disabled={isSaving}
-            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+            className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
           >
             <Save size={16} />
             <span>{isSaving ? "در حال ذخیره تنظیمات..." : "ذخیره تنظیمات فروش کارخانه"}</span>

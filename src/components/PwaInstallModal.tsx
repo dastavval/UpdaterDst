@@ -79,7 +79,7 @@ export default function PwaInstallModal({ isOpen, onClose, appName = "دست ا�
               <div>
                 <h3 className="text-base font-black text-slate-900 flex items-center gap-1.5">
                   <span>دانلود و نصب اپلیکیشن {appName}</span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black">PWA</span>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black">PWA</span>
                 </h3>
                 <p className="text-xs font-bold text-slate-500 mt-0.5">بدون نیاز به دانلود از بازار یا اپ‌استور (سرعت بالا + کارکرد آفلاین)</p>
               </div>
@@ -119,7 +119,7 @@ export default function PwaInstallModal({ isOpen, onClose, appName = "دست ا�
                   <span>سازگار کامل با iOS و آیفون</span>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center gap-2 text-slate-700">
-                  <Monitor className="text-indigo-600 shrink-0" size={18} />
+                  <Monitor className="text-emerald-600 shrink-0" size={18} />
                   <span>اجرا روی اندروید و دسکتاپ</span>
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function PwaInstallModal({ isOpen, onClose, appName = "دست ا�
               {deferredPrompt && (
                 <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 text-center space-y-3">
                   <div className="flex items-center justify-center gap-2 text-emerald-800 text-xs font-black">
-                    <Sparkles size={16} className="text-amber-500" />
+                    <Sparkles size={16} className="text-emerald-500" />
                     <span>مرورگر شما آماده نصب خودکار برنامه است!</span>
                   </div>
                   <button
@@ -145,20 +145,20 @@ export default function PwaInstallModal({ isOpen, onClose, appName = "دست ا�
               {isIOS && (
                 <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
                   <h4 className="text-xs font-black text-slate-900 flex items-center gap-2 border-b border-slate-200/80 pb-2">
-                    <Share2 size={16} className="text-indigo-600" />
+                    <Share2 size={16} className="text-emerald-600" />
                     <span>راهنمای نصب اختصاصی روی آیفون و آیپد (iOS):</span>
                   </h4>
                   <ol className="space-y-2.5 text-xs text-slate-700 font-bold">
                     <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">۱</span>
-                      <span>در مرورگر Safari، دکمه <strong className="text-indigo-700">Share (اشتراک‌گذاری)</strong> را در نوار پایینی لمس کنید.</span>
+                      <span className="w-5 h-5 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">۱</span>
+                      <span>در مرورگر Safari، دکمه <strong className="text-emerald-700">Share (اشتراک‌گذاری)</strong> را در نوار پایینی لمس کنید.</span>
                     </li>
                     <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">۲</span>
-                      <span>در منوی بازشده، گزینه <strong className="text-indigo-700">Add to Home Screen (افزودن به صفحه اصلی)</strong> را انتخاب کنید.</span>
+                      <span className="w-5 h-5 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">۲</span>
+                      <span>در منوی بازشده، گزینه <strong className="text-emerald-700">Add to Home Screen (افزودن به صفحه اصلی)</strong> را انتخاب کنید.</span>
                     </li>
                     <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">۳</span>
+                      <span className="w-5 h-5 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">۳</span>
                       <span>در بالای صفحه سمت راست، روی دکمه <strong className="text-emerald-700">Add (افزودن)</strong> بزنید.</span>
                     </li>
                   </ol>

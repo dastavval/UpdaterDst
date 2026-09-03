@@ -65,7 +65,18 @@ export default function LiveWholesaleMarketTicker({
 
     // 1. PRODUCTS (کالای عمده کارخانه)
     if (products && products.length > 0) {
-      const activeProducts = products.filter(p => !p.disabled);
+      const activeProducts = products.filter(p => {
+        if (!p) return false;
+        const isProdDisabled = p.disabled === true || 
+          (p as any).is_active === false || 
+          (p as any).active === false || 
+          (p as any).isActive === false || 
+          (p as any).status === 'inactive' || 
+          (p as any).status === 'disabled' ||
+          String(p.disabled) === 'true' ||
+          String(p.disabled) === '1';
+        return !isProdDisabled;
+      });
       activeProducts.slice(0, 6).forEach((prod, index) => {
         const pricing = getProductRolePricing(prod, userBadge);
         const packCount = prod.carton_pack_count || 24;
@@ -104,13 +115,13 @@ export default function LiveWholesaleMarketTicker({
           tag: "آگهی فوری",
           type: "ad",
           targetTab: "billboard",
-          badgeBg: "bg-amber-100 border-amber-300 text-amber-900"
+          badgeBg: "bg-emerald-100 border-amber-300 text-amber-900"
         });
       });
     } else {
       items.push(
-        { id: "fb-ad1", title: "حراج ۱,۰۰۰ کارتن رب گوجه فرنگی", value: "کف قیمت کارخانه ۵٪ زیر بازار", change: "📢 مشاهده آگهی در تالار عرضه بار", tag: "آگهی فوری", type: "ad", targetTab: "billboard", badgeBg: "bg-amber-100 border-amber-300 text-amber-900" },
-        { id: "fb-ad2", title: "واگذاری فوری ۵۰۰ کارتن تن ماهی جنوب", value: "حراج نقدی امانی با ضمانت پلتفرم", change: "📢 مشاهده آگهی در تالار عرضه بار", tag: "آگهی فوری", type: "ad", targetTab: "billboard", badgeBg: "bg-amber-100 border-amber-300 text-amber-900" }
+        { id: "fb-ad1", title: "حراج ۱,۰۰۰ کارتن رب گوجه فرنگی", value: "کف قیمت کارخانه ۵٪ زیر بازار", change: "📢 مشاهده آگهی در تالار عرضه بار", tag: "آگهی فوری", type: "ad", targetTab: "billboard", badgeBg: "bg-emerald-100 border-amber-300 text-amber-900" },
+        { id: "fb-ad2", title: "واگذاری فوری ۵۰۰ کارتن تن ماهی جنوب", value: "حراج نقدی امانی با ضمانت پلتفرم", change: "📢 مشاهده آگهی در تالار عرضه بار", tag: "آگهی فوری", type: "ad", targetTab: "billboard", badgeBg: "bg-emerald-100 border-amber-300 text-amber-900" }
       );
     }
 
@@ -125,7 +136,7 @@ export default function LiveWholesaleMarketTicker({
           tag: "کارخانه",
           type: "factory",
           targetTab: "factories",
-          badgeBg: "bg-indigo-100 border-indigo-300 text-indigo-900"
+          badgeBg: "bg-emerald-100 border-indigo-300 text-indigo-900"
         });
       });
     }
@@ -171,7 +182,7 @@ export default function LiveWholesaleMarketTicker({
         tag: "اعتبار چکی",
         type: "promo",
         targetTab: "order",
-        badgeBg: "bg-rose-100 border-rose-300 text-rose-900"
+        badgeBg: "bg-emerald-100 border-rose-300 text-rose-900"
       }
     );
 
@@ -200,7 +211,7 @@ export default function LiveWholesaleMarketTicker({
             {[...tickerItems, ...tickerItems].map((item, idx) => (
               <div 
                 key={`${item.id}-${idx}`}
-                className="inline-flex items-center gap-2 text-slate-700 hover:text-indigo-950 transition-colors cursor-pointer group bg-slate-50 hover:bg-amber-50/90 px-3 py-1 rounded-xl border border-slate-200/80 shadow-2xs text-[11px]"
+                className="inline-flex items-center gap-2 text-slate-700 hover:text-indigo-950 transition-colors cursor-pointer group bg-slate-50 hover:bg-emerald-50/90 px-3 py-1 rounded-xl border border-slate-200/80 shadow-2xs text-[11px]"
                 onClick={(e) => {
                   try {
                     e.stopPropagation();
@@ -227,7 +238,7 @@ export default function LiveWholesaleMarketTicker({
                   }
                 }}
               >
-                <span className={`text-[10px] px-2 py-0.5 rounded-lg font-black border ${item.badgeBg || "bg-amber-100 text-amber-900 border-amber-300"}`}>
+                <span className={`text-[10px] px-2 py-0.5 rounded-lg font-black border ${item.badgeBg || "bg-emerald-100 text-amber-900 border-amber-300"}`}>
                   {item.tag}
                 </span>
                 <span className="font-bold text-slate-900">{item.title}:</span>

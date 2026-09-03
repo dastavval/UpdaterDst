@@ -6,7 +6,7 @@ import {
   X, Printer, Bell, TrendingDown, Truck, Activity, Loader2, Plus, 
   RefreshCw, Award, DollarSign, Percent, Share2, Copy, Check, Briefcase, 
   Users, Target, TrendingUp, Download, Eye, Gift, Factory, Megaphone, 
-  ShieldAlert, Layers, Box, CheckCircle, ExternalLink, Calendar
+  ShieldAlert, Layers, Box, CheckCircle, ExternalLink, Calendar, Heart, Compass
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, serverTimestamp } from "../lib/data-layer";
@@ -18,10 +18,16 @@ import ConfirmModal from "./ConfirmModal";
 import { generateProductCode } from "../lib/id-utils";
 import FactoryManagementPortal from "./FactoryManagementPortal";
 import RepresentativeManagementPortal from "./RepresentativeManagementPortal";
+import IranProvinceOrdersMapWidget from "./IranProvinceOrdersMapWidget";
 import { getRepCommissions } from "../lib/leads-store";
 import { ReferralRewardModal } from "./ReferralRewardModal";
 import LoyaltyRewardsClub from "./LoyaltyRewardsClub";
+import MyAdsManager from "./MyAdsManager";
 import { getLoyaltySummary } from "../lib/loyalty-store";
+import { ResilientVault } from "../lib/resilient-storage";
+import { getUserReferralProfile } from "../lib/referral-system";
+import ProfileScoreCard from "./ProfileScoreCard";
+import RoleSelectionModal from "./RoleSelectionModal";
 
 interface UserPanelProps {
   user: any;
@@ -56,17 +62,20 @@ export default function UserPanel({
   setCurrentSeller,
   onRefreshProducts
 }: UserPanelProps) {
-  const userRole = user?.role || 'customer';
+  const userRole = (user?.role || 'customer').toLowerCase();
 
   // Role-specific Active Tab
-  const [factoryTab, setFactoryTab] = useState<'products' | 'add_product' | 'orders' | 'profile'>('products');
-  const [marketerTab, setMarketerTab] = useState<'desk' | 'payout' | 'certificate' | 'referred_orders' | 'profile'>('desk');
-  const [customerTab, setCustomerTab] = useState<'orders' | 'loyalty' | 'quick_order' | 'credit' | 'referrals' | 'profile'>('orders');
+  const [factoryTab, setFactoryTab] = useState<'products' | 'add_product' | 'orders' | 'profile' | 'ads'>('products');
+  const [marketerTab, setMarketerTab] = useState<'desk' | 'payout' | 'certificate' | 'referred_orders' | 'profile' | 'ads'>('desk');
+  const [customerTab, setCustomerTab] = useState<'orders' | 'loyalty' | 'quick_order' | 'wishlist' | 'credit' | 'referrals' | 'profile' | 'ads' | 'coverage_map'>(userRole === 'ad_poster' ? 'ads' : 'orders');
+
 
   // Selected Order for Invoice modal
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showProvinceMapModal, setShowProvinceMapModal] = useState(false);
 
   // Orders State
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -74,6 +83,9 @@ export default function UserPanel({
 
   // Price Alerts State
   const [priceAlerts, setPriceAlerts] = useState<any[]>([]);
+
+  // Wishlist / Saved Items State
+  const [wishlist, setWishlist] = useState<string[]>([]);
 
   // Profile Form States
   const [name, setName] = useState(user?.name || "");
@@ -86,6 +98,38 @@ export default function UserPanel({
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const referralProfile = useMemo(() => getUserReferralProfile(user), [user]);
+
+  const handleDeleteAccount = async () => {
+    const confirmDelete = window.confirm(
+      "آیا از حذف کامل و دائم حساب کاربری خود اطمینان دارید؟ تمامی اطلاعات، سفارشات و دسترسی‌های شما پاک می‌شوند و این عملیات قابل بازگشت نیست."
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setIsSaving(true);
+      if (db && user?.id) {
+        try {
+          await deleteDoc(doc(db, "users", user.id));
+        } catch (e) {
+          console.warn("Could not delete firestore user document:", e);
+        }
+      }
+      localStorage.removeItem("dastavval_user");
+      localStorage.removeItem("dastavval_user_role");
+      localStorage.removeItem("dastavval_user_phone");
+      localStorage.removeItem("dastavval_remember_me");
+      
+      alert("حساب کاربری شما با موفقیت و برای همیشه حذف گردید.");
+      onLogout();
+    } catch (err) {
+      console.error("Account deletion failed:", err);
+      onLogout();
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Marketer Referral State
   const [copiedReferral, setCopiedReferral] = useState(false);
@@ -209,6 +253,7 @@ export default function UserPanel({
     const addUnique = (list: any[]) => {
       if (!Array.isArray(list)) return;
       for (const item of list) {
+        if (!item) continue;
         const id = item.id || item.trackingNumber || `ord_${Math.random()}`;
         if (!seenIds.has(id)) {
           seenIds.add(id);
@@ -217,7 +262,13 @@ export default function UserPanel({
       }
     };
 
-    // 1. Fetch from Firestore
+    // 1. Fetch from ResilientVault
+    try {
+      const vaultOrders = await ResilientVault.getOrders();
+      addUnique(vaultOrders);
+    } catch (e) {}
+
+    // 2. Fetch from Firestore
     try {
       const q = query(collection(db, "orders"));
       const snap = await getDocs(q);
@@ -227,15 +278,22 @@ export default function UserPanel({
       console.warn("Firestore orders fetch notice in UserPanel:", e);
     }
 
-    // 2. Fetch from local cache & storage
+    // 3. Fetch from local caches & user-specific order storage
     try {
-      const local = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
-      const raw = JSON.parse(localStorage.getItem("dastavval_raw_orders") || "[]");
-      addUnique(local);
-      addUnique(raw);
+      const keys = ["dastavval_orders_cache", "dastavval_wholesale_orders", "dastavval_raw_orders"];
+      keys.forEach(k => {
+        const raw = localStorage.getItem(k);
+        if (raw) addUnique(JSON.parse(raw));
+      });
+
+      const userPhone = user?.phone || user?.mobile || user?.username;
+      if (userPhone) {
+        const uOrders = localStorage.getItem(`dastavval_user_orders_${userPhone}`);
+        if (uOrders) addUnique(JSON.parse(uOrders));
+      }
     } catch (err) {}
 
-    // 3. Always fetch from backend API endpoint to ensure all persistent server orders are loaded
+    // 4. Always fetch from backend API endpoint to ensure all persistent server orders are loaded
     try {
       const res = await fetch("/api/b2b/orders");
       if (res.ok) {
@@ -260,6 +318,34 @@ export default function UserPanel({
     };
   }, [user]);
 
+  // Load and sync wishlist
+  const loadWishlist = () => {
+    try {
+      const saved = localStorage.getItem("dastavval_wishlist");
+      if (saved) {
+        setWishlist(JSON.parse(saved));
+      } else {
+        setWishlist([]);
+      }
+    } catch (e) {
+      setWishlist([]);
+    }
+  };
+
+  useEffect(() => {
+    loadWishlist();
+    window.addEventListener("dastavval-wishlist-changed", loadWishlist);
+    return () => {
+      window.removeEventListener("dastavval-wishlist-changed", loadWishlist);
+    };
+  }, []);
+
+  // Filter products in wishlist
+  const savedProducts = useMemo(() => {
+    if (!Array.isArray(products)) return [];
+    return products.filter(p => p && p.id && wishlist.includes(p.id));
+  }, [products, wishlist]);
+
   // Filter Factory Orders (Strictly orders containing this factory's products)
   const factoryOrders = useMemo(() => {
     if (!user || userRole !== 'factory') return [];
@@ -283,7 +369,7 @@ export default function UserPanel({
       if (!num) return "";
       let cleaned = String(num)
         .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
-        .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٥٦٧٨٩".indexOf(d)])
+        .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
         .replace(/\D/g, "");
       if (cleaned.length >= 10) {
         return cleaned.slice(-10);
@@ -291,6 +377,7 @@ export default function UserPanel({
       return cleaned;
     };
 
+    const userPhone = user.phone || user.mobile || user.username || "";
     const userPhoneSuffixes = [
       extract10DigitSuffix(user.phone),
       extract10DigitSuffix(user.mobile),
@@ -308,48 +395,75 @@ export default function UserPanel({
 
     return allOrders.filter(orderItem => {
       const order = orderItem as any;
-      // 1. Match by explicit user ID or username
+      // 1. Match by explicit user ID or username or phone ID
       if (order.userId && uId && String(order.userId) === uId) return true;
-      if (order.username && user.username && String(order.username) === String(user.username)) return true;
-      
+      if (order.userId && userPhone && String(order.userId) === String(userPhone)) return true;
+      if (order.username && (user.username || userPhone) && (String(order.username) === String(user.username) || String(order.username) === String(userPhone))) return true;
+      if (order.autoCreatedAccount?.username && (user.username || userPhone) && (String(order.autoCreatedAccount.username) === String(user.username) || String(order.autoCreatedAccount.username) === String(userPhone))) return true;
+
       const buyerPhoneRaw = order.buyerPhone || order.customerPhone || order.phone || order.mobile || order.userPhone || order.buyerInfo?.phone || order.buyerInfo?.mobile || "";
       const buyerSuffix = extract10DigitSuffix(buyerPhoneRaw);
       
       // 2. Match by verified phone number (last 7+ digits comparison)
       if (buyerSuffix && userPhoneSuffixes.some(p => p === buyerSuffix || (p.length >= 7 && buyerSuffix.endsWith(p)) || (p.length >= 7 && p.endsWith(buyerSuffix)) || (p.length >= 7 && buyerSuffix.includes(p)))) return true;
       
-      // 3. Match by verified email address
+      // 3. Direct phone string inclusion fallback
+      if (userPhone && buyerPhoneRaw && (String(buyerPhoneRaw).includes(String(userPhone)) || String(userPhone).includes(String(buyerPhoneRaw)))) return true;
+
+      // 4. Match by verified email address
       const buyerE = (order.buyerEmail || order.email || "").trim().toLowerCase();
       if (uEmail && buyerE === uEmail) return true;
 
-      // 4. Match by buyer name or company
+      // 5. Match by buyer name or company
       const buyerN = (order.buyerName || order.customerName || order.buyerInfo?.name || "").trim().toLowerCase();
       const buyerC = (order.buyerCompany || "").trim().toLowerCase();
       if (uName && uName.length >= 3 && buyerN && (buyerN.includes(uName) || uName.includes(buyerN))) return true;
       if (uCompany && uCompany.length >= 3 && buyerC && (buyerC.includes(uCompany) || uCompany.includes(buyerC))) return true;
 
-      // 5. Match by session order tracking number (if placed in same browser session prior to registration)
+      // 6. Match by session order tracking number or last order ID
       try {
         const lastOrderTrack = localStorage.getItem("dastavval_last_order_tracking");
+        const lastOrderId = localStorage.getItem("dastavval_last_order_id");
         if (lastOrderTrack && (order.id === lastOrderTrack || order.trackingNumber === lastOrderTrack)) return true;
+        if (lastOrderId && (order.id === lastOrderId || order.trackingNumber === lastOrderId)) return true;
       } catch (e) {}
+
+      // 7. Fallback for customer role if this is a newly created order in local session
+      if (userRole === 'customer' || !userRole) {
+        if (buyerPhoneRaw && userPhoneSuffixes.length > 0) return true;
+      }
 
       return false;
     });
   }, [allOrders, user]);
 
-  // Filter Factory Products
+  // Filter Factory Products strictly
   const factoryProducts = useMemo(() => {
     if (!user || userRole !== 'factory') return [];
-    const compName = (user.company || user.name || "").toLowerCase().trim();
+    const compName = (user.company || "").toLowerCase().trim();
+    const GENERIC_NAMES = [
+      "کارخانه تولیدی",
+      "فروشگاه پخش",
+      "دست اول",
+      "تولیدی",
+      "کارخانه",
+      "فروشگاه همکار",
+      "فروشگاه همکار (ثبت نام آنی)",
+      "مجموعه همکار",
+      "خریدار عمده"
+    ];
+    const isGenericComp = !compName || compName.length < 3 || GENERIC_NAMES.some(g => g.toLowerCase() === compName);
+
     return products.filter(p => {
       const pFactory = (p.factoryName || p.factory_name || p.brand || p.sellerName || "").toLowerCase().trim();
-      const pSellerId = p.sellerId || "";
-      return (
-        (compName && (pFactory.includes(compName) || compName.includes(pFactory))) ||
-        (user.id && pSellerId === user.id) ||
-        (user.factoryCode && pSellerId === user.factoryCode)
-      );
+      const pSellerId = (p.sellerId || "").toLowerCase().trim();
+      const uId = (user.id || "").toLowerCase().trim();
+      const fCode = (user.factoryCode || "").toLowerCase().trim();
+
+      if (fCode && pSellerId === fCode) return true;
+      if (uId && pSellerId === uId) return true;
+      if (!isGenericComp && pFactory && (pFactory === compName || (pFactory.length >= 4 && pFactory.includes(compName)))) return true;
+      return false;
     });
   }, [products, user, userRole]);
 
@@ -553,9 +667,9 @@ export default function UserPanel({
   const getBadgeInfo = (badge?: string) => {
     switch (badge) {
       case 'vip': return { label: "همکار VIP (۱۰٪ تخفیف پلکانی)", color: "bg-purple-100 text-purple-800 border-purple-200" };
-      case 'gold': return { label: "همکار طلایی (۷٪ تخفیف پلکانی)", color: "bg-amber-100 text-amber-800 border-amber-200" };
+      case 'gold': return { label: "همکار طلایی (۷٪ تخفیف پلکانی)", color: "bg-emerald-100 text-amber-800 border-emerald-200" };
       case 'silver': return { label: "همکار نقره‌ای (۴٪ تخفیف پلکانی)", color: "bg-slate-100 text-slate-800 border-slate-200" };
-      default: return { label: "همکار برنزی دست‌اول", color: "bg-emerald-100 text-emerald-800 border-emerald-200" };
+      default: return { label: "همکار برنزی دست‌اول", color: "bg-emerald-600 text-white border-emerald-200" };
     }
   };
 
@@ -563,17 +677,17 @@ export default function UserPanel({
     <div className="max-w-6xl mx-auto space-y-6 text-right font-sans" dir="rtl">
       
       {/* ========================================================================= */}
-      {/* 1. TOP HEADER BANNER - CLEAN WHITE THEME                                  */}
+      {/* 1. TOP HEADER BANNER - COHESIVE & ELEGANT USER CARD                      */}
       {/* ========================================================================= */}
-      <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs relative overflow-hidden">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
-          
-          <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0 border ${
-              userRole === 'factory' ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
-              userRole === 'representative' ? "bg-blue-50 text-blue-700 border-blue-200" :
-              (userRole === 'agent' || userRole === 'marketer') ? "bg-amber-50 text-amber-700 border-amber-200" :
-              "bg-emerald-50 text-emerald-700 border-emerald-200"
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs relative overflow-hidden space-y-4">
+        {/* Profile Info Row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0 border shadow-3xs ${
+              userRole === 'factory' ? "bg-emerald-600 text-white border-emerald-700" :
+              userRole === 'representative' ? "bg-blue-600 text-white border-blue-700" :
+              (userRole === 'agent' || userRole === 'marketer') ? "bg-amber-600 text-white border-amber-700" :
+              "bg-emerald-600 text-white border-emerald-700"
             }`}>
               {
                 userRole === 'factory' ? '🏭' : 
@@ -582,41 +696,41 @@ export default function UserPanel({
               }
             </div>
             
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black text-slate-900">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base sm:text-lg font-black text-slate-900 truncate">
                   {user?.company || user?.name || "کاربر گرامی"}
                 </h1>
                 
                 {/* Role Badge */}
                 {userRole === 'factory' ? (
-                  <span className="text-[11px] px-3 py-0.5 rounded-full font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                     🏬 کارخانه و واحد تولیدی رسمی
                   </span>
                 ) : userRole === 'representative' ? (
-                  <span className="text-[11px] px-3 py-0.5 rounded-full font-black bg-blue-100 text-blue-900 border border-blue-200">
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-blue-50 text-blue-800 border border-blue-200/80">
                     🏢 عاملیت انحصاری و نمایندگی استانی
                   </span>
                 ) : (userRole === 'agent' || userRole === 'marketer') ? (
-                  <span className="text-[11px] px-3 py-0.5 rounded-full font-black bg-amber-100 text-amber-900 border border-amber-200">
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-amber-50 text-amber-800 border border-amber-200/80">
                     📢 نماینده رسمی بازاریابی و فروش
                   </span>
                 ) : (
-                  <span className={`text-[11px] px-3 py-0.5 rounded-full font-black border ${getBadgeInfo(user?.badge).color}`}>
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border ${getBadgeInfo(user?.badge).color}`}>
                     {getBadgeInfo(user?.badge).label}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-500 font-bold flex-wrap">
-                <span>مسئول: {user?.name || "مدیریت"}</span>
-                <span>•</span>
-                <span>کد شناسایی: {user?.factoryCode || user?.agencyCode || user?.customerCode || user?.userCode || "USR-1001"}</span>
+              <div className="flex items-center gap-2.5 text-xs text-slate-500 font-bold flex-wrap">
+                <span>مسئول: <strong className="text-slate-700">{user?.name || "مدیریت"}</strong></span>
+                <span className="text-slate-300">•</span>
+                <span>کد: <strong className="text-slate-700 dir-ltr">{user?.factoryCode || user?.agencyCode || user?.customerCode || user?.userCode || "USR-1001"}</strong></span>
                 {user?.city && (
                   <>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <MapPin size={13} className="text-slate-400" />
+                    <span className="text-slate-300">•</span>
+                    <span className="flex items-center gap-1 text-slate-600">
+                      <MapPin size={12} className="text-slate-400" />
                       {user.city}
                     </span>
                   </>
@@ -624,23 +738,20 @@ export default function UserPanel({
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
-            {(userRole === 'customer' || userRole === 'user') && (() => {
-              const loyaltySum = getLoyaltySummary(user?.phone || user?.mobile || user?.id || "guest", allOrders);
-              return (
-                <button
-                  type="button"
-                  onClick={() => setCustomerTab('loyalty')}
-                  className="px-3.5 py-2.5 bg-gradient-to-r from-amber-500/10 via-amber-400/20 to-amber-500/10 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-                >
-                  <span className="p-1 rounded-lg bg-amber-500 text-white shadow-xs">
-                    <Award size={13} />
-                  </span>
-                  <span>باشگاه مشتریان: <strong className="font-sans font-black text-amber-700">{toPersianNum(loyaltySum.currentPoints)}</strong> امتیاز ({loyaltySum.tierLabel})</span>
-                </button>
-              );
-            })()}
+        {/* Cohesive Action Toolbar */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+          {/* Primary Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowRoleModal(true)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+            >
+              <Sparkles size={14} />
+              <span>ارتقای نقش / تکمیل پروفایل</span>
+            </button>
 
             <button
               type="button"
@@ -651,31 +762,79 @@ export default function UserPanel({
                   setShowReferralModal(true);
                 }
               }}
-              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shadow-amber-500/20 active:scale-95"
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <Gift size={15} />
-              <span>دعوت از همکاران (پاداش خرید)</span>
+              <Gift size={14} />
+              <span>دعوت از همکاران (پاداش)</span>
             </button>
 
             <button
-              onClick={() => setActiveTab('order')}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer"
+              type="button"
+              onClick={() => setShowProvinceMapModal(true)}
+              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200/80 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
+              title="مشاهده نقشه تعاملی توزیع سفارشات و مناطق تحت پوشش ۳۱ استان"
             >
-              <ShoppingBag size={15} />
+              <Compass size={14} className="text-blue-600" />
+              <span>🗺️ نقشه سفارشات ۳۱ استان</span>
+            </button>
+
+            {(userRole === 'customer' || userRole === 'user') && (() => {
+              const loyaltySum = getLoyaltySummary(user?.phone || user?.mobile || user?.id || "guest", allOrders);
+              return (
+                <button
+                  type="button"
+                  onClick={() => setCustomerTab('loyalty')}
+                  className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Award size={14} className="text-amber-600" />
+                  <span>باشگاه مشتریان: <strong className="font-sans font-black text-amber-700">{toPersianNum(loyaltySum.currentPoints)}</strong> امتیاز</span>
+                </button>
+              );
+            })()}
+          </div>
+
+          {/* Secondary Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('order')}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <ShoppingBag size={14} />
               <span>ویترین کالاها</span>
             </button>
 
             <button
               onClick={onLogout}
-              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <LogOut size={15} />
-              <span>خروج از حساب</span>
+              <LogOut size={14} />
+              <span>خروج</span>
+            </button>
+
+            <button
+              onClick={handleDeleteAccount}
+              className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer"
+              title="حذف کامل حساب کاربری"
+            >
+              <Trash2 size={14} />
             </button>
           </div>
-
         </div>
       </div>
+
+      {/* Gamified Profile Score Card & Credit Level */}
+      <ProfileScoreCard
+        user={user}
+        onOpenEditProfile={() => {
+          if (userRole === 'factory') setFactoryTab('profile');
+          else if (userRole === 'representative') setCustomerTab('profile');
+          else if (userRole === 'agent' || userRole === 'marketer') setMarketerTab('profile');
+          else setCustomerTab('profile');
+        }}
+        onChangeRole={() => setShowRoleModal(true)}
+      />
+
+
 
       {/* ========================================================================= */}
       {/* 2. DEDICATED PORTAL 1: FACTORY DASHBOARD (کارخانه و تولیدکننده)          */}
@@ -725,7 +884,7 @@ export default function UserPanel({
               onClick={() => setMarketerTab('desk')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 marketerTab === 'desk'
-                  ? "bg-amber-600 text-white shadow-xs"
+                  ? "bg-emerald-600 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
@@ -737,7 +896,7 @@ export default function UserPanel({
               onClick={() => setMarketerTab('payout')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 marketerTab === 'payout'
-                  ? "bg-amber-600 text-white shadow-xs"
+                  ? "bg-emerald-600 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
@@ -756,10 +915,22 @@ export default function UserPanel({
             )}
 
             <button
+              onClick={() => setMarketerTab('ads')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                marketerTab === 'ads'
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              <Megaphone size={16} />
+              <span>آگهی‌های من</span>
+            </button>
+
+            <button
               onClick={() => setMarketerTab('profile')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 marketerTab === 'profile'
-                  ? "bg-amber-600 text-white shadow-xs"
+                  ? "bg-emerald-600 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
@@ -775,7 +946,7 @@ export default function UserPanel({
               {/* Referral Link Generator Box */}
               <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 bg-emerald-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
                     🔗
                   </div>
                   <div>
@@ -789,12 +960,12 @@ export default function UserPanel({
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                   <div className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-xs font-mono font-bold text-slate-800 text-left flex items-center justify-between overflow-x-auto">
                     <span>{referralUrl}</span>
-                    <span className="text-[10px] text-amber-700 font-black bg-amber-100 px-2 py-0.5 rounded-md ml-2 shrink-0">کد: {referralCode}</span>
+                    <span className="text-[10px] text-amber-700 font-black bg-emerald-100 px-2 py-0.5 rounded-md ml-2 shrink-0">کد: {referralCode}</span>
                   </div>
                   
                   <button
                     onClick={handleCopyReferral}
-                    className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0"
+                    className="px-6 py-3 bg-emerald-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0"
                   >
                     {copiedReferral ? <Check size={16} /> : <Copy size={16} />}
                     <span>{copiedReferral ? "کپی شد!" : "کپی لینک بازاریابی"}</span>
@@ -819,7 +990,7 @@ export default function UserPanel({
                 <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
                   <span className="text-xs font-bold text-slate-500">حجم کل فروش ارجاعی:</span>
                   <div className="text-xl font-black text-slate-900">{toPersianNum(marketerReferredVolume.toLocaleString('fa-IR'))} تومان</div>
-                  <span className="text-[10px] text-indigo-700 font-black bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
+                  <span className="text-[10px] text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
                     نرخ پورسانت: ۲.۵٪ خالص
                   </span>
                 </div>
@@ -839,7 +1010,7 @@ export default function UserPanel({
               {/* Referred Orders Breakdown / Empty State */}
               {marketerReferredOrders.length === 0 ? (
                 <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto text-xl">
                     📊
                   </div>
                   <h4 className="text-sm font-black text-slate-800">
@@ -853,7 +1024,7 @@ export default function UserPanel({
                 <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                      <FileText size={16} className="text-amber-600" />
+                      <FileText size={16} className="text-emerald-600" />
                       <span>لیست فاکتورهای ارجاع شده ({toPersianNum(marketerReferredOrders.length)} مورد)</span>
                     </h4>
                     <span className="text-xs text-slate-500 font-bold">مجموع پورسانت: {toPersianNum(totalMarketerCommission.toLocaleString('fa-IR'))} تومان</span>
@@ -880,7 +1051,7 @@ export default function UserPanel({
                               <td className="py-3 font-mono font-bold text-slate-900">{toPersianNum(ordTotal.toLocaleString('fa-IR'))} تومان</td>
                               <td className="py-3 font-mono font-bold text-emerald-600">+{toPersianNum(comm.toLocaleString('fa-IR'))} تومان</td>
                               <td className="py-3">
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">تایید شده</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white">تایید شده</span>
                               </td>
                             </tr>
                           );
@@ -898,7 +1069,7 @@ export default function UserPanel({
           {marketerTab === 'payout' && (
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
+                <div className="w-12 h-12 bg-emerald-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
                   💰
                 </div>
                 <div>
@@ -910,7 +1081,7 @@ export default function UserPanel({
               </div>
 
               {settlementSuccess && (
-                <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+                <div className="bg-emerald-600 text-white p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
                   <CheckCircle2 size={16} className="text-emerald-600" />
                   <span>{settlementSuccess}</span>
                 </div>
@@ -926,7 +1097,7 @@ export default function UserPanel({
                       value={settlementAmount}
                       onChange={(e) => setSettlementAmount(e.target.value)}
                       placeholder="مثال: 3000000"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -937,7 +1108,7 @@ export default function UserPanel({
                       required
                       value={iban || "IR120170000000123456789012"}
                       onChange={(e) => setIban(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-mono font-bold text-slate-900 text-left"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-mono font-bold text-slate-900 text-left"
                     />
                   </div>
                 </div>
@@ -945,7 +1116,7 @@ export default function UserPanel({
                 <div className="flex justify-end pt-2">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-xs"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-xs"
                   >
                     <DollarSign size={16} />
                     <span>ثبت درخواست واریز پورسانت</span>
@@ -966,7 +1137,7 @@ export default function UserPanel({
                           <span className="font-black text-slate-900">{toPersianNum(p.amount?.toLocaleString('fa-IR'))} تومان</span>
                           <span className="text-[10px] text-slate-400 font-bold block">{p.date} - شبا: {p.iban}</span>
                         </div>
-                        <span className="text-[10px] font-black bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full">
+                        <span className="text-[10px] font-black bg-emerald-100 text-amber-900 px-2.5 py-1 rounded-full">
                           {p.status}
                         </span>
                       </div>
@@ -981,7 +1152,7 @@ export default function UserPanel({
           {marketerTab === 'profile' && (
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
+                <div className="w-12 h-12 bg-emerald-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
                   👤
                 </div>
                 <div>
@@ -993,7 +1164,7 @@ export default function UserPanel({
               </div>
 
               {successMsg && (
-                <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+                <div className="bg-emerald-600 text-white p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
                   <CheckCircle2 size={16} className="text-emerald-600" />
                   <span>{successMsg}</span>
                 </div>
@@ -1008,7 +1179,7 @@ export default function UserPanel({
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -1019,7 +1190,7 @@ export default function UserPanel({
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-mono font-bold text-slate-900 text-left"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-mono font-bold text-slate-900 text-left"
                     />
                   </div>
 
@@ -1030,7 +1201,7 @@ export default function UserPanel({
                       required
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -1040,7 +1211,7 @@ export default function UserPanel({
                       type="text"
                       value={iban}
                       onChange={(e) => setIban(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-amber-600 text-xs font-mono font-bold text-slate-900 text-left"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-mono font-bold text-slate-900 text-left"
                     />
                   </div>
                 </div>
@@ -1049,7 +1220,7 @@ export default function UserPanel({
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-sm"
                   >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                     <span>ذخیره تغییرات</span>
@@ -1076,7 +1247,7 @@ export default function UserPanel({
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black">
                     ارتقای پنل کاربری
                   </span>
                   <span className="text-[11px] font-black text-slate-700">سوئیچ به پنل نمایندگان رسمی</span>
@@ -1099,64 +1270,113 @@ export default function UserPanel({
 
           {/* Sub-Tab Navigation Bar */}
           <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-2xs flex items-center gap-1.5 overflow-x-auto">
+            {userRole !== 'ad_poster' && (
+              <button
+                onClick={() => setCustomerTab('orders')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  customerTab === 'orders'
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <ShoppingBag size={16} />
+                <span>سفارشات و فاکتورهای من ({toPersianNum(customerOrders.length)})</span>
+              </button>
+            )}
+
+            {userRole !== 'ad_poster' && (
+              <button
+                onClick={() => setCustomerTab('loyalty')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  customerTab === 'loyalty'
+                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xs"
+                    : "text-amber-800 bg-emerald-50/70 hover:bg-emerald-100/70 hover:text-amber-900"
+                }`}
+              >
+                <Award size={16} className={customerTab === 'loyalty' ? 'text-emerald-100' : 'text-emerald-600'} />
+                <span>باشگاه مشتریان و امتیازها</span>
+              </button>
+            )}
+
+            {userRole !== 'ad_poster' && (
+              <button
+                onClick={() => setCustomerTab('quick_order')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  customerTab === 'quick_order'
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <TrendingDown size={16} />
+                <span>سفارش‌گیری سریع و هشدارهای قیمت</span>
+              </button>
+            )}
+
+            {userRole !== 'ad_poster' && (
+              <button
+                onClick={() => setCustomerTab('wishlist')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  customerTab === 'wishlist'
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <Heart size={16} className={customerTab === 'wishlist' ? "fill-white text-white" : "text-rose-500"} />
+                <span>کالاهای نشان‌شده ({toPersianNum(savedProducts.length)})</span>
+              </button>
+            )}
+
+            {userRole !== 'ad_poster' && (
+              <button
+                onClick={() => setCustomerTab('credit')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  customerTab === 'credit'
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <CreditCard size={16} />
+                <span>اعتبار خرید و چک‌های ثبت شده</span>
+              </button>
+            )}
+
+            {userRole !== 'ad_poster' && (
+              <button
+                onClick={() => setCustomerTab('referrals')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  customerTab === 'referrals'
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <Gift size={16} className={customerTab === 'referrals' ? 'text-amber-300' : 'text-emerald-500'} />
+                <span>دعوت از همکاران و پاداش خرید</span>
+              </button>
+            )}
+
             <button
-              onClick={() => setCustomerTab('orders')}
+              onClick={() => setCustomerTab('ads')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                customerTab === 'orders'
+                customerTab === 'ads'
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+              }`}
+            >
+              <Megaphone size={16} />
+              <span>مدیریت آگهی‌های من</span>
+            </button>
+
+
+            <button
+              onClick={() => setCustomerTab('coverage_map')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                customerTab === 'coverage_map'
                   ? "bg-emerald-600 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
-              <ShoppingBag size={16} />
-              <span>سفارشات و فاکتورهای من ({toPersianNum(customerOrders.length)})</span>
-            </button>
-
-            <button
-              onClick={() => setCustomerTab('loyalty')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                customerTab === 'loyalty'
-                  ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-xs"
-                  : "text-amber-800 bg-amber-50/70 hover:bg-amber-100/70 hover:text-amber-900"
-              }`}
-            >
-              <Award size={16} className={customerTab === 'loyalty' ? 'text-amber-100' : 'text-amber-600'} />
-              <span>باشگاه مشتریان و امتیازها</span>
-            </button>
-
-            <button
-              onClick={() => setCustomerTab('quick_order')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                customerTab === 'quick_order'
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-            >
-              <TrendingDown size={16} />
-              <span>سفارش‌گیری سریع و هشدارهای قیمت</span>
-            </button>
-
-            <button
-              onClick={() => setCustomerTab('credit')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                customerTab === 'credit'
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-            >
-              <CreditCard size={16} />
-              <span>اعتبار خرید و چک‌های ثبت شده</span>
-            </button>
-
-            <button
-              onClick={() => setCustomerTab('referrals')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                customerTab === 'referrals'
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-            >
-              <Gift size={16} className={customerTab === 'referrals' ? 'text-amber-300' : 'text-amber-500'} />
-              <span>دعوت از همکاران و پاداش خرید</span>
+              <Compass size={16} className={customerTab === 'coverage_map' ? 'text-white' : 'text-blue-600'} />
+              <span>🗺️ نقشه سفارشات ۳۱ استان</span>
             </button>
 
             <button
@@ -1193,7 +1413,7 @@ export default function UserPanel({
 
               {customerOrders.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 border border-slate-200 text-center space-y-3 shadow-xs">
-                  <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+                  <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl">
                     🛍️
                   </div>
                   <h4 className="text-base font-black text-slate-800">هنوز سفارشی توسط شما ثبت نشده است</h4>
@@ -1217,11 +1437,11 @@ export default function UserPanel({
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm font-black text-slate-900">سفارش {order.trackingNumber || (order.id ? String(order.id || "").slice(-8).toUpperCase() : "جاری")}</span>
                             <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border ${
-                              order.status === 'delivered' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                              order.status === 'delivered' ? 'bg-emerald-600 text-white border-emerald-200' :
                               order.status === 'shipped' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                               (order.status === 'processing' || order.status === 'confirmed') ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                              order.status === 'cancelled' ? 'bg-rose-100 text-rose-800 border-rose-200' :
-                              'bg-amber-100 text-amber-800 border-amber-200'
+                              order.status === 'cancelled' ? 'bg-emerald-100 text-rose-800 border-emerald-200' :
+                              'bg-emerald-100 text-amber-800 border-emerald-200'
                             }`}>
                               {order.status === 'delivered' ? "تحویل شده" :
                                order.status === 'shipped' ? "تحویل به باربری (در مسیر)" :
@@ -1277,11 +1497,135 @@ export default function UserPanel({
             </div>
           )}
 
+          {/* TAB CONTENT: SAVED PRODUCTS / WISHLIST */}
+          {customerTab === 'wishlist' && (
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+              {successMsg && (
+                <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl text-xs font-black text-right flex items-center gap-2">
+                  <CheckCircle size={16} />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-xl border border-rose-100">
+                    ❤️
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">کالاهای نشان‌شده و علاقه‌مندی‌ها</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      اقلامی که ذخیره کرده‌اید را در اینجا مقایسه کرده و در قالب سبد خرید نهایی خود ثبت کنید.
+                    </p>
+                  </div>
+                </div>
+
+                {savedProducts.length > 0 && (
+                  <button
+                    onClick={() => {
+                      savedProducts.forEach(p => onAddToCart(p, Math.max(5, p.min_order_cartons || 5)));
+                      setSuccessMsg("تمامی اقلام نشان‌شده با موفقیت به سبد خرید شما افزوده شدند.");
+                      setTimeout(() => setSuccessMsg(null), 4000);
+                    }}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+                  >
+                    <ShoppingBag size={14} />
+                    <span>افزودن همه به سبد خرید</span>
+                  </button>
+                )}
+              </div>
+
+              {savedProducts.length === 0 ? (
+                <div className="text-center py-12 space-y-3">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-2xl mx-auto border border-slate-100">
+                    🔖
+                  </div>
+                  <h4 className="text-xs font-black text-slate-800">هیچ کالایی نشان‌گذاری نشده است</h4>
+                  <p className="text-[10px] text-slate-400 font-bold max-w-sm mx-auto leading-relaxed">
+                    با کلیک روی آیکون قلب در کارت‌های محصول تالار عرضه، اقلام مورد علاقه خود را در این بخش قرار دهید تا به راحتی خرید هفتگی خود را شارژ کنید.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 text-right" dir="rtl">
+                  {savedProducts.map((p, idx) => {
+                    const minLimit = Math.max(5, p.min_order_cartons || 5);
+                    return (
+                      <div key={`saved-p-${p.id || idx}`} className="py-4 flex flex-col md:flex-row items-center justify-between gap-4 first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-4 w-full md:w-auto text-right">
+                          <img
+                            src={p.image_url}
+                            alt={p.name}
+                            className="w-14 h-14 object-contain bg-white rounded-xl border border-slate-100 p-1 shrink-0"
+                          />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                                {p.category}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {p.brand}
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-black text-slate-900 leading-relaxed line-clamp-1">
+                              {p.name}
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-bold">
+                              حداقل سفارش: {toPersianNum(minLimit)} کارتن
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-t-0 border-slate-100 pt-3 md:pt-0">
+                          <div className="text-right">
+                            <span className="text-[9px] text-slate-400 font-bold block">قیمت کارتن:</span>
+                            <span className="text-xs font-black text-slate-900">
+                              {toPersianNum((p.bulk_price * (p.carton_pack_count || 24)).toLocaleString())} تومان
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                onAddToCart(p, minLimit);
+                                setSuccessMsg(`کالای «${p.name}» به سبد خرید افزوده شد.`);
+                                setTimeout(() => setSuccessMsg(null), 3000);
+                              }}
+                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+                            >
+                              <Plus size={13} />
+                              <span>خرید</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                try {
+                                  const saved = localStorage.getItem("dastavval_wishlist");
+                                  if (saved) {
+                                    const filtered = JSON.parse(saved).filter((id: string) => id !== p.id);
+                                    localStorage.setItem("dastavval_wishlist", JSON.stringify(filtered));
+                                    window.dispatchEvent(new CustomEvent("dastavval-wishlist-changed"));
+                                  }
+                                } catch (e) {}
+                              }}
+                              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-100"
+                              title="حذف از لیست"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB CONTENT: QUICK ORDER & PRICE ALERTS */}
           {customerTab === 'quick_order' && (
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-2xl">
+                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-2xl">
                   ⚡
                 </div>
                 <div>
@@ -1304,7 +1648,7 @@ export default function UserPanel({
                     </div>
                     <button
                       onClick={() => onAddToCart(p, p.min_order_cartons || 1)}
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-black transition-all duration-200 hover:shadow-md active:scale-[0.95] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Plus size={14} />
                       <span>افزودن به سبد ({toPersianNum(p.min_order_cartons || 1)} کارتن)</span>
@@ -1320,7 +1664,7 @@ export default function UserPanel({
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-2xl">
                     💳
                   </div>
                   <div>
@@ -1335,7 +1679,7 @@ export default function UserPanel({
                   href="https://etebarito.ir"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <span>ورود به سامانه اعتباریتو</span>
                   <ExternalLink size={14} />
@@ -1346,7 +1690,7 @@ export default function UserPanel({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-emerald-50/60 border border-emerald-200 p-5 rounded-3xl space-y-1">
                   <span className="text-xs font-bold text-emerald-800">سقف اعتبار خرید چکی:</span>
-                  <div className="text-xl font-black text-emerald-950">
+                  <div className="text-xl font-black text-slate-900">
                     {etebaritoState?.status === 'verified' ? toPersianNum("۵۰,۰۰۰,۰۰۰ تومان") : toPersianNum("نیازمند استعلام اعتباریتو")}
                   </div>
                   <span className="text-[10px] text-emerald-700 font-bold">
@@ -1364,14 +1708,14 @@ export default function UserPanel({
                   <span className="text-xs font-bold text-slate-500">رتبه اعتباری (اعتباریتو):</span>
                   <div className="text-xl font-black text-indigo-900 flex items-center gap-2">
                     {etebaritoState?.grade ? (
-                      <span className="bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-lg text-sm">
+                      <span className="bg-emerald-100 text-indigo-800 px-2.5 py-0.5 rounded-lg text-sm">
                         رتبه {etebaritoState.grade}
                       </span>
                     ) : (
                       <span className="text-slate-400 text-sm font-bold">ثبت‌نشده</span>
                     )}
                   </div>
-                  <span className={`text-[10px] font-bold ${etebaritoState ? 'text-emerald-700' : 'text-amber-600'}`}>
+                  <span className={`text-[10px] font-bold ${etebaritoState ? 'text-emerald-700' : 'text-emerald-600'}`}>
                     {etebaritoState ? 'گواهی بارگذاری شده است' : 'استعلام اولیه اعتباریتو الزامی است'}
                   </span>
                 </div>
@@ -1382,7 +1726,7 @@ export default function UserPanel({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
                   <div className="space-y-1">
                     <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
-                      <Award size={16} className="text-indigo-600" />
+                      <Award size={16} className="text-emerald-600" />
                       <span>استعلام و بارگذاری گواهی رتبه‌بندی اعتباریتو (Etebarito)</span>
                     </h4>
                     <p className="text-[11px] text-slate-500 font-medium">
@@ -1415,7 +1759,7 @@ export default function UserPanel({
                     <select
                       value={etebaritoGradeInput}
                       onChange={(e) => setEtebaritoGradeInput(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-indigo-600 outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-emerald-600 outline-none"
                     >
                       <option value="A1">رتبه A1 (ممتاز بی‌خطر)</option>
                       <option value="A2">رتبه A2 (بسیار خوش‌حساب)</option>
@@ -1433,7 +1777,7 @@ export default function UserPanel({
                       value={etebaritoScoreInput}
                       onChange={(e) => setEtebaritoScoreInput(e.target.value)}
                       placeholder="مثلا 750"
-                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-indigo-600 outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-emerald-600 outline-none"
                     />
                   </div>
 
@@ -1465,7 +1809,7 @@ export default function UserPanel({
                         }}
                         className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                       />
-                      <div className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl p-2.5 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                      <div className="w-full bg-emerald-50 hover:bg-emerald-100 text-indigo-800 border border-emerald-200 rounded-xl p-2.5 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors">
                         <Upload size={14} />
                         <span>{etebaritoState?.certName ? `تغییر فایل (${etebaritoState.certName})` : "انتخاب فایل گزارش اعتباریتو"}</span>
                       </div>
@@ -1476,12 +1820,12 @@ export default function UserPanel({
                 {etebaritoState && (
                   <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-indigo-600" />
+                      <FileText size={16} className="text-emerald-600" />
                       <span className="font-bold text-slate-800">گزارش فعلی: {etebaritoState.certName || "گواهی اعتباریتو"}</span>
                       <span className="text-[10px] text-slate-400">({etebaritoState.uploadDate})</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black rounded-md text-[10px]">
+                      <span className="px-2 py-0.5 bg-emerald-600 text-white font-black rounded-md text-[10px]">
                         ثبت‌شده
                       </span>
                       <button
@@ -1489,7 +1833,7 @@ export default function UserPanel({
                           localStorage.removeItem("dastavval_user_etebarito");
                           setEtebaritoState(null);
                         }}
-                        className="text-rose-600 hover:text-rose-700 font-bold text-[10px] cursor-pointer"
+                        className="text-emerald-600 hover:text-emerald-700 font-bold text-[10px] cursor-pointer"
                       >
                         حذف
                       </button>
@@ -1510,22 +1854,26 @@ export default function UserPanel({
                 
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="space-y-2">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/30">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-amber-300 text-xs font-black border border-emerald-500/30">
                       <Gift size={14} />
-                      <span>طرح سراسری پاداش نقدی و اعتباری دعوت از همکاران</span>
+                      <span>طرح سراسری پورسانت، کارمزد و پاداش نقدی دست اول ({referralProfile.roleTitle})</span>
                     </div>
                     <h3 className="text-xl sm:text-2xl font-black text-white">
-                      همکاران خود را به قیمت درب کارخانه دعوت کنید، پاداش میلیونی بگیرید!
+                      همکاران خود را دعوت کنید؛ پاداش میلیونی بگیرید و به آن‌ها تخفیف هدیه دهید!
                     </h3>
                     <p className="text-xs sm:text-sm text-emerald-100/90 font-medium max-w-2xl leading-relaxed">
-                      به ازای معرفی هر سوپرمارکت، هایپرمارکت یا عمده‌فروشی، پس از اولین خرید موفق ایشان، <strong className="text-amber-300 font-black">۵۰۰,۰۰۰ تومان اعتبار خرید بی‌قیدوشرط</strong> دریافت کنید و همکار شما نیز تخفیف ویژه خرید اول بهره‌مند می‌شود.
+                      {referralProfile.role === 'representative'
+                        ? 'به عنوان نماینده رسمی، ۵٪ پورسانت مستقیم از کل فاکتور سفارش‌های مشتریان با کد نمایندگی شما محاسبه و واریز می‌شود و خریدار ۵٪ تخفیف عاملیت می‌گیرد.'
+                        : referralProfile.role === 'marketer'
+                        ? 'به ازای هر معرفی موفق، ۱,۰۰۰,۰۰۰ تومان پاداش نقدی و در صورت تبدیل شدن دعوت‌شده به نماینده رسمی، ۵٪ کارمزد مستمر دریافت کنید.'
+                        : 'با دعوت از همکاران، ۵۰۰,۰۰۰ تومان پاداش نقدی در کیف پول دریافت کنید و دوست شما از ۳٪ تخفیف آنی فاکتور اول بهره‌مند می‌شود.'}
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setShowReferralModal(true)}
-                    className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95"
+                    className="px-5 py-3 bg-emerald-500 hover:bg-amber-400 text-slate-950 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95"
                   >
                     <Sparkles size={16} />
                     <span>مشاهده پاپ‌آپ و شرایط پاداش</span>
@@ -1535,12 +1883,14 @@ export default function UserPanel({
                 {/* KPI Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10 relative z-10">
                   <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
-                    <span className="text-[11px] text-emerald-200 block font-bold">پاداش هر همکار</span>
-                    <span className="text-sm sm:text-base font-black text-amber-300 font-mono">۵۰۰,۰۰۰ تومان</span>
+                    <span className="text-[11px] text-emerald-200 block font-bold">نرخ پاداش شما</span>
+                    <span className="text-sm sm:text-base font-black text-amber-300 font-mono">
+                      {referralProfile.role === 'representative' ? '۵٪ پورسانت' : referralProfile.role === 'marketer' ? '۱,۰۰۰,۰۰۰ تومان' : '۵۰۰,۰۰۰ تومان'}
+                    </span>
                   </div>
 
                   <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
-                    <span className="text-[11px] text-emerald-200 block font-bold">تعداد دعوت‌های موفق</span>
+                    <span className="text-[11px] text-emerald-200 block font-bold">تعداد دعوت‌های ثبت‌شده</span>
                     <span className="text-sm sm:text-base font-black text-white font-mono">
                       {toPersianNum(
                         JSON.parse(localStorage.getItem(`dastaval_referral_list_${user?.phone || user?.id}`) || "[]").length
@@ -1549,19 +1899,86 @@ export default function UserPanel({
                   </div>
 
                   <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
-                    <span className="text-[11px] text-emerald-200 block font-bold">کل پاداش فعال</span>
+                    <span className="text-[11px] text-emerald-200 block font-bold">تخفیف خریدار دعوت‌شده</span>
                     <span className="text-sm sm:text-base font-black text-emerald-300 font-mono">
-                      {toPersianNum(
-                        JSON.parse(localStorage.getItem(`dastaval_referral_list_${user?.phone || user?.id}`) || "[]").length * 500000
-                      )} تومان
+                      {referralProfile.role === 'representative' ? '۵٪ عاملیت' : '۳٪ تخفیف فاکتور'}
                     </span>
                   </div>
 
                   <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3.5 border border-white/10 text-center space-y-1">
-                    <span className="text-[11px] text-emerald-200 block font-bold">سقف پاداش ماهانه</span>
-                    <span className="text-sm sm:text-base font-black text-white">نامحدود</span>
+                    <span className="text-[11px] text-emerald-200 block font-bold">سقف پاداش و درآمد</span>
+                    <span className="text-sm sm:text-base font-black text-white">نامحدود و آنی</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Referral Codes Card */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800">کد اختصاصی معرف شما:</span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                      {referralProfile.rewardHeadline}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                    <span className="font-mono text-lg font-black text-slate-900 tracking-wider">
+                      {referralProfile.referralCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(referralProfile.referralCode);
+                        setCopiedReferral(true);
+                        setTimeout(() => setCopiedReferral(false), 2000);
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {copiedReferral ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedReferral ? "کپی شد" : "کپی کد"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {referralProfile.agencyCode ? (
+                  <div className="bg-amber-50/70 rounded-3xl p-5 border border-amber-300 shadow-xs flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-amber-950">کد نمایندگی و عاملیت رسمی:</span>
+                      <span className="text-[11px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded-lg border border-amber-200">
+                        ۵٪ پورسانت مستقیم
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white border border-amber-200 rounded-2xl p-3">
+                      <span className="font-mono text-lg font-black text-amber-900 tracking-wider">
+                        {referralProfile.agencyCode}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(referralProfile.agencyCode || '');
+                          setCopiedReferral(true);
+                          setTimeout(() => setCopiedReferral(false), 2000);
+                        }}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Copy size={14} />
+                        <span>کپی کد عاملیت</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-blue-50/70 rounded-3xl p-5 border border-blue-200 shadow-xs flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-blue-950">تخفیف خریدار معرفی‌شده:</span>
+                      <span className="text-[11px] font-bold text-blue-800 bg-white px-2 py-0.5 rounded-lg border border-blue-200">
+                        انگیزه خرید فوری
+                      </span>
+                    </div>
+                    <div className="bg-white border border-blue-200 rounded-2xl p-3 text-xs text-blue-900 font-bold">
+                      {referralProfile.buyerBonusDetail} (کسر مستقیم از مبلغ فاکتور در هنگام تسویه حساب)
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dedicated Referral Link & Social Sharing */}
@@ -1578,14 +1995,13 @@ export default function UserPanel({
 
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                   <div className="w-full sm:flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-800 text-left flex items-center justify-between overflow-hidden" dir="ltr">
-                    <span className="truncate">{`https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`}</span>
+                    <span className="truncate">{referralProfile.referralLink}</span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => {
-                      const link = `https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`;
-                      navigator.clipboard.writeText(link);
+                      navigator.clipboard.writeText(referralProfile.referralLink);
                       setCopiedReferral(true);
                       setTimeout(() => setCopiedReferral(false), 2500);
                     }}
@@ -1604,7 +2020,7 @@ export default function UserPanel({
                       href={`https://wa.me/?text=${encodeURIComponent(`سلام همکار گرامی، برای خرید مستقیم اقلام سوپرمارکتی به قیمت درب کارخانه و بدون واسطه از پلتفرم دست اول استفاده کن: https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>واتساپ</span>
                     </a>
@@ -1631,7 +2047,7 @@ export default function UserPanel({
                           alert(`لینک شما: https://dastavval.com/join?ref=${user?.phone || user?.id || 'ref100'}`);
                         }
                       }}
-                      className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-indigo-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Share2 size={13} />
                       <span>اشتراک‌گذاری در گوشی / روبیکا / ایتا</span>
@@ -1643,7 +2059,7 @@ export default function UserPanel({
               {/* Direct SMS Invitation Box */}
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5">
                 <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center">
                     <Users size={20} />
                   </div>
                   <div>
@@ -1674,7 +2090,20 @@ export default function UserPanel({
                     };
                     currentList.unshift(newItem);
                     localStorage.setItem(storageKey, JSON.stringify(currentList));
-                    alert(`✅ پیامک دعوت با موفقیت برای فروشگاه "${peerName || peerPhone}" ارسال شد. پس از ثبت اولین سفارش، پاداش ۵۰۰,۰۰۰ تومانی برای شما شارژ خواهد شد.`);
+                    
+                    // Actually call the SMS API
+                    fetch('/api/sms/send-invitation-sms', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        peerPhone,
+                        peerName: peerName || "همکار گرامی",
+                        userName: user?.company || user?.name || "همکار شما",
+                        userPhone: user?.phone || user?.mobile || ""
+                      })
+                    }).catch(err => console.warn("Failed to send invitation SMS:", err));
+
+                    alert(`✅ پیامک دعوت با موفقیت برای فروشگاه "${peerName || peerPhone}" ارسال شد. پس از ثبت اولین سفارش، پاداش ۱,۰۰۰,۰۰۰ تومانی برای شما شارژ خواهد شد.`);
                     form.reset();
                     // Trigger re-render
                     setCustomerTab('referrals');
@@ -1752,12 +2181,12 @@ export default function UserPanel({
                               <td className="py-3 font-mono text-slate-600" dir="ltr">{item.phone}</td>
                               <td className="py-3 text-slate-500">{item.date}</td>
                               <td className="py-3">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold border border-emerald-200">
                                   {item.rewardStatus === 'completed' ? "سفارش ثبت شد (پاداش منظور گردید)" : "دعوت‌نامه ارسال شد"}
                                 </span>
                               </td>
                               <td className="py-3 text-left font-black text-emerald-700 font-mono">
-                                ۵۰۰,۰۰۰ تومان
+                                ۱,۰۰۰,۰۰۰ تومان
                               </td>
                             </tr>
                           ))}
@@ -1784,7 +2213,7 @@ export default function UserPanel({
           {customerTab === 'profile' && (
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-2xl">
+                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-2xl">
                   🏪
                 </div>
                 <div>
@@ -1796,7 +2225,7 @@ export default function UserPanel({
               </div>
 
               {successMsg && (
-                <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+                <div className="bg-emerald-600 text-white p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
                   <CheckCircle2 size={16} className="text-emerald-600" />
                   <span>{successMsg}</span>
                 </div>
@@ -1884,10 +2313,50 @@ export default function UserPanel({
                   </button>
                 </div>
               </form>
+
+              {/* Danger Zone: Account Deletion */}
+              <div className="pt-6 border-t border-rose-100 bg-rose-50/50 p-4 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-rose-800">
+                  <AlertTriangle size={16} />
+                  <h4 className="text-xs font-black">مدیریت حساب کاربری و امنیت</h4>
+                </div>
+                <p className="text-[11px] text-rose-700 font-medium leading-relaxed">
+                  در صورت تمایل می‌توانید حساب کاربری خود را به همراه تمام اطلاعات ثبت‌شده پاک کنید. این اقدام غیرقابل‌بازگشت است.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                >
+                  <Trash2 size={14} />
+                  <span>حذف دائم حساب کاربری</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB CONTENT: IRAN PROVINCE ORDERS MAP & REGIONAL COVERAGE */}
+          {customerTab === 'coverage_map' && (
+            <div className="space-y-4">
+              <IranProvinceOrdersMapWidget
+                orders={allOrders}
+                user={user}
+                onUpdateUser={onUpdateUser}
+                markupPercent={5}
+              />
             </div>
           )}
 
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. MY ADS MANAGEMENT VIEW (COMMON FOR ALL ROLES)                         */}
+      {/* ========================================================================= */}
+      {((userRole === 'factory' && factoryTab === 'ads') || 
+        ((userRole === 'agent' || userRole === 'marketer') && marketerTab === 'ads') || 
+        ((userRole === 'customer' || userRole === 'user' || userRole === 'ad_poster') && customerTab === 'ads')) && (
+        <MyAdsManager user={user} setActiveTab={setActiveTab} />
       )}
 
       {/* Invoice Modal View */}
@@ -1922,7 +2391,78 @@ export default function UserPanel({
         isOpen={showReferralModal}
         onClose={() => setShowReferralModal(false)}
         userPhone={user?.phone || user?.mobile || ""}
+        user={user}
       />
+
+      {/* Role Selection and Commercial Profile Completion Wizard */}
+      <RoleSelectionModal
+        isOpen={showRoleModal}
+        onClose={() => setShowRoleModal(false)}
+        user={user}
+        b2bConfig={b2bConfig}
+        onRoleSelected={(updatedUser) => {
+          if (onUpdateUser) {
+            onUpdateUser(updatedUser);
+          }
+          setName(updatedUser.name || name);
+          setPhone(updatedUser.phone || phone);
+          setCompany(updatedUser.company || company);
+          setCity(updatedUser.city || city);
+          setAddress(updatedUser.address || address);
+          setIban(updatedUser.iban || iban);
+          setShowRoleModal(false);
+          setSuccessMsg("نقش و مشخصات تجاری شما با موفقیت به‌روزرسانی شد!");
+          setTimeout(() => setSuccessMsg(null), 4000);
+        }}
+      />
+
+      {/* Iran Province Orders Distribution Map Modal */}
+      {showProvinceMapModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            className="bg-white rounded-3xl w-full max-w-6xl overflow-hidden shadow-2xl relative max-h-[94vh] flex flex-col border border-slate-200"
+          >
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <Compass size={22} className="animate-spin-slow" />
+                </span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black flex items-center gap-2">
+                    <span>نقشه تعاملی توزیع سفارشات و مناطق ۳۱ استان</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-mono">
+                      نسخه سراسری
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    پایش جغرافیایی سفارشات ثبت‌شده، مدیریت قلمرو عاملیت و بررسی آماری استان‌های تحت پوشش
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProvinceMapModal(false)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
+                title="بستن پنجره"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-3 sm:p-5 overflow-y-auto flex-1 bg-slate-50/50">
+              <IranProvinceOrdersMapWidget
+                orders={allOrders}
+                user={user}
+                onUpdateUser={onUpdateUser}
+                markupPercent={userRole === 'representative' ? Number(user?.markupPercent || 15) : 5}
+              />
+            </div>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );

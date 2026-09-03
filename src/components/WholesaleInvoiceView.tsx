@@ -550,7 +550,7 @@ export default function WholesaleInvoiceView({
             <div>
               <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
                 <span>{isFactoryView ? "حواله خروج و بارگیری انبار کارخانه" : "پیش‌فاکتور رسمی فروش کالا"}</span>
-                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${isFactoryView ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${isFactoryView ? 'bg-emerald-100 text-indigo-800' : 'bg-emerald-600 text-white'}`}>
                   {isFactoryView ? "نسخه انبار و ترابری" : "پیش‌فاکتور رسمی استاندارد"}
                 </span>
               </h2>
@@ -624,7 +624,7 @@ export default function WholesaleInvoiceView({
                 onClick={() => setIsEditing(!isEditing)}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all border cursor-pointer ${
                   isEditing 
-                    ? 'bg-amber-500 text-white border-amber-600' 
+                    ? 'bg-emerald-500 text-white border-emerald-600' 
                     : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                 }`}
               >
@@ -636,7 +636,7 @@ export default function WholesaleInvoiceView({
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 border border-slate-300 flex items-center justify-center transition-colors cursor-pointer"
               title="بستن"
             >
               <X size={15} />
@@ -683,7 +683,7 @@ export default function WholesaleInvoiceView({
           <div className="flex items-center justify-end border-t border-slate-200 pt-1.5">
             <button
               onClick={handleAddItem}
-              className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-emerald-600 text-white border border-emerald-300 hover:bg-emerald-100 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer"
             >
               <Plus size={12} />
               <span>افزودن ردیف کالا</span>
@@ -757,7 +757,7 @@ export default function WholesaleInvoiceView({
             {/* Right: Origin / Seller Title */}
             <div className="text-right space-y-0.5">
               <div className="flex items-center gap-1.5">
-                <div className={`w-5 h-5 rounded ${isFactoryView ? 'bg-indigo-700' : 'bg-slate-700'} text-white flex items-center justify-center font-bold text-[10px] shrink-0`}>
+                <div className={`w-5 h-5 rounded ${isFactoryView ? 'bg-emerald-700' : 'bg-slate-700'} text-white flex items-center justify-center font-bold text-[10px] shrink-0`}>
                   {isFactoryView ? "🏭" : "۱"}
                 </div>
                 <span className="text-xs sm:text-[12px] font-black text-slate-900">{sellerTitle}</span>
@@ -825,7 +825,7 @@ export default function WholesaleInvoiceView({
             <div className="p-2 text-[9px] sm:text-[9.5px] space-y-0.5 bg-white leading-snug">
               <div className="bg-slate-50 px-2 py-1 border-b border-slate-200 font-black text-[9px] text-slate-800 a4-header-bg flex items-center justify-between">
                 <span>{isFactoryView ? "تحویل‌گیرنده (ناوگان ترابری سامانه)" : "مشخصات خریدار (تحویل‌گیرنده)"}</span>
-                {isEditing && !isFactoryView && <span className="text-[7px] bg-amber-200 text-amber-950 px-1 rounded font-bold print:hidden">ویرایش</span>}
+                {isEditing && !isFactoryView && <span className="text-[7px] bg-emerald-200 text-amber-950 px-1 rounded font-bold print:hidden">ویرایش</span>}
               </div>
 
               {isEditing && !isFactoryView ? (
@@ -908,9 +908,9 @@ export default function WholesaleInvoiceView({
           /* FACTORY WAREHOUSE DISPATCH TABLE (NO SELLING PRICES SHOWN) */
           /* ========================================================= */
           <div className="border border-slate-200 mb-2 a4-box bg-white overflow-hidden rounded-xl">
-            <div className="bg-indigo-50 px-2 py-1.5 border-b border-slate-200 font-bold text-[9.5px] text-indigo-950 flex items-center justify-between a4-header-bg">
+            <div className="bg-emerald-50 px-2 py-1.5 border-b border-slate-200 font-bold text-[9.5px] text-indigo-950 flex items-center justify-between a4-header-bg">
               <span>اقلام آماده‌سازی و بارگیری از خط تولید این کارخانه</span>
-              <span className="text-[8px] text-indigo-700 font-bold">تعداد کل کارتن: {toPersianNum(totalQuantity)} کارتن</span>
+              <span className="text-[8px] text-emerald-700 font-bold">تعداد کل کارتن: {toPersianNum(totalQuantity)} کارتن</span>
             </div>
 
             <table className="w-full border-collapse text-right text-[9px] sm:text-[9.5px] a4-table table-fixed">
@@ -965,7 +965,7 @@ export default function WholesaleInvoiceView({
 
                 {/* Subtotal Row */}
                 {items.length > 0 && (
-                  <tr className="bg-indigo-50/50 font-bold border-t border-slate-200 a4-header-bg">
+                  <tr className="bg-emerald-50/50 font-bold border-t border-slate-200 a4-header-bg">
                     <td colSpan={2} className="p-1.5 text-center border-l border-slate-200 text-[9px] font-black text-slate-800">
                       مجموع کل اقلام بارگیری این کارخانه ({toPersianNum(items.length)} ردیف)
                     </td>
@@ -1067,7 +1067,7 @@ export default function WholesaleInvoiceView({
                       <td className="p-1 text-center print:hidden">
                         <button
                           onClick={() => handleDeleteItem(idx)}
-                          className="text-rose-600 hover:text-rose-800 p-0.5 cursor-pointer"
+                          className="text-emerald-600 hover:text-rose-800 p-0.5 cursor-pointer"
                           title="حذف"
                         >
                           <Trash2 size={12} />
@@ -1104,7 +1104,7 @@ export default function WholesaleInvoiceView({
           <div className="space-y-2 mb-2">
             <div className="border border-slate-200 p-2.5 bg-slate-50 a4-box rounded-xl space-y-1.5 text-[8.5px] sm:text-[9px] leading-snug">
               <div className="flex items-center gap-1.5 font-black text-indigo-950 pb-1 border-b border-slate-200">
-                <Truck size={14} className="text-indigo-700" />
+                <Truck size={14} className="text-emerald-700" />
                 <span>دستورالعمل آماده‌سازی و تحویل بار به ناوگان دست‌اول:</span>
               </div>
               <ul className="space-y-1 text-slate-700 list-disc list-inside">
@@ -1154,8 +1154,8 @@ export default function WholesaleInvoiceView({
 
               {/* Cheque & Mixed Settlement Details Box */}
               {order?.paymentMethod === 'cheque' && (
-                <div className="mt-1.5 p-2 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-1 text-[8px]">
-                  <div className="flex justify-between items-center text-indigo-950 font-black border-b border-indigo-200/60 pb-0.5">
+                <div className="mt-1.5 p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg space-y-1 text-[8px]">
+                  <div className="flex justify-between items-center text-indigo-950 font-black border-b border-emerald-200/60 pb-0.5">
                     <span>تفکیک پرداخت نقد و چک صیادی:</span>
                     <span className="font-mono">{toPersianNum(order?.settlementBreakdown?.chequeDays || order?.chequeDetails?.days || 60)} روزه</span>
                   </div>
@@ -1167,7 +1167,7 @@ export default function WholesaleInvoiceView({
                     <span>۲. مبلغ چک صیادی ({toPersianNum(order?.settlementBreakdown?.chequePercent || 50)}٪):</span>
                     <span className="font-mono font-black">{toPersianNum((order?.settlementBreakdown?.chequeAmount || Math.round(grandTotal * 0.5)))} تومان</span>
                   </div>
-                  <div className="flex justify-between text-slate-600 font-bold pt-0.5 border-t border-indigo-100 text-[7.5px]">
+                  <div className="flex justify-between text-slate-600 font-bold pt-0.5 border-t border-emerald-100 text-[7.5px]">
                     <span>سررسید چک صیادی:</span>
                     <span className="font-mono font-black text-slate-900">
                       {order?.settlementBreakdown?.chequeDueDateLong || order?.chequeDetails?.dueDateLong || order?.chequeDetails?.dueDate || 'طبق قرارداد'}
@@ -1199,7 +1199,7 @@ export default function WholesaleInvoiceView({
                 </div>
 
                 {sedimentDiscountAmount > 0 && (
-                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-rose-700 font-bold">
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-emerald-700 font-bold">
                     <span>تخفیف انباشت و رسوب کالا:</span>
                     <span className="font-mono">-{toPersianNum(sedimentDiscountAmount)} تومان</span>
                   </div>
@@ -1227,7 +1227,7 @@ export default function WholesaleInvoiceView({
                 )}
 
                 {chequeMarkupAmount > 0 && (
-                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-indigo-700 font-bold">
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-emerald-700 font-bold">
                     <span>کارمزد تسویه چکی:</span>
                     <span className="font-mono">+{toPersianNum(chequeMarkupAmount)} تومان</span>
                   </div>

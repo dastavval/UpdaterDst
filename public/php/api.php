@@ -2560,6 +2560,94 @@ switch ($action) {
         echo "فایل مورد نظر در فضای ذخیره‌سازی یافت نشد.";
         exit();
 
+    case 'proxy-image':
+    case 'proxy_image':
+        $rawUrl = $_GET['url'] ?? '';
+        if (empty($rawUrl)) {
+            http_response_code(400);
+            echo "URL is required";
+            exit();
+        }
+
+        $targetUrl = trim($rawUrl);
+        if (strpos($targetUrl, '//') === 0) {
+            $targetUrl = 'http:' . $targetUrl;
+        }
+        if (strpos($targetUrl, '.parspack.net') !== false && strpos($targetUrl, 'https://') === 0) {
+            $targetUrl = str_replace('https://', 'http://', $targetUrl);
+        }
+        if (strpos($targetUrl, 'http://') !== 0 && strpos($targetUrl, 'https://') !== 0) {
+            $targetUrl = 'http://' . $targetUrl;
+        }
+
+        $urlHash = md5($targetUrl);
+        $cacheDir = dirname(__DIR__) . '/data/image_cache';
+        @mkdir($cacheDir, 0755, true);
+        $cacheFile = "{$cacheDir}/{$urlHash}.bin";
+        $metaFile = "{$cacheDir}/{$urlHash}.meta";
+
+        if (file_exists($cacheFile) && filesize($cacheFile) > 0) {
+            $cType = file_exists($metaFile) ? trim(file_get_contents($metaFile)) : 'image/webp';
+            header("Content-Type: $cType");
+            header("Cache-Control: public, max-age=31536000, immutable");
+            header("X-Image-Cache: HIT-PHP-DISK");
+            readfile($cacheFile);
+            exit();
+        }
+
+        $imgData = false;
+        $cType = 'image/jpeg';
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($targetUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Dastavval/1.0');
+            $imgData = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $cType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'image/jpeg';
+            curl_close($ch);
+
+            if ($httpCode !== 200) {
+                $imgData = false;
+            }
+        }
+
+        if ($imgData === false && ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create([
+                'http' => ['timeout' => 8, 'user_agent' => 'Mozilla/5.0'],
+                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+            ]);
+            $imgData = @file_get_contents($targetUrl, false, $ctx);
+        }
+
+        if ($imgData !== false && strlen($imgData) > 0) {
+            $ext = strtolower(pathinfo(parse_url($targetUrl, PHP_URL_PATH), PATHINFO_EXTENSION));
+            if ($ext === 'webp') $cType = 'image/webp';
+            elseif ($ext === 'png') $cType = 'image/png';
+            elseif ($ext === 'jpg' || $ext === 'jpeg') $cType = 'image/jpeg';
+            elseif ($ext === 'svg') $cType = 'image/svg+xml';
+
+            @file_put_contents($cacheFile, $imgData);
+            @file_put_contents($metaFile, $cType);
+
+            header("Content-Type: $cType");
+            header("Cache-Control: public, max-age=31536000, immutable");
+            header("X-Image-Cache: MISS-FETCHED");
+            echo $imgData;
+            exit();
+        }
+
+        // Return inline high quality placeholder SVG
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400"><defs><linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f8fafc" /><stop offset="100%" stop-color="#f1f5f9" /></linearGradient></defs><rect width="400" height="400" fill="url(#bgGrad)" rx="24" /><circle cx="200" cy="160" r="70" fill="#e2e8f0" opacity="0.6" /><g transform="translate(160, 120)" stroke="#059669" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></g><rect x="80" y="245" width="240" height="32" rx="16" fill="#059669" /><text x="200" y="266" fill="#ffffff" font-family="tahoma, sans-serif" font-size="14" font-weight="900" text-anchor="middle" direction="rtl">دست اول</text><text x="200" y="310" fill="#0f172a" font-family="tahoma, sans-serif" font-size="15" font-weight="bold" text-anchor="middle" direction="rtl">کالای صنایع غذایی</text></svg>';
+        header("Content-Type: image/svg+xml; charset=utf-8");
+        header("Cache-Control: public, max-age=86400");
+        echo $svg;
+        exit();
+
     case 'admin/backup/diagnose':
         header('Content-Type: application/json; charset=utf-8');
         $cfg = get_parspack_storage_config_php($pdo);

@@ -53,7 +53,8 @@ import {
   FileCheck2,
   Copy,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
@@ -62,6 +63,8 @@ import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import HonorPlaqueCard from "./HonorPlaqueCard";
 import RepresentativeAnalyticsDashboard from "./RepresentativeAnalyticsDashboard";
 import RepresentativeKYCView from "./RepresentativeKYCView";
+import RepresentativeRegionalOrdersView from "./RepresentativeRegionalOrdersView";
+import IranProvinceOrdersMapWidget from "./IranProvinceOrdersMapWidget";
 import { getRegionalLeads, saveRegionalLeads, addRepCommission, getRepCommissions, RegionalLead, getRepresentativeGuarantees, saveRepresentativeGuarantee } from "../lib/leads-store";
 
 interface RepresentativeManagementPortalProps {
@@ -107,7 +110,7 @@ export const REPRESENTATIVE_TIERS: TierInfo[] = [
     minSales: 300_000_000,
     minSalesFormatted: "۳۰۰ میلیون تومان نقدی",
     badgeLabel: "عامل فروش رسمی",
-    badgeBg: "bg-amber-50 text-amber-900 border-amber-300",
+    badgeBg: "bg-emerald-50 text-amber-900 border-amber-300",
     badgeText: "text-amber-900",
     borderColor: "border-amber-400",
     discountRate: "تخفیف ویژه عاملیت نقدی",
@@ -213,7 +216,7 @@ export default function RepresentativeManagementPortal({
   onOpenInvoiceModal
 }: RepresentativeManagementPortalProps) {
   // Main Sub-Tab State
-  const [activeTab, setActiveTab] = useState<'workplace' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing' | 'rules' | 'kyc'>('workplace');
+  const [activeTab, setActiveTab] = useState<'workplace' | 'commissions' | 'perks' | 'leads' | 'catalog_builder' | 'orders' | 'plaque' | 'tiers' | 'analytics' | 'profile' | 'guarantee' | 'marketing' | 'rules' | 'kyc' | 'regional_orders' | 'coverage_map'>('workplace');
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [workplaceViewMode, setWorkplaceViewMode] = useState<'cards' | 'table'>('cards');
 
@@ -769,11 +772,11 @@ export default function RepresentativeManagementPortal({
         <motion.div 
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-amber-50/80 border-2 border-amber-300 rounded-3xl p-5 sm:p-6 text-right space-y-4 shadow-xs"
+          className="bg-emerald-50/80 border-2 border-amber-300 rounded-3xl p-5 sm:p-6 text-right space-y-4 shadow-xs"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 font-black shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 font-black shadow-sm">
                 <ShieldAlert size={26} />
               </div>
               <div className="space-y-1">
@@ -781,7 +784,7 @@ export default function RepresentativeManagementPortal({
                   <h3 className="text-sm sm:text-base font-black text-amber-950">
                     وضعیت حساب: متقاضی عاملیت در حال احراز صلاحیت
                   </h3>
-                  <span className="text-[10px] font-black bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  <span className="text-[10px] font-black bg-emerald-200/80 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
                     سطوح عاملیت قفل است 🔒
                   </span>
                 </div>
@@ -794,7 +797,7 @@ export default function RepresentativeManagementPortal({
             <button
               type="button"
               onClick={() => setShowApprovalRequestModal(true)}
-              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-xs"
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-xs"
             >
               <Send size={15} />
               <span>درخواست تایید و احراز صلاحیت به مدیریت</span>
@@ -802,12 +805,12 @@ export default function RepresentativeManagementPortal({
           </div>
 
           {/* 2-Step Qualification Progress Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-amber-200/80">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-emerald-200/80">
             {/* Step 1: 300M Cash Turnover */}
-            <div className="bg-white p-3.5 rounded-2xl border border-amber-200/80 space-y-2">
+            <div className="bg-white p-3.5 rounded-2xl border border-emerald-200/80 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold">
                 <span className="text-slate-700 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center text-[11px] font-black">۱</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-amber-900 flex items-center justify-center text-[11px] font-black">۱</span>
                   <span>خرید نقدی مستقیم از کارخانجات (در هر ماه):</span>
                 </span>
                 <span className="font-mono font-black text-amber-700">
@@ -817,7 +820,7 @@ export default function RepresentativeManagementPortal({
               <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all duration-500 ${
-                    isCashSalesTargetAchieved ? "bg-emerald-500" : "bg-gradient-to-r from-amber-400 to-amber-600"
+                    isCashSalesTargetAchieved ? "bg-emerald-500" : "bg-gradient-to-r from-amber-400 to-emerald-600"
                   }`} 
                   style={{ width: `${cashSalesProgressPercent}%` }}
                 />
@@ -829,14 +832,14 @@ export default function RepresentativeManagementPortal({
             </div>
 
             {/* Step 2: Admin Approval */}
-            <div className="bg-white p-3.5 rounded-2xl border border-amber-200/80 space-y-2 flex flex-col justify-between">
+            <div className="bg-white p-3.5 rounded-2xl border border-emerald-200/80 space-y-2 flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-bold">
                 <span className="text-slate-700 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center text-[11px] font-black">۲</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-amber-900 flex items-center justify-center text-[11px] font-black">۲</span>
                   <span>تایید مدارک و انحصار منطقه توسط مدیر:</span>
                 </span>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                  isApprovedByAdmin ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+                  isApprovedByAdmin ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
                 }`}>
                   {isApprovedByAdmin ? "تایید شده ✓" : "در انتظار ممیزی"}
                 </span>
@@ -851,7 +854,7 @@ export default function RepresentativeManagementPortal({
 
       {/* Approval Feedback notification */}
       {approvalFeedback && (
-        <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-emerald-950 flex items-center gap-2 animate-fade-in">
+        <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-slate-900 flex items-center gap-2 animate-fade-in">
           <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
           <span>{approvalFeedback}</span>
         </div>
@@ -879,14 +882,14 @@ export default function RepresentativeManagementPortal({
                   {isRepresentativeActive ? `${activeTier.badgeLabel} (سطح ${toPersianNum(activeTier.levelNumber)})` : "متقاضی عاملیت رسمی"}
                 </span>
                 {isRepresentativeActive && (
-                  <span className="text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="text-[10px] font-black bg-emerald-600 text-white border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                     <CheckCircle2 size={12} className="text-emerald-600" />
                     <span>احراز صلاحیت رسمی در سامانه کشوری</span>
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
-                <span>کد رسمی عاملیت: <strong className="font-mono text-indigo-700 font-black">{user?.agencyCode || user?.userCode || "REP-7012"}</strong></span>
+                <span>کد رسمی عاملیت: <strong className="font-mono text-emerald-700 font-black">{user?.agencyCode || user?.userCode || "REP-7012"}</strong></span>
                 <span>•</span>
                 <span>منطقه انحصاری: <strong className="text-slate-800 font-bold">{province} - {city}</strong></span>
                 <span>•</span>
@@ -897,8 +900,16 @@ export default function RepresentativeManagementPortal({
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
+              onClick={() => setActiveTab('commissions')}
+              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <Wallet size={16} />
+              <span>مدیریت پورسانت و تسویه</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('workplace')}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <Briefcase size={16} />
               <span>میز کار سفارشات مستقیم</span>
@@ -906,9 +917,9 @@ export default function RepresentativeManagementPortal({
 
             <button
               onClick={() => setActiveTab('perks')}
-              className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
+              className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-amber-900 border border-emerald-200 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
             >
-              <Sparkles size={16} className="text-amber-600" />
+              <Sparkles size={16} className="text-emerald-600" />
               <span>مزایای استراتژیک عاملیت</span>
             </button>
 
@@ -916,7 +927,7 @@ export default function RepresentativeManagementPortal({
               onClick={() => setActiveTab('plaque')}
               className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs border border-slate-200"
             >
-              <Award size={16} className="text-amber-600" />
+              <Award size={16} className="text-emerald-600" />
               <span>لوح تقدیر و مدارک رسمی</span>
             </button>
           </div>
@@ -932,7 +943,7 @@ export default function RepresentativeManagementPortal({
           >
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
               <span className="flex items-center gap-1.5">
-                <TrendingUp size={15} className="text-indigo-600" />
+                <TrendingUp size={15} className="text-emerald-600" />
                 <span>فروش کل نقدی محقق‌شده:</span>
               </span>
               <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-black border border-emerald-200">
@@ -978,7 +989,7 @@ export default function RepresentativeManagementPortal({
           >
             <div className="flex items-center justify-between text-[11px] font-bold text-blue-800">
               <span className="flex items-center gap-1.5">
-                <Clock size={15} className="text-blue-600" />
+                <Clock size={15} className="text-emerald-600" />
                 <span>سفارشات در انتظار و جاری:</span>
               </span>
               <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-blue-50 text-blue-900 border-blue-200">
@@ -1033,10 +1044,10 @@ export default function RepresentativeManagementPortal({
             className="w-full flex items-center justify-between text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Sliders size={14} className="text-indigo-600" />
+              <Sliders size={14} className="text-emerald-600" />
               <span>ابزار تست و شبیه‌ساز ارتقای سطوح و تخفیفات عاملیت</span>
             </div>
-            <span className="text-[11px] text-indigo-600 font-black">
+            <span className="text-[11px] text-emerald-600 font-black">
               {showSimulator ? "بستن شبیه‌ساز ▲" : "مشاهده شبیه‌ساز ▼"}
             </span>
           </button>
@@ -1051,7 +1062,7 @@ export default function RepresentativeManagementPortal({
                   type="button"
                   onClick={() => setSimulatedSales(realCashOrdersSum)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === realCashOrdersSum ? "bg-indigo-600 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
+                    simulatedSales === realCashOrdersSum ? "bg-emerald-600 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
                   }`}
                 >
                   فروش واقعی نقدی ({toPersianNum(realCashOrdersSum)} تومان)
@@ -1060,7 +1071,7 @@ export default function RepresentativeManagementPortal({
                   type="button"
                   onClick={() => setSimulatedSales(350_000_000)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === 350_000_000 ? "bg-amber-600 text-white border-amber-600" : "bg-white text-amber-900 border-amber-200"
+                    simulatedSales === 350_000_000 ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-amber-900 border-emerald-200"
                   }`}
                 >
                   ۳۵۰M (سطح ۱: عامل فروش رسمی)
@@ -1069,7 +1080,7 @@ export default function RepresentativeManagementPortal({
                   type="button"
                   onClick={() => setSimulatedSales(1_200_000_000)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === 1_200_000_000 ? "bg-blue-600 text-white border-blue-600" : "bg-white text-blue-900 border-blue-200"
+                    simulatedSales === 1_200_000_000 ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-blue-900 border-blue-200"
                   }`}
                 >
                   ۱.۲B (سطح ۲: نماینده انحصاری شهر)
@@ -1104,21 +1115,21 @@ export default function RepresentativeManagementPortal({
       {/* 2.5 SUSPENSION BANNER                                                     */}
       {/* ========================================================================= */}
       {isSuspended && (
-        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 mb-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-5 mb-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-start gap-4 text-rose-800">
-            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-rose-200">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-emerald-200">
               <ShieldAlert size={24} />
             </div>
             <div>
               <h4 className="font-black text-sm sm:text-base">تعلیق موقت عاملیت به دلیل عدم فعالیت مستمر</h4>
-              <p className="text-xs font-bold text-rose-700/80 mt-1 leading-relaxed max-w-2xl">
+              <p className="text-xs font-bold text-emerald-700/80 mt-1 leading-relaxed max-w-2xl">
                 همکار گرامی، طبق قوانین و مقررات پلتفرم، پنل عاملیت شما به دلیل عدم ثبت سفارش یا خرید در <strong className="font-black">۳ ماه گذشته</strong> موقتاً غیرفعال شده است. لطفاً جهت فعال‌سازی مجدد و تمدید انحصار منطقه‌ای، نسبت به ثبت اولین سفارش جدید اقدام نمایید.
               </p>
             </div>
           </div>
           <button 
             onClick={() => setActiveTab('workplace')}
-            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer whitespace-nowrap shrink-0 transition-colors"
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer whitespace-nowrap shrink-0 transition-colors"
           >
             ثبت سفارش مجدد
           </button>
@@ -1135,7 +1146,7 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('workplace')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'workplace'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -1148,7 +1159,7 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('marketing')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'marketing'
-              ? "bg-amber-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -1161,7 +1172,7 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('perks')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'perks'
-              ? "bg-amber-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -1182,6 +1193,32 @@ export default function RepresentativeManagementPortal({
           <span>📡 سرنخ‌های خریداران منطقه ({toPersianNum(regionalLeads.length)})</span>
         </button>
 
+        {/* Tab: Regional Orders & Commission Analytics */}
+        <button
+          onClick={() => setActiveTab('regional_orders')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'regional_orders'
+              ? "bg-blue-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Coins size={16} className="text-blue-400" />
+          <span>📊 سفارشات منطقه‌ای و پورسانت‌ها</span>
+        </button>
+
+        {/* Tab: Iran Province Orders Map & Coverage */}
+        <button
+          onClick={() => setActiveTab('coverage_map')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'coverage_map'
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <MapPin size={16} className="text-emerald-400" />
+          <span>🗺️ نقشه ۳۱ استان و قلمرو عاملیت</span>
+        </button>
+
         {/* Tab 4: White-Label Co-Branded Catalog Maker */}
         <button
           onClick={() => setActiveTab('catalog_builder')}
@@ -1200,7 +1237,7 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('orders')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'orders'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -1213,7 +1250,7 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('plaque')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'plaque'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -1226,11 +1263,11 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('tiers')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'tiers'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
-          <Star size={16} className="text-amber-500" />
+          <Star size={16} className="text-emerald-500" />
           <span>سطوح ۴گانه و قرارداد</span>
         </button>
 
@@ -1252,11 +1289,11 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('rules' as any)}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'rules'
-              ? "bg-rose-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
-          <Info size={16} className={activeTab === 'rules' ? 'text-white' : 'text-rose-500'} />
+          <Info size={16} className={activeTab === 'rules' ? 'text-white' : 'text-emerald-500'} />
           <span>⚖️ قوانین و مقررات عاملیت</span>
         </button>
 
@@ -1265,7 +1302,7 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('profile')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'profile'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -1278,11 +1315,11 @@ export default function RepresentativeManagementPortal({
           onClick={() => setActiveTab('kyc')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap border border-dashed ${
             activeTab === 'kyc'
-              ? "bg-gradient-to-r from-indigo-600 to-violet-700 text-white border-indigo-700 shadow-md"
-              : "text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 border-indigo-200"
+              ? "bg-gradient-to-r from-emerald-600 to-violet-700 text-white border-emerald-700 shadow-md"
+              : "text-emerald-600 hover:text-indigo-900 hover:bg-emerald-50 border-emerald-200"
           }`}
         >
-          <ShieldCheck size={16} className={activeTab === 'kyc' ? "text-white" : "text-indigo-500 animate-pulse"} />
+          <ShieldCheck size={16} className={activeTab === 'kyc' ? "text-white" : "text-emerald-500 animate-pulse"} />
           <span>🔒 احراز هویت و مدارک هویتی</span>
         </button>
       </div>
@@ -1293,13 +1330,13 @@ export default function RepresentativeManagementPortal({
       {activeTab === 'marketing' && (
         <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
-            <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
+            <div className="w-12 h-12 bg-emerald-50 text-amber-700 rounded-2xl flex items-center justify-center text-2xl">
               🔗
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black text-slate-900">لینک اختصاصی بازاریابی و افیلیت نماینده</h3>
-                <span className="text-[10px] px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-black border border-emerald-200">
+                <span className="text-[10px] px-2.5 py-0.5 bg-emerald-600 text-white rounded-full font-black border border-emerald-200">
                   پورسانت نقدی ۵٪
                 </span>
               </div>
@@ -1312,14 +1349,14 @@ export default function RepresentativeManagementPortal({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex-1 bg-slate-50 border border-slate-200 px-4 py-4 rounded-2xl text-xs sm:text-sm font-mono font-bold text-slate-800 text-left flex items-center justify-between overflow-x-auto shadow-inner">
               <span>{referralUrl}</span>
-              <span className="text-[10px] sm:text-xs text-amber-700 font-black bg-amber-100 px-3 py-1 rounded-md ml-3 shrink-0 border border-amber-200">
+              <span className="text-[10px] sm:text-xs text-amber-700 font-black bg-emerald-100 px-3 py-1 rounded-md ml-3 shrink-0 border border-emerald-200">
                 کد معرف: {referralCode}
               </span>
             </div>
             
             <button
               onClick={handleCopyReferral}
-              className="px-6 py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shrink-0"
+              className="px-6 py-4 bg-emerald-600 hover:bg-amber-700 text-white rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shrink-0"
             >
               {copiedReferral ? <Check size={18} /> : <Copy size={18} />}
               <span>{copiedReferral ? "لینک کپی شد!" : "کپی لینک بازاریابی"}</span>
@@ -1342,7 +1379,7 @@ export default function RepresentativeManagementPortal({
                 href={`https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(`خرید عمده مواد غذایی و تنقلات به قیمت درب کارخانه - عاملیت رسمی دست‌اول`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 تلگرام
               </a>
@@ -1364,7 +1401,7 @@ export default function RepresentativeManagementPortal({
                     handleCopyReferral();
                   }
                 }}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 اشتراک‌گذاری در سایر برنامه‌ها
               </button>
@@ -1385,7 +1422,7 @@ export default function RepresentativeManagementPortal({
                 <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Wallet size={14} className="text-slate-400" /> پورسانت نقدی کل:</span>
                 <button
                   onClick={() => setShowSettlementModal(true)}
-                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-black underline cursor-pointer"
+                  className="text-[10px] text-emerald-600 hover:text-indigo-800 font-black underline cursor-pointer"
                 >
                   درخواست تسویه
                 </button>
@@ -1402,7 +1439,7 @@ export default function RepresentativeManagementPortal({
       {activeTab === 'perks' && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-5">
-            <span className="text-[10px] font-black text-amber-600 tracking-wider uppercase">EXCLUSIVE COMPETITIVE ADVANTAGES</span>
+            <span className="text-[10px] font-black text-emerald-600 tracking-wider uppercase">EXCLUSIVE COMPETITIVE ADVANTAGES</span>
             <h3 className="text-lg sm:text-xl font-black text-slate-900 pt-1">
               ۶ مزیت استراتژیک عاملیت رسمی پلتفرم دست‌اول
             </h3>
@@ -1445,7 +1482,7 @@ export default function RepresentativeManagementPortal({
 
             {/* Perk 3: Co-Branded White-label Catalog */}
             <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs space-y-3 hover:border-emerald-400 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                 <FileCheck2 size={22} />
               </div>
               <h4 className="text-sm font-black text-slate-900">۳. کاتالوگ‌ساز با برند اختصاصی نماینده</h4>
@@ -1463,8 +1500,8 @@ export default function RepresentativeManagementPortal({
             </div>
 
             {/* Perk 4: 48-Hour Price Radar */}
-            <div className="bg-white rounded-2xl p-5 border border-amber-200 shadow-xs space-y-3 hover:border-amber-400 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-black">
+            <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs space-y-3 hover:border-amber-400 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-amber-700 flex items-center justify-center font-black">
                 <BellRing size={22} />
               </div>
               <h4 className="text-sm font-black text-slate-900">۴. رادار هوشمند پیش‌خرید پیش از گرانی کالا</h4>
@@ -1474,8 +1511,8 @@ export default function RepresentativeManagementPortal({
             </div>
 
             {/* Perk 5: Verified Directory Gold Listing */}
-            <div className="bg-white rounded-2xl p-5 border border-indigo-200 shadow-xs space-y-3 hover:border-indigo-400 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black">
+            <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs space-y-3 hover:border-indigo-400 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                 <ShieldCheck size={22} />
               </div>
               <h4 className="text-sm font-black text-slate-900">۵. درج طلایی در صفحه اول «بانک نمایندگان رسمی»</h4>
@@ -1485,8 +1522,8 @@ export default function RepresentativeManagementPortal({
             </div>
 
             {/* Perk 6: Customer Network Protection */}
-            <div className="bg-white rounded-2xl p-5 border border-rose-200 shadow-xs space-y-3 hover:border-rose-400 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-black">
+            <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs space-y-3 hover:border-rose-400 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                 <Lock size={22} />
               </div>
               <h4 className="text-sm font-black text-slate-900">۶. تعهد عدم دور زدن و حفاظت از مشتریان</h4>
@@ -1512,7 +1549,7 @@ export default function RepresentativeManagementPortal({
                 <span className="text-[10px] font-black bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full uppercase">
                   CHANNEL CONFLICT RESOLUTION • هدایت هوشمند تقاضا
                 </span>
-                <span className="text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[10px] font-black bg-emerald-600 text-white border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <CheckCircle2 size={11} className="text-emerald-600" />
                   <span>انحصار ۱۰۰٪ منطقه‌ای فعال</span>
                 </span>
@@ -1536,7 +1573,7 @@ export default function RepresentativeManagementPortal({
 
           {/* Action Feedback Banner */}
           {leadActionFeedback && (
-            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-emerald-950 flex items-center gap-2.5 animate-fade-in shadow-xs">
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-slate-900 flex items-center gap-2.5 animate-fade-in shadow-xs">
               <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
               <span>{leadActionFeedback}</span>
             </div>
@@ -1556,7 +1593,7 @@ export default function RepresentativeManagementPortal({
 
             <div className="space-y-1">
               <strong className="text-slate-900 font-black flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">۲</span>
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">۲</span>
                 <span>ارسال مستقیم کارخانه (Override):</span>
               </strong>
               <p className="text-slate-600 text-[11px] leading-relaxed">
@@ -1566,7 +1603,7 @@ export default function RepresentativeManagementPortal({
 
             <div className="space-y-1">
               <strong className="text-slate-900 font-black flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-black">۳</span>
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">۳</span>
                 <span>مهلت تصمیم‌گیری ۲۴ ساعته:</span>
               </strong>
               <p className="text-slate-600 text-[11px] leading-relaxed">
@@ -1609,8 +1646,8 @@ export default function RepresentativeManagementPortal({
 
                     <div className="flex items-center gap-2">
                       {isPending && (
-                        <span className="text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-1 rounded-xl flex items-center gap-1">
-                          <Clock size={12} className="text-amber-600 animate-spin" />
+                        <span className="text-[10px] font-black bg-emerald-50 text-amber-900 border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1">
+                          <Clock size={12} className="text-emerald-600 animate-spin" />
                           <span>مهلت تصمیم: ۲۲ ساعت باقیمانده</span>
                         </span>
                       )}
@@ -1641,7 +1678,7 @@ export default function RepresentativeManagementPortal({
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px] block">ارزش کل فاکتور:</span>
-                      <strong className="text-indigo-700 font-mono font-black">{toPersianNum(lead.totalEstimatedAmount)} تومان</strong>
+                      <strong className="text-emerald-700 font-mono font-black">{toPersianNum(lead.totalEstimatedAmount)} تومان</strong>
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px] block">پورسانت انحصار شما (۲.۵٪):</span>
@@ -1657,7 +1694,7 @@ export default function RepresentativeManagementPortal({
                       </span>
                       <a
                         href={`tel:${lead.phone}`}
-                        className="text-xs font-bold text-indigo-700 hover:text-indigo-900 hover:underline"
+                        className="text-xs font-bold text-emerald-700 hover:text-indigo-900 hover:underline"
                       >
                         تماس تلفنی با خریدار
                       </a>
@@ -1680,7 +1717,7 @@ export default function RepresentativeManagementPortal({
                         <button
                           type="button"
                           onClick={() => handleRouteToFactory(lead.id)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           title="ارجاع به خط تولید کارخانه و دریافت فوری ۲.۵٪ پورسانت انحصار منطقه"
                         >
                           <Truck size={14} />
@@ -1704,7 +1741,7 @@ export default function RepresentativeManagementPortal({
             <button
               type="button"
               onClick={handleRequestSettlement}
-              className="px-4 py-2 bg-indigo-600 hover:bg-black text-white font-black rounded-xl transition-all cursor-pointer shadow-xs shrink-0"
+              className="px-4 py-2 bg-emerald-600 hover:bg-black text-white font-black rounded-xl transition-all cursor-pointer shadow-xs shrink-0"
             >
               درخواست تسویه پورسانت به حساب بانکی
             </button>
@@ -1773,7 +1810,7 @@ export default function RepresentativeManagementPortal({
               <button
                 type="button"
                 onClick={handlePreviewCatalog}
-                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Eye size={14} />
                 <span>پیش‌نمایش زنده کاتالوگ</span>
@@ -1792,6 +1829,123 @@ export default function RepresentativeManagementPortal({
       )}
 
       {/* ========================================================================= */}
+      {/* 11. COMMISSIONS & SETTLEMENT TAB: 💰 (مدیریت پورسانت و تسویه)             */}
+      {/* ========================================================================= */}
+      {activeTab === 'commissions' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <Wallet className="opacity-80" size={24} />
+                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-black">موجودی قابل تسویه</span>
+              </div>
+              <div className="text-2xl font-black font-mono">
+                {toPersianNum(repCommissions.totalCommission)} <span className="text-xs font-normal opacity-80">تومان</span>
+              </div>
+              <button 
+                onClick={handleRequestSettlement}
+                disabled={repCommissions.totalCommission <= 0}
+                className="w-full mt-6 py-2.5 bg-white text-purple-700 rounded-xl font-black text-xs hover:bg-purple-50 transition-all shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                درخواست واریز آنی به شبا
+              </button>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-1">
+                  <TrendingUp size={16} className="text-emerald-500" />
+                  کل پورسانت کسب شده (Life-time)
+                </div>
+                <div className="text-xl font-black text-slate-900 font-mono">
+                  {toPersianNum(repCommissions.history.reduce((s: number, i: any) => s + i.amount, 0))} <span className="text-xs font-normal text-slate-500">تومان</span>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-slate-100 mt-4">
+                <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                  <span>نرخ پایه پورسانت:</span>
+                  <span className="text-slate-900">۲.۵٪ الی ۱۲٪</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+              <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-3">
+                <Info size={16} className="text-blue-500" />
+                قوانین محاسباتی پورسانت
+              </div>
+              <ul className="space-y-2 text-[10px] text-slate-600 font-bold leading-relaxed">
+                <li className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span><strong>۱۲٪ سود خالص:</strong> در صورت تحویل مستقیم از انبار نماینده</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span><strong>۲.۵٪ اورراید:</strong> در صورت ارسال مستقیم از خط تولید کارخانه</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  <span><strong>۵٪ افیلیت:</strong> در صورت خرید با لینک اختصاصی شما</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+            <h3 className="font-black text-sm text-slate-900 mb-6 flex items-center gap-2">
+              <Clock size={18} className="text-slate-400" />
+              تاریخچه تراکنش‌های پورسانت و پاداش‌ها
+            </h3>
+            
+            {repCommissions.history.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                  <Coins size={32} />
+                </div>
+                <p className="text-xs text-slate-400 font-bold">هنوز تراکنشی ثبت نشده است.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-500 font-black">
+                      <th className="py-3 px-2">شرح تراکنش</th>
+                      <th className="py-3 px-2 text-center">کد مرجع</th>
+                      <th className="py-3 px-2 text-center">تاریخ</th>
+                      <th className="py-3 px-2 text-left">مبلغ (تومان)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {repCommissions.history.map((item: any, idx: number) => (
+                      <tr key={`rep-comm-hist-${item.id || idx}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-4 px-2">
+                          <div className="flex flex-col">
+                            <span className="font-black text-slate-900">{item.reason}</span>
+                            <span className="text-[10px] text-slate-400 font-bold">واریز شده به موجودی کیف پول</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-2 text-center">
+                          <span className="font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{item.leadId || 'سیستمی'}</span>
+                        </td>
+                        <td className="py-4 px-2 text-center text-slate-500 font-bold">{item.date}</td>
+                        <td className="py-4 px-2 text-left">
+                          <span className="text-emerald-600 font-black font-mono">+{toPersianNum(item.amount)}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 7. SUB-TAB CONTENT: 💼 REPRESENTATIVE WORKPLACE (میز کار سفارشات مستقیم)    */}
       {/* ========================================================================= */}
       {activeTab === 'workplace' && (
@@ -1801,7 +1955,7 @@ export default function RepresentativeManagementPortal({
           <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <Zap size={18} />
                 </div>
                 <div>
@@ -1810,7 +1964,7 @@ export default function RepresentativeManagementPortal({
                 </div>
               </div>
 
-              <span className="text-[11px] font-black text-amber-900 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200">
+              <span className="text-[11px] font-black text-amber-900 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">
                 تخفیف فعال شما: {activeTier.discountRate}
               </span>
             </div>
@@ -1827,7 +1981,7 @@ export default function RepresentativeManagementPortal({
                 return (
                   <div key={`rep-hot-reorder-${p.id || idx}-${idx}`} className="bg-slate-50/70 hover:bg-slate-100/80 p-3.5 rounded-2xl border border-slate-200 transition-all flex flex-col justify-between space-y-3">
                     <div className="space-y-1">
-                      <span className="text-[9px] font-black text-indigo-700 block">{p.brand || "تولید مستقیم"}</span>
+                      <span className="text-[9px] font-black text-emerald-700 block">{p.brand || "تولید مستقیم"}</span>
                       <h4 className="text-xs font-black text-slate-900 line-clamp-1">{p.name}</h4>
                       <div className="text-[11px] font-mono text-amber-800 font-black">
                         {toPersianNum(repCartonPrice)} ت <span className="text-[9px] text-slate-500 font-normal">/ کارتن</span>
@@ -1838,7 +1992,7 @@ export default function RepresentativeManagementPortal({
                       <button
                         type="button"
                         onClick={() => handleAddProductToCart(p, 5)}
-                        className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                         title="ثبت فوری ۵ کارتن"
                       >
                         <Plus size={11} />
@@ -1847,7 +2001,7 @@ export default function RepresentativeManagementPortal({
                       <button
                         type="button"
                         onClick={() => handleAddProductToCart(p, 10)}
-                        className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                         title="ثبت فوری ۱۰ کارتن"
                       >
                         <Plus size={11} />
@@ -1856,7 +2010,7 @@ export default function RepresentativeManagementPortal({
                       <button
                         type="button"
                         onClick={() => handleAddProductToCart(p, 20)}
-                        className="flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                         title="ثبت فوری ۲۰ کارتن"
                       >
                         <Plus size={11} />
@@ -1881,7 +2035,7 @@ export default function RepresentativeManagementPortal({
                   placeholder="جستجوی سریع کالا، کارخانه یا برند در میز کار..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -1906,7 +2060,7 @@ export default function RepresentativeManagementPortal({
                     type="button"
                     onClick={() => setWorkplaceViewMode('cards')}
                     className={`p-2 rounded-xl transition-all cursor-pointer ${
-                      workplaceViewMode === 'cards' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-900"
+                      workplaceViewMode === 'cards' ? "bg-white text-emerald-600 shadow-xs" : "text-slate-500 hover:text-slate-900"
                     }`}
                     title="نمای کارت‌های کاتالوگ"
                   >
@@ -1916,7 +2070,7 @@ export default function RepresentativeManagementPortal({
                     type="button"
                     onClick={() => setWorkplaceViewMode('table')}
                     className={`p-2 rounded-xl transition-all cursor-pointer ${
-                      workplaceViewMode === 'table' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-900"
+                      workplaceViewMode === 'table' ? "bg-white text-emerald-600 shadow-xs" : "text-slate-500 hover:text-slate-900"
                     }`}
                     title="نمای جدول سریع و متمرکز میز کار"
                   >
@@ -1999,7 +2153,7 @@ export default function RepresentativeManagementPortal({
                           <td className="py-3 px-4 font-mono text-slate-500 line-through">
                             {toPersianNum(cartonPrice)} ت
                           </td>
-                          <td className="py-3 px-4 font-mono font-black text-indigo-700">
+                          <td className="py-3 px-4 font-mono font-black text-emerald-700">
                             {toPersianNum(repCartonPrice)} تومان
                           </td>
                           <td className="py-3 px-4 font-mono font-black text-emerald-600">
@@ -2031,7 +2185,7 @@ export default function RepresentativeManagementPortal({
                               type="button"
                               onClick={() => handleAddProductToCart(p)}
                               className={`px-3.5 py-1.5 rounded-xl font-black text-xs transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs ${
-                                isAdded ? "bg-emerald-600 text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                isAdded ? "bg-emerald-600 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
                               }`}
                             >
                               {isAdded ? <Check size={13} /> : <ShoppingBag size={13} />}
@@ -2071,7 +2225,7 @@ export default function RepresentativeManagementPortal({
                     {/* Top Badges */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        <span className="text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white border border-emerald-100">
                           {p.brand || p.factory_name || "تولید مستقیم"}
                         </span>
                         <h4 className="text-sm font-black text-slate-900 leading-snug line-clamp-2 pt-1">
@@ -2104,7 +2258,7 @@ export default function RepresentativeManagementPortal({
                       </div>
                       <div className="flex justify-between items-center text-indigo-900 font-black border-t border-slate-200/60 pt-1.5">
                         <span>قیمت با تخفیف نماینده:</span>
-                        <strong className="text-indigo-600 font-mono text-sm">{toPersianNum(repCartonPrice)} تومان</strong>
+                        <strong className="text-emerald-600 font-mono text-sm">{toPersianNum(repCartonPrice)} تومان</strong>
                       </div>
                       <div className="flex justify-between items-center text-emerald-800 font-bold bg-emerald-50/80 px-2 py-1 rounded-xl border border-emerald-100">
                         <span>سود ناخالص در هر کارتن:</span>
@@ -2149,7 +2303,7 @@ export default function RepresentativeManagementPortal({
                         className={`w-full py-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
                           isAdded 
                             ? "bg-emerald-600 text-white shadow-emerald-600/20"
-                            : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/15"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/15"
                         }`}
                       >
                         {isAdded ? (
@@ -2176,6 +2330,29 @@ export default function RepresentativeManagementPortal({
       )}
 
       {/* ========================================================================= */}
+      {/* 8B. SUB-TAB CONTENT: 📊 REGIONAL ORDERS & COMMISSION ANALYTICS          */}
+      {/* ========================================================================= */}
+      {activeTab === 'regional_orders' && (
+        <RepresentativeRegionalOrdersView
+          user={user}
+          orders={orders}
+          onUpdateUser={onUpdateUser}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 8C. SUB-TAB CONTENT: 🗺️ IRAN PROVINCES ORDERS MAP & COVERAGE WIDGET         */}
+      {/* ========================================================================= */}
+      {activeTab === 'coverage_map' && (
+        <IranProvinceOrdersMapWidget
+          orders={orders}
+          user={user}
+          onUpdateUser={onUpdateUser}
+          markupPercent={Number(user?.markupPercent || user?.commissionRate || 15)}
+        />
+      )}
+
+      {/* ========================================================================= */}
       {/* 8. SUB-TAB CONTENT: 📦 ORDERS & REGIONAL INVOICES                         */}
       {/* ========================================================================= */}
       {activeTab === 'orders' && (
@@ -2183,7 +2360,7 @@ export default function RepresentativeManagementPortal({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div>
               <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <FileText size={20} className="text-indigo-600" />
+                <FileText size={20} className="text-emerald-600" />
                 <span>لیست سفارشات و فاکتورهای رسمی عاملیت</span>
               </h3>
               <p className="text-xs text-slate-500 font-medium pt-0.5">
@@ -2208,7 +2385,7 @@ export default function RepresentativeManagementPortal({
               <button
                 type="button"
                 onClick={() => setActiveTab('workplace')}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 <ShoppingBag size={14} />
                 <span>ثبت اولین سفارش کالا</span>
@@ -2230,11 +2407,11 @@ export default function RepresentativeManagementPortal({
                 <tbody className="divide-y divide-slate-100">
                   {myOrders.map((ord: any, idx: number) => {
                     const statusConfig = {
-                      'pending': { label: 'در انتظار تایید', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+                      'pending': { label: 'در انتظار تایید', color: 'bg-emerald-50 text-amber-700 border-emerald-200' },
                       'processing': { label: 'در حال آماده‌سازی کارخانه', color: 'bg-blue-50 text-blue-700 border-blue-200' },
                       'shipped': { label: 'تحویل باربری و ترانزیت', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-                      'delivered': { label: 'تحویل نهایی شده', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                    }[ord.status as string] || { label: 'تاییدشده', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+                      'delivered': { label: 'تحویل نهایی شده', color: 'bg-emerald-600 text-white border-emerald-200' },
+                    }[ord.status as string] || { label: 'تاییدشده', color: 'bg-emerald-600 text-white border-emerald-200' };
 
                     return (
                       <tr key={`rep-myorder-${ord.id || idx}-${idx}`} className="hover:bg-slate-50/80 transition-colors font-medium">
@@ -2247,7 +2424,7 @@ export default function RepresentativeManagementPortal({
                         <td className="py-3.5 px-4 text-slate-700 font-bold">
                           {toPersianNum(ord.items?.length || 1)} قلم کالا
                         </td>
-                        <td className="py-3.5 px-4 font-mono font-black text-indigo-700">
+                        <td className="py-3.5 px-4 font-mono font-black text-emerald-700">
                           {toPersianNum((ord.totalAmount || 0))} تومان
                         </td>
                         <td className="py-3.5 px-4">
@@ -2282,17 +2459,17 @@ export default function RepresentativeManagementPortal({
       {activeTab === 'plaque' && (
         <div className="space-y-6">
           {!isApprovedByAdmin ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 max-w-xl mx-auto my-12" dir="rtl">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center text-3xl mx-auto border border-amber-200">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 max-w-xl mx-auto my-12" dir="rtl">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-3xl mx-auto border border-emerald-200">
                 🔒
               </div>
               <h3 className="text-base sm:text-lg font-black text-slate-800">این بخش قفل می‌باشد</h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-bold">
-                لوح تایید رسمی و گواهی الکترونیک نمایندگی تنها پس از بررسی و تایید نهایی مشخصات شما توسط مدیریت سامانه فعال و قابل دانلود خواهد بود.
+                لوح تایید رسمی و گواهی الکترونیک نمایندگی تنها پس از بررسی و تایید نهایی مشخصات شما توسط مدیریت سامانه فعال و قابل رویت و چاپ خواهد بود.
               </p>
-              <div className="bg-white/80 rounded-2xl p-4 border border-amber-100 inline-flex items-center gap-2 text-xs font-bold text-amber-800">
+              <div className="bg-white/80 rounded-2xl p-4 border border-emerald-100 inline-flex items-center gap-2 text-xs font-bold text-amber-800">
                 <span>وضعیت پرونده شما:</span>
-                <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-[11px] font-black">در انتظار بررسی و تایید ادمین</span>
+                <span className="bg-emerald-100 text-amber-900 px-3 py-1 rounded-full text-[11px] font-black">در انتظار بررسی و تایید ادمین</span>
               </div>
             </div>
           ) : (
@@ -2321,7 +2498,7 @@ export default function RepresentativeManagementPortal({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div>
               <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <Star size={20} className="text-amber-500" />
+                <Star size={20} className="text-emerald-500" />
                 <span>ضوابط سطوح ۴ گانه عاملیت و قرارداد الحاقی</span>
               </h3>
               <p className="text-xs text-slate-500 font-medium pt-0.5">
@@ -2332,7 +2509,7 @@ export default function RepresentativeManagementPortal({
             <button
               type="button"
               onClick={() => setShowTicketModal(true)}
-              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <Send size={14} />
               <span>درخواست قرارداد الحاقی ارتقای رتبه</span>
@@ -2350,14 +2527,14 @@ export default function RepresentativeManagementPortal({
                   key={`rep-tier-card-${tier.id || idx}-${idx}`}
                   className={`rounded-3xl p-5 border-2 transition-all flex flex-col justify-between space-y-4 relative ${
                     isCurrent
-                      ? `${tier.borderColor} bg-white shadow-md ring-2 ring-indigo-500/20`
+                      ? `${tier.borderColor} bg-white shadow-md ring-2 ring-emerald-500/20`
                       : isAchieved && isRepresentativeActive
                       ? "border-emerald-200 bg-white"
                       : "border-slate-200 bg-white opacity-85"
                   }`}
                 >
                   {isCurrent && (
-                    <div className="absolute -top-3 right-4 bg-indigo-600 text-white text-[10px] font-black px-3 py-0.5 rounded-full shadow-xs">
+                    <div className="absolute -top-3 right-4 bg-emerald-600 text-white text-[10px] font-black px-3 py-0.5 rounded-full shadow-xs">
                       سطح فعال شما ✓
                     </div>
                   )}
@@ -2374,7 +2551,7 @@ export default function RepresentativeManagementPortal({
                       {tier.title}
                     </h4>
 
-                    <div className="text-xs font-bold font-mono text-indigo-700 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <div className="text-xs font-bold font-mono text-emerald-700 bg-slate-50 p-2 rounded-xl border border-slate-100">
                       حداقل فروش: {toPersianNum(tier.minSalesFormatted)}
                     </div>
 
@@ -2421,7 +2598,7 @@ export default function RepresentativeManagementPortal({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-sm font-black shrink-0">۱</div>
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm font-black shrink-0">۱</div>
                 <div className="space-y-1">
                   <h4 className="text-xs font-black text-slate-900">چک صیادی (بنفش)</h4>
                   <p className="text-[11px] text-slate-600 font-medium leading-relaxed">ثبت شناسه ۱۶ رقمی صیادی به همراه ثبت به نام شرکت توسعه تجارت دست‌اول در سامانه شاپرک.</p>
@@ -2429,7 +2606,7 @@ export default function RepresentativeManagementPortal({
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm font-black shrink-0">۲</div>
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-indigo-800 flex items-center justify-center text-sm font-black shrink-0">۲</div>
                 <div className="space-y-1">
                   <h4 className="text-xs font-black text-slate-900">گواهی اعتباریتو (Etebarito)</h4>
                   <p className="text-[11px] text-slate-600 font-medium leading-relaxed">استعلام آنلاین رتبه اعتباری از سامانه اعتباریتو جهت افزایش سقف اعتبار تخصیصی به منطقه.</p>
@@ -2437,7 +2614,7 @@ export default function RepresentativeManagementPortal({
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm font-black shrink-0">۳</div>
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-amber-800 flex items-center justify-center text-sm font-black shrink-0">۳</div>
                 <div className="space-y-1">
                   <h4 className="text-xs font-black text-slate-900">ضمانت‌نامه تعهد پرداخت بانکی</h4>
                   <p className="text-[11px] text-slate-600 font-medium leading-relaxed">تسهیل ترخیص کالا از گمرکات و انبار تولیدی کارخانجات با ثبت ضمانت تعهد پرداخت.</p>
@@ -2453,7 +2630,7 @@ export default function RepresentativeManagementPortal({
                 </div>
                 <div>
                   <h4 className="text-xs font-black text-white">سامانه اعتبارسنجی ملی اعتباریتو (Etebarito.ir)</h4>
-                  <p className="text-[11px] text-indigo-200 font-medium mt-0.5">
+                  <p className="text-[11px] text-emerald-200 font-medium mt-0.5">
                     جهت دریافت کارنامه و استعلام رتبه اعتباری بانکی خود، به سامانه اعتباریتو مراجعه نموده و فایل گزارش را بارگذاری نمایید.
                   </p>
                 </div>
@@ -2484,15 +2661,15 @@ export default function RepresentativeManagementPortal({
               </div>
 
               {guaranteeSuccessMsg && (
-                <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-emerald-950 flex items-center gap-2">
+                <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-slate-900 flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
                   <span>{guaranteeSuccessMsg}</span>
                 </div>
               )}
 
               {guaranteeErrorMsg && (
-                <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4 text-xs font-black text-rose-950 flex items-center gap-2">
-                  <AlertCircle size={18} className="text-rose-600 shrink-0" />
+                <div className="bg-emerald-50 border border-rose-300 rounded-2xl p-4 text-xs font-black text-rose-950 flex items-center gap-2">
+                  <AlertCircle size={18} className="text-emerald-600 shrink-0" />
                   <span>{guaranteeErrorMsg}</span>
                 </div>
               )}
@@ -2503,7 +2680,7 @@ export default function RepresentativeManagementPortal({
                   <select
                     value={gType}
                     onChange={(e: any) => setGType(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all cursor-pointer"
                   >
                     <option value="sayad_cheque">چک صیادی بنفش (ضمانت)</option>
                     <option value="etebarito_cert">گواهی اعتبارسنجی سامانه اعتباریتو (Etebarito)</option>
@@ -2521,7 +2698,7 @@ export default function RepresentativeManagementPortal({
                     placeholder="مثال: 500000000"
                     value={gAmount}
                     onChange={(e) => setGAmount(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all font-mono text-left"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all font-mono text-left"
                   />
                   {gAmount && (
                     <div className="text-[10px] text-emerald-700 font-bold text-left">
@@ -2539,7 +2716,7 @@ export default function RepresentativeManagementPortal({
                       placeholder="مثال: بانک ملت"
                       value={gBankName}
                       onChange={(e) => setGBankName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                     />
                   </div>
 
@@ -2550,7 +2727,7 @@ export default function RepresentativeManagementPortal({
                       placeholder="مثال: ۹۱۲۳۴۵"
                       value={gChequeNumber}
                       onChange={(e) => setGChequeNumber(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all text-left font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all text-left font-mono"
                     />
                   </div>
                 </div>
@@ -2565,7 +2742,7 @@ export default function RepresentativeManagementPortal({
                       placeholder="شناسه ۱۶ رقمی روی چک"
                       value={gSayadNumber}
                       onChange={(e) => setGSayadNumber(e.target.value.replace(/\D/g, ''))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all text-left font-mono tracking-widest"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all text-left font-mono tracking-widest"
                     />
                     <div className="flex justify-between text-[10px] text-slate-500 font-bold">
                       <span>فقط اعداد انگلیسی بدون خط تیره</span>
@@ -2582,7 +2759,7 @@ export default function RepresentativeManagementPortal({
                       placeholder="۱۴۰۳/۰۵/۱۰"
                       value={gIssueDate}
                       onChange={(e) => setGIssueDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all text-center font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all text-center font-mono"
                     />
                   </div>
 
@@ -2593,7 +2770,7 @@ export default function RepresentativeManagementPortal({
                       placeholder="۱۴۰۴/۰۵/۱۰"
                       value={gExpiryDate}
                       onChange={(e) => setGExpiryDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all text-center font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all text-center font-mono"
                     />
                   </div>
                 </div>
@@ -2608,7 +2785,7 @@ export default function RepresentativeManagementPortal({
                     }}
                     className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
                       gFileSelected 
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-950" 
+                        ? "border-emerald-300 bg-emerald-50 text-slate-900" 
                         : "border-slate-300 hover:border-indigo-400 bg-slate-50 text-slate-600"
                     }`}
                   >
@@ -2647,7 +2824,7 @@ export default function RepresentativeManagementPortal({
               <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                    <FileText size={18} className="text-indigo-600" />
+                    <FileText size={18} className="text-emerald-600" />
                     <span>لیست وثایق و ضمانت‌نامه‌های شما</span>
                   </h4>
                   <span className="text-[10px] font-black bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full border border-slate-200">
@@ -2670,9 +2847,9 @@ export default function RepresentativeManagementPortal({
                     {guarantees.map((guar, idx) => {
                       const statusStyles = {
                         'pending_submission': { label: 'پیش‌نویس', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-                        'submitted_pending_review': { label: 'در حال بررسی و ممیزی صیاد', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-                        'verified_approved': { label: 'تایید و ثبت شده رسمی ✓', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                        'rejected': { label: 'رد صلاحیت / دارای معوقه', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+                        'submitted_pending_review': { label: 'در حال بررسی و ممیزی صیاد', color: 'bg-emerald-50 text-amber-700 border-emerald-200' },
+                        'verified_approved': { label: 'تایید و ثبت شده رسمی ✓', color: 'bg-emerald-600 text-white border-emerald-200' },
+                        'rejected': { label: 'رد صلاحیت / دارای معوقه', color: 'bg-emerald-600 text-white border-emerald-200' },
                         'expired': { label: 'منقضی شده (نیاز به تمدید)', color: 'bg-slate-100 text-slate-600 border-slate-300' }
                       }[guar.status] || { label: 'نامشخص', color: 'bg-slate-100 text-slate-700 border-slate-200' };
 
@@ -2691,7 +2868,7 @@ export default function RepresentativeManagementPortal({
                         >
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                              <span className="w-2 h-2 rounded-full bg-emerald-600" />
                               <strong className="text-xs font-black text-slate-900">{guaranteeLabels}</strong>
                               <span className="text-[10px] font-mono text-slate-500">({guar.id})</span>
                             </div>
@@ -2742,9 +2919,9 @@ export default function RepresentativeManagementPortal({
                               <button
                                 type="button"
                                 onClick={() => handleSimulateApproveGuarantee(guar.id)}
-                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 rounded-xl font-black text-[10px] border border-indigo-200 transition-all cursor-pointer flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-indigo-800 rounded-xl font-black text-[10px] border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5"
                               >
-                                <Sparkles size={12} className="text-indigo-600 animate-pulse" />
+                                <Sparkles size={12} className="text-emerald-600 animate-pulse" />
                                 <span>شبیه‌ساز تایید آنی توسط مدیر (جهت تست)</span>
                               </button>
                             </div>
@@ -2767,7 +2944,7 @@ export default function RepresentativeManagementPortal({
       {activeTab === 'rules' && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-5">
-            <span className="text-[10px] font-black text-rose-600 tracking-wider uppercase">TERMS AND CONDITIONS</span>
+            <span className="text-[10px] font-black text-emerald-600 tracking-wider uppercase">TERMS AND CONDITIONS</span>
             <h3 className="text-lg sm:text-xl font-black text-slate-900 pt-1">
               قوانین، مقررات و الزامات انحصار عاملیت پخش
             </h3>
@@ -2782,7 +2959,7 @@ export default function RepresentativeManagementPortal({
               <div>
                 <h4 className="font-black text-slate-900 text-sm">حفظ سطح خرید و فعالیت مستمر (قانون ۳ ماه)</h4>
                 <p className="text-xs font-bold text-slate-600 mt-2 leading-relaxed">
-                  نماینده موظف است به منظور حفظ انحصار منطقه‌ای خود، به صورت مستمر ثبت سفارش داشته باشد. <strong className="text-rose-600">عدم ثبت سفارش به مدت ۳ ماه متوالی</strong> منجر به تعلیق خودکار پنل عاملیت و ابطال حق انحصار در شهر/استان مربوطه خواهد شد.
+                  نماینده موظف است به منظور حفظ انحصار منطقه‌ای خود، به صورت مستمر ثبت سفارش داشته باشد. <strong className="text-emerald-600">عدم ثبت سفارش به مدت ۳ ماه متوالی</strong> منجر به تعلیق خودکار پنل عاملیت و ابطال حق انحصار در شهر/استان مربوطه خواهد شد.
                 </p>
               </div>
             </div>
@@ -2827,7 +3004,7 @@ export default function RepresentativeManagementPortal({
         <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-5">
             <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-              <User size={20} className="text-indigo-600" />
+              <User size={20} className="text-emerald-600" />
               <span>مشخصات دفتر عاملیت و ثبت رسمی</span>
             </h3>
             <p className="text-xs text-slate-500 font-medium pt-0.5">
@@ -2836,7 +3013,7 @@ export default function RepresentativeManagementPortal({
           </div>
 
           {successMsg && (
-            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-emerald-950 flex items-center gap-2">
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-slate-900 flex items-center gap-2">
               <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
               <span>{successMsg}</span>
             </div>
@@ -2849,7 +3026,7 @@ export default function RepresentativeManagementPortal({
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                 required
               />
             </div>
@@ -2860,7 +3037,7 @@ export default function RepresentativeManagementPortal({
                 type="text"
                 value={province}
                 onChange={(e) => setProvince(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                 required
               />
             </div>
@@ -2871,7 +3048,7 @@ export default function RepresentativeManagementPortal({
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                 required
               />
             </div>
@@ -2882,7 +3059,7 @@ export default function RepresentativeManagementPortal({
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all text-left font-mono"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all text-left font-mono"
               />
             </div>
 
@@ -2893,7 +3070,7 @@ export default function RepresentativeManagementPortal({
                 value={iban}
                 onChange={(e) => setIban(e.target.value)}
                 placeholder="IR..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all text-left font-mono"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all text-left font-mono"
               />
             </div>
 
@@ -2903,7 +3080,7 @@ export default function RepresentativeManagementPortal({
                 rows={2}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
               />
             </div>
 
@@ -2911,7 +3088,7 @@ export default function RepresentativeManagementPortal({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-70"
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-70"
               >
                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                 <span>ذخیره مشخصات عاملیت</span>
@@ -2953,7 +3130,7 @@ export default function RepresentativeManagementPortal({
           <div className="bg-white rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4 animate-scale-up text-right">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <ShieldCheck size={18} />
                 </div>
                 <h4 className="text-sm font-black text-slate-900">
@@ -2982,7 +3159,7 @@ export default function RepresentativeManagementPortal({
                   placeholder="لطفاً سابقه فعالیت، تعداد ویزیتورها و ظرفیت انبار خود را مرقوم فرمایید..."
                   value={approvalNote}
                   onChange={(e) => setApprovalNote(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -2997,7 +3174,7 @@ export default function RepresentativeManagementPortal({
                 <button
                   type="submit"
                   disabled={isRequestingApproval}
-                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-70"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-70"
                 >
                   {isRequestingApproval ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                   <span>ارسال درخواست به مدیریت</span>
@@ -3016,7 +3193,7 @@ export default function RepresentativeManagementPortal({
           <div className="bg-white rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4 animate-scale-up">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <Send size={16} />
                 </div>
                 <h4 className="text-sm font-black text-slate-900">
@@ -3029,7 +3206,7 @@ export default function RepresentativeManagementPortal({
             </div>
 
             <form onSubmit={handleSendAddendumTicket} className="space-y-3">
-              <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 text-xs space-y-1 text-amber-950">
+              <div className="bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 text-amber-950">
                 <div className="font-bold">متقاضی: <strong>{companyName}</strong></div>
                 <div>سطح درخواستی: <strong>{activeTier.title} (سطح {toPersianNum(activeTier.levelNumber)})</strong></div>
                 <div>فروش تاییدشده: <strong>{toPersianNum(simulatedSales)} تومان</strong></div>
@@ -3043,7 +3220,7 @@ export default function RepresentativeManagementPortal({
                   placeholder="لطفاً نیازمندی‌های ترانزیت، محدوده توزیع شهری یا هماهنگی با کارخانجات را قید فرمایید..."
                   value={ticketMessage}
                   onChange={(e) => setTicketMessage(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -3058,7 +3235,7 @@ export default function RepresentativeManagementPortal({
                 <button
                   type="submit"
                   disabled={isSubmittingTicket}
-                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-70"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-70"
                 >
                   {isSubmittingTicket ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                   <span>ارسال تیکت به دبیرخانه</span>
@@ -3095,7 +3272,7 @@ export default function RepresentativeManagementPortal({
           <div className="bg-white rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4 animate-scale-up text-right">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <Wallet size={16} />
                 </div>
                 <h4 className="text-sm font-black text-slate-900">
@@ -3109,7 +3286,7 @@ export default function RepresentativeManagementPortal({
 
             {settlementSuccess ? (
               <div className="space-y-4 py-3 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto">
                   <CheckCircle2 size={28} />
                 </div>
                 <div className="space-y-1">
@@ -3121,7 +3298,7 @@ export default function RepresentativeManagementPortal({
                 <button
                   type="button"
                   onClick={() => setShowSettlementModal(false)}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer"
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black cursor-pointer"
                 >
                   فهمیدم، متشکرم
                 </button>
@@ -3147,7 +3324,7 @@ export default function RepresentativeManagementPortal({
                     placeholder="IR-000000000000000000000000"
                     value={iban}
                     onChange={(e) => setIban(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold font-mono text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold font-mono text-slate-900 focus:bg-white focus:border-emerald-500 outline-none transition-all"
                   />
                 </div>
 
@@ -3162,7 +3339,7 @@ export default function RepresentativeManagementPortal({
                   <button
                     type="submit"
                     disabled={isSubmittingSettlement || repCommissions.totalCommission <= 0}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmittingSettlement ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                     <span>تایید و ارسال درخواست تسویه</span>

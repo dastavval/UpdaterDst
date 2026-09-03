@@ -334,7 +334,7 @@ export default function FactoryChatSystem({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowOfferModal(true)}
-            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+            className="bg-gradient-to-r from-amber-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <TrendingDown size={15} />
             <span className="hidden sm:inline">ثبت پیشنهاد چانه‌زنی</span>
@@ -374,7 +374,7 @@ export default function FactoryChatSystem({
       {/* QUICK NEGOTIATION CHIPS BAR */}
       <div className="bg-slate-50 p-2.5 border-b border-slate-200 overflow-x-auto scrollbar-none flex items-center gap-2 shrink-0">
         <span className="text-[11px] font-black text-slate-400 whitespace-nowrap pl-1 shrink-0 flex items-center gap-1">
-          <Zap size={13} className="text-amber-500" />
+          <Zap size={13} className="text-emerald-500" />
           <span>موضوعات سریع:</span>
         </span>
         {quickActions.map((action, idx) => (
@@ -425,12 +425,12 @@ export default function FactoryChatSystem({
                   msg.offerDetails.status === 'accepted'
                     ? "border-emerald-500 shadow-emerald-100 shadow-lg"
                     : msg.offerDetails.status === 'countered'
-                    ? "border-amber-500 shadow-amber-100 shadow-lg"
+                    ? "border-emerald-500 shadow-emerald-100 shadow-lg"
                     : "border-slate-300 shadow-md"
                 }`}>
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                         <TrendingDown size={18} />
                       </div>
                       <div>
@@ -441,9 +441,9 @@ export default function FactoryChatSystem({
 
                     <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
                       msg.offerDetails.status === 'accepted'
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-emerald-600 text-white"
                         : msg.offerDetails.status === 'countered'
-                        ? "bg-amber-100 text-amber-800"
+                        ? "bg-emerald-100 text-amber-800"
                         : "bg-slate-100 text-slate-700"
                     }`}>
                       {msg.offerDetails.status === 'accepted' && '✓ پذیرفته شد'}
@@ -470,7 +470,7 @@ export default function FactoryChatSystem({
                       <strong className="text-emerald-800 font-black">{msg.offerDetails.offeredPricePerCarton.toLocaleString('fa-IR')} تومان</strong>
                     </p>
                     {msg.offerDetails.counterPrice && (
-                      <p className="flex justify-between text-sm bg-amber-100/70 p-2 rounded-xl text-amber-950 font-black mt-1">
+                      <p className="flex justify-between text-sm bg-emerald-100/70 p-2 rounded-xl text-amber-950 font-black mt-1">
                         <span>قیمت متقابل کارخانه:</span>
                         <span>{msg.offerDetails.counterPrice.toLocaleString('fa-IR')} تومان</span>
                       </p>
@@ -551,7 +551,7 @@ export default function FactoryChatSystem({
           <button
             type="button"
             onClick={() => setShowOfferModal(true)}
-            className="p-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-2xl transition-all cursor-pointer flex items-center gap-1 font-black text-xs shrink-0"
+            className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-amber-700 border border-emerald-200 rounded-2xl transition-all cursor-pointer flex items-center gap-1 font-black text-xs shrink-0"
             title="ثبت فرم پیشنهاد قیمت"
           >
             <TrendingDown size={16} />
@@ -588,7 +588,7 @@ export default function FactoryChatSystem({
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
                     <TrendingDown size={20} />
                   </div>
                   <div>
@@ -661,9 +661,9 @@ export default function FactoryChatSystem({
                   </select>
                 </div>
 
-                <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200/80 text-[11px] text-amber-900 font-medium space-y-1">
+                <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200/80 text-[11px] text-amber-900 font-medium space-y-1">
                   <p className="font-black flex items-center gap-1">
-                    <Zap size={14} className="text-amber-600" />
+                    <Zap size={14} className="text-emerald-600" />
                     <span>نکته چانه‌زنی:</span>
                   </p>
                   <p>پیشنهاد شما مستقیم روی دسکتاپ مدیر فروش کارخانه ارسال می‌شود و پس از بررسی، پاسخ تایید یا قیمت متقابل ثبت خواهد شد.</p>

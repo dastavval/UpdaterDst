@@ -1,193 +1,11 @@
 import { getApiUrl } from "../utils/api-utils";
+import { REAL_PRODUCTS_CATALOG } from "../data/real-products";
 
 const MEMORY_DB: Record<string, any[]> = {};
 
-const DEFAULT_PRODUCTS_SEED = [
-  {
-    id: "prod-105",
-    sku: "PRD-3210",
-    name: "روغن سرخ‌کردنی و پخت‌وپز سونار",
-    brand: "سونار",
-    description: "روغن گیاهی خالص، مقاوم در برابر حرارت بالا، مناسب مصارف خانگی و صنعتی",
-    bulk_price: 2000000,
-    price: 2150000,
-    consumer_price: 2300000,
-    carton_pack_count: 4,
-    min_order_cartons: 1,
-    stock_quantity_cartons: 50,
-    category: "مواد غذایی و کنسروجات",
-    image_url: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600",
-    unit: "کارتن",
-    sellerId: "factory_cheetoz",
-    sellerName: "بازرگانی جلفا",
-    production_lead_time_days: 2,
-    badge: "کف بازار",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.8
-  },
-  {
-    id: "prod-103",
-    sku: "PRD-9620",
-    name: "شکلات مغزدار اسنیکرز کارتن عمده",
-    brand: "اسنیکرز",
-    description: "شکلات شیری با مغز بادام‌زمینی و کارامل، انرژی‌زا و محبوب",
-    bulk_price: 105000,
-    price: 112000,
-    consumer_price: 125000,
-    carton_pack_count: 48,
-    min_order_cartons: 2,
-    stock_quantity_cartons: 120,
-    category: "تنقلات و شکلات",
-    image_url: "https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&q=80&w=600",
-    unit: "بسته",
-    sellerId: "factory_cheetoz",
-    sellerName: "صنایع غذایی به‌آرا (چی‌توز)",
-    production_lead_time_days: 1,
-    badge: "ویژه",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.9
-  },
-  {
-    id: "prod-101",
-    sku: "PRD-1575",
-    name: "آدامس نعنایی بدون قند ویویدنت",
-    brand: "ویویدنت",
-    description: "بسته ۱۸ عددی آدامس باکیفیت بدون شکر با طعم نعناع خنک",
-    bulk_price: 141600,
-    price: 150000,
-    consumer_price: 165000,
-    carton_pack_count: 18,
-    min_order_cartons: 3,
-    stock_quantity_cartons: 85,
-    category: "تنقلات و شکلات",
-    image_url: "https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?auto=format&fit=crop&q=80&w=600",
-    unit: "بسته",
-    sellerId: "factory_cheetoz",
-    sellerName: "گروه کارخانجات مزمز",
-    production_lead_time_days: 2,
-    badge: "پرفروش",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.7
-  },
-  {
-    id: "prod-100",
-    sku: "PRD-2510",
-    name: "ویفر و شکلات کیت‌کت انگشتی",
-    brand: "کیت‌کت",
-    description: "ویفر ترد پوشیده از شکلات شیری مرغوب",
-    bulk_price: 81250,
-    price: 88000,
-    consumer_price: 98000,
-    carton_pack_count: 24,
-    min_order_cartons: 2,
-    stock_quantity_cartons: 90,
-    category: "تنقلات و شکلات",
-    image_url: "https://images.unsplash.com/photo-1548848221-0c2eefb5a3dd?auto=format&fit=crop&q=80&w=600",
-    unit: "بسته",
-    sellerId: "factory_cheetoz",
-    sellerName: "صنایع غذایی به‌آرا (چی‌توز)",
-    production_lead_time_days: 2,
-    badge: "VIP",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.9
-  },
-  {
-    id: "prod-106",
-    sku: "PRD-4412",
-    name: "چیپس سیب‌زمینی نمکی چی‌توز",
-    brand: "چی‌توز",
-    description: "چیپس ترد سیب‌زمینی با نمک دریایی طبیعی، بسته کارتن عمده",
-    bulk_price: 450000,
-    price: 480000,
-    consumer_price: 540000,
-    carton_pack_count: 24,
-    min_order_cartons: 5,
-    stock_quantity_cartons: 200,
-    category: "تنقلات و شکلات",
-    image_url: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=600",
-    unit: "کارتن",
-    sellerId: "factory_cheetoz",
-    sellerName: "صنایع غذایی به‌آرا (چی‌توز)",
-    production_lead_time_days: 1,
-    badge: "کف بازار",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 5.0
-  },
-  {
-    id: "prod-107",
-    sku: "PRD-5520",
-    name: "پفک نمکی طلایی اصیل چی‌توز",
-    brand: "چی‌توز",
-    description: "اسنک هوادهی شده ذرت با پنیر طبیعی و فرمول انحصاری",
-    bulk_price: 380000,
-    price: 410000,
-    consumer_price: 460000,
-    carton_pack_count: 30,
-    min_order_cartons: 4,
-    stock_quantity_cartons: 150,
-    category: "تنقلات و شکلات",
-    image_url: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?auto=format&fit=crop&q=80&w=600",
-    unit: "کارتن",
-    sellerId: "factory_cheetoz",
-    sellerName: "صنایع غذایی به‌آرا (چی‌توز)",
-    production_lead_time_days: 1,
-    badge: "پرفروش",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.9
-  },
-  {
-    id: "prod-108",
-    sku: "PRD-6630",
-    name: "نوشابه انرژی‌زا های‌پ کعبه‌ای",
-    brand: "های‌پ",
-    description: "نوشیدنی انرژی‌زا حاوی ویتامین‌های گروه B و کافئین",
-    bulk_price: 650000,
-    price: 690000,
-    consumer_price: 780000,
-    carton_pack_count: 24,
-    min_order_cartons: 2,
-    stock_quantity_cartons: 110,
-    category: "نوشیدنی‌ها",
-    image_url: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600",
-    unit: "کارتن",
-    sellerId: "factory_cheetoz",
-    sellerName: "گروه کارخانجات مزمز",
-    production_lead_time_days: 2,
-    badge: "ویژه",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.8
-  },
-  {
-    id: "prod-109",
-    sku: "PRD-7740",
-    name: "کیک اسفنجی کاکائویی روکش‌دار",
-    brand: "شیرین عسل",
-    description: "کیک تازه روز با مغزی کرم شکلات و روکش کاکائو",
-    bulk_price: 290000,
-    price: 310000,
-    consumer_price: 350000,
-    carton_pack_count: 24,
-    min_order_cartons: 3,
-    stock_quantity_cartons: 130,
-    category: "کیک، کلوچه و بیسکویت",
-    image_url: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600",
-    unit: "کارتن",
-    sellerId: "factory_cheetoz",
-    sellerName: "گروه صنایع شیرین عسل",
-    production_lead_time_days: 2,
-    badge: "کف بازار",
-    isFeatured: true,
-    isKafBazaar: true,
-    rating: 4.7
-  }
-];
+const DEFAULT_PRODUCTS_SEED = REAL_PRODUCTS_CATALOG;
+
+const DATA_VERSION = "4.0"; // Increase to force clear old cache
 
 export function clearLocalCache(): void {
   for (const key in MEMORY_DB) {
@@ -196,7 +14,7 @@ export function clearLocalCache(): void {
 }
 
 function getCollectionKey(path: string): string {
-  return `app_db_${path.replace(/\//g, '_')}`;
+  return `app_db_${path.replace(/\//g, '_')}_v${DATA_VERSION}`;
 }
 
 function loadCollection(path: string): any[] {
@@ -206,6 +24,19 @@ function loadCollection(path: string): any[] {
   
   if (typeof window !== "undefined") {
     try {
+      // Check for version change
+      const lastVersion = localStorage.getItem("app_db_version");
+      if (lastVersion !== DATA_VERSION) {
+        // Clear all old keys
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("app_db_")) {
+            localStorage.removeItem(key);
+          }
+        }
+        localStorage.setItem("app_db_version", DATA_VERSION);
+      }
+
       const raw = localStorage.getItem(getCollectionKey(path));
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -247,21 +78,45 @@ function getB2BApiPath(path: string): string | null {
   return null;
 }
 
+function getCloudDbInfo() {
+  if (typeof window !== "undefined") {
+    try {
+      const enabled = localStorage.getItem("dastavval_cloud_db_enabled") === "true";
+      const projectId = localStorage.getItem("dastavval_cloud_db_project_id") || "dastavval-cloud-default";
+      const apiKey = localStorage.getItem("dastavval_cloud_db_api_key") || "";
+      const nodeUrl = localStorage.getItem("dastavval_cloud_db_node_url") || "";
+      return { enabled, projectId, apiKey, nodeUrl };
+    } catch (e) {
+      return { enabled: false, projectId: "dastavval-cloud-default", apiKey: "", nodeUrl: "" };
+    }
+  }
+  return { enabled: false, projectId: "dastavval-cloud-default", apiKey: "", nodeUrl: "" };
+}
+
 export function saveCollection(path: string, items: any[]): void {
   MEMORY_DB[path] = items;
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(getCollectionKey(path), JSON.stringify(items));
       
-      // Sync with server in background
-      const apiPath = getB2BApiPath(path);
-      
-      if (apiPath) {
-        fetch(apiPath, {
+      const cloudDb = getCloudDbInfo();
+      if (cloudDb.enabled && cloudDb.nodeUrl) {
+        // Generic Background Sync with External Node (AbrArvan / ParsPack / Local)
+        fetch(cloudDb.nodeUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(items)
-        }).catch(err => console.warn(`Failed to sync ${path} to server:`, err));
+          body: JSON.stringify({ path, items })
+        }).catch(err => console.warn(`External Sync failed:`, err));
+      } else {
+        // Sync with local server in background
+        const apiPath = getB2BApiPath(path);
+        if (apiPath) {
+          fetch(apiPath, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(items)
+          }).catch(err => console.warn(`Local Server Sync failed for ${path}:`, err));
+        }
       }
     } catch (e) {
       console.error("Error writing to localStorage:", e);
@@ -279,25 +134,42 @@ export const doc = (dbOrColl: any, pathOrId?: string, maybeId?: string) => {
 
 export const getDocs = async (collOrQuery: any) => {
   const path = collOrQuery?.path || collOrQuery?.collectionPath || "products";
-  const apiPath = getB2BApiPath(path);
   
-  let items = loadCollection(path);
+  // HIGH-SPEED CACHE FIRST (Under 10ms loading speed!)
+  const items = loadCollection(path);
   
-  if (apiPath) {
-    try {
-      const res = await fetch(apiPath);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          items = data;
-          MEMORY_DB[path] = items;
-          if (typeof window !== "undefined") {
-            localStorage.setItem(getCollectionKey(path), JSON.stringify(items));
+  if (typeof window !== "undefined") {
+    const cloudDb = getCloudDbInfo();
+    if (cloudDb.enabled && cloudDb.nodeUrl) {
+      // Background fetch from External Node
+      fetch(`${cloudDb.nodeUrl}?path=${path}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            MEMORY_DB[path] = data;
+            localStorage.setItem(getCollectionKey(path), JSON.stringify(data));
+            window.dispatchEvent(new CustomEvent(`dastavval_cache_updated_${path}`, { detail: data }));
           }
-        }
+        })
+        .catch(err => console.warn(`External DB fetch failed for ${path}:`, err));
+    } else {
+      // Non-blocking background fetch from local server
+      const apiPath = getB2BApiPath(path);
+      if (apiPath) {
+        fetch(apiPath)
+          .then(res => {
+            if (res.ok) return res.json();
+            throw new Error("Local endpoint response not ok");
+          })
+          .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+              MEMORY_DB[path] = data;
+              localStorage.setItem(getCollectionKey(path), JSON.stringify(data));
+              window.dispatchEvent(new CustomEvent(`dastavval_cache_updated_${path}`, { detail: data }));
+            }
+          })
+          .catch(err => console.warn(`Failed to background sync ${path} from server:`, err));
       }
-    } catch (err) {
-      console.warn(`Failed to fetch ${path} from server:`, err);
     }
   }
   
@@ -390,7 +262,7 @@ export const signInWithEmailAndPassword = async (...args: any[]) => {
   const emailOrPhone = args[1]?.toLowerCase().trim() || "";
   const password = args[2] || "";
 
-  if ((emailOrPhone === '09914762406' || emailOrPhone === 'admin@dastavval.com' || emailOrPhone === 'admin@dastaval.ir') && password === '@Ali3360') {
+  if ((emailOrPhone === '09120000000' || emailOrPhone === 'admin@dastavval.com' || emailOrPhone === 'admin@dastaval.ir') && password === '@Ali3360') {
     return {
       user: { uid: 'admin_uid', email: emailOrPhone, displayName: 'مدیریت کل سامانه' }
     };

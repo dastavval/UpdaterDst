@@ -237,8 +237,8 @@ export const ConnectedBubblesWidget: React.FC = () => {
 
         {/* Node 3: Transport */}
         <div className="flex flex-col items-center justify-center col-start-3 row-start-1">
-          <div className="bg-white/95 backdrop-blur-md border border-amber-200 px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-black text-amber-900 mt-8">
-            <Truck size={11} className="text-amber-600 shrink-0" />
+          <div className="bg-white/95 backdrop-blur-md border border-emerald-200 px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-black text-amber-900 mt-8">
+            <Truck size={11} className="text-emerald-600 shrink-0" />
             <span>حمل بیمه‌شده</span>
           </div>
         </div>
@@ -254,7 +254,7 @@ export const ConnectedBubblesWidget: React.FC = () => {
         {/* Node 5: Quality Guarantee */}
         <div className="flex flex-col items-center justify-center col-start-3 row-start-2">
           <div className="bg-white/95 backdrop-blur-md border border-sky-200 px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-black text-sky-900 mt-2">
-            <ShieldCheck size={11} className="text-sky-600 shrink-0" />
+            <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
             <span>تضمین اصالت بار</span>
           </div>
         </div>

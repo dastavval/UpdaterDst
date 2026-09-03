@@ -73,10 +73,10 @@ export default function HonorPlaqueCard({
       name: "عامل فروش رسمی",
       levelText: "سطح ۱",
       accentGrad: "from-amber-400 via-amber-300 to-yellow-500",
-      borderGrad: "from-amber-500 via-yellow-300 to-amber-600",
-      ribbonBg: "bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600",
+      borderGrad: "from-emerald-500 via-yellow-300 to-emerald-600",
+      ribbonBg: "bg-gradient-to-r from-emerald-600 via-yellow-500 to-emerald-600",
       glowColor: "rgba(245, 158, 11, 0.25)",
-      sealGrad: "from-amber-500 via-yellow-400 to-amber-600",
+      sealGrad: "from-emerald-500 via-yellow-400 to-emerald-600",
       tagline: "احراز عاملیت فروش رسمی و تعهد توزیع استاندارد کارخانجات کشور",
       contractTitle: "قرارداد رسمی عاملیت فروش خطوط تولید (سطح ۱)",
       discountRate: "۵٪ الی ۱۰٪ تخفیف مازاد عاملیت"
@@ -85,10 +85,10 @@ export default function HonorPlaqueCard({
       name: "نماینده انحصاری شهر",
       levelText: "سطح ۲",
       accentGrad: "from-sky-400 via-blue-300 to-indigo-400",
-      borderGrad: "from-blue-400 via-sky-200 to-indigo-500",
-      ribbonBg: "bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800",
+      borderGrad: "from-blue-400 via-sky-200 to-emerald-500",
+      ribbonBg: "bg-gradient-to-r from-blue-700 via-emerald-600 to-blue-800",
       glowColor: "rgba(59, 130, 246, 0.25)",
-      sealGrad: "from-blue-600 via-indigo-500 to-blue-700",
+      sealGrad: "from-emerald-600 via-emerald-500 to-blue-700",
       tagline: "حق عاملیت انحصاری و اولویت اول تخصیص بار کارخانجات در محدوده شهری",
       contractTitle: "حکم انحصار توزیع شهری و عاملیت پخش دست اول (سطح ۲)",
       discountRate: "۱۰٪ الی ۱۵٪ تخفیف مازاد عاملیت"
@@ -121,10 +121,10 @@ export default function HonorPlaqueCard({
     name: "عامل فروش رسمی",
     levelText: `سطح ${toPersianNum(tierLevel)}`,
     accentGrad: "from-amber-400 via-amber-300 to-yellow-500",
-    borderGrad: "from-amber-500 via-yellow-300 to-amber-600",
-    ribbonBg: "bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600",
+    borderGrad: "from-emerald-500 via-yellow-300 to-emerald-600",
+    ribbonBg: "bg-gradient-to-r from-emerald-600 via-yellow-500 to-emerald-600",
     glowColor: "rgba(245, 158, 11, 0.25)",
-    sealGrad: "from-amber-500 via-yellow-400 to-amber-600",
+    sealGrad: "from-emerald-500 via-yellow-400 to-emerald-600",
     tagline: "احراز عاملیت رسمی شبکه سراسری کالا",
     contractTitle: "قرارداد رسمی عاملیت توزیع مستقیم کالا",
     discountRate: "۵٪ الی ۱۰٪ تخفیف مازاد عاملیت"
@@ -290,7 +290,7 @@ export default function HonorPlaqueCard({
             onClick={() => setActiveDocTab('plaque')}
             className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeDocTab === 'plaque'
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -303,7 +303,7 @@ export default function HonorPlaqueCard({
             onClick={() => setActiveDocTab('contract')}
             className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeDocTab === 'contract'
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -316,7 +316,7 @@ export default function HonorPlaqueCard({
             onClick={() => setActiveDocTab('license')}
             className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeDocTab === 'license'
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -336,7 +336,7 @@ export default function HonorPlaqueCard({
                 onClick={() => setPlaqueTheme('royal_dark')}
                 className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                   plaqueTheme === 'royal_dark'
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-black"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-black"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -360,7 +360,7 @@ export default function HonorPlaqueCard({
           <button
             type="button"
             onClick={() => setShowShareModal(true)}
-            className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-black rounded-xl border border-indigo-200/80 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-black rounded-xl border border-emerald-200/80 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
             <Share2 size={15} />
             <span>به اشتراک‌گذاری مدارک</span>
@@ -378,19 +378,14 @@ export default function HonorPlaqueCard({
             <span>{isDownloadingPng ? "در حال پردازش..." : "تصویر PNG"}</span>
           </button>
 
-          {/* Download Official PDF */}
+          {/* Print Certificate */}
           <button
             type="button"
-            onClick={handleDownloadPdf}
-            disabled={isDownloadingPdf}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 text-xs font-black rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-amber-500/20 disabled:opacity-60"
+            onClick={() => window.print()}
+            className="px-4 py-2 bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
           >
-            {isDownloadingPdf ? (
-              <Loader2 size={15} className="animate-spin text-slate-950" />
-            ) : (
-              <Download size={15} className="text-slate-950" />
-            )}
-            <span>{isDownloadingPdf ? "در حال صدور PDF..." : "دانلود PDF رسمی"}</span>
+            <Printer size={15} />
+            <span>چاپ مستقیم حکم و لوح</span>
           </button>
 
         </div>
@@ -431,7 +426,7 @@ export default function HonorPlaqueCard({
               plaqueTheme === 'royal_dark' ? "border-amber-400/40" : "border-amber-700/30"
             }`} />
             <div className={`absolute inset-5 sm:inset-6 rounded-xl border pointer-events-none ${
-              plaqueTheme === 'royal_dark' ? "border-amber-300/20" : "border-amber-600/20"
+              plaqueTheme === 'royal_dark' ? "border-amber-300/20" : "border-emerald-600/20"
             }`} />
 
             {/* 4 Golden Corner Ornaments */}
@@ -472,7 +467,7 @@ export default function HonorPlaqueCard({
                 <div className="flex flex-col items-center text-center">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="h-[1px] w-8 sm:w-12 bg-gradient-to-r from-transparent to-amber-400" />
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 flex items-center justify-center shadow-lg shadow-amber-500/30 text-slate-950 font-black">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-300 via-emerald-500 to-yellow-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 text-slate-950 font-black">
                       <Star size={16} fill="currentColor" />
                     </div>
                     <div className="h-[1px] w-8 sm:w-12 bg-gradient-to-l from-transparent to-amber-400" />
@@ -537,7 +532,7 @@ export default function HonorPlaqueCard({
               <div className={`rounded-2xl p-5 sm:p-6 border relative overflow-hidden text-center space-y-3 ${
                 plaqueTheme === 'royal_dark'
                   ? "bg-gradient-to-b from-[#131f42]/90 to-[#0d1630]/90 border-amber-400/30 text-slate-200"
-                  : "bg-gradient-to-b from-[#fffefc] to-[#f4eee1] border-amber-600/30 text-slate-800"
+                  : "bg-gradient-to-b from-[#fffefc] to-[#f4eee1] border-emerald-600/30 text-slate-800"
               }`}>
                 
                 <p className="text-xs sm:text-sm leading-relaxed font-medium max-w-2xl mx-auto">
@@ -554,7 +549,7 @@ export default function HonorPlaqueCard({
                       borderColor: "#d97706"
                     }}
                   >
-                    <span className="text-base sm:text-xl font-black text-amber-500 tracking-wide block">
+                    <span className="text-base sm:text-xl font-black text-emerald-500 tracking-wide block">
                       🌟 {badgeLabel || tierConfig.name} ({tierConfig.levelText}) 🌟
                     </span>
                     <span className="text-[11px] font-bold opacity-80 block pt-0.5">
@@ -601,7 +596,7 @@ export default function HonorPlaqueCard({
                 <div className="flex flex-col items-center text-center">
                   <div className="relative flex items-center justify-center">
                     {/* Gold Seal Circle */}
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-500 border-4 border-amber-200 shadow-xl flex items-center justify-center text-slate-950 rotate-[-6deg] ring-4 ring-amber-400/20">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-yellow-600 via-amber-300 to-yellow-500 border-4 border-emerald-200 shadow-xl flex items-center justify-center text-slate-950 rotate-[-6deg] ring-4 ring-amber-400/20">
                       <Award size={32} />
                     </div>
                     {/* Decorative ribbons below seal */}
@@ -616,7 +611,7 @@ export default function HonorPlaqueCard({
                   <span className="text-[11px] font-black opacity-90 block">شورای اعطای عاملیت و نظارت بر شبکه</span>
                   <div className="h-12 relative flex items-center justify-center">
                     {/* Official Circular Stamp */}
-                    <div className="w-24 h-12 border-2 border-dashed border-indigo-400/80 rounded-xl bg-indigo-500/10 text-[9px] text-indigo-300 font-black flex items-center justify-center rotate-[-4deg] p-1 shadow-xs">
+                    <div className="w-24 h-12 border-2 border-dashed border-indigo-400/80 rounded-xl bg-emerald-500/10 text-[9px] text-indigo-300 font-black flex items-center justify-center rotate-[-4deg] p-1 shadow-xs">
                       <span>تایید و ثبت نهایی شد ✓</span>
                     </div>
                   </div>
@@ -641,7 +636,7 @@ export default function HonorPlaqueCard({
         >
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-5">
             <div className="space-y-1">
-              <span className="text-[10px] font-black tracking-widest text-indigo-600 uppercase">DASTAVVAL LEGAL CONTRACT</span>
+              <span className="text-[10px] font-black tracking-widest text-emerald-600 uppercase">DASTAVVAL LEGAL CONTRACT</span>
               <h3 className="text-lg sm:text-xl font-black text-slate-900">
                 {tierConfig.contractTitle}
               </h3>
@@ -691,7 +686,7 @@ export default function HonorPlaqueCard({
               <span className="text-[11px] font-black text-slate-500 block">مهر و امضای دبیرخانه مرکزی پلتفرم (طرف اول)</span>
               <div className="text-xs font-black text-slate-900">سامانه سراسری دست اول</div>
               <div className="text-[11px] text-slate-600 font-bold">واحد امور حقوقی و شبکه توزیع</div>
-              <div className="pt-2 text-[10px] text-indigo-700 font-black">هولوگرام اصالت و مهر برجسته الکترونیکی ✓</div>
+              <div className="pt-2 text-[10px] text-emerald-700 font-black">هولوگرام اصالت و مهر برجسته الکترونیکی ✓</div>
             </div>
           </div>
         </motion.div>
@@ -709,7 +704,7 @@ export default function HonorPlaqueCard({
         >
           <div className="flex items-center justify-between border-b border-slate-200 pb-5">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-black">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white border border-emerald-200 flex items-center justify-center font-black">
                 <ShieldCheck size={26} />
               </div>
               <div>
@@ -718,7 +713,7 @@ export default function HonorPlaqueCard({
               </div>
             </div>
 
-            <span className="text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-xl">
+            <span className="text-xs font-black bg-emerald-600 text-white border border-emerald-200 px-3 py-1 rounded-xl">
               وضعیت پروانه: معتبر و فعال 🟢
             </span>
           </div>
@@ -727,7 +722,7 @@ export default function HonorPlaqueCard({
             
             {/* QR Card */}
             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center space-y-3">
-              <div className="w-36 h-36 bg-white rounded-2xl p-2.5 border-2 border-indigo-200 shadow-md flex items-center justify-center">
+              <div className="w-36 h-36 bg-white rounded-2xl p-2.5 border-2 border-emerald-200 shadow-md flex items-center justify-center">
                 <QrCode size={120} className="text-slate-900" />
               </div>
               <div className="space-y-1">
@@ -749,7 +744,7 @@ export default function HonorPlaqueCard({
                 </div>
                 <div className="space-y-0.5">
                   <span className="text-slate-400 font-bold block text-[11px]">محدوده استحفاظی توزیع:</span>
-                  <span className="text-indigo-700 font-black text-sm">{province} - {city}</span>
+                  <span className="text-emerald-700 font-black text-sm">{province} - {city}</span>
                 </div>
                 <div className="space-y-0.5">
                   <span className="text-slate-400 font-bold block text-[11px]">رتبه احراز صلاحیت:</span>
@@ -780,7 +775,7 @@ export default function HonorPlaqueCard({
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
                     <Share2 size={16} />
                   </div>
                   <h4 className="text-sm font-black text-slate-900">
@@ -799,7 +794,7 @@ export default function HonorPlaqueCard({
               {/* Share Summary Card */}
               <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs space-y-1.5 font-bold">
                 <div className="text-slate-900">دفتر عاملیت: {companyName}</div>
-                <div className="text-indigo-600 font-mono">کد استعلام: {toPersianNum(agencyCode)}</div>
+                <div className="text-emerald-600 font-mono">کد استعلام: {toPersianNum(agencyCode)}</div>
                 <div className="text-emerald-700">رتبه: {badgeLabel} ({tierConfig.levelText})</div>
               </div>
 
@@ -816,7 +811,7 @@ export default function HonorPlaqueCard({
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
                   >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
                     <span>{copied ? "کپی شد" : "کپی لینک"}</span>

@@ -112,19 +112,19 @@ export default function CPanelInstallerWizard({
           className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl text-slate-900 overflow-hidden"
         >
           {/* Wizard Header */}
-          <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-100 via-white to-indigo-50 border-b border-slate-200 flex items-center justify-between gap-4">
+          <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-100 via-white to-emerald-50 border-b border-slate-200 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-emerald-500 p-0.5 shadow-lg shadow-amber-500/20">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-500 p-0.5 shadow-lg shadow-emerald-500/20">
                 <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                  <Sparkles size={24} className="text-amber-500" />
+                  <Sparkles size={24} className="text-emerald-500" />
                 </div>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                  <span className="bg-emerald-100 text-amber-800 border border-emerald-200 text-[10px] font-black px-2.5 py-0.5 rounded-full">
                     جادوگر نصب ۲ دقیقه‌ای cPanel
                   </span>
-                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                  <span className="bg-emerald-600 text-white border border-emerald-200 text-[10px] font-black px-2.5 py-0.5 rounded-full">
                     PHP + phpMyAdmin Ready
                   </span>
                 </div>
@@ -167,7 +167,7 @@ export default function CPanelInstallerWizard({
                 onClick={() => setActiveStep(step.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                   activeStep === step.id
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20 font-black'
                     : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
@@ -197,7 +197,7 @@ export default function CPanelInstallerWizard({
                   <a
                     href="/database.sql"
                     download="dastavval_mysql_database.sql"
-                    className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer shrink-0"
+                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer shrink-0"
                   >
                     <Download size={18} />
                     <span>دانلود مستقیم database.sql</span>
@@ -212,12 +212,12 @@ export default function CPanelInstallerWizard({
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-100 text-amber-700 font-black text-xs flex items-center justify-center">
                         ۱
                       </div>
                       <h5 className="text-xs font-black text-slate-900">ساخت MySQL Database در cPanel</h5>
                       <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
-                        وارد cPanel شوید، منوی <span className="text-amber-600">MySQL® Database Wizard</span> را باز کنید و نام دیتابیس (مثلا <code className="text-emerald-600">h353256_dast</code>) را ایجاد کنید.
+                        وارد cPanel شوید، منوی <span className="text-emerald-600">MySQL® Database Wizard</span> را باز کنید و نام دیتابیس (مثلا <code className="text-emerald-600">h353256_dast</code>) را ایجاد کنید.
                       </p>
                     </div>
 
@@ -232,12 +232,12 @@ export default function CPanelInstallerWizard({
                     </div>
 
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 font-black text-xs flex items-center justify-center">
                         ۳
                       </div>
                       <h5 className="text-xs font-black text-slate-900">ایمپورت فایل database.sql</h5>
                       <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
-                        از منوی بالای phpMyAdmin وارد زبانه <span className="text-indigo-600">Import</span> شده، فایل <code className="text-emerald-600">database.sql</code> را انتخاب و روی دکمه Go کلیک کنید.
+                        از منوی بالای phpMyAdmin وارد زبانه <span className="text-emerald-600">Import</span> شده، فایل <code className="text-emerald-600">database.sql</code> را انتخاب و روی دکمه Go کلیک کنید.
                       </p>
                     </div>
                   </div>
@@ -246,7 +246,7 @@ export default function CPanelInstallerWizard({
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                      <Code2 size={14} className="text-amber-500" />
+                      <Code2 size={14} className="text-emerald-500" />
                       کد SQL جهت ساخت دستی دیتابیس در صورت نیاز:
                     </span>
                     <button
@@ -282,7 +282,7 @@ export default function CPanelInstallerWizard({
                     <a
                       href="/public_html_htaccess.txt"
                       download=".htaccess"
-                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Download size={14} />
                       <span>دانلود فایل .htaccess</span>
@@ -295,8 +295,8 @@ export default function CPanelInstallerWizard({
                     <p className="pl-4 text-slate-500">├── .htaccess <span className="text-slate-400">(فایل پیکربندی آپاچی)</span></p>
                     <p className="pl-4 text-slate-500">├── database.sql <span className="text-slate-400">(دیتابیس phpMyAdmin)</span></p>
                     <p className="pl-4 text-blue-700">├── php/</p>
-                    <p className="pl-8 text-blue-600">│   ├── config.php <span className="text-slate-400">(تنظیمات اتصال دیتابیس)</span></p>
-                    <p className="pl-8 text-blue-600">│   └── api.php <span className="text-slate-400">(ای‌پي‌آی‌های کامل سیستم)</span></p>
+                    <p className="pl-8 text-emerald-600">│   ├── config.php <span className="text-slate-400">(تنظیمات اتصال دیتابیس)</span></p>
+                    <p className="pl-8 text-emerald-600">│   └── api.php <span className="text-slate-400">(ای‌پي‌آی‌های کامل سیستم)</span></p>
                     <p className="pl-4 text-slate-500">└── assets/</p>
                   </div>
                 </div>
@@ -304,7 +304,7 @@ export default function CPanelInstallerWizard({
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                      <FileText size={16} className="text-amber-500" />
+                      <FileText size={16} className="text-emerald-500" />
                       محتوای فایل .htaccess (سازگار ۱۰۰٪ با ساب‌دامنه و دامنه اصلی):
                     </span>
                     <button
@@ -401,7 +401,7 @@ export default function CPanelInstallerWizard({
                     <button
                       onClick={handleTestDb}
                       disabled={dbTestStatus === 'testing'}
-                      className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer"
                     >
                       {dbTestStatus === 'testing' ? (
                         <RefreshCw size={14} className="animate-spin" />
@@ -462,11 +462,11 @@ try {
             {/* STEP 4: GitHub Repository & 1-Click Update */}
             {activeStep === 4 && (
               <div className="space-y-5">
-                <div className="p-5 bg-gradient-to-r from-slate-50 via-indigo-50 to-white border border-indigo-200 rounded-2xl space-y-4">
+                <div className="p-5 bg-gradient-to-r from-slate-50 via-emerald-50 to-white border border-emerald-200 rounded-2xl space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                        <Github size={18} className="text-indigo-600" />
+                        <Github size={18} className="text-emerald-600" />
                         اتصال مخزن گیت‌هاب و بروزرسانی آنلاین پلتفرم
                       </h3>
                       <p className="text-xs text-slate-600 font-bold leading-relaxed">
@@ -478,7 +478,7 @@ try {
                       href="https://github.com/settings/tokens" 
                       target="_blank" 
                       rel="noreferrer"
-                      className="text-[10px] font-black text-indigo-700 hover:text-indigo-600 flex items-center gap-1 bg-indigo-100 px-2 py-1 rounded-lg border border-indigo-200"
+                      className="text-[10px] font-black text-emerald-700 hover:text-emerald-600 flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200"
                     >
                       <ExternalLink size={12} />
                       دریافت Token
@@ -539,7 +539,7 @@ try {
                         className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 shrink-0 ${
                           isSyncingGithub 
                             ? 'bg-slate-200 text-slate-500 cursor-not-allowed' 
-                            : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
                         }`}
                       >
                         <RefreshCw size={16} className={isSyncingGithub ? 'animate-spin' : ''} />
@@ -560,10 +560,10 @@ try {
                   )}
 
                   <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                    <span>آخرین همگام‌سازی موفق: <span className="text-amber-600">{b2bConfig?.lastGithubSync || '---'}</span></span>
+                    <span>آخرین همگام‌سازی موفق: <span className="text-emerald-600">{b2bConfig?.lastGithubSync || '---'}</span></span>
                     <button 
                       onClick={fetchLogs}
-                      className="text-indigo-600 hover:text-indigo-500 flex items-center gap-1 transition-colors"
+                      className="text-emerald-600 hover:text-emerald-500 flex items-center gap-1 transition-colors"
                     >
                       <Terminal size={14} />
                       مشاهده لاگ‌های فنی بروزرسانی
@@ -662,7 +662,7 @@ try {
             {activeStep < 4 ? (
               <button
                 onClick={() => setActiveStep(prev => Math.min(4, prev + 1))}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
               >
                 <span>گام بعدی</span>
                 <ArrowLeft size={16} />
@@ -670,7 +670,7 @@ try {
             ) : (
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
               >
                 <CheckCircle2 size={16} />
                 <span>پایان راه اندازی و ورود به پلتفرم</span>

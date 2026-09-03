@@ -220,7 +220,7 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                           onClick={() => setMonthlyCartons(preset.count)}
                           className={`py-1.5 px-1 text-center rounded-lg text-[9px] font-black border transition-all cursor-pointer ${
                             monthlyCartons === preset.count
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                              ? 'bg-emerald-600 text-white border-emerald-300'
                               : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                           }`}
                         >
@@ -234,10 +234,10 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                   <div className="space-y-2 pt-2 border-t border-slate-100">
                     <div className="flex items-center justify-between text-xs font-black text-slate-700">
                       <span className="flex items-center gap-1 text-amber-700">
-                        <Repeat size={14} className="text-amber-500" />
+                        <Repeat size={14} className="text-emerald-500" />
                         مدت بازسرمایه‌گذاری (سود مرکب):
                       </span>
-                      <span className="font-mono text-amber-700 text-xs bg-amber-50 px-2 rounded-lg font-black border border-amber-100">
+                      <span className="font-mono text-amber-700 text-xs bg-emerald-50 px-2 rounded-lg font-black border border-emerald-100">
                         {toPersianNum(compoundHorizonMonths)} ماهه
                       </span>
                     </div>
@@ -253,7 +253,7 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                           onClick={() => setCompoundHorizonMonths(item.months)}
                           className={`py-1.5 text-center rounded-lg text-[9px] font-black border transition-all cursor-pointer ${
                             compoundHorizonMonths === item.months
-                              ? 'bg-amber-50 text-amber-700 border-amber-300'
+                              ? 'bg-emerald-50 text-amber-700 border-amber-300'
                               : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
                           }`}
                         >
@@ -267,7 +267,7 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                   <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[10px] font-bold">
                     <div className="flex justify-between text-slate-400">
                       <span>خرید معادل از دلالان سنتی:</span>
-                      <span className="line-through text-rose-500 font-mono">
+                      <span className="line-through text-emerald-500 font-mono">
                         {toPersianNum(totalMarketBrokerCost.toLocaleString())} ت
                       </span>
                     </div>
@@ -293,7 +293,7 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                         <span className="text-[9px] font-black text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-100">
                           ⚡ سود روزانه شما
                         </span>
-                        <Calendar size={12} className="text-cyan-500" />
+                        <Calendar size={12} className="text-emerald-500" />
                       </div>
                       <div>
                         <div className="text-sm font-black font-mono text-cyan-700">
@@ -326,10 +326,10 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                     {/* ROI */}
                     <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                        <span className="text-[9px] font-black text-amber-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                           📊 بازدهی (ROI)
                         </span>
-                        <Percent size={12} className="text-amber-500" />
+                        <Percent size={12} className="text-emerald-500" />
                       </div>
                       <div>
                         <div className="text-sm font-black font-mono text-amber-700">
@@ -347,7 +347,7 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                   <div className="bg-linear-to-br from-emerald-50/40 via-teal-50/20 to-slate-50/50 p-4 rounded-xl border border-emerald-100/80 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100/50 pb-2">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
                           <Sparkles size={12} />
                         </div>
                         <div>
@@ -382,7 +382,7 @@ export const B2BProfitSimulator: React.FC<B2BProfitSimulatorProps> = ({
                           {toPersianNum(compoundTotalProfit.toLocaleString())} ت
                         </span>
                       </div>
-                      <div className="bg-amber-50/50 p-1.5 rounded-lg border border-amber-100">
+                      <div className="bg-emerald-50/50 p-1.5 rounded-lg border border-emerald-100">
                         <span className="text-amber-700 block">پاداش تصاعدی:</span>
                         <span className="font-mono font-black text-amber-700">
                           +{toPersianNum(compoundAdvantage.toLocaleString())} ت

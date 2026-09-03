@@ -2,6 +2,7 @@ export interface Product {
   id: string;
   productCode?: string; // e.g., "PRD-1234"
   sku?: string;
+  barcode?: string;
   name: string;
   brand: string;
   brandLogoUrl?: string; // URL for the brand logo
@@ -10,6 +11,22 @@ export interface Product {
   price: number; // Selling price per unit (wholesale)
   bulk_price: number; // Price per unit when buying full cartons
   consumer_price?: number; // Retail consumer price
+  factoryPrice?: number;
+  wholesalePrice?: number;
+  consumerPrice?: number;
+  marketPrice?: number;
+  wholesalePriceStr?: string;
+  marketPriceStr?: string;
+  itemsPerUnit?: number;
+  stock?: number;
+  minimumStock?: number;
+  minOrderCartons?: number;
+  discountPercent?: number;
+  imageUrl?: string;
+  status?: string;
+  location?: string;
+  isLiquid?: boolean;
+  isHotFireDeal?: boolean;
   badge?: string; // Custom badge label (e.g. "ویژه", "جدید")
   rating?: number; // 1-5 star rating
   isFavorite?: boolean;
@@ -18,21 +35,39 @@ export interface Product {
   carton_pack_count: number; // e.g., 24 packs per carton
   min_order_cartons: number; // MOQ in cartons
   category: string;
-  stock_quantity_cartons: number; // Stock tracked in cartons
+  stock_quantity_cartons?: number; // Stock tracked in cartons
   min_stock_alert?: number; // آستانه هشدار موجودی ایمن برای ادمین
   image_url: string;
+  galleryUrls?: string[]; // Multiple images for the product
+  specifications?: { key: string; value: string }[]; // Technical specs
   unit: string; // e.g., "بسته", "قوطی", "پاکت"
   sales_unit_type?: 'carton' | 'count' | 'weight'; // نوع واحد فروش: کارتنی، عددی/خرد، یا وزنی/کیلویی
   weight_per_carton_kg?: number; // وزن هر کارتن/کیسه به کیلوگرم
-  sellerId: string;
-  sellerName: string;
-  production_lead_time_days: number; // Days to manufacture/supply if out of stock
+  carton_net_weight_kg?: number; // وزن خالص کارتن
+  carton_gross_weight_kg?: number; // وزن ناخالص کارتن
+  sellerId?: string;
+  sellerName?: string;
+  production_lead_time_days?: number; // Days to manufacture/supply if out of stock
+  factoryId?: string;
   factory_name?: string;
   factoryName?: string;
+  supplierId?: string;
+  supplierName?: string; // New field
   tags?: string[];
   isNew?: boolean;
   isFeatured?: boolean;
   isSponsored?: boolean;
+  isBestseller?: boolean; // آیا در لیست پرفروش‌ترین‌ها (رتبه‌بندی بنکداری) قرار دارد؟
+  bestsellerRank?: number; // رتبه فروش در صنف بنکداری (مثلا ۱، ۲، ۳ ...)
+  bestsellerMonthlySales?: number; // تعداد کارتن فروخته شده در ماه
+  bestsellerRepeatRate?: number; // درصد نرخ تکرار خرید (مثلا ۹۴٪)
+  isSurplus?: boolean; // آیا کالای مازاد خط تولید کارخانه است؟
+  surplusStatus?: 'pending' | 'approved' | 'rejected' | 'none'; // وضعیت تایید مازاد خط توسط مدیر سایت
+  surplusDiscountPercent?: number; // درصد تخفیف ویژه بار مازاد
+  surplusPrice?: number; // قیمت هر کارتن بار مازاد
+  surplusQuantityCartons?: number; // تعداد کارتن مازاد خط جهت تخلیه انبار
+  surplusDescription?: string; // توضیحات علت مازاد و شرایط بارگیری فوری
+  surplusRejectionReason?: string; // علت رد درخواست مازاد خط توسط مدیر
   boostScore?: number;
   disabled?: boolean; // New: to disable product from being listed
   chequeAllowed?: boolean; // New: whether cheque payment is allowed
@@ -57,14 +92,66 @@ export interface Product {
   };
   weight?: string;
   healthLicense?: string;
+  weeklySaleActive?: boolean; // آیا در برنامه فروش هفتگی فعال است؟
+  weeklySaleDiscount?: number; // درصد تخفیف ویژه فروش هفتگی (مثلا 15)
+  weeklySalePrice?: number; // قیمت ویژه فروش هفتگی
+  weeklySaleDay?: string; // روز عرضه (مثلا "همه روزها"، "شنبه"، "یکشنبه"، ...)
+  weeklySaleQuota?: number; // سهمیه فروش ویژه هفتگی (کارتن)
+  specialOfferActive?: boolean; // فعال بودن در آفر ویژه تایید شده ادمین
+  specialOfferDiscount?: number; // درصد تخفیف ویژه تایید شده
+  specialOfferBonusText?: string; // متن اشانتیون اختصاصی تایید شده
+  specialOfferMinCartons?: number; // حداقل سفارش کارتن برای آفر
+  specialOfferQuota?: number; // سهمیه کل کارتن جشنواره
+  specialOfferSoldQuota?: number; // کارتن فروخته شده در آفر
+  salesCount?: number;
+  viewsCount?: number;
+}
+
+export interface SpecialOfferItem {
+  id: string;
+  productId: string;
+  productName?: string;
+  brand?: string;
+  imageUrl?: string;
+  category?: string;
+  bulkPrice?: number;
+  purchasePrice?: number;
+  discountPercent: number; // درصد تخفیف مثلا ۱۰٪
+  bonusGiftCartons?: number; // تعداد کارتن هدیه
+  minOrderCartons: number; // حداقل سفارش مثلا ۵ کارتن
+  campaignQuotaCartons?: number; // سهمیه کارتن مثلا ۵۰
+  soldQuotaCartons?: number; // کارتن‌های مصرف شده
+  bonusDescription?: string; // شرح اشانتیون مثلا "۱۰ کارتن + ۱ کارتن هدیه"
+  isKafBazaar?: boolean;
+  chequeAllowed?: boolean;
+  active: boolean;
+  startDate?: string;
+  endDate?: string;
+  customBadge?: string;
+  maxDiscountCapPercent?: number; // سقف ایمن تخفیف جهت جلوگیری از ضرر
+  minProfitMarginWarning?: string; // هشدار حاشیه سود
+}
+
+export interface SpecialOffersConfig {
+  campaignActive: boolean;
+  campaignTitle: string;
+  campaignSubtitle: string;
+  campaignBadge: string;
+  timerEndHour?: number;
+  preventLossMaxDiscountPercent?: number; // سقف تخفیف مجاز سازمانی جهت جلوگیری از ضرر (مثلا حداکثر ۲۰٪)
+  items: SpecialOfferItem[];
 }
 
 export interface Category {
   id: string;
   categoryCode?: string; // e.g., "CAT-1234"
   name: string;
+  emoji?: string;
   imageUrl?: string;
+  type?: 'product' | 'raw_material' | 'equipment' | 'service' | 'barter' | 'general' | string;
   description?: string;
+  subcategories?: string[];
+  isCustom?: boolean;
 }
 
 export interface NewsArticle {
@@ -128,8 +215,11 @@ export interface FactoryProfile {
   galleryImages?: { url: string; title: string; category?: 'production' | 'machinery' | 'warehouse' | 'lab' | 'exterior' }[];
   certificates?: { name: string; issuer?: string; year?: string; iconUrl?: string }[];
   isPremium?: boolean;
+  emptyCapacityPercent?: number;
   isFeatured?: boolean;
   isPinned?: boolean;
+  isNationalBrand?: boolean;
+  isActive?: boolean;
   totalDeals?: number;
   viewsCount?: number;
   qualityScore?: number;
@@ -152,6 +242,18 @@ export interface FactoryProfile {
   dailyCapacity?: string;
   healthLicense?: string;
   factoryHealthLicense?: string;
+  // Engineering, Credentials & Luxury Customization
+  industrialPark?: string;
+  isFirstHand?: boolean;
+  selectedBadges?: string[];
+  personnelCount?: number;
+  activeProductionLines?: number;
+  factoryArea?: string;
+  isoCertificates?: string[];
+  ownedBrands?: string[];
+  productsSalesEnabled?: boolean;
+  priceAdjustmentPercent?: number;
+  commissionPercent?: number;
 }
 
 export interface OrderItem {
@@ -168,6 +270,7 @@ export type CartItem = OrderItem;
 
 export interface User {
   id?: string;
+  username?: string;
   userCode?: string; // e.g., "USR-1234"
   factoryCode?: string; // e.g., "FAC-1234"
   agencyCode?: string; // e.g., "AGN-1234" (for agents)
@@ -178,6 +281,7 @@ export interface User {
   email?: string;
   company?: string;
   address?: string;
+  nationalCode?: string;
   city?: string;
   province?: string;
   badge?: string;
@@ -376,6 +480,12 @@ export interface BrandItem {
   bg?: string;
   text?: string;
   logoUrl?: string;
+  category?: string;
+  factoryId?: string;
+  factoryName?: string;
+  description?: string;
+  province?: string;
+  badge?: string;
 }
 
 export interface SlideItem {
@@ -396,12 +506,15 @@ export interface B2BConfig {
   catalogPdfUrl?: string;
   factories?: FactoryProfile[];
   brands?: BrandItem[];
+  representatives?: any[];
   logoUrl?: string;
   zarinpalMerchantCode?: string;
   brandImages?: string[];
   commissionRate?: number;
   userLevels?: UserLevel[];
   categories?: Category[];
+  customProvinces?: string[];
+  customIndustrialParks?: string[];
   hqAddress?: string;
   supportPhone?: string;
   officialSealUrl?: string;
@@ -433,6 +546,7 @@ export interface B2BConfig {
   socialChannelsSubtitle?: string;
   // Pricing, Commission & Regional Profit Distribution Strategy
   customerMarkupPercent?: number; // Default 10% - درصد افزایش قیمت مشتری نسبت به کاتالوگ/نمایندگی
+  specialOfferMarkupPercent?: number; // Default 10% - درصد مارک‌آپ آفرها نسبت به کاتالوگ/نمایندگی
   marketerCommissionPercent?: number; // Default 5% - درصد پورسانت بازاریاب
   repRegionalProfitSharePercent?: number; // Default 50% - درصد سهم سود نماینده از سود فروش سایت در منطقه
   requireRep300mPurchaseForFloorPrice?: boolean; // Default true - الزام خرید ۳۰۰ میلیون یا تأیید ادمین برای نرخ کف
@@ -465,10 +579,12 @@ export interface B2BConfig {
   smsAdPatternId?: string | number;
   smsCallbackPatternId?: string | number;
   smsAdminNotificationPatternId?: string | number;
+  smsInvitationPatternId?: string | number;
   equipmentAds?: any[];
   serviceAds?: any[];
   rawMaterialAds?: any[];
   sponsoredAds?: any[];
+  specialOffersConfig?: SpecialOffersConfig;
 }
 
 export type GuaranteeType = 'sayad_cheque' | 'promissory_note' | 'bank_guarantee' | 'cash_deposit';

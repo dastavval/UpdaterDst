@@ -62,7 +62,7 @@ export default function NewsSection({ news, theme }: NewsSectionProps) {
               <div className="space-y-2">
                 <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-wider">
                   <span className={`px-2 py-0.5 rounded-full ${
-                    item.category === 'industry' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                    item.category === 'industry' ? 'bg-blue-100 text-emerald-600' : 'bg-emerald-100 text-emerald-600'
                   }`}>
                     {item.category === 'industry' ? 'اخبار صنعت' : 'تحلیل بازار'}
                   </span>

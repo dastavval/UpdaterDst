@@ -88,20 +88,20 @@ export default function RepresentativeAnalyticsDashboard({
     isReached: currentSales >= t.minSales
   }));
 
-  // 4-Month Comparative Sales Data (3 past months + current month)
-  const pastMonth1Sales = 750_000_000;   // اردیبهشت
-  const pastMonth2Sales = 880_000_000;   // خرداد
-  const pastMonth3Sales = 1_020_000_000; // تیر (ماه گذشته)
+  // 4-Month Comparative Sales Data (Real data, 0 for past unrecorded months)
+  const pastMonth1Sales = 0;   // اردیبهشت
+  const pastMonth2Sales = 0;   // خرداد
+  const pastMonth3Sales = 0;   // تیر (ماه گذشته)
 
   const past3MonthsAvg = Math.round((pastMonth1Sales + pastMonth2Sales + pastMonth3Sales) / 3);
-  const growthVsLastMonth = Math.round(((currentSales - pastMonth3Sales) / pastMonth3Sales) * 100);
-  const growthVsAvg = Math.round(((currentSales - past3MonthsAvg) / past3MonthsAvg) * 100);
+  const growthVsLastMonth = pastMonth3Sales > 0 ? Math.round(((currentSales - pastMonth3Sales) / pastMonth3Sales) * 100) : 0;
+  const growthVsAvg = past3MonthsAvg > 0 ? Math.round(((currentSales - past3MonthsAvg) / past3MonthsAvg) * 100) : 0;
 
   const comparativeBarData = [
     { month: "اردیبهشت", sales: pastMonth1Sales / 1_000_000, formattedSales: pastMonth1Sales, isCurrent: false },
     { month: "خرداد", sales: pastMonth2Sales / 1_000_000, formattedSales: pastMonth2Sales, isCurrent: false },
     { month: "تیر", sales: pastMonth3Sales / 1_000_000, formattedSales: pastMonth3Sales, isCurrent: false },
-    { month: "مرداد (جاری)", sales: currentSales / 1_000_000, formattedSales: currentSales, isCurrent: true }
+    { month: "ماه جاری", sales: currentSales / 1_000_000, formattedSales: currentSales, isCurrent: true }
   ];
 
   return (
@@ -130,7 +130,7 @@ export default function RepresentativeAnalyticsDashboard({
                 onClick={() => setSelectedTargetId(t.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                   isSelected 
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20" 
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20" 
                     : "text-slate-600 hover:bg-slate-200/60"
                 }`}
               >
@@ -150,7 +150,7 @@ export default function RepresentativeAnalyticsDashboard({
           <div>
             <span className="text-[11px] font-black text-slate-500 block">نمودار میله‌ای مقایسه‌ای:</span>
             <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2 pt-0.5">
-              <BarChart3 size={18} className="text-blue-600" />
+              <BarChart3 size={18} className="text-emerald-600" />
               <span>مقایسه عملکرد فروش ماه جاری با ۳ ماه گذشته</span>
             </h3>
           </div>
@@ -162,8 +162,8 @@ export default function RepresentativeAnalyticsDashboard({
                 <span>{toPersianNum(Math.abs(growthVsLastMonth))}٪ رشد نسبت به ماه گذشته</span>
               </span>
             ) : (
-              <span className="text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 px-3.5 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-2xs">
-                <TrendingDown size={16} className="text-amber-600" />
+              <span className="text-xs font-black bg-emerald-100 text-amber-900 border border-amber-300 px-3.5 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-2xs">
+                <TrendingDown size={16} className="text-emerald-600" />
                 <span>{toPersianNum(Math.abs(growthVsLastMonth))}٪ افت نسبت به ماه گذشته</span>
               </span>
             )}
@@ -328,8 +328,8 @@ export default function RepresentativeAnalyticsDashboard({
           {/* Card 1: Next Target Highlight (White & Minimal) */}
           <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-amber-800 font-black flex items-center gap-1 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                <Sparkles size={13} className="text-amber-600" />
+              <span className="text-amber-800 font-black flex items-center gap-1 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <Sparkles size={13} className="text-emerald-600" />
                 <span>هدف سطح بعدی ارتقا</span>
               </span>
               <span className="text-slate-500 font-mono font-bold">سطح {toPersianNum(nextTier.levelNumber)}</span>
@@ -382,7 +382,7 @@ export default function RepresentativeAnalyticsDashboard({
                     <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
-                          isPassed ? "bg-emerald-500" : "bg-blue-600"
+                          isPassed ? "bg-emerald-500" : "bg-emerald-600"
                         }`}
                         style={{ width: `${percent}%` }}
                       />
@@ -393,7 +393,7 @@ export default function RepresentativeAnalyticsDashboard({
             </div>
 
             <div className="pt-2 border-t border-slate-200/80 text-[10px] text-slate-500 font-medium flex items-center gap-1">
-              <Clock size={12} className="text-blue-600 shrink-0" />
+              <Clock size={12} className="text-emerald-600 shrink-0" />
               <span>محاسبه تا انتهای دوره فروش ماه خورشیدی جاری</span>
             </div>
           </div>

@@ -79,7 +79,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
       badge: "گام دوم",
       title: "روش‌های پرداخت، حساب امانی امن و شرایط تسویه چکی صیادی",
       duration: "۷ دقیقه مطالعه",
-      icon: <CreditCard className="w-5 h-5 text-blue-600" />,
+      icon: <CreditCard className="w-5 h-5 text-emerald-600" />,
       steps: [
         {
           title: "۱. پرداخت نقدی و درگاه امن شتابی (شامل تخفیف نقدی آنی)",
@@ -102,7 +102,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
       badge: "گام سوم",
       title: "لجستیک، حمل‌ونقل جاده‌ای، بیمه‌نامه و تحویل کالا درب انبار",
       duration: "۶ دقیقه مطالعه",
-      icon: <Truck className="w-5 h-5 text-amber-600" />,
+      icon: <Truck className="w-5 h-5 text-emerald-600" />,
       steps: [
         {
           title: "۱. صدور بارنامه دولتی و بیمه کامل حوادث",
@@ -125,7 +125,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
       badge: "گام چهارم",
       title: "کسب درآمد، نمایندگی استانی، پورسانت بازاریابی و عاملیت فروش",
       duration: "۸ دقیقه مطالعه",
-      icon: <TrendingUp className="w-5 h-5 text-purple-600" />,
+      icon: <TrendingUp className="w-5 h-5 text-emerald-600" />,
       steps: [
         {
           title: "۱. دریافت عاملیت رسمی توزیع و نمایندگی منطقه",
@@ -141,6 +141,52 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
         }
       ],
       proTip: "🎖️ رتبه‌بندی اعتباری: با فعالیت مستمر، نشان‌های اعتباری طلایی و VIP فعال شده و اعتبار اسنادی میلیاردی به شما تعلق می‌گیرد."
+    },
+    {
+      id: 5,
+      category: 'factory',
+      badge: "ویژه کارخانجات",
+      title: "راهنمای ثبت غرفه کارخانجات، عرضه مستقیم خط تولید و حضور در تالار تهاتر",
+      duration: "۶ دقیقه مطالعه",
+      icon: <Building2 className="w-5 h-5 text-emerald-600" />,
+      steps: [
+        {
+          title: "۱. ایجاد پنل اختصاصی تولیدکننده و درج محصولات با قیمت درب کارخانه",
+          desc: "تولیدکنندگان با بارگذاری پروانه بهره‌برداری و گواهی سیب سلامت، محصولات خود را به همراه تعداد در کارتن و تخفیفات پلکانی حجم بالا ثبت می‌نمایند."
+        },
+        {
+          title: "۲. مدیریت هوشمند سفارشات، تایید بارنامه و تسویه خودکار",
+          desc: "با ورود سفارشات بنکداران سراسر کشور، کارخانه بارنامه دولتی را صادر و پس از تایید تحویل در مقصد، وجه فاکتور مستقیماً به حساب کارخانه واریز می‌گردد."
+        },
+        {
+          title: "۳. شرکت در تالار تهاتر و معاوضه کالا با سایر صنایع",
+          desc: "کارخانجات می‌توانند مازاد تولید خود را با مواد اولیه، کارتین و بسته‌بندی یا محصولات مکمل سایر صنایع غذایی بدون نقدینگی تهاتر نمایند."
+        }
+      ],
+      proTip: "🏢 فروش مستقیم بی‌واسطه: حذف واسطه‌ها موجب دسترسی مستقیم به بیش از ۵۰,۰۰۰ خرده‌فروش و بنکدار فعال در سراسر ایران می‌شود."
+    },
+    {
+      id: 6,
+      category: 'faq',
+      badge: "واژه‌نامه بازار",
+      title: "فرهنگ واژگان و اصطلاحات تخصصی تجارت و عمده‌فروشی B2B",
+      duration: "۴ دقیقه مطالعه",
+      icon: <BookOpen className="w-5 h-5 text-emerald-600" />,
+      steps: [
+        {
+          title: "حداقل تیراژ سفارش (MOQ - Minimum Order Quantity)",
+          desc: "حداقل تعداد کارتن خریدی که کارخانه تعیین کرده تا تخفیف عمده‌فروشی مستقیم خط تولید به فاکتور تعلق گیرد."
+        },
+        {
+          title: "حساب امانی تضمینی (Safe-Buy Escrow)",
+          desc: "سامانه نگهداری امن مبلغ فاکتور نزد پلتفرم دست اول، که تنها پس از تحویل کامل و تایید سلامت بار توسط خریدار به تولیدکننده پرداخت می‌شود."
+        },
+        {
+          title: "چک صیادی بنفش با استعلام برخط",
+          desc: "چک‌های استاندارد سامانه صیاد بانک مرکزی که صادرکننده آن از طریق استعلام آنی رتبه اعتباری، مجوز خرید چکی را دریافت می‌کند."
+        }
+      ],
+      proTip: "💡 شفافیت کامل: تمامی اصطلاحات و مبالغ فاکتور قبل از نهایی‌سازی به صورت پیش‌فاکتور رسمی دارایی به شما نمایش داده می‌شود."
     }
   ];
 
@@ -187,7 +233,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
       <div className="bg-white border border-slate-200/90 rounded-[2rem] p-6 sm:p-8 text-slate-900 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-black">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white border border-emerald-200/80 text-[11px] font-black">
               <GraduationCap size={15} className="text-emerald-600" />
               <span>راهنمای جامع، مصور و آکادمی معاملات دست اول</span>
             </div>
@@ -206,7 +252,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
                 خرید مستقیم بدون واسطه
               </span>
               <span className="text-[11px] bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
-                <ShieldCheck size={13} className="text-blue-600" />
+                <ShieldCheck size={13} className="text-emerald-600" />
                 تضمین امانی ۱۰۰٪ وجه
               </span>
               <span className="text-[11px] bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
@@ -323,7 +369,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
                       onClick={() => toggleStep(section.id)}
                       className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border cursor-pointer shrink-0 ${
                         isCompleted
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                          ? 'bg-emerald-600 text-white border-emerald-300'
                           : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -350,7 +396,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
                   </div>
 
                   {/* Pro Tip Box */}
-                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 font-bold leading-relaxed">
+                  <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-amber-900 font-bold leading-relaxed">
                     {section.proTip}
                   </div>
                 </div>
@@ -364,7 +410,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
       {(activeCategory === 'all' || activeCategory === 'faq') && (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-5">
           <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-emerald-600 flex items-center justify-center font-black">
               <HelpCircle size={20} />
             </div>
             <div>

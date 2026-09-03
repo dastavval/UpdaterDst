@@ -14,21 +14,21 @@ const ADVANTAGES = [
     title: "لجستیک و ترابری سراسری",
     desc: "ارسال سریع محصولات به سراسر کشور با ناوگان ترابری مجهز، بارنامه دولتی و بیمه کامل کالا.",
     icon: <Truck size={22} />,
-    color: "bg-blue-600",
+    color: "bg-emerald-600",
     badge: "پوشش ۳۱ استان"
   },
   {
     title: "تضمین اصالت و سلامت کالا",
     desc: "تمامی اقلام دارای پروانه بهداشتی، سیب سلامت، تاریخ مصرف معتبر و ضمانت عودت وجه می‌باشند.",
     icon: <ShieldCheck size={22} />,
-    color: "bg-indigo-600",
+    color: "bg-emerald-600",
     badge: "نشان استاندارد و سلامت"
   },
   {
     title: "تسویه اعتباری و تسهیلات",
     desc: "امکان ثبت سفارش با چک صیادی و شرایط اعتباری ویژه برای بنکداران و خریداران خوش‌حساب.",
     icon: <Coins size={22} />,
-    color: "bg-amber-600",
+    color: "bg-emerald-600",
     badge: "اعتبار خرید سازمانی"
   }
 ];
@@ -37,7 +37,7 @@ export default function PlatformAdvantages({ theme }: { theme: 'light' | 'dark' 
   return (
     <div className="py-8" dir="rtl">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-black border border-emerald-200/70 mb-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black border border-emerald-200/70 mb-2">
           مزایای زیرساختی دست اول
         </div>
         <h2 className={`text-xl sm:text-2xl font-black mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
@@ -53,10 +53,9 @@ export default function PlatformAdvantages({ theme }: { theme: 'light' | 'dark' 
           return (
             <motion.div
               key={`plat-adv-${adv.title}-${idx}`}
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "50px" }}
-              transition={{ delay: idx * 0.08 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: idx * 0.04 }}
               className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all duration-200 flex flex-col justify-between"
             >
               <div>

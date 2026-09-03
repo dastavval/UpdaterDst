@@ -37,6 +37,7 @@ import { Product, Order, SupplyChainStage } from "../types";
 import { db, auth } from "../lib/data-layer";
 import { collection, getDocs, addDoc, updateDoc, doc, query, where, serverTimestamp, setDoc } from "../lib/data-layer";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/data-layer";
+import { triggerAutoChannelPost } from "../utils/channel-utils";
 
 interface FactoryDashboardProps {
   currentSellerId: string;
@@ -324,6 +325,15 @@ export default function FactoryDashboard({
           createdAt: serverTimestamp()
         });
         setProductSuccess("محصول جدید با موفقیت به کاتالوگ کارخانه اضافه و منتشر گردید.");
+        
+        // Announce the new product
+        triggerAutoChannelPost(
+          `🌟 کالا/محصول جدید: ${productPayload.name}`,
+          `یک محصول جدید توسط کارخانه ${productPayload.brand} در پلتفرم منتشر شد.\n\nقیمت پایه عمده: ${productPayload.bulk_price.toLocaleString()} تومان\nتعداد در بسته: ${productPayload.carton_pack_count}`,
+          "info",
+          "مشاهده در کاتالوگ نمایندگان",
+          "#products"
+        );
       }
 
       onRefreshProducts();
@@ -404,7 +414,7 @@ export default function FactoryDashboard({
           <div className="md:col-span-5 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-8 text-white flex flex-col justify-between relative overflow-hidden">
             <div className="space-y-6 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
                   <Building2 size={24} />
                 </div>
                 <div>
@@ -466,7 +476,7 @@ export default function FactoryDashboard({
               </div>
 
               {authError && (
-                <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-black rounded-xl">
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-rose-800 text-xs font-black rounded-xl">
                   {authError}
                 </div>
               )}
@@ -483,7 +493,7 @@ export default function FactoryDashboard({
                         value={loginEmail}
                         onChange={e => setLoginEmail(e.target.value)}
                         placeholder="factory@brand.com"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white text-left font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white text-left font-mono"
                       />
                     </div>
                   </div>
@@ -496,14 +506,14 @@ export default function FactoryDashboard({
                       value={loginPassword}
                       onChange={e => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white text-left font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white text-left font-mono"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={authLoading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-xs py-3 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs py-3 rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
                   >
                     {authLoading ? <RefreshCw size={14} className="animate-spin" /> : <UserCheck size={16} />}
                     <span>ورود به کارتابل صنعتی کارخانه</span>
@@ -519,7 +529,7 @@ export default function FactoryDashboard({
                       value={regFactoryName}
                       onChange={e => setRegFactoryName(e.target.value)}
                       placeholder="مثال: صنایع غذایی شندآباد شبستر"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                     />
                   </div>
 
@@ -532,7 +542,7 @@ export default function FactoryDashboard({
                         value={regRepName}
                         onChange={e => setRegRepName(e.target.value)}
                         placeholder="نام و نام خانوادگی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                       />
                     </div>
                     <div>
@@ -543,7 +553,7 @@ export default function FactoryDashboard({
                         value={regPhone}
                         onChange={e => setRegPhone(e.target.value)}
                         placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                       />
                     </div>
                   </div>
@@ -557,7 +567,7 @@ export default function FactoryDashboard({
                         value={regEmail}
                         onChange={e => setRegEmail(e.target.value)}
                         placeholder="info@factory.com"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                       />
                     </div>
                     <div>
@@ -568,7 +578,7 @@ export default function FactoryDashboard({
                         value={regPassword}
                         onChange={e => setRegPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                       />
                     </div>
                   </div>
@@ -600,12 +610,12 @@ export default function FactoryDashboard({
   return (
     <div className="space-y-6 text-right font-sans" dir="rtl">
       {/* Top Factory Header Bar */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-indigo-500/20">
-        <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-emerald-500/20">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shadow-inner shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shadow-inner shrink-0">
               <Building2 size={32} />
             </div>
             <div className="space-y-1">
@@ -616,7 +626,7 @@ export default function FactoryDashboard({
                   <span>تامین‌کننده تاییدشده</span>
                 </span>
               </div>
-              <p className="text-xs text-indigo-200/80 font-bold">
+              <p className="text-xs text-emerald-200/80 font-bold">
                 نماینده مسئول: {sellerProfile?.representative || "مدیریت"} | موقعیت انبار: {sellerProfile?.city || "شبستر"}
               </p>
             </div>
@@ -635,7 +645,7 @@ export default function FactoryDashboard({
             </button>
             <button
               onClick={handleLogout}
-              className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-rose-300 border border-emerald-500/30 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
             >
               <LogOut size={15} />
               <span>خروج</span>
@@ -695,7 +705,7 @@ export default function FactoryDashboard({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold">تعداد کالاهای فعال</span>
-                <Package size={18} className="text-indigo-600" />
+                <Package size={18} className="text-emerald-600" />
               </div>
               <div className="text-2xl font-black text-slate-900">{myProducts.length} <span className="text-xs text-slate-500 font-bold">قلم کالا</span></div>
               <p className="text-[10px] text-emerald-600 font-bold">منتشر شده در کاتالوگ کشوری</p>
@@ -704,7 +714,7 @@ export default function FactoryDashboard({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold">موجودی آماده انبار</span>
-                <Layers size={18} className="text-amber-500" />
+                <Layers size={18} className="text-emerald-500" />
               </div>
               <div className="text-2xl font-black text-slate-900">{totalStockCartons.toLocaleString()} <span className="text-xs text-slate-500 font-bold">کارتن</span></div>
               <p className="text-[10px] text-slate-500 font-bold">پلمپ و آماده بارگیری فوری</p>
@@ -716,7 +726,7 @@ export default function FactoryDashboard({
                 <Truck size={18} className="text-emerald-600" />
               </div>
               <div className="text-2xl font-black text-slate-900">{factoryOrders.length} <span className="text-xs text-slate-500 font-bold">حواله خرید</span></div>
-              <p className="text-[10px] text-indigo-600 font-bold">صادره توسط خریداران کلان</p>
+              <p className="text-[10px] text-emerald-600 font-bold">صادره توسط خریداران کلان</p>
             </div>
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
@@ -775,7 +785,7 @@ export default function FactoryDashboard({
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                <Package size={18} className="text-indigo-600" />
+                <Package size={18} className="text-emerald-600" />
                 <span>لیست محصولات و مدیریت موجودی کارخانه</span>
               </h3>
               <p className="text-xs text-slate-400 font-bold mt-0.5">کنترل قیمت عمده، حاشیه سود و موجودی کارتن‌ها</p>
@@ -789,7 +799,7 @@ export default function FactoryDashboard({
                   value={productSearch}
                   onChange={e => setProductSearch(e.target.value)}
                   placeholder="جستجوی نام کالا..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
               <button
@@ -797,7 +807,7 @@ export default function FactoryDashboard({
                   handleResetForm();
                   setActiveTab('new_product');
                 }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0 cursor-pointer"
               >
                 <Plus size={14} />
                 <span>کالای جدید</span>
@@ -814,7 +824,7 @@ export default function FactoryDashboard({
                   handleResetForm();
                   setActiveTab('new_product');
                 }}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-black"
+                className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black"
               >
                 اولین محصول کارخانه را معرفی کنید
               </button>
@@ -863,7 +873,7 @@ export default function FactoryDashboard({
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleQuickStockChange(p.id, p.stock_quantity_cartons || 0, -10)}
-                            className="w-6 h-6 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-md font-black text-[10px] flex items-center justify-center cursor-pointer"
+                            className="w-6 h-6 bg-emerald-600 text-white hover:bg-emerald-100 rounded-md font-black text-[10px] flex items-center justify-center cursor-pointer"
                           >
                             -۱۰
                           </button>
@@ -872,7 +882,7 @@ export default function FactoryDashboard({
                           </span>
                           <button
                             onClick={() => handleQuickStockChange(p.id, p.stock_quantity_cartons || 0, 10)}
-                            className="w-6 h-6 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md font-black text-[10px] flex items-center justify-center cursor-pointer"
+                            className="w-6 h-6 bg-emerald-600 text-white hover:bg-emerald-100 rounded-md font-black text-[10px] flex items-center justify-center cursor-pointer"
                           >
                             +۱۰
                           </button>
@@ -881,7 +891,7 @@ export default function FactoryDashboard({
                       <td className="p-3 text-center">
                         <button
                           onClick={() => handleStartEdit(p)}
-                          className="p-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer"
                           title="ویرایش مشخصات"
                         >
                           <Edit3 size={15} />
@@ -934,7 +944,7 @@ export default function FactoryDashboard({
                   value={prodName}
                   onChange={e => setProdName(e.target.value)}
                   placeholder="مثال: کیک پذیرایی لایه‌ای کاکائویی"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
 
@@ -946,7 +956,7 @@ export default function FactoryDashboard({
                   value={prodBrand}
                   onChange={e => setProdBrand(e.target.value)}
                   placeholder={sellerProfile?.name || "نام برند"}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
 
@@ -955,7 +965,7 @@ export default function FactoryDashboard({
                 <select
                   value={prodCategory}
                   onChange={e => setProdCategory(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white cursor-pointer"
                 >
                   <option value="تنقلات و شکلات">تنقلات و شکلات</option>
                   <option value="کیک، بیسکویت و کلوچه">کیک، بیسکویت و کلوچه</option>
@@ -976,7 +986,7 @@ export default function FactoryDashboard({
                   required
                   value={prodBulkPrice}
                   onChange={e => setProdBulkPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                 />
               </div>
 
@@ -986,7 +996,7 @@ export default function FactoryDashboard({
                   type="number"
                   value={prodConsumerPrice}
                   onChange={e => setProdConsumerPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                 />
               </div>
 
@@ -997,7 +1007,7 @@ export default function FactoryDashboard({
                   required
                   value={prodCartonPack}
                   onChange={e => setProdCartonPack(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                 />
               </div>
 
@@ -1008,7 +1018,7 @@ export default function FactoryDashboard({
                   required
                   value={prodMinOrder}
                   onChange={e => setProdMinOrder(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                 />
               </div>
             </div>
@@ -1020,7 +1030,7 @@ export default function FactoryDashboard({
                   type="number"
                   value={prodStock}
                   onChange={e => setProdStock(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
                 />
               </div>
 
@@ -1031,7 +1041,7 @@ export default function FactoryDashboard({
                   value={prodUnit}
                   onChange={e => setProdUnit(e.target.value)}
                   placeholder="بسته / قوطی / عدد"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
 
@@ -1042,7 +1052,7 @@ export default function FactoryDashboard({
                   value={prodOrigin}
                   onChange={e => setProdOrigin(e.target.value)}
                   placeholder="آذربایجان شرقی - شبستر"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
             </div>
@@ -1054,7 +1064,7 @@ export default function FactoryDashboard({
                 value={prodImageUrl}
                 onChange={e => setProdImageUrl(e.target.value)}
                 placeholder="https://..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white font-mono text-left"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-mono text-left"
               />
             </div>
 
@@ -1065,7 +1075,7 @@ export default function FactoryDashboard({
                   type="button"
                   onClick={handleGenerateAiDesc}
                   disabled={generatingAiDesc}
-                  className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="text-[10px] font-black text-emerald-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <Sparkles size={12} />
                   <span>{generatingAiDesc ? "در حال نگارش با هوش مصنوعی..." : "تولید توضیحات با هوش مصنوعی"}</span>
@@ -1076,7 +1086,7 @@ export default function FactoryDashboard({
                 value={prodDescription}
                 onChange={e => setProdDescription(e.target.value)}
                 placeholder="مشخصات ماندگاری، استانداردها، سیب سلامت و شرایط نگهداری..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600 focus:bg-white leading-relaxed"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white leading-relaxed"
               />
             </div>
 
@@ -1142,7 +1152,7 @@ export default function FactoryDashboard({
                     <ul className="list-disc list-inside text-[11px] text-slate-600 space-y-0.5">
                       {order.items?.map((it, idx) => (
                         <li key={`fact-ord-it-${it.productId || idx}-${idx}`}>
-                          {it.name} - <span className="font-mono font-bold text-indigo-700">{it.quantityCartons} کارتن</span>
+                          {it.name} - <span className="font-mono font-bold text-emerald-700">{it.quantityCartons} کارتن</span>
                         </li>
                       ))}
                     </ul>
@@ -1156,7 +1166,7 @@ export default function FactoryDashboard({
                         onClick={() => handleUpdateOrderStatus(order.id!, 'raw_material_supply')}
                         className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                           order.status === 'raw_material_supply'
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-emerald-600 text-white"
                             : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                       >
@@ -1166,7 +1176,7 @@ export default function FactoryDashboard({
                         onClick={() => handleUpdateOrderStatus(order.id!, 'production_line')}
                         className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                           order.status === 'production_line'
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-emerald-600 text-white"
                             : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                       >
@@ -1176,7 +1186,7 @@ export default function FactoryDashboard({
                         onClick={() => handleUpdateOrderStatus(order.id!, 'factory_packaging')}
                         className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
                           order.status === 'factory_packaging'
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-emerald-600 text-white"
                             : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                       >

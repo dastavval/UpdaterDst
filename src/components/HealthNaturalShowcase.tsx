@@ -100,7 +100,7 @@ export const HealthNaturalShowcase: React.FC<HealthNaturalShowcaseProps> = ({
                   فیلتر مستقیم کالاهای دارای سیب سلامت
                 </p>
               </div>
-              <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform font-black">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform font-black">
                 <ArrowLeft size={16} />
               </div>
             </button>
@@ -147,7 +147,7 @@ export const HealthNaturalShowcase: React.FC<HealthNaturalShowcaseProps> = ({
             <div className="flex items-center gap-3 sm:gap-6 flex-wrap justify-center">
               {/* Founder 1 */}
               <div className="flex items-center gap-2.5 bg-emerald-900/70 border border-emerald-400/30 px-3.5 py-1.5 rounded-xl shadow-sm">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-400 to-amber-500 text-slate-950 font-black text-[11px] flex items-center justify-center shadow-xs shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-400 to-emerald-500 text-slate-950 font-black text-[11px] flex items-center justify-center shadow-xs shrink-0">
                   ع
                 </div>
                 <div className="text-right">
@@ -226,8 +226,8 @@ export const HealthNaturalShowcase: React.FC<HealthNaturalShowcaseProps> = ({
                   </ul>
                 </div>
 
-                <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200/60 text-amber-900 text-[11px] flex items-start gap-2">
-                  <Sparkles size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200/60 text-amber-900 text-[11px] flex items-start gap-2">
+                  <Sparkles size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                   <span>
                     تمامی محصولات درج شده در این سامانه با ضمانت اصالت پروانه ساخت و پلمپ اولیه کارخانه عرضه می‌گردند.
                   </span>

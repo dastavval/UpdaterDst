@@ -89,12 +89,12 @@ export default function LogisticsEstimatorModal({
               <X size={20} />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-500/30 border border-indigo-400/40 flex items-center justify-center text-amber-300 shadow-inner">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/30 border border-indigo-400/40 flex items-center justify-center text-amber-300 shadow-inner">
                 <Truck size={26} />
               </div>
               <div>
                 <h3 className="text-lg font-black tracking-tight">استعلام هوشمند کرایه باربری و لجستیک</h3>
-                <p className="text-xs text-indigo-200 mt-0.5">محاسبه آنلاین نرخ حمل بار از خط تولید کارخانه به سراسر کشور</p>
+                <p className="text-xs text-emerald-200 mt-0.5">محاسبه آنلاین نرخ حمل بار از خط تولید کارخانه به سراسر کشور</p>
               </div>
             </div>
           </div>
@@ -106,16 +106,16 @@ export default function LogisticsEstimatorModal({
               {/* Province Select */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <MapPin size={14} className="text-indigo-600" />
+                  <MapPin size={14} className="text-emerald-600" />
                   <span>استان مقصد تحویل بار:</span>
                 </label>
                 <select
                   value={selectedProvince}
                   onChange={(e) => setSelectedProvince(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:bg-white focus:border-emerald-500 focus:outline-none transition-all"
                 >
-                  {Object.keys(PROVINCE_FREIGHT_RATES).map(prov => (
-                    <option key={prov} value={prov}>{prov}</option>
+                  {Object.keys(PROVINCE_FREIGHT_RATES).map((prov, idx) => (
+                    <option key={`prov-${prov}-${idx}`} value={prov}>{prov}</option>
                   ))}
                   <option value="سایر استان‌ها">سایر استان‌ها و شهرستان‌ها</option>
                 </select>
@@ -124,7 +124,7 @@ export default function LogisticsEstimatorModal({
               {/* Carton Count Input */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Package size={14} className="text-indigo-600" />
+                  <Package size={14} className="text-emerald-600" />
                   <span>تعداد کل کارتن‌های سفارش:</span>
                 </label>
                 <div className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export default function LogisticsEstimatorModal({
                     max="3000"
                     value={cartonCount}
                     onChange={(e) => setCartonCount(Math.max(1, Number(e.target.value)))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-black text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-black text-slate-800 focus:bg-white focus:border-emerald-500 focus:outline-none transition-all"
                   />
                   <span className="text-xs font-bold text-slate-500 whitespace-nowrap">کارتن</span>
                 </div>
@@ -145,13 +145,13 @@ export default function LogisticsEstimatorModal({
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700">نوع ناوگان باربری و نحوه ارسال:</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {VEHICLE_TYPES.map((veh) => (
+                {VEHICLE_TYPES.map((veh, vIdx) => (
                   <button
-                    key={veh.id}
+                    key={`veh-${veh.id}-${vIdx}`}
                     onClick={() => setVehicleType(veh.id)}
                     className={`p-3 rounded-2xl border text-right transition-all flex flex-col justify-between gap-1.5 ${
                       vehicleType === veh.id
-                        ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20'
+                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20'
                         : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300'
                     }`}
                   >
@@ -159,10 +159,10 @@ export default function LogisticsEstimatorModal({
                       <span className={`text-xs font-black ${vehicleType === veh.id ? 'text-indigo-950' : 'text-slate-800'}`}>
                         {veh.name}
                       </span>
-                      {vehicleType === veh.id && <CheckCircle2 size={16} className="text-indigo-600" />}
+                      {vehicleType === veh.id && <CheckCircle2 size={16} className="text-emerald-600" />}
                     </div>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">{veh.desc}</p>
-                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/60 px-2 py-0.5 rounded-md self-start">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md self-start">
                       ظرفیت: {veh.capacity}
                     </span>
                   </button>
@@ -172,8 +172,8 @@ export default function LogisticsEstimatorModal({
 
             {/* Calculation Summary Result Card */}
             <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-lg space-y-4">
-              <div className="flex items-center justify-between border-b border-indigo-500/30 pb-3">
-                <span className="text-xs text-indigo-200">برآورد سرانه کرایه هر کارتن:</span>
+              <div className="flex items-center justify-between border-b border-emerald-500/30 pb-3">
+                <span className="text-xs text-emerald-200">برآورد سرانه کرایه هر کارتن:</span>
                 <span className="text-base font-black text-amber-300 font-sans">
                   {effectivePerCarton.toLocaleString('fa-IR')} تومان / کارتن
                 </span>
@@ -192,7 +192,7 @@ export default function LogisticsEstimatorModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-indigo-500/30 text-xs">
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-500/30 text-xs">
                 <div className="flex items-center gap-2">
                   <Clock size={15} className="text-amber-400" />
                   <span className="text-slate-300">مدت زمان تحویل: <strong className="text-white">{provinceData.days}</strong></span>
@@ -221,7 +221,7 @@ export default function LogisticsEstimatorModal({
           <div className="bg-slate-50 border-t border-slate-200 p-4 sm:px-6 flex items-center justify-end">
             <button
               onClick={onClose}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-colors shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-colors shadow-sm"
             >
               متوجه شدم، بستن پنجره
             </button>

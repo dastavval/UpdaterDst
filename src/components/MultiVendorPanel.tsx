@@ -669,8 +669,8 @@ export default function MultiVendorPanel({
   return (
     <div className="space-y-8 text-right" dir="rtl">
       {/* Premium Factory-wide Upgrade Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 relative overflow-hidden shadow-xl border border-indigo-500/20">
-        <div className="absolute top-0 left-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 relative overflow-hidden shadow-xl border border-emerald-500/20">
+        <div className="absolute top-0 left-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-1.5 text-right">
             <div className="flex items-center gap-2 flex-wrap">
@@ -972,12 +972,12 @@ export default function MultiVendorPanel({
                       {/* Product Status Badges (Sponsored, Boosted) */}
                       <div className="flex flex-col gap-1 items-end">
                         {prod.isSponsored && (
-                          <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                          <span className="bg-emerald-100 text-amber-800 border border-emerald-200 text-[8px] font-black px-2 py-0.5 rounded-full animate-pulse">
                             📢 ویژه تبلیغاتی
                           </span>
                         )}
                         {(prod.boostScore || 0) > 0 && (
-                          <span className="bg-indigo-100 text-indigo-800 border border-indigo-200 text-[8px] font-black px-2 py-0.5 rounded-full">
+                          <span className="bg-emerald-100 text-indigo-800 border border-emerald-200 text-[8px] font-black px-2 py-0.5 rounded-full">
                             🚀 رتبه جستجو: +{prod.boostScore}
                           </span>
                         )}
@@ -1011,7 +1011,7 @@ export default function MultiVendorPanel({
                       <button
                         type="button"
                         onClick={() => handlePromoteProduct(prod)}
-                        className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs border border-amber-400"
+                        className="px-3 py-2 bg-emerald-500 hover:bg-amber-400 text-slate-950 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs border border-amber-400"
                         title="ویژه کردن کالا و نمایش اول کارتابل"
                       >
                         <Sparkles size={11} />
@@ -1020,7 +1020,7 @@ export default function MultiVendorPanel({
                       <button
                         type="button"
                         onClick={() => handleBoostProduct(prod)}
-                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs border border-indigo-500"
+                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs border border-emerald-500"
                         title="افزایش ضریب شانس رتبه در جستجوی اول"
                       >
                         <Plus size={11} />

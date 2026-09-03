@@ -55,7 +55,7 @@ export const AdminSalesCharts: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+            <div className="p-3 bg-emerald-600 text-white rounded-2xl">
               <TrendingUp size={20} />
             </div>
             <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
@@ -69,7 +69,7 @@ export const AdminSalesCharts: React.FC = () => {
 
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+            <div className="p-3 bg-blue-50 text-emerald-600 rounded-2xl">
               <ShoppingCart size={20} />
             </div>
             <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
@@ -83,10 +83,10 @@ export const AdminSalesCharts: React.FC = () => {
 
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+            <div className="p-3 bg-emerald-600 text-white rounded-2xl">
               <Factory size={20} />
             </div>
-            <span className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+            <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
               <ArrowUpRight size={12} />
               ۰
             </span>

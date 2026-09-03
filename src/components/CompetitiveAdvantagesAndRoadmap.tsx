@@ -88,7 +88,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
       title: 'بازاریاب و ویزیتور',
       subtitle: 'شروع بدون سرمایه اولیه',
       badge: 'سطح ۱ - ورود سریع',
-      badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      badgeBg: 'bg-emerald-600 text-white border-emerald-300',
       icon: Users,
       color: 'bg-emerald-600',
       income: 'پورسانت ۵٪ تا ۱۲٪ از هر سفارش',
@@ -126,7 +126,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
       badge: 'سطح ۳ - نماینده رسمی',
       badgeBg: 'bg-blue-100 text-blue-800 border-blue-300',
       icon: MapPin,
-      color: 'bg-blue-600',
+      color: 'bg-emerald-600',
       income: 'سهمیه انحصاری + سود حجمی',
       desc: 'انبارداری منطقه‌ای و توزیع بارهای پالتی و تریلی کارخانجات در سطح استان با پشتیبانی تبلیغاتی.',
       features: [
@@ -160,9 +160,9 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
       title: 'تامین‌کننده و کارخانه‌دار',
       subtitle: 'عرضه مستقیم محصولات',
       badge: 'سطح ۵ - مرجع تولید',
-      badgeBg: 'bg-amber-100 text-amber-800 border-amber-300',
+      badgeBg: 'bg-emerald-100 text-amber-800 border-amber-300',
       icon: Building2,
-      color: 'bg-amber-600',
+      color: 'bg-emerald-600',
       income: 'فروش یکپارچه و نقدی حجمی',
       desc: 'اتصال مستقیم خطوط تولید کارخانه به بیش از ۵,۰۰۰ بنکدار و خریدار عمده سراسر کشور.',
       features: [
@@ -171,6 +171,24 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
         'حذف هزینه‌های سنگین بازاریابی سنتی'
       ],
       actionText: 'ثبت کارخانه و محصولات'
+    },
+    {
+      id: 6,
+      key: 'ad_poster',
+      title: 'آگهی‌گذار (نقش جدید)',
+      subtitle: 'درج آگهی مستقل',
+      badge: 'سطح ۶ - آگهی‌گذار',
+      badgeBg: 'bg-orange-100 text-orange-800 border-orange-300',
+      icon: Store,
+      color: 'bg-orange-600',
+      income: 'دسترسی به بازار تخصصی',
+      desc: 'درج آگهی فروش کالای مازاد، خدمات و تجهیزات صنعتی در تالار تخصصی.',
+      features: [
+        'درج نامحدود آگهی',
+        'نمایش ویژه در کف بازار',
+        'ارتباط مستقیم با خریداران'
+      ],
+      actionText: 'ثبت‌نام به عنوان آگهی‌گذار'
     }
   ];
 
@@ -210,7 +228,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
       <section className="relative bg-white border border-slate-200 rounded-3xl p-3.5 sm:p-6 shadow-xs overflow-hidden">
         <div className="relative z-10 space-y-4">
           <div className="text-center max-w-xl mx-auto space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] sm:text-xs font-black border border-emerald-300">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] sm:text-xs font-black border border-emerald-300">
               <Sparkles size={13} className="text-emerald-600 animate-pulse" />
               <span>جدول مزیت رقابتی دست اول</span>
             </div>
@@ -244,7 +262,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
                         <Check size={10} />
                         سامانه دست اول
                       </span>
-                      <p className="text-emerald-950 font-black leading-tight">{row.dastavval}</p>
+                      <p className="text-slate-900 font-black leading-tight">{row.dastavval}</p>
                     </div>
                   </div>
                 </div>
@@ -310,8 +328,8 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
         <div className="relative z-10 space-y-4">
           
           <div className="text-center max-w-xl mx-auto space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] sm:text-xs font-black border border-emerald-300">
-              <Crown size={14} className="text-amber-600" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] sm:text-xs font-black border border-emerald-300">
+              <Crown size={14} className="text-emerald-600" />
               <span>نقشه راه رشد و ثبت‌نام نقش‌ها</span>
             </div>
             <h3 className="text-sm sm:text-xl font-black text-slate-900 leading-snug">
@@ -322,8 +340,8 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
             </p>
           </div>
 
-          {/* 5 ROADMAP CARDS */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 relative z-10">
+          {/* 6 ROADMAP CARDS */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 relative z-10">
             {roles.map((role, idx) => {
               const RoleIcon = role.icon;
               const isSelected = selectedRole === idx;
@@ -457,7 +475,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
                   <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md">
                     <CheckCircle2 size={24} />
                   </div>
-                  <h4 className="text-sm font-black text-emerald-950">ثبت‌نام شما با موفقیت انجام شد!</h4>
+                  <h4 className="text-sm font-black text-slate-900">ثبت‌نام شما با موفقیت انجام شد!</h4>
                   <p className="text-xs font-bold text-emerald-800">
                     اطلاعات شما در سامانه ثبت گردید. همکاران واحد پذیرش دست اول جهت فعال‌سازی پنل و هماهنگی بزودی با شما تماس خواهند گرفت.
                   </p>
@@ -517,7 +535,7 @@ export const CompetitiveAdvantagesAndRoadmap: React.FC<CompetitiveAdvantagesAndR
                   </div>
 
                   <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl text-[10px] font-bold text-emerald-900">
-                    ✨ <strong className="text-emerald-950">مزیت پیوستن:</strong> {modalRole.income}
+                    ✨ <strong className="text-slate-900">مزیت پیوستن:</strong> {modalRole.income}
                   </div>
 
                   <div className="pt-2 flex gap-2">

@@ -126,9 +126,9 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
 
   // Investment Rating
   const getRating = (roi: number) => {
-    if (roi >= 35) return { label: "سوددهی فوق‌العاده (طلا)", color: "text-amber-500 bg-amber-500/10 border-amber-500/20" };
+    if (roi >= 35) return { label: "سوددهی فوق‌العاده (طلا)", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" };
     if (roi >= 20) return { label: "سوددهی عالی (نقره)", color: "text-emerald-600 bg-emerald-600/10 border-emerald-600/20" };
-    if (roi >= 10) return { label: "سوددهی خوب (برنز)", color: "text-blue-600 bg-blue-600/10 border-blue-600/20" };
+    if (roi >= 10) return { label: "سوددهی خوب (برنز)", color: "text-emerald-600 bg-emerald-600/10 border-emerald-600/20" };
     return { label: "سوددهی کم", color: "text-red-500 bg-red-500/10 border-red-500/20" };
   };
 
@@ -285,7 +285,7 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
                       </div>
                     </div>
 
-                    <div className="bg-amber-50/80 border border-amber-200 p-3 rounded-xl flex items-center justify-between">
+                    <div className="bg-emerald-50/80 border border-emerald-200 p-3 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-base">🔄</span>
                         <div>
@@ -358,20 +358,20 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
       </div>
 
       {/* 2. Interactive AI B2B Advisor Chat */}
-      <div className="lg:col-span-5 flex flex-col h-[650px] bg-white rounded-3xl border border-slate-800 overflow-hidden shadow-2xl relative">
-        <div className="p-5 border-b border-slate-800 bg-slate-50/80 backdrop-blur-sm flex justify-between items-center">
+      <div className="lg:col-span-5 flex flex-col h-[650px] bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl relative">
+        <div className="p-5 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm flex justify-between items-center">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-emerald-500/25 rounded-xl flex items-center justify-center border border-emerald-500/30 text-emerald-400">
-              <MessageSquare size={16} className="animate-pulse" />
+            <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center border border-emerald-200">
+              <MessageSquare size={16} />
             </div>
             <div className="text-right">
-              <h4 className="font-black text-xs text-white">کارشناس هوشمند تجاری دست اول</h4>
-              <span className="text-[9px] text-emerald-400 font-bold block mt-0.5">پشتیبانی و مشاوره تخصصی کسب‌وکار ۲۴ ساعته</span>
+              <h4 className="font-black text-xs text-slate-900">کارشناس هوشمند تجاری دست اول</h4>
+              <span className="text-[9px] text-emerald-600 font-bold block mt-0.5">پشتیبانی و مشاوره تخصصی کسب‌وکار ۲۴ ساعته</span>
             </div>
           </div>
-          <div className="flex items-center gap-1 bg-white border border-slate-800 px-2.5 py-1 rounded-full">
+          <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-            <span className="text-[8px] text-gray-400 font-bold">برخط (متصل به Gemini)</span>
+            <span className="text-[9px] text-emerald-800 font-bold">برخط (متصل به هوش تجاری)</span>
           </div>
         </div>
 
@@ -383,29 +383,29 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
               className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'mr-auto items-start' : 'ml-auto items-end'}`}
             >
               <div 
-                className={`p-3.5 rounded-2xl text-xs font-bold leading-relaxed shadow-sm whitespace-pre-line ${
+                className={`p-3.5 rounded-2xl text-xs font-bold leading-relaxed shadow-xs whitespace-pre-line ${
                   m.role === 'user' 
                     ? "bg-emerald-600 text-white rounded-tl-none" 
-                    : "bg-slate-100 text-slate-100 border border-slate-700/50 rounded-tr-none"
+                    : "bg-slate-50 text-slate-800 border border-slate-200/80 rounded-tr-none"
                 }`}
               >
                 {m.content}
               </div>
-              <span className="text-[8px] text-slate-500 mt-1 font-mono">
+              <span className="text-[8px] text-slate-400 mt-1 font-mono">
                 {new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
           ))}
           {aiLoading && (
-            <div className="flex items-center gap-2 bg-slate-100/50 border border-slate-800 text-slate-400 p-3 rounded-2xl text-xs font-bold w-48 mr-auto">
-              <Loader2 size={14} className="animate-spin text-emerald-400" />
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-500 p-3 rounded-2xl text-xs font-bold w-48 mr-auto">
+              <Loader2 size={14} className="animate-spin text-emerald-600" />
               در حال نگارش پاسخ...
             </div>
           )}
         </div>
 
         {/* Suggested Quick Questions */}
-        <div className="p-3 bg-slate-50/40 border-t border-slate-800/80 flex gap-2 overflow-x-auto no-scrollbar scrollbar-none">
+        <div className="p-3 bg-slate-50/70 border-t border-slate-100 flex gap-2 overflow-x-auto no-scrollbar scrollbar-none">
           {[
             "چه سبدی برای بقالی پرفروش تره؟",
             "تحلیل حاشیه سود مزمز چیپس چیه؟",
@@ -414,7 +414,7 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
             <button
               key={`ai-advisor-q-${q.slice(0, 5)}-${i}`}
               onClick={() => handleSendMessage(q)}
-              className="px-3 py-1.5 bg-slate-100 hover text-[10px] text-slate-300 border border-slate-700 hover rounded-xl whitespace-nowrap transition-all font-bold"
+              className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-[10px] text-slate-700 hover:text-emerald-800 border border-slate-200 rounded-xl whitespace-nowrap transition-all font-bold cursor-pointer"
             >
               {q}
             </button>
@@ -422,7 +422,7 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
         </div>
 
         {/* Input Bar */}
-        <div className="p-4 bg-slate-50 border-t border-slate-800">
+        <div className="p-4 bg-white border-t border-slate-100">
           <form 
             onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
             className="flex gap-2"
@@ -432,12 +432,12 @@ export default function AIAdvisorPanel({ products, onAddToCart }: AIAdvisorPanel
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               placeholder="سوال خود در مورد حاشیه سود یا بازار بنکداری بپرسید..."
-              className="flex-1 bg-white border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus focus"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
             />
             <button 
               type="submit"
               disabled={aiLoading}
-              className="p-2.5 bg-emerald-600 hover active:scale-95 text-white rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-lg shadow-emerald-600/10"
+              className="p-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl transition-all disabled:opacity-50 flex items-center justify-center shadow-md shadow-emerald-600/20 cursor-pointer"
             >
               <Send size={16} />
             </button>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { 
   Building2, 
   Award, 
@@ -22,12 +22,22 @@ import {
   TrendingUp,
   Users,
   Calculator,
-  Package
+  Package,
+  Copy,
+  CheckCheck,
+  RotateCw,
+  Smartphone,
+  ShieldAlert,
+  X,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import { addCallbackRequest } from "../lib/callback-helper";
 import { calculateDealershipTier } from "../utils/dealershipCityTiers";
+import { ResilientVault } from "../lib/resilient-storage";
+import { getApiUrl } from "../utils/api-utils";
+import { saveUserSession, getUserSession } from "../lib/auth-helper";
 
 interface DealershipRequestViewProps {
   b2bConfig?: any;
@@ -78,19 +88,98 @@ export default function DealershipRequestView({
   const [distributionVehicles, setDistributionVehicles] = useState("۱ تا ۲ دستگاه وانت/کامیونت");
   const [experienceYears, setExperienceYears] = useState("۲ تا ۵ سال");
   const [capitalRange, setCapitalRange] = useState("۵۰۰ میلیون تا ۱ میلیارد تومان");
+  const [selectedZone, setSelectedZone] = useState("منطقه ۱ - شمال (شمیرانات و شمال کلان‌شهر)");
+  const [selectedLevel, setSelectedLevel] = useState<"diamond" | "gold" | "silver">("gold");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
 
+  // SMS OTP Verification States
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", ""]);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
+
+  // Creative Floating Toast States
+  const [showToast, setShowToast] = useState(false);
+  const [toastCopied, setToastCopied] = useState(false);
+  const [toastProgress, setToastProgress] = useState(100);
+
+  const otpInputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null)
+  ];
+
+  // Clean and normalize Iranian mobile numbers
+  const normalizePhone = (input: string) => {
+    let clean = (input || "")
+      .replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+      .replace(/[^0-9+]/g, "");
+    if (clean.startsWith("+98")) {
+      clean = "0" + clean.slice(3);
+    } else if (clean.startsWith("98")) {
+      clean = "0" + clean.slice(2);
+    } else if (clean.length === 10 && clean.startsWith("9")) {
+      clean = "0" + clean;
+    }
+    return clean;
+  };
+
+  // Sync state if user prop changes
+  useEffect(() => {
+    if (user?.name && !fullName) setFullName(user.name);
+    if ((user?.phone || user?.mobile) && !mobile) setMobile(user.phone || user.mobile);
+    if (user?.company && !companyName) setCompanyName(user.company);
+  }, [user]);
+
   // Sync state if userCity or userProvince prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (userCity) setCity(userCity);
     if (userProvince) setProvince(userProvince);
   }, [userCity, userProvince]);
 
+  // OTP Timer Countdown Effect
+  useEffect(() => {
+    let interval: any;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [otpTimer]);
+
+  // Toast Progress Countdown Effect
+  useEffect(() => {
+    let progressInterval: any;
+    if (showToast) {
+      setToastProgress(100);
+      progressInterval = setInterval(() => {
+        setToastProgress((prev) => {
+          if (prev <= 0) {
+            clearInterval(progressInterval);
+            setShowToast(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 100); // 10 seconds total
+    }
+    return () => {
+      if (progressInterval) clearInterval(progressInterval);
+    };
+  }, [showToast]);
+
   // Listen to events for city prefill and header location selector changes
-  React.useEffect(() => {
+  useEffect(() => {
     const handleOpenEvent = (e: any) => {
       if (e.detail?.city) {
         setCity(e.detail.city);
@@ -123,6 +212,18 @@ export default function DealershipRequestView({
     return calculateDealershipTier(city || "قوچان", province);
   }, [city, province]);
 
+  // Check if current user is already authenticated with the entered phone number
+  const currentSessionUser = useMemo(() => {
+    return getUserSession() || user;
+  }, [user]);
+
+  const isCurrentPhoneVerified = useMemo(() => {
+    if (!currentSessionUser?.phone && !currentSessionUser?.mobile) return false;
+    const sessionPhone = normalizePhone(currentSessionUser.phone || currentSessionUser.mobile || "");
+    const enteredPhone = normalizePhone(mobile);
+    return Boolean(sessionPhone && enteredPhone && sessionPhone === enteredPhone);
+  }, [currentSessionUser, mobile]);
+
   // Provinces List
   const provinces = [
     "آذربایجان شرقی", "آذربایجان غربی", "اردبیل", "اصفهان", "البرز", "ایلام", "بوشهر", 
@@ -150,46 +251,251 @@ export default function DealershipRequestView({
     { name: "بندرعباس", prov: "هرمزگان" }
   ];
 
+  // Send SMS OTP code to mobile for verification
+  const handleSendDealershipOtp = async () => {
+    const targetPhone = normalizePhone(mobile.trim());
+    if (!targetPhone || targetPhone.length < 10 || !targetPhone.startsWith("09")) {
+      alert("لطفاً شماره تلفن همراه معتبر ۱۱ رقمی (مانند ۰۹۱۲۳۴۵۶۷۸۹) را وارد فرمایید.");
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError(null);
+    setOtpSuccess(null);
+
+    try {
+      const response = await fetch(getApiUrl("/api/sms/send-otp"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: targetPhone })
+      });
+      const data = await response.json();
+
+      if (data.success || response.ok) {
+        setShowOtpModal(true);
+        setOtpTimer(120);
+        setOtpDigits(["", "", "", "", ""]);
+        setOtpSuccess("کد ۵ رقمی تأیید هویت پیامکی به شماره شما ارسال شد.");
+
+        setTimeout(() => {
+          otpInputRefs[0].current?.focus();
+        }, 200);
+      } else {
+        setOtpError(data.message || "خطا در ارسال پیامک. لطفاً شماره را بررسی فرمایید.");
+      }
+    } catch (err: any) {
+      setOtpError("خطا در برقراری ارتباط با سرور پیامک: " + err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Verify OTP and complete Dealership Request Submission
+  const handleVerifyDealershipOtp = async (codeToVerify: string) => {
+    const targetPhone = normalizePhone(mobile.trim());
+    if (!targetPhone) {
+      setOtpError("شماره همراه نامعتبر است.");
+      return;
+    }
+    if (!codeToVerify || codeToVerify.length < 5) {
+      setOtpError("لطفاً کد تایید ۵ رقمی را کامل وارد نمایید.");
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError(null);
+
+    try {
+      const response = await fetch(getApiUrl("/api/sms/verify-otp"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: targetPhone,
+          code: codeToVerify,
+          name: fullName.trim(),
+          company: companyName.trim()
+        })
+      });
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        const verifiedUser = data.user;
+        verifiedUser.name = fullName.trim() || verifiedUser.name;
+        verifiedUser.company = companyName.trim() || verifiedUser.company;
+        verifiedUser.province = province;
+        verifiedUser.city = city;
+
+        // Save session locally and in cookie
+        saveUserSession(verifiedUser);
+        window.dispatchEvent(new CustomEvent('dastavval_users_updated', { detail: verifiedUser }));
+
+        setOtpSuccess("✅ شماره همراه شما با موفقیت تأیید شد!");
+        setShowOtpModal(false);
+
+        // Directly execute dealership request creation
+        await executeFinalSubmission(targetPhone, verifiedUser);
+      } else {
+        setOtpError(data.error || data.message || "کد تأیید وارد شده نامعتبر است.");
+      }
+    } catch (err: any) {
+      setOtpError("خطا در تایید کد پیامک: " + err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Form Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !mobile.trim()) {
+    const cleanMobile = normalizePhone(mobile.trim());
+
+    if (!fullName.trim() || !cleanMobile) {
       alert("لطفاً نام کامل و شماره تماس خود را وارد نمایید.");
       return;
     }
 
+    if (cleanMobile.length < 10 || !cleanMobile.startsWith("09")) {
+      alert("لطفاً شماره تلفن همراه معتبر ۱۱ رقمی (مانند ۰۹۱۲۳۴۵۶۷۸۹) را وارد فرمایید.");
+      return;
+    }
+
+    // If phone is already verified in current session, submit directly!
+    if (isCurrentPhoneVerified) {
+      await executeFinalSubmission(cleanMobile, currentSessionUser);
+    } else {
+      // Step 1: Enforce SMS OTP Phone Verification
+      await handleSendDealershipOtp();
+    }
+  };
+
+  // Execute Final Dealership Request Storage and Toast trigger
+  const executeFinalSubmission = async (targetPhone: string, authUser?: any) => {
     setIsSubmitting(true);
     try {
       const generatedCode = "REP-" + Math.floor(100000 + Math.random() * 900000);
-      const requestDetails = `[درخواست نمایندگی انحصاری] کد: ${generatedCode} | متقاضی: ${fullName} | شرکت: ${companyName || 'شخصی'} | استان: ${province} - شهر: ${city} (سطح جمعیتی: ${cityTierData.tierLabel} - سقف سهمیه: ${cityTierData.monthlyQuotaCeilingFormatted}) | متراژ انبار: ${warehouseSpace} | ناوگان: ${distributionVehicles} | سابقه: ${experienceYears} | توضیحات: ${notes || '-'}`;
+      const requestDetails = `[درخواست نمایندگی رسمی] کد: ${generatedCode} | متقاضی: ${fullName} | شرکت: ${companyName || 'شخصی'} | استان: ${province} - شهر: ${city} (سطح: ${cityTierData.tierLabel} - سقف سهمیه: ${cityTierData.monthlyQuotaCeilingFormatted}) | متراژ انبار: ${warehouseSpace} | ناوگان: ${distributionVehicles} | سابقه: ${experienceYears} | توضیحات: ${notes || '-'}`;
 
-      await addCallbackRequest(mobile, requestDetails);
+      await addCallbackRequest(targetPhone, requestDetails);
       
+      const dealershipPayload = {
+        id: generatedCode,
+        code: generatedCode,
+        date: new Date().toLocaleDateString("fa-IR"),
+        createdAt: new Date().toISOString(),
+        status: "pending",
+        statusLabel: "در حال بررسی کمیسیون اعطای نمایندگی",
+        fullName,
+        name: fullName,
+        phone: targetPhone,
+        mobile: targetPhone,
+        companyName,
+        company: companyName,
+        province,
+        city,
+        warehouseSpace,
+        distributionVehicles,
+        experienceYears,
+        capitalRange,
+        selectedZone: cityTierData.isMetropolis ? selectedZone : undefined,
+        selectedLevel: cityTierData.isMetropolis ? selectedLevel : undefined,
+        notes,
+        tierLabel: cityTierData.tierLabel,
+        monthlyQuotaCeilingFormatted: cityTierData.monthlyQuotaCeilingFormatted,
+        requestedAt: new Date().toISOString()
+      };
+
+      // Resilient Multi-layer Save
+      await ResilientVault.saveDealershipRequest(dealershipPayload);
+
+      // Create / Update User Account
+      const users = JSON.parse(localStorage.getItem('dastavval_local_users') || '[]');
+      let userIndex = users.findIndex((u: any) => u.phone === targetPhone || u.mobile === targetPhone);
+      const userObj = {
+        ...(authUser || {}),
+        id: userIndex >= 0 ? users[userIndex].id : (authUser?.id || `usr_${Date.now()}`),
+        name: fullName,
+        phone: targetPhone,
+        mobile: targetPhone,
+        company: companyName || 'عاملیت توزیع',
+        province,
+        city,
+        role: 'pending_representative',
+        dealershipStatus: 'pending',
+        repPending: true,
+        dealershipCode: generatedCode,
+        createdAt: userIndex >= 0 ? users[userIndex].createdAt : new Date().toISOString()
+      };
+
+      if (userIndex >= 0) {
+        users[userIndex] = { ...users[userIndex], ...userObj };
+      } else {
+        users.unshift(userObj);
+      }
+      localStorage.setItem('dastavval_local_users', JSON.stringify(users));
+      saveUserSession(userObj);
+      window.dispatchEvent(new CustomEvent('dastavval_users_updated', { detail: userObj }));
+
       setTrackingCode(generatedCode);
       setSubmitSuccess(true);
-      
-      // Store in local storage for quick access
-      try {
-        const savedRequests = JSON.parse(localStorage.getItem("dastavval_agency_requests") || "[]");
-        savedRequests.unshift({
-          code: generatedCode,
-          date: new Date().toLocaleDateString("fa-IR"),
-          status: "در حال بررسی کمیسیون اعطای نمایندگی",
-          fullName,
-          province,
-          city,
-          companyName,
-          tierLabel: cityTierData.tierLabel,
-          monthlyQuotaCeilingFormatted: cityTierData.monthlyQuotaCeilingFormatted
-        });
-        localStorage.setItem("dastavval_agency_requests", JSON.stringify(savedRequests));
-      } catch (err) {
-        // ignore
-      }
-
+      setShowToast(true); // Trigger Creative Toast Notification
     } catch (error: any) {
       alert("خطا در ثبت درخواست: " + (error?.message || "لطفاً دوباره تلاش فرمایید."));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyTrackingCode = () => {
+    if (!trackingCode) return;
+    navigator.clipboard.writeText(trackingCode);
+    setToastCopied(true);
+    setTimeout(() => setToastCopied(false), 2500);
+  };
+
+  const handleDigitChange = (index: number, val: string) => {
+    const cleanVal = val.replace(/[^0-9۰-۹]/g, "").slice(-1);
+    const normalized = cleanVal.replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]);
+    
+    const newDigits = [...otpDigits];
+    newDigits[index] = normalized;
+    setOtpDigits(newDigits);
+
+    if (normalized && index < 4) {
+      otpInputRefs[index + 1].current?.focus();
+    }
+
+    const fullCode = newDigits.join("");
+    if (fullCode.length === 5 && !newDigits.includes("")) {
+      handleVerifyDealershipOtp(fullCode);
+    }
+  };
+
+  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputRefs[index - 1].current?.focus();
+    }
+  };
+
+  const handlePasteDigits = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").trim();
+    const cleanDigits = pasted
+      .replace(/[۰-۹]/g, (d) => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
+      .replace(/[^0-9]/g, "")
+      .slice(0, 5);
+
+    if (cleanDigits.length > 0) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < 5; i++) {
+        newDigits[i] = cleanDigits[i] || "";
+      }
+      setOtpDigits(newDigits);
+      const targetFocus = Math.min(cleanDigits.length, 4);
+      otpInputRefs[targetFocus].current?.focus();
+
+      if (cleanDigits.length === 5) {
+        handleVerifyDealershipOtp(cleanDigits);
+      }
     }
   };
 
@@ -207,7 +513,7 @@ export default function DealershipRequestView({
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10.5px] font-black">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-200 text-[10.5px] font-black">
                   اعطای عاملیت و نمایندگی رسمی پلتفرم
                 </span>
                 <span className="text-[10px] text-slate-500 font-bold">شروع آسان از ۳۰ کارتن با ارتقای خودکار پلکانی</span>
@@ -302,21 +608,36 @@ export default function DealershipRequestView({
                     <CheckCircle2 size={36} />
                   </div>
                   <div className="space-y-1.5">
-                    <h3 className="text-lg font-black text-slate-900">درخواست نمایندگی شما با موفقیت ثبت شد</h3>
-                    <p className="text-xs font-bold text-slate-600">
-                      پرونده شما در صف بررسی سهمیه منطقه <span className="font-black text-emerald-700">{province} - {city}</span> با سقف سهمیه <span className="font-black text-emerald-700">{cityTierData.monthlyQuotaCeilingFormatted}</span> قرار گرفت.
+                    <h3 className="text-lg font-black text-slate-900">حساب کاربری شما ایجاد شد و درخواست نمایندگی ثبت گردید</h3>
+                    <p className="text-xs font-bold text-slate-600 leading-relaxed max-w-lg mx-auto">
+                      نام کاربری شما شماره موبایل <span className="font-mono font-black text-emerald-800">{mobile}</span> و رمز عبور ساده شما تعیین شد. حساب شما به صورت خودکار ذخیره گردید و نیازی به ورود مجدد ندارید.
                     </p>
                   </div>
-                  <div className="inline-block p-4 bg-white border border-emerald-300 rounded-xl shadow-xs">
-                    <span className="text-[11px] text-slate-500 font-bold block">کد رهگیری پرونده شما:</span>
-                    <span className="text-lg font-black font-mono text-emerald-700">{trackingCode}</span>
+
+                  <div className="p-4 bg-white border border-emerald-200 rounded-2xl text-right space-y-2 max-w-md mx-auto text-xs font-bold text-slate-700">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-500">کد رهگیری پرونده:</span>
+                      <span className="font-mono font-black text-emerald-700">{trackingCode}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-500">منطقه و سهمیه:</span>
+                      <span className="font-black text-slate-900">{province} - {city} ({cityTierData.monthlyQuotaCeilingFormatted})</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200 font-bold leading-relaxed">
+                      ⏳ درخواست شما در حال بررسی توسط مدیر است. پس از تأیید نهایی، قیمت‌های کف کارخانه و نمایندگی برای شما فعال شده و با خرید تا سقف سهمیه منطقه، پروفایل شما در صفحه اصلی نمایش داده می‌شود.
+                    </p>
                   </div>
+
                   <div className="pt-2 flex justify-center gap-3">
                     <button
-                      onClick={() => setSubmitSuccess(false)}
-                      className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-200 transition-all cursor-pointer"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('dastavval_open_user_panel'));
+                        onNavigateHome();
+                      }}
+                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-md transition-all cursor-pointer flex items-center gap-2"
                     >
-                      ثبت فرم دیگر
+                      <User size={16} />
+                      <span>رفتن به حساب کاربری و مشاهده وضعیت</span>
                     </button>
                   </div>
                 </div>
@@ -340,7 +661,7 @@ export default function DealershipRequestView({
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-emerald-950">سقف سهمیه مصوب برای {city}:</span>
+                          <span className="text-xs font-black text-slate-900">سقف سهمیه مصوب برای {city}:</span>
                           <span className="text-xs font-black text-emerald-700 font-mono bg-white px-2 py-0.5 rounded-md border border-emerald-200">{cityTierData.monthlyQuotaCeilingFormatted}</span>
                         </div>
                         <p className="text-[10px] font-bold text-slate-500 mt-0.5">
@@ -364,7 +685,20 @@ export default function DealershipRequestView({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-700">شماره موبایل جهت تماس و پیامک:</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-700">شماره موبایل جهت تماس و پیامک:</label>
+                        {isCurrentPhoneVerified ? (
+                          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <CheckCircle2 size={12} className="text-emerald-600" />
+                            <span>تأیید شده پیامکی</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <ShieldCheck size={12} className="text-emerald-700" />
+                            <span>تأیید با پیامک یکبارمصرف</span>
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="tel"
                         required
@@ -411,6 +745,61 @@ export default function DealershipRequestView({
                         className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
                       />
                     </div>
+
+                    {/* Regional Zone & Multi-level Tier Selection for Metropolises */}
+                    {cityTierData.isMetropolis && (
+                      <>
+                        <div className="space-y-1.5 sm:col-span-2 p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl">
+                          <label className="text-xs font-black text-emerald-950 flex items-center justify-between">
+                            <span>📍 انتخاب منطقه و ناحیه فعالیت در کلان‌شهر ({city}):</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">جلوگیری از انحصار و حفظ رقابت سالم</span>
+                          </label>
+                          <select
+                            value={selectedZone}
+                            onChange={(e) => setSelectedZone(e.target.value)}
+                            className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-hidden mt-1"
+                          >
+                            {(cityTierData.availableZones || [
+                              "منطقه ۱ - شمال کلان‌شهر",
+                              "منطقه ۲ - غرب کلان‌شهر",
+                              "منطقه ۳ - مرکز کلان‌شهر",
+                              "منطقه ۴ - شرق کلان‌شهر",
+                              "منطقه ۵ - جنوب کلان‌شهر"
+                            ]).map((z, zIdx) => (
+                              <option key={`zone-opt-${zIdx}`} value={z}>{z}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5 sm:col-span-2 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                          <label className="text-xs font-black text-slate-900 block">
+                            🏆 سطح‌بندی عاملیت در کلان‌شهر:
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                            {(cityTierData.representativeLevels || [
+                              { level: "diamond", title: "💎 سطح ۱: الماس", description: "بنکداری و مدیریت منطقه‌ای", minMonthlyVolumeFormatted: "۱.۵ میلیارد تومان" },
+                              { level: "gold", title: "🥇 سطح ۲: طلایی", description: "پخش مویرگی محلی", minMonthlyVolumeFormatted: "۶۰۰ میلیون تومان" },
+                              { level: "silver", title: "🥈 سطح ۳: نقره‌ای", description: "تحویل و توزیع سریع", minMonthlyVolumeFormatted: "۳۰۰ میلیون تومان" }
+                            ]).map((lvl) => (
+                              <button
+                                type="button"
+                                key={`lvl-btn-${lvl.level}`}
+                                onClick={() => setSelectedLevel(lvl.level as any)}
+                                className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
+                                  selectedLevel === lvl.level
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                                    : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300"
+                                }`}
+                              >
+                                <div className="text-xs font-black">{lvl.title}</div>
+                                <div className={`text-[10px] mt-0.5 ${selectedLevel === lvl.level ? "text-emerald-100" : "text-slate-500"}`}>{lvl.description}</div>
+                                <div className={`text-[10px] font-mono mt-1 font-bold ${selectedLevel === lvl.level ? "text-amber-200" : "text-emerald-700"}`}>سقف: {lvl.minMonthlyVolumeFormatted}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-black text-slate-700">متراژ انبار یا سوله نگهداری کالا:</label>
@@ -495,7 +884,7 @@ export default function DealershipRequestView({
                     <Package size={18} className="text-emerald-600" />
                     <h3 className="text-xs sm:text-sm font-black">تحلیل سهمیه کارتنی {city}</h3>
                   </div>
-                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-200/60">
                     {cityTierData.tierLabel}
                   </span>
                 </div>
@@ -602,7 +991,7 @@ export default function DealershipRequestView({
           >
             <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase tracking-widest border border-emerald-200">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest border border-emerald-200">
                   <Calculator size={14} className="text-emerald-600" />
                   سامانه محاسبات هوشمند سهمیه و رتبه‌بندی جمعیتی شهرها
                 </div>
@@ -668,15 +1057,15 @@ export default function DealershipRequestView({
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-amber-600 to-amber-700 text-white rounded-2xl p-5 space-y-2 shadow-sm">
+                <div className="bg-gradient-to-br from-emerald-600 to-amber-700 text-white rounded-2xl p-5 space-y-2 shadow-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold opacity-90">سقف سهمیه پلکانی</span>
-                    <Coins size={20} className="text-amber-100" />
+                    <Coins size={20} className="text-emerald-100" />
                   </div>
                   <h4 className="text-lg sm:text-xl font-black font-mono">
                     {cityTierData.monthlyQuotaCeilingFormatted}
                   </h4>
-                  <p className="text-[10px] text-amber-100 font-bold">
+                  <p className="text-[10px] text-emerald-100 font-bold">
                     سقف خرید ماهانه با نرخ مصوب مستقیم کارخانه
                   </p>
                 </div>
@@ -711,7 +1100,7 @@ export default function DealershipRequestView({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-bold text-slate-600">
-                      <tr className={cityTierData.tier === 1 ? "bg-emerald-50/80 text-emerald-950 font-black" : ""}>
+                      <tr className={cityTierData.tier === 1 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
                         <td className="p-3">سطح ۱: کلان‌شهرهای بالای ۱.۵ میلیون</td>
                         <td className="p-3">تهران، مشهد، اصفهان، کرج، شیراز، تبریز، قم، اهواز</td>
                         <td className="p-3 font-mono text-emerald-700 font-black">۳۰ تا ۶۰ کارتن (۳۰-۶۰ م)</td>
@@ -719,7 +1108,7 @@ export default function DealershipRequestView({
                         <td className="p-3 font-mono">۴۰۰ تا ۶۵۰ میلیون</td>
                         <td className="p-3 font-mono">۱۰۰ تا ۱۵۰ میلیون</td>
                       </tr>
-                      <tr className={cityTierData.tier === 2 ? "bg-emerald-50/80 text-emerald-950 font-black" : ""}>
+                      <tr className={cityTierData.tier === 2 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
                         <td className="p-3">سطح ۲: مراکز استان پرجمعیت (۳۵۰ هزار تا ۱.۲ م)</td>
                         <td className="p-3">کرمانشاه، ارومیه، رشت، زاهدان، همدان، کرمان، یزد، بندرعباس، اراک...</td>
                         <td className="p-3 font-mono text-emerald-700 font-black">۲۵ تا ۵۰ کارتن (۲۵-۵۰ م)</td>
@@ -727,7 +1116,7 @@ export default function DealershipRequestView({
                         <td className="p-3 font-mono">۳۰۰ تا ۴۵۰ میلیون</td>
                         <td className="p-3 font-mono">۷۰ تا ۱۰۰ میلیون</td>
                       </tr>
-                      <tr className={cityTierData.tier === 3 ? "bg-emerald-50/80 text-emerald-950 font-black" : ""}>
+                      <tr className={cityTierData.tier === 3 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
                         <td className="p-3">سطح ۳: شهرهای متوسط و صنعتی (۱۰۰ تا ۳۵۰ هزار)</td>
                         <td className="p-3">کاشان، دزفول، بابل، آمل، ساوه، سیرجان، مراغه، رفسنجان، ملایر...</td>
                         <td className="p-3 font-mono text-emerald-700 font-black">۲۰ تا ۴۰ کارتن (۲۰-۴۰ م)</td>
@@ -735,7 +1124,7 @@ export default function DealershipRequestView({
                         <td className="p-3 font-mono">۱۸۰ تا ۲۸۰ میلیون</td>
                         <td className="p-3 font-mono">۴۰ تا ۷۰ میلیون</td>
                       </tr>
-                      <tr className={cityTierData.tier === 4 ? "bg-emerald-50/80 text-emerald-950 font-black" : ""}>
+                      <tr className={cityTierData.tier === 4 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
                         <td className="p-3">سطح ۴: شهرستان‌ها و توزیع منطقه‌ای (زیر ۱۰۰ هزار)</td>
                         <td className="p-3">سایر شهرستان‌ها و مناطق تابعه استانی</td>
                         <td className="p-3 font-mono text-emerald-700 font-black">۱۵ تا ۳۰ کارتن (۱۵-۳۰ م)</td>
@@ -771,7 +1160,7 @@ export default function DealershipRequestView({
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <DollarSign size={24} />
                 </div>
                 <h3 className="text-sm font-black text-slate-900">سود تضمین‌شده ۱۸٪ تا ۳۲٪</h3>
@@ -781,7 +1170,7 @@ export default function DealershipRequestView({
               </div>
 
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <Truck size={24} />
                 </div>
                 <h3 className="text-sm font-black text-slate-900">لجستیک و باربری بدون دغدغه</h3>
@@ -791,7 +1180,7 @@ export default function DealershipRequestView({
               </div>
 
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
                   <ShieldCheck size={24} />
                 </div>
                 <h3 className="text-sm font-black text-slate-900">حمایت بازاریابی و مشتریان منطقه‌ای</h3>
@@ -830,11 +1219,11 @@ export default function DealershipRequestView({
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-black text-emerald-700 text-sm">{r.code}</span>
-                            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">{r.status}</span>
+                            <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-md">{r.status}</span>
                           </div>
                           <p className="text-xs font-bold text-slate-700">متقاضی: {r.fullName} ({r.companyName || 'شخصی'}) - منطقه: {r.province} ({r.city})</p>
                           {r.monthlyQuotaCeilingFormatted && (
-                            <p className="text-[11px] font-black text-indigo-700">سقف سهمیه مصوب: {r.monthlyQuotaCeilingFormatted}</p>
+                            <p className="text-[11px] font-black text-emerald-700">سقف سهمیه مصوب: {r.monthlyQuotaCeilingFormatted}</p>
                           )}
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">{r.date}</span>
@@ -845,6 +1234,231 @@ export default function DealershipRequestView({
               })()}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CREATIVE FLOATING TOAST NOTIFICATION */}
+      <AnimatePresence>
+        {showToast && trackingCode && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[92%] max-w-lg"
+          >
+            <div className="relative overflow-hidden rounded-3xl bg-slate-900/95 backdrop-blur-xl text-white p-4 sm:p-5 border border-emerald-500/40 shadow-2xl shadow-emerald-950/40">
+              {/* Top Accent Gradient Glow */}
+              <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-500 via-teal-400 to-emerald-600" />
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                    <Sparkles size={20} className="animate-pulse" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-black text-white">درخواست نمایندگی با موفقیت ارسال شد</h4>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                        پرونده جدید
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 font-bold leading-relaxed">
+                      پرونده منطقه <span className="text-emerald-300 font-black">{province} ({city})</span> ثبت گردید و حساب کاربری شما فعال شد.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowToast(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Interactive Tracking Code & Action Strip */}
+              <div className="mt-3.5 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                  <span className="text-[11px] text-slate-400">کد رهگیری:</span>
+                  <span className="font-mono font-black text-emerald-400 text-xs" dir="ltr">{trackingCode}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyTrackingCode}
+                    className="mr-auto px-2 py-0.5 rounded-md bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer border border-emerald-500/30"
+                  >
+                    {toastCopied ? (
+                      <>
+                        <CheckCheck size={11} className="text-emerald-300" />
+                        <span>کپی شد!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={11} />
+                        <span>کپی کد</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowToast(false);
+                    window.dispatchEvent(new CustomEvent('dastavval_open_user_panel'));
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/30 cursor-pointer"
+                >
+                  <span>مشاهده در پنل</span>
+                  <ExternalLink size={12} />
+                </button>
+              </div>
+
+              {/* Progress countdown bar */}
+              <div className="absolute bottom-0 inset-x-0 h-1 bg-slate-800">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-100 ease-linear"
+                  style={{ width: `${toastProgress}%` }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SMS OTP PHONE VERIFICATION MODAL */}
+      <AnimatePresence>
+        {showOtpModal && (
+          <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-emerald-200 space-y-5 text-right relative overflow-hidden"
+              dir="rtl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">
+                    <Smartphone size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">تأیید پیامکی شماره همراه</h3>
+                    <p className="text-[10.5px] text-slate-500 font-bold">الزام امنیتی جهت ثبت درخواست رسمی عاملیت</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Explanation & Phone display */}
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl space-y-1">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span>کد ۵ رقمی به این شماره پیامک شد:</span>
+                  <span className="font-mono font-black text-emerald-800 text-sm" dir="ltr">{mobile}</span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+                  با تایید پیامک، حساب کاربری شما ایجاد شده و پرونده نمایندگی شما مستقیماً در کارتابل مدیریت ثبت می‌گردد.
+                </p>
+              </div>
+
+              {/* Alerts & Messages */}
+              {otpSuccess && (
+                <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
+                  <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
+                  <span>{otpSuccess}</span>
+                </div>
+              )}
+
+              {otpError && (
+                <div className="p-2.5 bg-rose-50 text-rose-800 rounded-xl text-xs font-bold border border-rose-200 flex items-center gap-1.5">
+                  <ShieldAlert size={15} className="shrink-0 text-rose-600" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {/* 5-Digit OTP Input Grid */}
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-slate-700 text-center">
+                  کد ۵ رقمی دریافتی را وارد فرمایید:
+                </label>
+                <div className="flex justify-center gap-2 sm:gap-3" dir="ltr">
+                  {otpDigits.map((digit, idx) => (
+                    <input
+                      key={`dealer-otp-${idx}`}
+                      ref={otpInputRefs[idx]}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleDigitChange(idx, e.target.value)}
+                      onKeyDown={(e) => handleDigitKeyDown(idx, e)}
+                      onPaste={idx === 0 ? handlePasteDigits : undefined}
+                      className="w-11 h-13 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-mono font-black bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 focus:bg-white rounded-2xl outline-hidden transition-all shadow-2xs"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Timer & Resend */}
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-1">
+                {otpTimer > 0 ? (
+                  <div className="flex items-center gap-1 text-slate-600">
+                    <Clock size={13} />
+                    <span>ارسال مجدد تا:</span>
+                    <span className="font-mono font-black text-emerald-700">
+                      {Math.floor(otpTimer / 60)}:{(otpTimer % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={otpLoading}
+                    onClick={handleSendDealershipOtp}
+                    className="text-emerald-700 hover:text-emerald-800 font-black flex items-center gap-1 cursor-pointer"
+                  >
+                    <RotateCw size={13} />
+                    <span>ارسال مجدد کد پیامکی</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={otpLoading || otpDigits.join("").length < 5}
+                  onClick={() => handleVerifyDealershipOtp(otpDigits.join(""))}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {otpLoading ? (
+                    <span>در حال بررسی و ثبت...</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>تأیید پیامک و ثبت نهایی درخواست</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  ویرایش شماره و بازگشت به فرم
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -1,4 +1,5 @@
 import { Product, User, B2BConfig } from "../types";
+import { calculateDealershipTier } from "../utils/dealershipCityTiers";
 
 export type UserRole = 'guest' | 'customer' | 'user' | 'marketer' | 'agent' | 'leader' | 'representative' | 'factory' | 'supplier' | 'admin';
 
@@ -53,6 +54,7 @@ export interface RolePricingInfo {
  */
 export function getB2BPricingConfig(): {
   customerMarkupPercent: number;
+  specialOfferMarkupPercent: number;
   marketerCommissionPercent: number;
   repRegionalProfitSharePercent: number;
   requireRep300mPurchaseForFloorPrice: boolean;
@@ -62,7 +64,8 @@ export function getB2BPricingConfig(): {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        customerMarkupPercent: typeof parsed.customerMarkupPercent === 'number' ? parsed.customerMarkupPercent : 10,
+        customerMarkupPercent: typeof parsed.customerMarkupPercent === 'number' ? parsed.customerMarkupPercent : 20,
+        specialOfferMarkupPercent: typeof parsed.specialOfferMarkupPercent === 'number' ? parsed.specialOfferMarkupPercent : 10,
         marketerCommissionPercent: typeof parsed.marketerCommissionPercent === 'number' ? parsed.marketerCommissionPercent : 5,
         repRegionalProfitSharePercent: typeof parsed.repRegionalProfitSharePercent === 'number' ? parsed.repRegionalProfitSharePercent : 50,
         requireRep300mPurchaseForFloorPrice: parsed.requireRep300mPurchaseForFloorPrice !== false
@@ -72,7 +75,8 @@ export function getB2BPricingConfig(): {
     console.warn("Could not read dastavval_b2b_config:", e);
   }
   return {
-    customerMarkupPercent: 10,
+    customerMarkupPercent: 20,
+    specialOfferMarkupPercent: 10,
     marketerCommissionPercent: 5,
     repRegionalProfitSharePercent: 50,
     requireRep300mPurchaseForFloorPrice: true
@@ -107,9 +111,26 @@ export function getProductRolePricing(
   const isFactory = rawRole === 'factory' || rawRole === 'supplier';
   const isAdmin = rawRole === 'admin' || userBadge === 'admin';
 
-  // Check 300M Rule & Admin Approval Status for Representative
-  const totalSales = Number(user?.totalSales || 0);
-  const is300mAchieved = totalSales >= 300_000_000;
+  // Check 60-day Inactivity Rule
+  let isInactiveDueToTime = false;
+  if (user?.lastOrderTimestamp || user?.lastOrderDate) {
+    const lastDate = new Date(user.lastOrderTimestamp || user.lastOrderDate).getTime();
+    if (!isNaN(lastDate)) {
+      const daysSinceLastOrder = (Date.now() - lastDate) / (1000 * 60 * 60 * 24);
+      if (daysSinceLastOrder > 60) {
+        isInactiveDueToTime = true;
+      }
+    }
+  }
+
+  // Dynamic City Quota / Minimum Purchase Check:
+  // Small cities (e.g. Shabestar with 80M ceiling) require their city quota instead of 300M.
+  // Metropolises (Tier 1 like Tehran with 2.5B-5B) require 300M.
+  const cityData = calculateDealershipTier(user?.city, user?.province);
+  const requiredMinPurchase = cityData.tier === 1 ? 300_000_000 : (cityData.monthlyQuotaCeilingToman || 80_000_000);
+
+  const totalSales = Number(user?.totalSales || user?.totalPurchaseValue || 0);
+  const isQuotaAchieved = totalSales >= requiredMinPurchase;
   const isExplicitlyApprovedByAdmin = 
     user?.isRepresentativeApproved === true || 
     user?.agencyApproved === true || 
@@ -117,19 +138,17 @@ export function getProductRolePricing(
     user?.isRepresentativeActive === true;
 
   // Rep is fully qualified if: 
-  // (Not enforcing 300M rule) OR (Sales >= 300M) OR (Admin explicitly approved them)
-  const isRepresentativeQualified = isRepRole && (!config.requireRep300mPurchaseForFloorPrice || is300mAchieved || isExplicitlyApprovedByAdmin);
+  // (Not inactive due to 60 days) AND ((Not enforcing quota rule) OR (Sales >= requiredMinPurchase) OR (Admin explicitly approved them))
+  const isRepresentativeQualified = isRepRole && !isInactiveDueToTime && (!config.requireRep300mPurchaseForFloorPrice || isQuotaAchieved || isExplicitlyApprovedByAdmin);
   
-  // Requires approval if they are marked as rep but haven't reached 300M and don't have admin approval
-  const requiresAdminApprovalForRepPrice = isRepRole && !is300mAchieved && !isExplicitlyApprovedByAdmin;
+  // Requires approval if they are marked as rep but haven't achieved quota and don't have admin approval
+  const requiresAdminApprovalForRepPrice = isRepRole && !isQuotaAchieved && !isExplicitlyApprovedByAdmin;
 
   const isRepresentative = isRepresentativeQualified;
   const isCustomerOrGuest = !isRepresentative && !isMarketer && !isFactory && !isAdmin;
 
   // Base Floor Price (قیمت کاتالوگ / کف نرخ کارخانه)
-  // New products (and potentially all products per user request context) get a 10% base markup
-  const basePriceMarkupMultiplier = 1.1; 
-  const floorFactoryUnitPrice = Math.round(Math.max(1, product.bulk_price || product.price || 1) * basePriceMarkupMultiplier);
+  const floorFactoryUnitPrice = Math.round(Math.max(1, product.bulk_price || product.price || 1));
   
   const packCount = Math.max(1, product.carton_pack_count || 1);
   const displayConsumerPrice = Math.max(floorFactoryUnitPrice, product.consumer_price || product.price || (floorFactoryUnitPrice * 1.25));
@@ -140,20 +159,18 @@ export function getProductRolePricing(
     if (userBadge === 'silver') badgeDiscountPercent = 2;
     else if (userBadge === 'gold') badgeDiscountPercent = 5;
     else if (userBadge === 'vip') badgeDiscountPercent = 8;
-    else if (userBadge === 'admin') badgeDiscountPercent = 10;
+    else if (userBadge === 'admin') badgeDiscountPercent = 0; // 0% for Admin to display standard prices clearly
   }
 
   // 1. Calculate Base Wholesale Unit Price based on Role and Config
   const customerMarkupMultiplier = 1 + (config.customerMarkupPercent / 100);
   let baseUnitWholesale = floorFactoryUnitPrice;
 
-  if (isRepresentative || isFactory || isAdmin) {
-    // Representatives buy at floorFactoryUnitPrice (which already has 10% markup)
-    // and we want them to "buy with 10% discount" relative to the customer price.
-    // Since Customer = Floor * 1.1, then Representative = Customer * 0.909 (approx 10% discount)
+  if (isRepresentative || isFactory) {
+    // Representatives and Factories buy at exact Catalog Floor Price
     baseUnitWholesale = floorFactoryUnitPrice;
   } else {
-    // Customers, Marketers buy at Floor * 1.1 (Total markup is 1.1 * 1.1 = 1.21 from raw base)
+    // Customers, Marketers, and Admins buy/view at Floor Price + Site Customer Markup % (e.g. 20%)
     baseUnitWholesale = Math.round(floorFactoryUnitPrice * customerMarkupMultiplier);
   }
 
@@ -215,10 +232,10 @@ export function getProductRolePricing(
     tierComparisonNote = "قیمت مصوب خط تولید کاتالوگ";
   } else if (isAdmin) {
     roleTitleFa = "مدیریت ارشد سامانه";
-    priceTagLabel = "نرخ کاتالوگ و مدیریت";
-    badgeLabel = "دسترسی ادمین (کف قیمت)";
-    badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
-    tierComparisonNote = "دسترسی با نرخ کف کاتالوگ";
+    priceTagLabel = "قیمت خرید مغازه و مشتری";
+    badgeLabel = "نمای پیش‌فرض مدیریت";
+    badgeColor = "bg-slate-100 text-slate-700 border-slate-200";
+    tierComparisonNote = "سیستم در حال نمایش قیمت مشتریان عمومی (+۲۰٪ مارک‌آپ) است.";
   }
 
   return {
@@ -256,6 +273,97 @@ export function getProductRolePricing(
   };
 }
 
+export interface OfferPricingInfo {
+  userRole: UserRole;
+  isRepresentative: boolean;
+  rawOfferDiscountPercent: number;
+  appliedDiscountPercent: number;
+  originalUnitPrice: number;
+  discountedUnitPrice: number;
+  discountedCartonPrice: number;
+  itemsPerCarton: number;
+  priceLabel: string;
+  badgeText: string;
+}
+
+/**
+ * Calculates Offer/Promotion Pricing safeguarding Dealership Margins:
+ * - Representatives kafi is ALWAYS at least the representative floor price (floorFactoryUnitPrice). It never goes below it!
+ * - For general customers/retail buyers, the price is calculated using a smaller configurable markup (specialOfferMarkupPercent, e.g. 10% instead of standard 20%)
+ *   on top of the representative floor price. This gives general customers a discount without dropping to/below the representative's cost.
+ */
+export function getProductOfferPricing(
+  product: Product,
+  rawDiscountPercent: number = 0,
+  user?: any,
+  userBadge?: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin',
+  overrideConfig?: Partial<B2BConfig>
+): OfferPricingInfo {
+  const rolePricing = getProductRolePricing(product, user, userBadge, overrideConfig);
+  const itemsPerCarton = Math.max(1, product.carton_pack_count || 1);
+  const isRep = rolePricing.isRepresentative || rolePricing.isFactory;
+
+  const config = {
+    ...getB2BPricingConfig(),
+    ...(overrideConfig || {})
+  };
+
+  const floorFactoryUnitPrice = rolePricing.floorFactoryUnitPrice;
+  const standardCustomerUnitPrice = rolePricing.customerPrice;
+
+  if (isRep) {
+    // Representatives get the product at exactly the floor factory unit price (their standard representative price).
+    // It should never be shown as less than the representative price.
+    // To show the incentive, we can set the original price to the standard customer price,
+    // and the discounted price to the representative price (floorFactoryUnitPrice).
+    const originalUnitPrice = standardCustomerUnitPrice;
+    const discountedUnitPrice = floorFactoryUnitPrice;
+    const discountedCartonPrice = discountedUnitPrice * itemsPerCarton;
+    
+    // The discount percent is mathematically the markup percent that they are saving
+    const appliedDiscountPercent = config.customerMarkupPercent;
+
+    return {
+      userRole: rolePricing.userRole,
+      isRepresentative: true,
+      rawOfferDiscountPercent: rawDiscountPercent,
+      appliedDiscountPercent,
+      originalUnitPrice,
+      discountedUnitPrice,
+      discountedCartonPrice,
+      itemsPerCarton,
+      priceLabel: "قیمت نمایندگی (کف کارخانه):",
+      badgeText: `${toPersianDigits(appliedDiscountPercent)}٪ تخفیف انحصاری عاملیت`
+    };
+  }
+
+  // Regular Customer / Retailer / Guest:
+  // Instead of showing the representative price, we add a smaller markup (default 10%, configurable via specialOfferMarkupPercent)
+  // on top of the representative floor price.
+  const originalUnitPrice = standardCustomerUnitPrice;
+  const offerMarkupPercent = typeof config.specialOfferMarkupPercent === 'number' ? config.specialOfferMarkupPercent : 10;
+  const discountedUnitPrice = Math.round(floorFactoryUnitPrice * (1 + offerMarkupPercent / 100));
+  const discountedCartonPrice = discountedUnitPrice * itemsPerCarton;
+
+  // Calculate the actual discount percent shown to the customer (e.g. from 12000 to 11000 is ~8%)
+  const appliedDiscountPercent = originalUnitPrice > discountedUnitPrice
+    ? Math.round(((originalUnitPrice - discountedUnitPrice) / originalUnitPrice) * 100)
+    : 0;
+
+  return {
+    userRole: rolePricing.userRole,
+    isRepresentative: false,
+    rawOfferDiscountPercent: rawDiscountPercent,
+    appliedDiscountPercent,
+    originalUnitPrice,
+    discountedUnitPrice,
+    discountedCartonPrice,
+    itemsPerCarton,
+    priceLabel: "قیمت ویژه خرید عمده:",
+    badgeText: appliedDiscountPercent > 0 ? `${toPersianDigits(appliedDiscountPercent)}٪ تخفیف ویژه` : "تخفیف عمده"
+  };
+}
+
 /**
  * Persian number formatter
  */
@@ -267,4 +375,6 @@ export function toPersianDigits(num: number | string | undefined | null): string
   };
   return num.toString().replace(/[0-9]/g, (w) => persianDigits[w] || w);
 }
+
+export const toPersianNum = toPersianDigits;
 

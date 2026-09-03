@@ -1,4 +1,4 @@
-import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft, RefreshCw } from "lucide-react";
+import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft, RefreshCw, Flame, ArrowLeftRight, Repeat, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
@@ -13,7 +13,7 @@ interface NavbarProps {
   onSearchChange: (query: string) => void;
   appMode: 'presentation' | 'portal';
   onModeChange: (mode: 'presentation' | 'portal') => void;
-  user: { name: string; email: string; role: 'user' | 'admin'; company?: string; phone?: string; mobile?: string } | null;
+  user: { name: string; email: string; role: 'customer' | 'agent' | 'marketer' | 'factory' | 'importer' | 'supplier' | 'representative' | 'leader' | 'admin' | 'user' | 'ad_poster'; company?: string; phone?: string; mobile?: string } | null;
   onAuthClick: () => void;
   onLogout: () => void;
   language: Language;
@@ -44,11 +44,13 @@ interface NavbarProps {
   onOpenCatalog?: () => void;
   onOpenPwaModal?: () => void;
   onOpenCPanelWizard?: () => void;
+  onOpenGapGpt?: () => void;
   b2bConfig?: any;
   selectedCity?: string;
   onCityChange?: (city: string) => void;
   onManualSync?: () => void;
   isSyncingData?: boolean;
+  onNavigateToBillboardSubTab?: (subTab: 'floor_deals' | 'barter_hall' | 'ad_poster_panel') => void;
 }
 
 const toPersianNum = (num: number | string) => {
@@ -95,18 +97,20 @@ export default function Navbar({
   onOpenCatalog,
   onOpenPwaModal,
   onOpenCPanelWizard,
+  onOpenGapGpt,
   b2bConfig,
   selectedCity: propSelectedCity,
   onCityChange,
   onManualSync,
   isSyncingData = false,
+  onNavigateToBillboardSubTab,
 }: NavbarProps) {
   const t = translations[language] || translations.fa;
   const isRtl = language === "fa" || language === "ar";
 
-  const [localCity, setLocalCity] = useState(() => localStorage.getItem("dastavval_user_city") || "تهران");
+  const [localCity, setLocalCity] = useState(() => localStorage.getItem("dastavval_user_city") || "تبریز");
   const selectedCity = propSelectedCity || localCity;
-  const [activeProvince, setActiveProvince] = useState(() => localStorage.getItem("dastavval_user_province") || "تهران");
+  const [activeProvince, setActiveProvince] = useState(() => localStorage.getItem("dastavval_user_province") || "آذربایجان شرقی");
   const [showCityModal, setShowCityModal] = useState(false);
 
   const PROVINCE_CITIES_MAP = [
@@ -178,7 +182,7 @@ export default function Navbar({
       text: "text-emerald-600",
       border: "border-emerald-200",
       ring: "focus",
-      badgeBg: "bg-emerald-50 text-emerald-700"
+      badgeBg: "bg-emerald-600 text-white"
     },
     teal: {
       bg: "bg-teal-600 hover",
@@ -188,22 +192,22 @@ export default function Navbar({
       badgeBg: "bg-teal-50 text-teal-700"
     },
     indigo: {
-      bg: "bg-indigo-600 hover",
-      text: "text-indigo-600",
-      border: "border-indigo-200",
+      bg: "bg-[#10b981] hover:bg-[#059669]",
+      text: "text-[#10b981]",
+      border: "border-emerald-200",
       ring: "focus",
-      badgeBg: "bg-indigo-50 text-indigo-700"
+      badgeBg: "bg-emerald-600 text-white"
     },
     amber: {
-      bg: "bg-amber-600 hover",
-      text: "text-amber-600",
-      border: "border-amber-200",
+      bg: "bg-emerald-600 hover:bg-emerald-700",
+      text: "text-emerald-600",
+      border: "border-emerald-200",
       ring: "focus",
-      badgeBg: "bg-amber-50 text-amber-700"
+      badgeBg: "bg-emerald-600 text-white"
     },
     sky: {
-      bg: "bg-sky-600 hover",
-      text: "text-sky-600",
+      bg: "bg-emerald-600 hover",
+      text: "text-emerald-600",
       border: "border-sky-200",
       ring: "focus",
       badgeBg: "bg-sky-50 text-sky-700"
@@ -234,10 +238,10 @@ export default function Navbar({
   const getBadgeColorClass = (badgeKey: string) => {
     switch(badgeKey) {
       case 'bronze': return "bg-stone-100 text-stone-800 border border-stone-200/50";
-      case 'silver': return "bg-slate-100 text-indigo-800 border border-slate-200/40";
-      case 'gold': return "bg-amber-100 text-amber-800 border border-amber-200/40";
+      case 'silver': return "bg-slate-100 text-emerald-800 border border-slate-200/40";
+      case 'gold': return "bg-emerald-600 text-white border border-emerald-200/40";
       case 'vip': return "bg-purple-100 text-purple-800 border border-purple-200/40 animate-pulse";
-      case 'admin': return "bg-rose-100 text-rose-800 border border-rose-200/40";
+      case 'admin': return "bg-emerald-100 text-rose-800 border border-emerald-200/40";
       default: return "";
     }
   };
@@ -349,16 +353,27 @@ export default function Navbar({
         id = 'user';
       }
     }
-    if (setActiveTab) {
+    if (id === 'barter') {
+      setActiveTab?.('factories' as any);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("change-factories-subtab", { detail: { subTab: 'barter' } }));
+      }, 50);
+    } else if (id === 'ad_poster_panel') {
+      setActiveTab?.('billboard' as any);
+      onNavigateToBillboardSubTab?.('ad_poster_panel');
+    } else if (id === 'billboard') {
+      setActiveTab?.('billboard' as any);
+      onNavigateToBillboardSubTab?.('floor_deals');
+    } else if (setActiveTab) {
       setActiveTab(id as any);
     }
     setIsMobileMenuOpen(false);
   };
 
-  const rubikaUrl = b2bConfig?.rubikaChannelUrl || "https://rubika.ir/dastavval_official";
-  const telegramUrl = b2bConfig?.telegramChannelUrl || "https://t.me/dastavval_official";
-  const whatsappUrl = b2bConfig?.whatsappGroupUrl || "https://chat.whatsapp.com/dastavval_official";
-  const instagramUrl = b2bConfig?.instagramPageUrl || "https://instagram.com/dastavval_official";
+  const rubikaUrl = "https://rubika.ir/dastavval_com";
+  const telegramUrl = b2bConfig?.telegramChannelUrl || "https://t.me/dastavval_com";
+  const whatsappUrl = b2bConfig?.whatsappGroupUrl || "https://chat.whatsapp.com/dastavval_com";
+  const instagramUrl = b2bConfig?.instagramPageUrl || "https://instagram.com/dastavval_com";
 
   const showTopSocialBar = b2bConfig?.showTopSocialBar === true;
 
@@ -367,7 +382,7 @@ export default function Navbar({
       <nav className="sticky top-0 z-50 transition-all duration-300 bg-white/80 border-b border-slate-200/50 shadow-sm text-slate-900 backdrop-blur-xl" dir={isRtl ? "rtl" : "ltr"}>
         {/* Top Social Channels Bar */}
         {showTopSocialBar && (
-          <div className="bg-white text-slate-600 text-[10px] sm:text-[11px] font-bold py-1.5 px-3 sm:px-4 border-b border-slate-100 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs">
+          <div className="bg-white text-slate-600 text-[10px] font-bold py-1 px-3 sm:px-4 border-b border-slate-100 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shadow-xs">
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <span className="text-[10px] text-slate-400 font-black hidden sm:inline-block">شبکه‌های رسمی:</span>
               
@@ -376,7 +391,7 @@ export default function Navbar({
                 href={rubikaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-purple-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-purple-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
                 title="عضویت در کانال روبیکا"
               >
                 <span>روبیکا</span>
@@ -387,7 +402,7 @@ export default function Navbar({
                 href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-pink-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-pink-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
                 title="عضویت در اینستاگرام دست اول"
               >
                 <span>اینستاگرام</span>
@@ -398,21 +413,21 @@ export default function Navbar({
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-emerald-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-emerald-700 text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
                 title="گروه واتساپ"
               >
                 <span>واتساپ</span>
               </a>
 
-              {/* Instagram Button */}
+              {/* Telegram Button */}
               <a
-                href={instagramUrl}
+                href={telegramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 hover:opacity-90 text-white text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
-                title="صفحه اینستاگرام"
+                className="px-2 py-0.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:opacity-90 text-white text-[10px] font-black transition-all flex items-center gap-1 shadow-sm shrink-0"
+                title="کانال تلگرام"
               >
-                <span>اینستاگرام</span>
+                <span>تلگرام</span>
               </a>
             </div>
 
@@ -424,57 +439,40 @@ export default function Navbar({
                 <Download size={10} />
                 <span>نصب اپلیکیشن</span>
               </button>
-              
-              {supportPhone && !hideSupportPhone && (
-                <a
-                  href={`tel:${supportPhone}`}
-                  className="text-slate-500 hover:text-emerald-600 text-[10px] font-black hidden md:flex items-center gap-1"
-                >
-                  <Headphones size={11} className="text-emerald-600" />
-                  <span>پشتیبانی: {supportPhone}</span>
-                </a>
-              )}
             </div>
           </div>
         )}
 
-
-
         {/* Top Accent Bar */}
-        <div className="h-0.5 w-full bg-gradient-to-r from-amber-400 via-emerald-500 to-amber-500 opacity-80" />
+        <div className="h-0.5 w-full bg-gradient-to-r from-amber-400 via-emerald-500 to-emerald-500 opacity-80" />
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 md:h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-11 sm:h-13 md:h-14">
             
             {/* Logo and Brand Title (Ultra Compact) */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-1.5 hover text-slate-500 hover rounded-lg transition-colors cursor-pointer"
+                className="p-1 hover text-slate-500 hover rounded-lg transition-colors cursor-pointer"
                 title="مشاهده اطلاعات پلتفرم و تضمین‌ها"
               >
-                <Menu size={20} />
+                <Menu size={18} />
               </button>
               <button 
                 onClick={() => {
                   onModeChange('presentation');
                   setActiveTab?.('presentation');
                 }}
-                className="flex items-center gap-2.5 text-right group focus:outline-none cursor-pointer"
+                className="flex items-center gap-2 text-right group focus:outline-none cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <div className="flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
-                    <DastavvalLogo size={38} showText={false} logoUrl={logoUrl} />
+                    <DastavvalLogo size={32} showText={false} logoUrl={logoUrl} />
                   </div>
                   <div className="flex flex-col text-right">
-                    <span className={`text-sm md:text-base font-black tracking-tight leading-none text-slate-900 transition-colors`}>
+                    <span className={`text-xs sm:text-sm font-black tracking-tight leading-none text-slate-900 transition-colors`}>
                       {appName || t.appName}
                     </span>
-                    {appSub && (
-                      <span className={`text-[9px] font-bold ${activeColor.text} hidden md:block mt-1`}>
-                        {appSub}
-                      </span>
-                    )}
                   </div>
                 </div>
               </button>
@@ -518,14 +516,14 @@ export default function Navbar({
                 }}
                 className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-200 cursor-pointer flex items-center gap-2 group overflow-hidden border whitespace-nowrap ${
                   activeTab === 'billboard'
-                    ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 border-amber-500 ring-1 ring-amber-500/30"
-                    : "bg-amber-50/70 text-amber-950 border-amber-200/80 hover:bg-amber-100 hover:border-amber-300"
+                    ? "bg-amber-400 text-slate-950 shadow-md shadow-emerald-500/20 border-emerald-500 ring-1 ring-emerald-500/30"
+                    : "bg-emerald-50/70 text-amber-950 border-emerald-200/80 hover:bg-emerald-100 hover:border-amber-300"
                 }`}
               >
                 {/* Micro pulsating light to make it look extra alive & special */}
                 <span className="absolute top-1 right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                 </span>
 
                 <SpecialPriceBagIcon 
@@ -537,6 +535,33 @@ export default function Navbar({
                   <span className="tracking-tight">کفِ بازار</span>
                   <span className="hidden xl:inline-block bg-slate-950/10 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap">
                     حراج ویژه 🔥
+                  </span>
+                </span>
+              </button>
+
+              {/* Weekly Sales Program Nav Button */}
+              <button
+                id="nav-btn-weekly-schedule"
+                onClick={() => {
+                  setActiveTab?.('weekly-schedule');
+                }}
+                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-200 cursor-pointer flex items-center gap-2 group overflow-hidden border whitespace-nowrap ${
+                  activeTab === 'weekly-schedule'
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 border-emerald-600 ring-1 ring-emerald-500/30"
+                    : "bg-emerald-50/70 text-rose-950 border-emerald-200/80 hover:bg-emerald-100 hover:border-rose-300"
+                }`}
+              >
+                <span className="absolute top-1 right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <Flame size={16} className={activeTab === 'weekly-schedule' ? 'text-white fill-rose-300 animate-pulse' : 'text-rose-500 fill-rose-100 animate-pulse'} />
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <span className="tracking-tight">برنامه فروش هفتگی</span>
+                  <span className={`hidden xl:inline-block text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                    activeTab === 'weekly-schedule' ? 'bg-white/20 text-white' : 'bg-emerald-600 text-white'
+                  }`}>
+                    تخفیف ویژه
                   </span>
                 </span>
               </button>
@@ -553,6 +578,20 @@ export default function Navbar({
               >
                 <Building2 size={15} />
                 <span>کارخانجات</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab?.('competition');
+                }}
+                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'competition'
+                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                }`}
+              >
+                <Award size={15} className={activeTab === 'competition' ? "text-emerald-600" : "text-slate-400"} />
+                <span>رقابت و رتبه‌بندی</span>
               </button>
 
               {/* Health Apple & Natural Badge Nav Button */}
@@ -574,6 +613,61 @@ export default function Navbar({
                 <span>🍏 سیب سلامت و طبیعی</span>
               </button>
 
+              {/* Barter Hall Nav Button */}
+              <button
+                onClick={() => {
+                  setActiveTab?.('factories' as any);
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent("change-factories-subtab", { detail: { subTab: 'barter' } }));
+                  }, 50);
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  activeTab === 'factories'
+                    ? "bg-amber-500 text-slate-950 shadow-md border-amber-400 ring-2 ring-amber-300/40"
+                    : "bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100"
+                }`}
+                title="تالار ملی تهاتر و معاوضه کالا و تجهیزات کارخانجات"
+              >
+                <ArrowLeftRight size={14} className="text-amber-700" />
+                <span>🔄 تالار تهاتر کارخانجات</span>
+              </button>
+
+              {/* Ad Poster Panel Nav Button */}
+              <button
+                onClick={() => {
+                  setActiveTab?.('billboard' as any);
+                  onNavigateToBillboardSubTab?.('ad_poster_panel');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  activeTab === 'billboard'
+                    ? "bg-emerald-600 text-white shadow-md border-emerald-500 ring-2 ring-emerald-400/40"
+                    : "bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100"
+                }`}
+                title="ثبت آگهی جدید و پنل مدیریت آگهی‌دهندگان"
+              >
+                <Megaphone size={14} className="text-emerald-700" />
+                <span>📢 ثبت و پنل آگهی</span>
+              </button>
+
+              {/* Public Educational Resources Nav Button */}
+              <button
+                onClick={() => {
+                  setActiveTab?.('news');
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent("change-news-subtab", { detail: { subTab: 'education' } }));
+                  }, 50);
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  activeTab === 'news'
+                    ? "bg-emerald-600 text-white shadow-md border-emerald-500 ring-2 ring-emerald-400/40"
+                    : "bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 hover:text-emerald-700"
+                }`}
+                title="منابع آموزشی و راهنمای جامع استفاده از سیستم و نحوه خرید عمده"
+              >
+                <GraduationCap size={15} className={activeTab === 'news' ? "text-white" : "text-emerald-600"} />
+                <span>📚 منابع آموزشی و راهنما</span>
+              </button>
+
               {user?.role === 'admin' && (
                 <button
                   onClick={() => {
@@ -581,12 +675,12 @@ export default function Navbar({
                   }}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'admin'
-                      ? "bg-indigo-600 text-white shadow-md font-black ring-2 ring-indigo-400/50"
-                      : "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                      ? "bg-emerald-600 text-white shadow-md font-black ring-2 ring-indigo-400/50"
+                      : "bg-emerald-100 text-amber-900 hover:bg-emerald-200"
                   }`}
                   title="ورود به پنل مدیریت سرور و بروزرسانی گیت‌هاب"
                 >
-                  <ShieldAlert size={15} className="text-amber-500" />
+                  <ShieldAlert size={15} className="text-emerald-500" />
                   <span>پنل مدیریت و گیت‌هاب</span>
                 </button>
               )}
@@ -600,7 +694,7 @@ export default function Navbar({
                   }}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'user'
-                      ? "bg-amber-500 text-slate-950 shadow-sm font-black"
+                      ? "bg-emerald-600 text-white shadow-sm font-black"
                       : "text-slate-700 hover"
                   }`}
                 >
@@ -608,11 +702,22 @@ export default function Navbar({
                   <span>حساب کاربری</span>
                 </button>
 
+              {onOpenGapGpt && (
+                <button
+                  onClick={onOpenGapGpt}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 text-white hover:brightness-110 border border-emerald-400/40 transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+                  title="گفتگو و مشاوره تخصصی با دستیار هوشمند GapGPT"
+                >
+                  <Sparkles size={14} className="text-amber-300 animate-pulse" />
+                  <span>دستیار GapGPT</span>
+                </button>
+              )}
+
 
               {onOpenCatalog && (
                 <button
                   onClick={onOpenCatalog}
-                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                   title="دانلود کاتالوگ جامع محصولات و قیمت خط تولید (PDF)"
                 >
                   <FileText size={15} className="text-emerald-600" />
@@ -623,10 +728,10 @@ export default function Navbar({
               {onOpenPwaModal && (
                 <button
                   onClick={onOpenPwaModal}
-                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                   title="نصب وب‌اپلیکیشن PWA روی گوشی یا دسکتاپ"
                 >
-                  <Download size={15} className="text-indigo-600 animate-bounce" />
+                  <Download size={15} className="text-emerald-600 animate-bounce" />
                   <span>نصب اپلیکیشن PWA</span>
                 </button>
               )}
@@ -634,7 +739,7 @@ export default function Navbar({
               {onOpenCPanelWizard && (
                 <button
                   onClick={onOpenCPanelWizard}
-                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-emerald-600 text-slate-950 hover:from-amber-400 hover:to-emerald-500 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm font-black border border-amber-300/60"
+                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-emerald-600 text-slate-950 hover:from-amber-400 hover:to-emerald-500 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm font-black border border-amber-300/60"
                   title="راه اندازی روی cPanel و phpMyAdmin (دانلود دیتابیس)"
                 >
                   <Sparkles size={14} className="text-slate-950 animate-pulse" />
@@ -657,7 +762,7 @@ export default function Navbar({
                   </div>
                   <button 
                     onClick={onLogout}
-                    className="p-2 text-rose-500 hover rounded-xl transition-all cursor-pointer"
+                    className="p-2 text-emerald-500 hover rounded-xl transition-all cursor-pointer"
                     title="خروج از حساب"
                   >
                     <LogOut size={16} />
@@ -690,9 +795,9 @@ export default function Navbar({
                 className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200/80 text-slate-700 flex items-center justify-center relative transition-all cursor-pointer shadow-2xs shrink-0"
                 title="کانال اطلاع‌رسانی رسمی دست اول"
               >
-                <Megaphone size={16} className="text-indigo-600" />
+                <Megaphone size={16} className="text-emerald-600" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-600 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-600 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
                     {unreadCount}
                   </span>
                 )}
@@ -722,7 +827,7 @@ export default function Navbar({
                       initial={{ scale: 0.5, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.5, opacity: 0 }}
-                      className="w-4.5 h-4.5 bg-rose-600 text-white text-[10px] rounded-full flex items-center justify-center font-black shadow-xs"
+                      className="w-4.5 h-4.5 bg-emerald-600 text-white text-[10px] rounded-full flex items-center justify-center font-black shadow-xs"
                     >
                       {cartCount}
                     </motion.span>
@@ -736,8 +841,8 @@ export default function Navbar({
         </div>
       </nav>
 
-      {/* Floating Bottom App Navigation Bar for Mobile Viewports (Balanced, Centered Dock) */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-[0_12px_32px_rgba(0,0,0,0.08)] rounded-2xl px-2 py-1 transition-all duration-300">
+      {/* Floating Bottom App Navigation Bar for Mobile Viewports (Ultra-Creative, Clean White, Frosted Glass, Animated Pill) */}
+      <div className="lg:hidden fixed bottom-2 left-3 right-3 z-50 bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-[0_15px_35px_rgba(0,0,0,0.08)] rounded-3xl px-2 py-1.5 transition-all duration-300">
         <div className="flex justify-around items-center h-14 relative">
           {navItems.map((item, idx) => {
             const isActive = activeTab === item.id;
@@ -748,15 +853,22 @@ export default function Navbar({
                   onClick={() => handleNavClick(item.id)}
                   className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer group"
                 >
-                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all border whitespace-nowrap ${
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeMobileIndicator"
+                      className="absolute inset-y-1 inset-x-1.5 bg-rose-50 border border-rose-200/60 rounded-2xl z-0 shadow-xs"
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
                     isActive 
-                      ? "bg-amber-400 text-slate-950 font-black shadow-sm border-amber-500" 
-                      : "bg-amber-50/40 text-amber-900 border-amber-100/40"
+                      ? "text-rose-600 font-black scale-105" 
+                      : "text-rose-500 hover:text-rose-700"
                   }`}>
                     <span className="relative flex items-center justify-center">
-                      <SpecialPriceBagIcon size={18} animated={true} plain={true} className="text-slate-950" />
+                      <SpecialPriceBagIcon size={18} animated={true} plain={true} />
                     </span>
-                    <span className="text-[8px] font-black tracking-tighter">
+                    <span className="text-[9px] font-black tracking-tighter">
                       کف بازار
                     </span>
                   </div>
@@ -765,31 +877,52 @@ export default function Navbar({
             }
             if (item.id === 'news') {
               return (
-                <div key={`bottom-nav-${item.id}-${idx}`} className="relative z-20 flex flex-col items-center -mt-3">
-                  <button
-                    onClick={() => handleNavClick(item.id)}
-                    className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-300 text-slate-950 border-2 border-white flex items-center justify-center shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95 transition-transform cursor-pointer font-black"
-                    title={item.label}
-                  >
-                    <Compass size={22} className="text-slate-950 animate-spin-slow" />
-                  </button>
-                  <span className="text-[9px] font-black text-amber-800 mt-0.5">
-                    {item.label}
-                  </span>
-                </div>
+                <button
+                  key={`bottom-nav-${item.id}-${idx}`}
+                  onClick={() => handleNavClick(item.id)}
+                  className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer"
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeMobileIndicator"
+                      className="absolute inset-y-1 inset-x-1.5 bg-emerald-50 border border-emerald-200/60 rounded-2xl z-0 shadow-xs"
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-emerald-700 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
+                    <span className="p-1">
+                      <Compass size={20} />
+                    </span>
+                    <span className="text-[9px] font-bold tracking-tight">
+                      {item.label}
+                    </span>
+                  </div>
+                </button>
               );
             }
             if (item.id === 'ai') {
               return (
-                <div key={`bottom-nav-${item.id}-${idx}`} className="relative z-20 flex flex-col items-center">
-                  <button
-                    onClick={() => handleNavClick(item.id)}
-                    className="w-10 h-10 rounded-full bg-amber-500 text-slate-950 border border-amber-400 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer font-black"
-                    title={item.label}
-                  >
-                    <Wand2 size={18} className="text-slate-950" />
-                  </button>
-                </div>
+                <button
+                  key={`bottom-nav-${item.id}-${idx}`}
+                  onClick={() => handleNavClick(item.id)}
+                  className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer"
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeMobileIndicator"
+                      className="absolute inset-y-1 inset-x-1.5 bg-amber-50 border border-amber-200/60 rounded-2xl z-0 shadow-xs"
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-amber-600 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
+                    <span className="p-1">
+                      <Wand2 size={20} />
+                    </span>
+                    <span className="text-[9px] font-bold tracking-tight">
+                      {item.label}
+                    </span>
+                  </div>
+                </button>
               );
             }
             return (
@@ -798,18 +931,18 @@ export default function Navbar({
                 onClick={() => handleNavClick(item.id)}
                 className="flex-1 flex flex-col items-center justify-center py-1 transition-all relative cursor-pointer"
               >
-                {isActive && item.id === 'billboard' && (
+                {isActive && (
                   <motion.div
                     layoutId="activeMobileIndicator"
-                    className="absolute inset-y-1 inset-x-2 bg-slate-100 rounded-xl z-0"
+                    className="absolute inset-y-1 inset-x-1.5 bg-emerald-50 border border-emerald-200/60 rounded-2xl z-0 shadow-xs"
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
                   />
                 )}
-                <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-slate-900 font-bold" : "text-slate-500"}`}>
-                  <span className={`p-1 rounded-lg transition-all duration-300 ${isActive ? "scale-110" : ""}`}>
+                <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-emerald-700 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
+                  <span className="p-1">
                     {item.icon}
                   </span>
-                  <span className="text-[9px] font-black tracking-tight">
+                  <span className="text-[9px] font-bold tracking-tight">
                     {item.label}
                   </span>
                 </div>
@@ -829,7 +962,7 @@ export default function Navbar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 z-[100] bg-white/50 backdrop-blur-sm"
+              className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs"
             />
 
             {/* Sliding Drawer */}
@@ -837,435 +970,379 @@ export default function Navbar({
               initial={{ x: isRtl ? "100%" : "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: isRtl ? "100%" : "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className={`fixed top-0 bottom-0 ${isRtl ? 'right-0' : 'left-0'} w-full max-w-sm z-[101] bg-white shadow-2xl p-6 overflow-y-auto text-right flex flex-col justify-between`}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className={`fixed top-0 bottom-0 ${isRtl ? 'right-0' : 'left-0'} w-full max-w-xs sm:max-w-sm z-[101] bg-white shadow-2xl overflow-y-auto flex flex-col justify-between`}
               dir={isRtl ? "rtl" : "ltr"}
             >
-              <div className="space-y-6">
+              <div className="p-5 space-y-4">
                 {/* Header */}
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-black text-xs">
+                <div className="flex justify-between items-center pb-3.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-black text-sm shadow-xs">
                       د۱
                     </div>
-                    <span className="text-sm font-black text-indigo-800">{appName || "پلتفرم دست اول"}</span>
+                    <div>
+                      <span className="text-sm font-black text-slate-900 block leading-tight">{appName || "پلتفرم دست اول"}</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">توزیع مستقیم کالای کارخانجات</span>
+                    </div>
                   </div>
                   <button 
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-1.5 hover text-slate-400 hover rounded-lg cursor-pointer"
+                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                    aria-label="بستن منو"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                {/* Mobile Hamburger City Picker Widget */}
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50/40 p-3.5 rounded-2xl border border-amber-200/80 shadow-3xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-amber-800 font-black flex items-center gap-1">
-                      <MapPin size={13} className="text-amber-600 animate-pulse" />
-                      <span>شهر پیش‌فرض شما برای فیلتر:</span>
-                    </span>
-                    <span className="bg-amber-100 text-amber-950 font-black text-[10px] px-2 py-0.5 rounded-full border border-amber-300">
-                      {selectedCity || "تهران"}
-                    </span>
+                {/* Smart User Profile / Guest Card */}
+                {user ? (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm">
+                          {user.name ? user.name.slice(0, 1) : "👤"}
+                        </div>
+                        <div>
+                          <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                            <span>{user.name || "کاربر گرامی"}</span>
+                            <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                              {user.role === 'admin' ? "مدیر سامانه" : "خریدار تاییدشده"}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                            {user.mobile || user.phone || user.email || ""}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                      <button
+                        onClick={() => {
+                          if (user.role === 'admin') {
+                            if (setActiveTab) setActiveTab('admin');
+                          } else {
+                            if (setActiveTab) setActiveTab('user');
+                          }
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      >
+                        <User size={13} />
+                        <span>{user.role === 'admin' ? "پنل مدیریت" : "حساب کاربری"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          onLogout();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="py-2 px-3 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-700 hover:text-rose-600 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <LogOut size={13} />
+                        <span>خروج</span>
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-[9px] text-slate-500 font-bold leading-relaxed">
-                    با انتخاب شهر، اولویت نمایش نمایندگان، عاملیت‌های توزیع و تخفیفات بر اساس منطقه شما تنظیم می‌گردد.
-                  </p>
+                ) : (
+                  <div className="bg-gradient-to-br from-emerald-50 via-emerald-50/50 to-amber-50/40 border border-emerald-200/80 rounded-2xl p-3.5 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={16} className="text-emerald-600" />
+                      <span className="text-xs font-black text-slate-900">خوش آمدید!</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      برای مشاهده قیمت‌های همکاری کارخانجات، فاکتورها و دریافت تخفیف وارد حساب خود شوید.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        onAuthClick?.();
+                      }}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-sm shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <User size={14} />
+                      <span>ورود / ثبت‌نام سریع</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Location & Quick Sync Widget */}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       setShowCityModal(true);
                     }}
-                    className="w-full text-center py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black rounded-xl transition-all shadow-xs cursor-pointer"
+                    className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-right transition-all cursor-pointer flex flex-col justify-between"
                   >
-                    تغییر شهر و استان فعالیت
+                    <span className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
+                      <MapPin size={11} className="text-emerald-600" />
+                      <span>شهر پیش‌فرض:</span>
+                    </span>
+                    <span className="text-xs font-black text-slate-900 mt-1 truncate">
+                      {selectedCity || "تبریز"} ✏️
+                    </span>
                   </button>
-                </div>
 
-                {/* Instant Database & Invoice Sync Widget */}
-                {onManualSync && (
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200/60 shadow-3xs space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-800 font-black flex items-center gap-1.5">
-                        <RefreshCw 
-                          size={13} 
-                          className={`text-emerald-600 ${isSyncingData ? "animate-spin" : ""}`} 
-                        />
-                        <span>همگام‌سازی لحظه‌ای سامانه:</span>
-                      </span>
-                      <span className="bg-emerald-50 text-emerald-700 font-black text-[8px] px-1.5 py-0.5 rounded-full border border-emerald-200">
-                        سریع و زنده ⚡
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">
-                      بروزرسانی آنی تمامی محصولات، فاکتورها، سبد خرید و سفارشات مستقیماً از دیتابیس بدون نیاز به رفرش صفحه.
-                    </p>
+                  {onManualSync ? (
                     <button
-                      onClick={() => {
-                        onManualSync();
-                      }}
+                      onClick={() => onManualSync()}
                       disabled={isSyncingData}
-                      className="w-full text-center py-2 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-black rounded-xl transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-right transition-all cursor-pointer flex flex-col justify-between disabled:opacity-50"
                     >
-                      <RefreshCw 
-                        size={12} 
-                        className={`text-emerald-600 ${isSyncingData ? "animate-spin" : ""}`} 
-                      />
-                      <span>{isSyncingData ? "در حال دریافت اطلاعات..." : "سینک فوری داده‌ها و فاکتورها"}</span>
+                      <span className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
+                        <RefreshCw size={11} className={`text-emerald-600 ${isSyncingData ? "animate-spin" : ""}`} />
+                        <span>همگام‌سازی:</span>
+                      </span>
+                      <span className="text-xs font-black text-slate-900 mt-1 truncate">
+                        {isSyncingData ? "در حال سینک..." : "بروزرسانی زنده ⚡"}
+                      </span>
                     </button>
-                  </div>
-                )}
-
-                {/* Quick Menu List */}
-                <div className="space-y-2">
-                  <h4 className="text-[10px] text-slate-400 font-black tracking-wider uppercase">بخش‌های اصلی پلتفرم:</h4>
-                  {navItems.map((item, idx) => (
-                    <button
-                      key={`drawer-nav-item-${item.id}-${idx}`}
-                      onClick={() => handleNavClick(item.id)}
-                      className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      {item.icon}
-                      {item.label}
-                    </button>
-                  ))}
+                  ) : (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-right">
+                      <span className="text-[9px] text-slate-400 font-bold">وضعیت اتصال:</span>
+                      <span className="text-xs font-black text-emerald-700 mt-1 block">آنلاین و فعال 🟢</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Additional Resource Links requested by user */}
-                <div className="space-y-2 pt-4 border-t border-slate-100">
-                  <h4 className="text-[10px] text-slate-400 font-black tracking-wider uppercase">خدمات و مجله پلتفرم:</h4>
+                {/* Core Navigation Links */}
+                <div className="space-y-1 pt-1">
+                  <div className="text-[10px] text-slate-400 font-black px-1 pb-1">بخش‌های اصلی:</div>
+                  
                   <button
-                    onClick={() => handleNavClick('learning')}
-                    className="w-full text-right p-3 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-950 border border-emerald-200 text-xs font-black flex items-center justify-between transition-all cursor-pointer shadow-xs"
+                    onClick={() => handleNavClick('presentation')}
+                    className={`w-full p-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                      activeTab === 'presentation' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                        <GraduationCap size={18} />
-                      </div>
-                      <div>
-                        <div className="font-black text-xs text-emerald-950">🎓 آموزش کامل و راهنمای سیستم</div>
-                        <div className="text-[9.5px] text-emerald-700 font-bold">راهنمای صفر تا صد خرید مستقیم، چک و تحویل بار</div>
-                      </div>
+                      <Home size={16} className={activeTab === 'presentation' ? 'text-white' : 'text-emerald-600'} />
+                      <span>صفحه اصلی و معرفی</span>
                     </div>
-                    <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">شروع</span>
                   </button>
 
                   <button
-                    onClick={() => handleNavClick('news')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    onClick={() => handleNavClick('order')}
+                    className={`w-full p-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                      activeTab === 'order' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
                   >
-                    <Newspaper size={18} className="text-rose-500 shrink-0" />
-                    <span>مجله علمی و آخرین اخبار</span>
+                    <div className="flex items-center gap-2.5">
+                      <ShoppingBag size={16} className={activeTab === 'order' ? 'text-white' : 'text-emerald-600'} />
+                      <span>سفارش و کاتالوگ خرید عمده</span>
+                    </div>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${activeTab === 'order' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                      کف قیمت
+                    </span>
                   </button>
+
                   <button
-                    onClick={() => handleNavClick('about')}
-                    className="w-full text-right p-2.5 rounded-xl text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                    onClick={() => handleNavClick('billboard')}
+                    className={`w-full p-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                      activeTab === 'billboard' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
                   >
-                    <Info size={18} className="text-blue-500 shrink-0" />
-                    <span>درباره ما و ارتباط با ما</span>
+                    <div className="flex items-center gap-2.5">
+                      <SpecialPriceBagIcon size={16} animated={false} plain={true} />
+                      <span>معاملات کف بازار و حراجی</span>
+                    </div>
+                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+                      ویژه
+                    </span>
                   </button>
+
+                  <button
+                    onClick={() => handleNavClick('factories')}
+                    className={`w-full p-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                      activeTab === 'factories' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Building2 size={16} className={activeTab === 'factories' ? 'text-white' : 'text-emerald-600'} />
+                      <span>کارخانجات و خطوط تولید</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => handleNavClick('competition')}
+                    className={`w-full p-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                      activeTab === 'competition' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Award size={16} className={activeTab === 'competition' ? 'text-white' : 'text-emerald-600'} />
+                      <span>لیگ رقابت و رتبه‌بندی</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (setActiveTab) setActiveTab('factories');
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent("change-factories-subtab", { detail: { subTab: 'barter' } }));
+                      }, 50);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full p-2.5 rounded-xl text-xs font-black flex items-center justify-between text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ArrowLeftRight size={16} className="text-amber-600" />
+                      <span>تالار تهاتر و تبادل بار کارخانجات</span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Smart Direct Tools */}
+                <div className="space-y-1.5 pt-3 border-t border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-black px-1 pb-0.5">ابزارها و خدمات سریع:</div>
+
+                  {/* Direct Ticket Trigger */}
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      if (user) {
+                        if (user.role === 'admin') {
+                          if (setActiveTab) setActiveTab('admin');
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'tickets' } }));
+                          }, 50);
+                        } else {
+                          if (setActiveTab) setActiveTab('user');
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'tickets' } }));
+                          }, 50);
+                        }
+                      } else {
+                        onAuthClick?.();
+                      }
+                    }}
+                    className="w-full p-2.5 bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 rounded-xl text-xs font-black text-emerald-900 flex items-center justify-between transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MessageSquare size={15} className="text-emerald-700" />
+                      <span>تیکت پشتیبانی و پیام مستقیم</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-md font-bold">۲۴/۷</span>
+                  </button>
+
+                  {/* Catalog PDF */}
+                  {onOpenCatalog && (
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        onOpenCatalog();
+                      }}
+                      className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl text-xs font-black text-slate-800 flex items-center justify-between transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText size={15} className="text-emerald-600" />
+                        <span>دریافت لیست قیمت جامع (PDF)</span>
+                      </div>
+                      <Download size={13} className="text-slate-400" />
+                    </button>
+                  )}
+
+                  {/* Learning Hub */}
+                  <button
+                    onClick={() => handleNavClick('learning')}
+                    className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl text-xs font-black text-slate-800 flex items-center justify-between transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <GraduationCap size={15} className="text-emerald-600" />
+                      <span>راهنمای خرید و تسویه چک</span>
+                    </div>
+                    <ChevronLeft size={13} className="text-slate-400" />
+                  </button>
+
+                  {/* PWA App Install */}
+                  {onOpenPwaModal && (
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        onOpenPwaModal();
+                      }}
+                      className="w-full p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-between transition-all shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Download size={15} className="animate-bounce" />
+                        <span>نصب نسخه اپلیکیشن PWA</span>
+                      </div>
+                      <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-md">رایگان</span>
+                    </button>
+                  )}
+
+                  {/* Feedback Modal Trigger */}
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       setIsFeedbackModalOpen(true);
                     }}
-                    className="w-full text-right p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-black flex items-center gap-2.5 transition-all cursor-pointer shadow-xs mt-2"
+                    className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-2 transition-all cursor-pointer"
                   >
-                    <Lightbulb size={18} className="text-amber-600 shrink-0" />
-                    <span>💡 گزارش ایده، پیشنهاد یا اشکال در سایت</span>
+                    <Lightbulb size={15} className="text-amber-500" />
+                    <span>💡 ثبت ایده، پیشنهاد یا گزارش اشکال</span>
                   </button>
                 </div>
+              </div>
 
-                {/* Dynamic User Portal/Admin Options */}
-                {user && (
-                  <div className="space-y-2 pt-4 border-t border-slate-100">
-                    <h4 className="text-[10px] text-emerald-600 font-black tracking-wider uppercase">
-                      {user.role === 'admin' ? "امکانات پنل مدیریت پلتفرم (ادمین):" : "امکانات پورتال تجاری شما:"}
-                    </h4>
-                    
-                    {user.role === 'admin' ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'system' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="col-span-2 text-center py-2.5 bg-gradient-to-r from-slate-900 to-purple-950 text-amber-400 rounded-xl text-[10px] font-black cursor-pointer border border-purple-900/40 shadow-sm flex items-center justify-center gap-1.5"
-                        >
-                          🚀 بروزرسانی هوشمند سیستم (گیت‌هاب)
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'orders' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          📦 سفارشات سیستم
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'products' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🛍️ کالاها و قیمت‌ها
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'categories' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🏷️ دسته‌بندی‌ها
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'branding' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🎨 برندینگ و رنگ
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'factories' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🏢 کارخانه‌ها
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'crm' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          👥 مدیریت CRM
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'profile' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          👤 پروفایل ادمین
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('admin');
-                            window.dispatchEvent(new CustomEvent("change-admin-tab", { detail: { tab: 'reports' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          📊 آمار و گزارشات
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('portal');
-                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'overview' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          📈 خلاصه مالی عمده
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('portal');
-                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'tracking' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🚚 رهگیری زنده بار
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('portal');
-                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'roi' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🧮 آنالیزر سود بنکدار
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('portal');
-                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'profile' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          ⚙️ مشخصات و انبارها
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('portal');
-                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'tickets' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          💬 تیکت پشتیبانی
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (setActiveTab) setActiveTab('portal');
-                            window.dispatchEvent(new CustomEvent("change-portal-tab", { detail: { tab: 'notifications' } }));
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="text-right p-2 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                        >
-                          🔔 اعلان‌های پورتال
-                        </button>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        onLogout();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="w-full text-center mt-2 py-2 bg-rose-50 hover text-rose-600 rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <LogOut size={14} />
-                      خروج کامل از حساب
-                    </button>
-                  </div>
+              {/* Bottom Support & Socials Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 space-y-3">
+                {/* Direct Call Button */}
+                {!hideSupportPhone && (
+                  <a
+                    href={`tel:${supportPhone || "09044502900"}`}
+                    className="w-full py-2.5 px-3 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-black flex items-center justify-between transition-all shadow-3xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <PhoneCall size={14} className="text-emerald-600" />
+                      <span>تماس فوری با پشتیبانی:</span>
+                    </div>
+                    <span className="font-mono font-bold" dir="ltr">{supportPhone || "۰۹۰۴۴۵۰۲۹۰۰"}</span>
+                  </a>
                 )}
 
-                {/* About Us (درباره ما) */}
-                <div className="space-y-2 pt-4 border-t border-slate-100">
-                  <h4 className="text-[10px] text-emerald-600 font-black tracking-wider uppercase">درباره پلتفرم دست اول:</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed font-bold">
-                    «دست اول» به عنوان جامع‌ترین بستر دیجیتال توزیع مستقیم کالاهای صنایع غذایی ایران، با حذف واسطه‌های تجاری زائد، بنکداران سراسر کشور را مستقیماً به خطوط تولید کارخانجات متصل می‌سازد. ما تجارت امن عمده را تسهیل می‌کنیم.
-                  </p>
-                </div>
-
-                {/* Contact Us (تماس با ما) */}
-                <div className="space-y-2 pt-4 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5 font-bold">
-                  <h4 className="text-[10px] text-emerald-600 font-black tracking-wider uppercase">ارتباط با پشتیبانی مرکزی پلتفرم:</h4>
-                  {!hideHqAddress && (
-                    <div>دفتر پشتیبانی: {hqAddress || "آذربایجان شرقی، شبستر، شهرک صنعتی شندآباد"}</div>
-                  )}
-                  {!hideSupportPhone && (
-                    <div>تلفن سراسری پشتیبانی: <span className="font-mono">{supportPhone || "۰۹۰۴۴۵۰۲۹۰۰"}</span></div>
-                  )}
-                  <div>ایمیل ارتباط شرکتی: <span className="font-mono text-emerald-600">info@dastavval.com</span></div>
-                </div>
-
-                {/* Practical Links Section */}
-                <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100">
-                  {onOpenPwaModal && (
-                    <button 
-                      onClick={() => {
-                        onOpenPwaModal();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="col-span-2 flex items-center justify-center gap-2 p-2.5 bg-indigo-600 text-white rounded-xl text-[11px] font-black cursor-pointer shadow-md"
+                {/* Social Icons */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-400 font-bold">شبکه‌های رسمی دست اول:</span>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={rubikaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-lg bg-purple-700 text-white flex items-center justify-center text-[10px] font-black hover:scale-105 transition-transform"
+                      title="روبیکا"
                     >
-                      <Download size={14} className="animate-bounce" />
-                      نصب اپلیکیشن PWA (اندروید و iOS)
-                    </button>
-                  )}
-                  {onOpenCatalog && (
-                    <button 
-                      onClick={() => {
-                        onOpenCatalog();
-                        setIsMobileMenuOpen(false);
-                      }} 
-                      className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer"
-                    >
-                      <FileText size={12} className="text-emerald-600" />
-                      دانلود لیست قیمت PDF
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => handleNavClick('factories')}
-                    className="flex items-center gap-2 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer transition-colors"
-                  >
-                    <Factory size={12} className="text-amber-500" />
-                    لیست کارخانجات فعال
-                  </button>
-                  <button 
-                    onClick={() => handleNavClick('learning')}
-                    className="flex items-center gap-2 p-2 bg-emerald-50/70 hover:bg-emerald-100/80 rounded-xl text-[10px] font-black text-emerald-900 cursor-pointer transition-colors"
-                  >
-                    <GraduationCap size={13} className="text-emerald-600" />
-                    راهنمای جامع کار با سامانه
-                  </button>
-                  <button 
-                    onClick={() => handleNavClick('support')}
-                    className="flex items-center gap-2 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-black text-slate-700 cursor-pointer transition-colors"
-                  >
-                    <MessageSquare size={12} className="text-purple-500" />
-                    ثبت شکایات و پیشنهادات
-                  </button>
-                </div>
-
-                {/* Social Media Links */}
-                <div className="flex flex-col items-center gap-2 pt-4 border-t border-slate-100">
-                  <span className="text-[9px] text-slate-400 font-bold">ما را در شبکه‌های اجتماعی دنبال کنید:</span>
-                  <div className="flex justify-center gap-3">
-                    <a 
-                      href={instagramUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-rose-500 hover:scale-110 transition-transform text-white flex items-center justify-center shadow-md text-[10px] font-bold"
-                      title="اینستاگرام دست اول"
-                    >
-                      IG
+                      روبیکا
                     </a>
-                    <a 
-                      href={telegramUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="w-8 h-8 rounded-full bg-sky-500 hover:scale-110 transition-transform text-white flex items-center justify-center shadow-md text-[10px] font-bold"
-                      title="تلگرام دست اول"
+                    <a
+                      href={telegramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-lg bg-sky-500 text-white flex items-center justify-center text-[10px] font-black hover:scale-105 transition-transform"
+                      title="تلگرام"
                     >
                       TG
                     </a>
-                    <a 
-                      href={whatsappUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="w-8 h-8 rounded-full bg-emerald-600 hover:scale-110 transition-transform text-white flex items-center justify-center shadow-md text-[10px] font-bold"
-                      title="واتساپ دست اول"
+                    <a
+                      href={instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center text-[10px] font-black hover:scale-105 transition-transform"
+                      title="اینستاگرام"
+                    >
+                      IG
+                    </a>
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black hover:scale-105 transition-transform"
+                      title="واتساپ"
                     >
                       WA
                     </a>
-                    {rubikaUrl && (
-                      <a 
-                        href={rubikaUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="w-8 h-8 rounded-full bg-purple-700 hover:scale-110 transition-transform text-white flex items-center justify-center shadow-md text-[10px] font-bold"
-                        title="روبیکا دست اول"
-                      >
-                        روبیکا
-                      </a>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1297,7 +1374,7 @@ export default function Navbar({
               <div className="bg-white border-b border-slate-100 p-6 flex items-center justify-between relative text-right">
                 <div className="flex items-center gap-3 relative z-10">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
-                    <Megaphone size={20} className="text-indigo-600" />
+                    <Megaphone size={20} className="text-emerald-600" />
                   </div>
                   <div>
                     <h3 className="font-black text-sm text-slate-800">کانال رسمی اطلاع‌رسانی دست اول</h3>
@@ -1325,19 +1402,19 @@ export default function Navbar({
                       key={`channel-post-${post.id || idx}-${idx}`} 
                       className={`bg-white border p-5 shadow-2xs hover:shadow-xs transition-all space-y-3 relative overflow-hidden text-right ${
                         post.pinned
-                          ? "border-amber-400 bg-amber-50/10 ring-2 ring-amber-400/20 rounded-3xl"
+                          ? "border-amber-400 bg-emerald-50/10 ring-2 ring-amber-400/20 rounded-3xl"
                           : idx === 0
-                            ? "border-indigo-500 ring-2 ring-indigo-500/10 rounded-3xl"
+                            ? "border-emerald-500 ring-2 ring-emerald-500/10 rounded-3xl"
                             : "border-slate-150 rounded-2xl"
                       }`}
                     >
                       {post.pinned ? (
-                        <span className="absolute top-0 left-0 bg-amber-500 text-slate-900 text-[8px] font-black px-2.5 py-1 rounded-br-2xl flex items-center gap-1">
+                        <span className="absolute top-0 left-0 bg-emerald-600 text-white text-[8px] font-black px-2.5 py-1 rounded-br-2xl flex items-center gap-1">
                           <Pin size={8} className="fill-slate-900" />
                           مهم / سنجاق شده
                         </span>
                       ) : idx === 0 ? (
-                        <span className="absolute top-0 left-0 bg-indigo-600 text-white text-[8px] font-black px-2.5 py-1 rounded-br-2xl">
+                        <span className="absolute top-0 left-0 bg-emerald-600 text-white text-[8px] font-black px-2.5 py-1 rounded-br-2xl">
                           جدیدترین اطلاعیه
                         </span>
                       ) : null}
@@ -1346,8 +1423,8 @@ export default function Navbar({
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                             post.category === 'urgent' ? 'bg-red-100 text-red-700 border border-red-200/50' :
-                            post.category === 'festival' ? 'bg-amber-100 text-amber-800 border border-amber-200/50' :
-                            post.category === 'system' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/50' :
+                            post.category === 'festival' ? 'bg-emerald-100 text-amber-800 border border-emerald-200/50' :
+                            post.category === 'system' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200/50' :
                             'bg-slate-100 text-slate-750'
                           }`}>
                             {post.category === 'urgent' ? '🔴 فوری' :
@@ -1356,7 +1433,7 @@ export default function Navbar({
                              '📣 عمومی'}
                           </span>
                           <h4 className="font-black text-xs text-slate-900 leading-tight flex items-center gap-1.5">
-                            {post.pinned && <Pin size={11} className="text-amber-500 fill-amber-500" />}
+                            {post.pinned && <Pin size={11} className="text-emerald-500 fill-emerald-500" />}
                             {post.title}
                           </h4>
                         </div>
@@ -1368,14 +1445,43 @@ export default function Navbar({
 
                       {post.actionUrl && (
                         <div className="pt-2 text-left">
-                          <a 
-                            href={post.actionUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-4.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-xl shadow-xs transition-all cursor-pointer"
-                          >
-                            <span>{post.actionLabel || "مشاهده پیوند / ثبت سفارش"}</span>
-                          </a>
+                          {post.actionUrl.startsWith("http") ? (
+                            <a 
+                              href={post.actionUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-xl shadow-xs transition-all cursor-pointer"
+                            >
+                              <span>{post.actionLabel || "مشاهده پیوند"}</span>
+                              <ExternalLink size={12} />
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsChannelOpen(false);
+                                const url = post.actionUrl;
+                                if (url.includes("kafbazaar") || url.includes("floor")) {
+                                  if (setActiveTab) setActiveTab('special-offers');
+                                  if (onNavigateToBillboardSubTab) onNavigateToBillboardSubTab('floor_deals');
+                                } else if (url.includes("special")) {
+                                  if (setActiveTab) setActiveTab('special-offers');
+                                } else if (url.includes("weekly")) {
+                                  if (setActiveTab) setActiveTab('weekly-schedule');
+                                } else if (url.includes("billboard")) {
+                                  if (setActiveTab) setActiveTab('billboard');
+                                } else if (url.includes("product") || url.includes("catalog")) {
+                                  if (setActiveTab) setActiveTab('order');
+                                } else {
+                                  if (setActiveTab) setActiveTab('order');
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black rounded-xl shadow-xs transition-all cursor-pointer hover:scale-105 active:scale-95"
+                            >
+                              <span>{post.actionLabel || "مشاهده و ثبت سفارش"}</span>
+                              <Sparkles size={12} className="text-amber-300" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1416,8 +1522,8 @@ export default function Navbar({
               {/* Header */}
               <div className="bg-slate-50 p-5 border-b border-slate-200/60 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-800 flex items-center justify-center">
-                    <MapPin size={18} className="text-amber-600 animate-pulse" />
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-amber-800 flex items-center justify-center">
+                    <MapPin size={18} className="text-emerald-600 animate-pulse" />
                   </div>
                   <div>
                     <h3 className="font-black text-xs sm:text-sm text-slate-900">انتخاب شهر و استان فعالیت شما</h3>
@@ -1445,7 +1551,7 @@ export default function Navbar({
                         onClick={() => setActiveProvince(item.province)}
                         className={`w-full text-right px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-between ${
                           isSelected
-                            ? "bg-amber-500 text-slate-950 font-black shadow-3xs"
+                            ? "bg-emerald-600 text-white font-black shadow-3xs"
                             : "text-slate-600 hover:bg-slate-100"
                         }`}
                       >
@@ -1460,7 +1566,7 @@ export default function Navbar({
                 <div className="w-2/3 p-4 overflow-y-auto space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-wide">شهرهای استان {activeProvince}</span>
-                    <span className="text-[9px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-bold">تعداد: {toPersianNum(PROVINCE_CITIES_MAP.find(p => p.province === activeProvince)?.cities.length || 0)} شهر</span>
+                    <span className="text-[9px] text-amber-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">تعداد: {toPersianNum(PROVINCE_CITIES_MAP.find(p => p.province === activeProvince)?.cities.length || 0)} شهر</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -1492,7 +1598,7 @@ export default function Navbar({
                 </div>
                 <button
                   onClick={() => setShowCityModal(false)}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+                  className="px-5 py-2 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-black rounded-xl transition-all shadow-md shadow-emerald-900/20 cursor-pointer"
                 >
                   تأیید و بازگشت
                 </button>

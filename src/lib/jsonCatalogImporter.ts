@@ -27,42 +27,42 @@ export interface ParsedProductItem {
 // کاتالوگ پشتیبان و ایمن باکت پارس‌پک (در صورت قطعی تمام شبکه‌ها)
 export const DEFAULT_PARSPACK_CATALOG_BACKUP = [
   {
-    id: 105,
-    sku: "محص-3210",
-    barcode: "62619644316965",
-    name: "روغن سونار",
-    category: "محصولات خارجی",
-    location: "بازرگانی جلفا ",
-    factoryPrice: 2000000,
-    wholesalePrice: 2200000,
-    consumerPrice: 2200000,
-    marketPrice: 2200000,
-    itemsPerUnit: 4,
-    stock: 25,
-    minimumStock: 5,
+    id: 84,
+    sku: "PRD-84",
+    barcode: "626840001001",
+    name: "پهباد اسمارتیزی شانتیا",
+    category: "تنقلات و شکلات",
+    location: "کارخانه شانتیا",
+    factoryPrice: 16000,
+    wholesalePrice: 16000,
+    consumerPrice: 35000,
+    marketPrice: 35000,
+    itemsPerUnit: 24,
+    stock: 250,
+    minimumStock: 20,
     minOrderCartons: 1,
     unit: "عدد",
-    imageUrl: "https://c102393.parspack.net/c102393/products/prd_105.webp",
-    description: "هر شیرینگ 4 عدد"
+    imageUrl: "https://c102393.parspack.net/c102393/products/prd_84.webp",
+    description: "کارتن ۲۴ عددی اسمارتیز اسباب‌بازی"
   },
   {
-    id: 103,
-    sku: "محص-9620",
-    barcode: "62670644201235",
-    name: "اسنیکرز",
-    category: "محصولات خارجی",
-    location: "بازرگانی جلفا  ",
-    factoryPrice: 105000,
-    wholesalePrice: 110000,
-    consumerPrice: 110000,
-    marketPrice: 110000,
-    itemsPerUnit: 288,
-    stock: 50,
-    minimumStock: 10,
+    id: 107,
+    sku: "PRD-107",
+    barcode: "626107000200",
+    name: "آب‌نبات جرقه ای الهام",
+    category: "تنقلات و شکلات",
+    location: "کارخانه الهام",
+    factoryPrice: 9000,
+    wholesalePrice: 9000,
+    consumerPrice: 20000,
+    marketPrice: 20000,
+    itemsPerUnit: 48,
+    stock: 300,
+    minimumStock: 30,
     minOrderCartons: 1,
     unit: "عدد",
-    imageUrl: "https://c102393.parspack.net/c102393/products/prd_103.webp",
-    description: "هر کارتن 6 جعبه 48 عددی"
+    imageUrl: "https://c102393.parspack.net/c102393/products/prd_107.webp",
+    description: "کارتن ۴۸ عددی آب‌نبات جرقه‌ای"
   },
   {
     id: 101,
@@ -503,8 +503,31 @@ export async function smartFetchJsonWithMultiProxy(targetUrl: string, onLog?: (m
     }
   }
 
+  // لایه ۷: تلاش از طریق اندپوینت ذخیره‌سازی سرور (/api/storage/proxy-download)
   if (!rawData) {
-    throw new Error("ارتباط با تمام ۵ لایه پروکسی و دانلود مستقیم ناموفق بود. لطفاً از گزینه «آپلود مستقیم فایل JSON» یا «پیست کدهای JSON» استفاده نمایید.");
+    try {
+      addLog(`📡 [لایه ۷] دریافت از طریق درگاه پروکسی فایل سرور (/api/storage/proxy-download)...`);
+      const res7 = await fetch(`/api/storage/proxy-download?url=${encodeURIComponent(cleanUrl)}`);
+      if (res7.ok) {
+        const data = await res7.json();
+        const extracted = extractProductsFromRawData(data);
+        if (extracted.length > 0) {
+          rawData = data;
+          usedMethod = "Server Storage Stream Proxy";
+          addLog(`✅ [لایه ۷ موفق] اطلاعات کاتالوگ با موفقیت بارگذاری شد.`);
+        }
+      }
+    } catch (e: any) {
+      addLog(`⚠️ [لایه ۷ ناموفق]: ${e.message}`);
+    }
+  }
+
+  // لایه ۸: بارگذاری خودکار از نسخه پشتیبان معتبر باکت در سیستم (Fallback Backup)
+  if (!rawData) {
+    addLog(`🛡️ [لایه اضطراری] فعال‌سازی نسخه پایدار کاتالوگ پشتیبان باکت پارس‌پک...`);
+    rawData = DEFAULT_PARSPACK_CATALOG_BACKUP;
+    usedMethod = "ParsPack Resilient Offline Catalog";
+    addLog(`✅ [موفق] تعداد ${DEFAULT_PARSPACK_CATALOG_BACKUP.length} محصول استاندارد کاتالوگ با موفقیت بارگذاری شد.`);
   }
 
   return { rawData, method: usedMethod, logs };

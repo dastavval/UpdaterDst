@@ -41,7 +41,7 @@ export default function ConfirmModal({
           dir="rtl"
         >
           <div className="p-6">
-            <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-4">
               <AlertTriangle size={24} />
             </div>
             <h3 className="text-lg font-black text-slate-800 mb-2">{title}</h3>
@@ -50,7 +50,7 @@ export default function ConfirmModal({
           <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
             <button
               onClick={onConfirm}
-              className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-colors"
+              className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-colors"
             >
               {confirmText}
             </button>

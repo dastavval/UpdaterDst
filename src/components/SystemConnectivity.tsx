@@ -118,7 +118,7 @@ export default function SystemConnectivity({ isOpen = true, onClose, onRefreshPr
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">وضعیت پایداری و سلامت سامانه</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">زنده (Live)</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white border border-emerald-200">زنده (Live)</span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">پایش لحظه‌ای اتصال پایگاه داده، نسخه‌های کش و سرویس‌های ابری</p>
           </div>
@@ -169,7 +169,7 @@ export default function SystemConnectivity({ isOpen = true, onClose, onRefreshPr
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
                   <Database size={20} />
                 </div>
                 <div>
@@ -178,10 +178,10 @@ export default function SystemConnectivity({ isOpen = true, onClose, onRefreshPr
                 </div>
               </div>
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black ${
-                firestoreStatus === 'online' ? 'bg-emerald-100 text-emerald-800' :
-                firestoreStatus === 'syncing' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                firestoreStatus === 'online' ? 'bg-emerald-600 text-white' :
+                firestoreStatus === 'syncing' ? 'bg-emerald-100 text-amber-800' : 'bg-red-100 text-red-800'
               }`}>
-                <span className={`w-2 h-2 rounded-full ${firestoreStatus === 'online' ? 'bg-emerald-600 animate-ping' : 'bg-amber-600'}`}></span>
+                <span className={`w-2 h-2 rounded-full ${firestoreStatus === 'online' ? 'bg-emerald-600 animate-ping' : 'bg-emerald-600'}`}></span>
                 {firestoreStatus === 'online' ? 'متصل و پایدار' : firestoreStatus === 'syncing' ? 'در حال همگام‌سازی...' : 'خطا در ارتباط'}
               </span>
             </div>
@@ -228,7 +228,7 @@ export default function SystemConnectivity({ isOpen = true, onClose, onRefreshPr
                 </div>
               </div>
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black ${
-                cacheStatus === 'synced' ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-800'
+                cacheStatus === 'synced' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-amber-800'
               }`}>
                 <span className="w-2 h-2 rounded-full bg-purple-600"></span>
                 {cacheStatus === 'synced' ? 'نسخه معتبر' : 'نیاز به به‌روزرسانی'}
@@ -277,7 +277,7 @@ export default function SystemConnectivity({ isOpen = true, onClose, onRefreshPr
                 </div>
               </div>
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black ${
-                backendStatus === 'healthy' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                backendStatus === 'healthy' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-amber-800'
               }`}>
                 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
                 {backendStatus === 'healthy' ? 'عملیاتی و فعال' : 'در حال بررسی'}

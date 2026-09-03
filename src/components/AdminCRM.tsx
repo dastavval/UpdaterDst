@@ -368,7 +368,7 @@ export default function AdminCRM({
             <span className="text-[10px] text-slate-400 font-bold block mb-0.5">کل بنکداران ثبت‌شده</span>
             <span className="text-xl font-black text-slate-900">{toPersianNum(crmCustomers.length)} نفر</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
             <Users size={20} />
           </div>
         </div>
@@ -376,11 +376,11 @@ export default function AdminCRM({
         <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[10px] text-slate-400 font-bold block mb-0.5">اعضای ویژه & طلایی</span>
-            <span className="text-xl font-black text-amber-600">
+            <span className="text-xl font-black text-emerald-600">
               {toPersianNum(crmCustomers.filter(c => c.badge === 'vip' || c.badge === 'gold').length)} نفر
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
             ⭐
           </div>
         </div>
@@ -392,7 +392,7 @@ export default function AdminCRM({
               {toPersianNum(crmCustomers.filter(c => c.status === 'active').length)} نفر
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
             <ShieldCheck size={20} />
           </div>
         </div>
@@ -408,7 +408,7 @@ export default function AdminCRM({
               value={crmSearch}
               onChange={e => setCrmSearch(e.target.value)}
               placeholder="جستجو در نام، شرکت، موبایل یا شهر..." 
-              className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
           <select 
@@ -440,14 +440,14 @@ export default function AdminCRM({
             <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
               <button 
                 onClick={handleBatchDeleteCrm}
-                className="px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black border border-rose-100 hover:bg-rose-100 transition-all cursor-pointer flex items-center gap-2"
+                className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all cursor-pointer flex items-center gap-2"
               >
                 <Trash2 size={14} />
                 حذف گروهی ({toPersianNum(selectedCrmIds.length)})
               </button>
               <button 
                 onClick={() => setShowCrmBatchEditModal(true)}
-                className="px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black border border-indigo-100 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-2"
+                className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all cursor-pointer flex items-center gap-2"
               >
                 <Edit3 size={14} />
                 ویرایش گروهی
@@ -463,7 +463,7 @@ export default function AdminCRM({
           </button>
           <button 
             onClick={handleAddCrmClick}
-            className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
+            className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/10 cursor-pointer"
           >
             <Plus size={14} />
             افزودن بنکدار
@@ -481,7 +481,7 @@ export default function AdminCRM({
                   type="checkbox" 
                   checked={filteredCrmList.length > 0 && filteredCrmList.every(c => selectedCrmIds.includes(c.id))}
                   onChange={handleToggleSelectAllCrm}
-                  className="w-4 h-4 rounded-md accent-indigo-600 cursor-pointer" 
+                  className="w-4 h-4 rounded-md accent-emerald-600 cursor-pointer" 
                 />
               </th>
               <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">مشخصات بنکدار</th>
@@ -496,7 +496,7 @@ export default function AdminCRM({
               <tr>
                 <td colSpan={6} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <RefreshCw className="animate-spin text-indigo-500" size={32} />
+                    <RefreshCw className="animate-spin text-emerald-500" size={32} />
                     <p className="text-xs font-black text-slate-400">در حال بارگذاری لیست مشتریان...</p>
                   </div>
                 </td>
@@ -515,20 +515,20 @@ export default function AdminCRM({
                       type="checkbox" 
                       checked={selectedCrmIds.includes(c.id)}
                       onChange={() => handleToggleSelectCrm(c.id)}
-                      className="w-4 h-4 rounded-md accent-indigo-600 cursor-pointer" 
+                      className="w-4 h-4 rounded-md accent-emerald-600 cursor-pointer" 
                     />
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm border border-slate-100 ${
-                        c.badge === 'vip' ? 'bg-amber-50 text-amber-600' : 
-                        c.badge === 'gold' ? 'bg-amber-50 text-amber-600' :
+                        c.badge === 'vip' ? 'bg-emerald-600 text-white' : 
+                        c.badge === 'gold' ? 'bg-emerald-600 text-white' :
                         c.badge === 'silver' ? 'bg-slate-50 text-slate-500' : 'bg-orange-50 text-orange-600'
                       }`}>
                         {c.badge === 'vip' ? '👑' : c.badge === 'gold' ? '🥇' : c.badge === 'silver' ? '🥈' : '🥉'}
                       </div>
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{c.company}</h5>
+                        <h5 className="text-xs font-black text-slate-900 group-hover:text-emerald-600 transition-colors">{c.company}</h5>
                         <p className="text-[10px] text-slate-400 font-bold mt-0.5">{c.name} • {toPersianNum(c.phone)}</p>
                       </div>
                     </div>
@@ -544,22 +544,22 @@ export default function AdminCRM({
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black border ${
-                      c.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                      c.status === 'suspended' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                      'bg-amber-50 text-amber-600 border-amber-100'
+                      c.status === 'active' ? 'bg-emerald-600 text-white border-emerald-100' :
+                      c.status === 'suspended' ? 'bg-emerald-600 text-white border-emerald-100' :
+                      'bg-emerald-600 text-white border-emerald-100'
                     }`}>
                       {c.status === 'active' ? 'فعال' : c.status === 'suspended' ? 'مسدود' : 'در انتظار'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <p className="text-xs font-black text-slate-800">{toPersianNum(c.totalPurchaseValue.toLocaleString())} تومان</p>
-                    <p className="text-[9px] text-indigo-500 font-bold mt-1">{toPersianNum(c.totalOrdersCount)} سفارش موفق</p>
+                    <p className="text-[9px] text-emerald-500 font-bold mt-1">{toPersianNum(c.totalOrdersCount)} سفارش موفق</p>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-2">
                       <button 
                         onClick={() => setShowNotificationModal(c)}
-                        className="p-2 bg-white border border-slate-100 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all cursor-pointer" 
+                        className="p-2 bg-white border border-slate-100 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer" 
                         title="ارسال اعلان"
                       >
                         <Send size={14} />
@@ -573,14 +573,14 @@ export default function AdminCRM({
                       </button>
                       <button 
                         onClick={() => handleEditCrmClick(c)}
-                        className="p-2 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer" 
+                        className="p-2 bg-white border border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer" 
                         title="ویرایش"
                       >
                         <Edit3 size={14} />
                       </button>
                       <button 
                         onClick={() => handleDeleteCrmCustomer(c.id)}
-                        className="p-2 bg-white border border-slate-100 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer" 
+                        className="p-2 bg-white border border-slate-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer" 
                         title="حذف"
                       >
                         <Trash2 size={14} />
@@ -614,7 +614,7 @@ export default function AdminCRM({
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/20">
                     <Users size={20} />
                   </div>
                   <div>
@@ -631,11 +631,11 @@ export default function AdminCRM({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">نام کامل بنکدار / نماینده:</label>
-                    <input type="text" required value={crmName} onChange={e => setCrmName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" />
+                    <input type="text" required value={crmName} onChange={e => setCrmName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">نام شرکت / پخش:</label>
-                    <input type="text" required value={crmCompany} onChange={e => setCrmCompany(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" />
+                    <input type="text" required value={crmCompany} onChange={e => setCrmCompany(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">شماره تلفن همراه:</label>
@@ -643,15 +643,15 @@ export default function AdminCRM({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">شهر محل فعالیت:</label>
-                    <input type="text" required value={crmCity} onChange={e => setCrmCity(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" />
+                    <input type="text" required value={crmCity} onChange={e => setCrmCity(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">سال تاسیس:</label>
-                    <input type="number" required value={crmYear} onChange={e => setCrmYear(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" />
+                    <input type="number" required value={crmYear} onChange={e => setCrmYear(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">نقش کاربر:</label>
-                    <select value={crmRole} onChange={e => setCrmRole(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all">
+                    <select value={crmRole} onChange={e => setCrmRole(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all">
                       <option value="customer">👥 مشتری (بنکدار)</option>
                       <option value="representative">🛡️ نماینده رسمی فروش</option>
                       <option value="marketer">📣 بازاریاب و معرف</option>
@@ -660,7 +660,7 @@ export default function AdminCRM({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">سطح وفاداری:</label>
-                    <select value={crmBadge} onChange={e => setCrmBadge(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all">
+                    <select value={crmBadge} onChange={e => setCrmBadge(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all">
                       <option value="vip">تاج طلایی (VIP)</option>
                       <option value="gold">رتبه عالی (طلا)</option>
                       <option value="silver">رتبه همکار (نقره)</option>
@@ -669,7 +669,7 @@ export default function AdminCRM({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400">وضعیت حساب:</label>
-                    <select value={crmStatus} onChange={e => setCrmStatus(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all">
+                    <select value={crmStatus} onChange={e => setCrmStatus(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all">
                       <option value="active">فعال و تایید شده</option>
                       <option value="pending_verification">در انتظار احراز مدارک</option>
                       <option value="suspended">مسدود شده</option>
@@ -678,11 +678,11 @@ export default function AdminCRM({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400">یادداشت اداری:</label>
-                  <textarea rows={3} value={crmNotes} onChange={e => setCrmNotes(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" />
+                  <textarea rows={3} value={crmNotes} onChange={e => setCrmNotes(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all" />
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={() => setShowCrmModal(false)} className="px-8 py-3.5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black transition-all cursor-pointer">انصراف</button>
-                  <button type="submit" className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all cursor-pointer">ذخیره اطلاعات</button>
+                  <button type="submit" className="flex-1 py-3.5 bg-emerald-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all cursor-pointer">ذخیره اطلاعات</button>
                 </div>
               </form>
             </motion.div>
@@ -699,9 +699,9 @@ export default function AdminCRM({
                 <button onClick={() => setShowNotificationModal(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
               </div>
               <form onSubmit={handleSendNotificationSubmit} className="p-8 space-y-4">
-                <input type="text" required value={notificationTitle} onChange={e => setNotificationTitle(e.target.value)} placeholder="عنوان اعلان..." className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-indigo-500/20" />
-                <textarea rows={4} required value={notificationBody} onChange={e => setNotificationBody(e.target.value)} placeholder="متن پیام..." className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20" />
-                <button type="submit" className="w-full py-3.5 bg-amber-500 text-white font-black rounded-xl text-xs shadow-lg shadow-amber-500/20 cursor-pointer">ارسال سریع اعلان</button>
+                <input type="text" required value={notificationTitle} onChange={e => setNotificationTitle(e.target.value)} placeholder="عنوان اعلان..." className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                <textarea rows={4} required value={notificationBody} onChange={e => setNotificationBody(e.target.value)} placeholder="متن پیام..." className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                <button type="submit" className="w-full py-3.5 bg-emerald-500 text-white font-black rounded-xl text-xs shadow-lg shadow-emerald-500/20 cursor-pointer">ارسال سریع اعلان</button>
               </form>
             </motion.div>
           </div>
@@ -765,7 +765,7 @@ export default function AdminCRM({
                             <span className="text-xs font-black w-6 text-center">{toPersianNum(item.quantity)}</span>
                             <button type="button" onClick={() => setDirectInvoiceItems(directInvoiceItems.map(i => i.product.id === item.product.id ? { ...i, quantity: i.quantity + 1 } : i))} className="text-slate-400 hover:text-slate-600"><Plus size={14} /></button>
                           </div>
-                          <button type="button" onClick={() => handleRemoveDirectItem(item.product.id)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                          <button type="button" onClick={() => handleRemoveDirectItem(item.product.id)} className="text-emerald-500 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </div>
                     ))}
@@ -796,7 +796,7 @@ export default function AdminCRM({
               <div className="p-8 space-y-5">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400">نشان بنکداری:</label>
-                  <select value={batchCrmBadge} onChange={e => setBatchCrmBadge(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-indigo-500/20">
+                  <select value={batchCrmBadge} onChange={e => setBatchCrmBadge(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500/20">
                     <option value="">-- بدون تغییر --</option>
                     <option value="bronze">🥉 برنزی</option>
                     <option value="silver">🥈 نقره‌ای</option>
@@ -806,14 +806,14 @@ export default function AdminCRM({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400">وضعیت تایید:</label>
-                  <select value={batchCrmStatus} onChange={e => setBatchCrmStatus(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-indigo-500/20">
+                  <select value={batchCrmStatus} onChange={e => setBatchCrmStatus(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-2 focus:ring-emerald-500/20">
                     <option value="">-- بدون تغییر --</option>
                     <option value="active">فعال</option>
                     <option value="pending_verification">در انتظار</option>
                     <option value="suspended">مسدود</option>
                   </select>
                 </div>
-                <button onClick={handleBatchUpdateCrm} className="w-full py-3.5 bg-indigo-600 text-white font-black rounded-xl text-xs shadow-lg shadow-indigo-600/20 cursor-pointer">اعمال تغییرات گروهی</button>
+                <button onClick={handleBatchUpdateCrm} className="w-full py-3.5 bg-emerald-600 text-white font-black rounded-xl text-xs shadow-lg shadow-emerald-600/20 cursor-pointer">اعمال تغییرات گروهی</button>
               </div>
             </motion.div>
           </div>

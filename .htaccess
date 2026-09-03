@@ -1,72 +1,28 @@
+# Dastavval PHP/cPanel Host Configuration
 # ============================================================
-# DASTAVVAL B2B PLATFORM - Apache .htaccess for cPanel / LAMP
-# پشتیبانی کامل از ساب‌دامنه (Subdomain)، دامنه اصلی و ساب‌دایرکتوری
-# ============================================================
+# نقطه ورود هوشمند پلتفرم دست اول برای هاست‌های اشتراکی
 
 DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
-  RewriteEngine On
+    RewriteEngine On
+    
+    # 1. API Route Redirect to PHP Handler
+    RewriteRule ^api/index\.php$ php/api.php [L,QSA]
+    RewriteRule ^api/(.*)$ php/api.php?action=$1 [L,QSA]
 
-  # ۱. بررسی سرو مستقیم دارایی‌های کامپایل شده (Assets) در ریشه یا پوشه dist
-  RewriteCond %{REQUEST_FILENAME} -f
-  RewriteRule ^ - [L]
+    # 2. Existing File or Directory Pass
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
 
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_URI} ^.*/assets/(.*)$
-  RewriteCond dist/assets/%1 -f
-  RewriteRule ^(.*)assets/(.*)$ dist/assets/$2 [L]
-
-  # ۲. هدایت درخواست‌های وب‌سرویس و API به فایل PHP
-  RewriteRule ^api/index\.php$ php/api.php [L,QSA]
-  RewriteRule ^api/(.*)$ php/api.php?action=$1 [L,QSA]
-  RewriteRule ^php/api/(.*)$ php/api.php?action=$1 [L,QSA]
-
-  # ۳. اگر پوشه فیزیکی وجود دارد
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
-
-  # ۴. در صورت عدم تطابق با فایل فیزیکی، تحویل به پردازشگر هوشمند PHP
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteRule ^ index.php [L]
+    # 3. Native PHP Fallback (Proxy Logic)
+    RewriteRule ^ index.php [L]
 </IfModule>
 
-# تنظیم کدرشتگی UTF-8 برای زبان فارسی
-AddDefaultCharset UTF-8
-
-# تنظیم MIME Types برای ماژول‌های جاوااسکریپت، استایل‌ها و فونت‌ها
-<IfModule mod_mime.c>
-  AddType application/javascript .js .mjs
-  AddType text/css .css
-  AddType application/json .json
-  AddType image/svg+xml .svg
-  AddType font/woff2 .woff2
-  AddType font/woff .woff
-  AddType font/ttf .ttf
-  AddType image/webp .webp
+# Caching for assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+    ExpiresByType text/html "access plus 0 seconds"
 </IfModule>
-
-# غیرفعال کردن نمایش پوشه‌ها جهت امنیت
-Options -Indexes
-
-# تنظیمات هدرهای CORS برای ارتباط بی‌دردسر
-<IfModule mod_headers.c>
-  Header set Access-Control-Allow-Origin "*"
-  Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-  Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-</IfModule>
-
-# جلوگیری از کش شدن فایل‌های حساس مانند index.html و version.json روی مرورگرها جهت اعمال آنی کدهای جدید
-<FilesMatch "\.(html|json)$">
-  <IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-  </IfModule>
-</FilesMatch>
-
-# فعال‌سازی فشرده‌سازی جهت افزایش سرعت بارگذاری روی هاست‌های ایران
-<IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
-</IfModule>
-

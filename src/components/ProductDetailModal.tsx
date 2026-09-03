@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, Package, ShieldCheck, Truck, Info, FileText, CheckCircle2, 
-  Plus, Minus, Building, Phone, User as UserIcon, MapPin, UploadCloud, 
+  Plus, Minus, Building, Building2, Phone, User as UserIcon, MapPin, UploadCloud, 
   AlertCircle, ArrowRight, ArrowLeft, Check, Sparkles, Scale, BadgeAlert,
   Star, MessageSquare, ShoppingCart, Lock, Tag
 } from "lucide-react";
@@ -14,6 +14,7 @@ import { ExpandableText } from "./ExpandableText";
 import { HealthAppleLogo, HealthBadgesStrip, HealthCertModal } from "./HealthAppleBadge";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 import { getEffectiveProductTags } from "../utils/api-utils";
+import { AnimatedHatchedOverlay } from "./AnimatedHatchedOverlay";
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface ProductDetailModalProps {
   user?: User | null;
   onAddToCart: (product: Product, quantityCartons: number) => void;
   onOrderSuccess: (trackingNumber: string, amount: number) => void;
+  onGoToProductPage?: (product: Product) => void;
 }
 
 export default function ProductDetailModal({ 
@@ -32,7 +34,8 @@ export default function ProductDetailModal({
   userBadge = 'bronze', 
   user,
   onAddToCart,
-  onOrderSuccess
+  onOrderSuccess,
+  onGoToProductPage
 }: ProductDetailModalProps) {
   const [step, setStep] = useState(1);
   const [activeView, setActiveView] = useState<'order' | 'reviews'>('order');
@@ -48,6 +51,8 @@ export default function ProductDetailModal({
   const [buyerAddress, setBuyerAddress] = useState(() => user?.role !== 'admin' ? user?.address || "" : "");
   const [transportType, setTransportType] = useState("road_truck"); // road_truck, local_cargo, heavy_trailer
 
+  const [activeImg, setActiveImg] = useState<string | null>(null);
+  
   // Reset/sync state whenever active product changes
   useEffect(() => {
     if (product) {
@@ -57,6 +62,7 @@ export default function ProductDetailModal({
       setActiveView('order');
       setDetailImgError(false);
       setErrors({});
+      setActiveImg(null);
     }
   }, [product?.id, isOpen]);
 
@@ -174,11 +180,20 @@ export default function ProductDetailModal({
   const cleanUnit = cleanUnitName(product?.unit);
 
   // Approximate weight calculation
-  const kgPerCarton = product?.weight_per_carton_kg || (salesUnitType === 'weight' ? 20 : (packCount * 0.25));
-  const packWeightKg = kgPerCarton / Math.max(1, packCount); 
-  const totalPacks = cartons * packCount;
-  const totalWeightKg = Math.round(cartons * kgPerCarton);
+  const unitsPerBox = product?.carton_pack_count || 1;
+  const unitWeightKg = (product as any)?.unit_weight_kg || 0.040; // 40g default
+  const kgPerCartonRaw = product?.weight_per_carton_kg || (salesUnitType === 'weight' ? 20 : (unitsPerBox * unitWeightKg));
+  
+  // Sanity check for weight: if it's over 40kg for a small unit count, it's likely wrong
+  const kgPerCarton = (kgPerCartonRaw > 40 && unitsPerBox < 100) ? (unitsPerBox * 0.05) : kgPerCartonRaw;
+  
+  const cartonNetWeight = product?.carton_net_weight_kg || (kgPerCarton * 0.95);
+  const cartonGrossWeight = product?.carton_gross_weight_kg || kgPerCarton;
+
+  const totalWeightKg = Math.round(cartons * cartonGrossWeight);
+  const totalNetWeightKg = Math.round(cartons * cartonNetWeight);
   const totalWeightTons = (totalWeightKg / 1000).toFixed(2);
+  const totalPacks = cartons * packCount;
 
   const handleIncrement = () => {
     setCartons(prev => prev + 1);
@@ -299,6 +314,8 @@ export default function ProductDetailModal({
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
             className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[92vh] border border-gray-100"
           >
+            <AnimatedHatchedOverlay intensity="light" />
+            
             {/* Close Button */}
             <button 
               onClick={onClose}
@@ -308,198 +325,146 @@ export default function ProductDetailModal({
             </button>
 
             {/* LEFT HALF: Product Details Display Panel */}
-            <div className="w-full md:w-[42%] bg-white p-6 flex flex-col justify-between border-l border-gray-100 overflow-y-auto max-h-[40vh] md:max-h-[92vh]">
-              <div className="space-y-6">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100/50">
-                      {product.category}
-                    </span>
-                    {product.badge && (
-                      <span className="bg-indigo-600 text-white text-[8px] px-2 py-1 rounded-lg uppercase font-black shadow-sm">{product.badge}</span>
-                    )}
+            <div className="w-full md:w-[45%] bg-white p-5 flex flex-col justify-between border-l border-gray-100 overflow-y-auto max-h-[50vh] md:max-h-[92vh]">
+              <div className="space-y-5">
+                {/* Trust Banner - Simpler Version */}
+                <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-3.5 flex items-start gap-3">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-emerald-200 shrink-0 shadow-xs">
+                    <ShieldCheck size={22} className="text-emerald-600" />
                   </div>
-                  
-                  <div className="flex items-center gap-3">
-                    {product.isFavorite && <Sparkles size={16} className="text-amber-500" />}
-                    {product.brandLogoUrl && (
-                      <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-2xs inline-flex items-center justify-center">
-                        <img 
-                          src={product.brandLogoUrl} 
-                          alt={product.brand} 
-                          className="h-6 object-contain clean-logo-filter"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      </div>
-                    )}
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-[11px] font-black text-slate-900">ضمانت اصالت و سلامت بار</h4>
+                      <span className="bg-emerald-600 text-white text-[8px] px-1.5 py-0.5 rounded font-black">دست اول</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">
+                      تحویل مستقیم از درب کارخانه با فاکتور رسمی و تضمین تاریخ انقضای معتبر.
+                    </p>
                   </div>
                 </div>
 
-                {/* Product Main Display Image - Clean Floating Single Frame */}
-                <div className="aspect-square w-full bg-white rounded-3xl overflow-hidden flex items-center justify-center border border-slate-100 shadow-material-sm relative group">
-                  {detailImgError || !product.image_url ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400 p-4">
-                      <Package size={42} className="text-slate-200 stroke-[1]" />
-                      <span className="text-xs font-black text-slate-400">بدون تصویر رسمی</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="absolute inset-x-8 bottom-6 h-6 bg-slate-100/50 blur-2xl rounded-full transition-all group-hover:bg-emerald-500/10" />
+                {/* Product Media Gallery */}
+                <div className="space-y-3">
+                  <div className="aspect-square w-full bg-slate-50 rounded-3xl overflow-hidden flex items-center justify-center border border-slate-100 relative group">
+                    {detailImgError || (!product.image_url && !activeImg) ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                        <Package size={40} className="text-slate-200 stroke-[1]" />
+                        <span className="text-[10px] font-black">تصویر موجود نیست</span>
+                      </div>
+                    ) : (
                       <img 
-                        src={getDisplayImageUrl(product.image_url)} 
+                        src={getDisplayImageUrl(activeImg || product.image_url || product.imageUrl, product.name, product.brand)} 
                         alt={product.name}
-                        className="w-full h-full object-contain p-1.5 group-hover:scale-[1.03] transition-all duration-500 relative z-10"
+                        className="w-full h-full object-contain p-4 group-hover:scale-[1.04] transition-transform duration-500"
                         referrerPolicy="no-referrer"
                         onError={() => setDetailImgError(true)}
                       />
-                    </>
-                  )}
-                  {product.isFeatured && (
-                    <span className="absolute top-3 left-3 bg-amber-500 text-white px-2 py-0.5 rounded-lg text-[8px] font-black flex items-center gap-1 shadow-md z-20">
-                      <Sparkles size={10} />
-                      منتخب
-                    </span>
+                    )}
+                  </div>
+
+                  {/* Thumbs */}
+                  {(product.galleryUrls && product.galleryUrls.length > 0) && (
+                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar justify-center">
+                      {[product.image_url || product.imageUrl, ...product.galleryUrls].filter(Boolean).map((url, idx) => (
+                        <button
+                          key={`gallery-${product.id}-${idx}`}
+                          onClick={() => setActiveImg(url as string)}
+                          className={`w-12 h-12 rounded-xl border-2 shrink-0 transition-all overflow-hidden bg-white ${
+                            (activeImg === url || (!activeImg && url === (product.image_url || product.imageUrl)))
+                              ? "border-emerald-500 shadow-sm"
+                              : "border-transparent hover:border-slate-200"
+                          }`}
+                        >
+                          <img 
+                            src={getDisplayImageUrl(url as string, product.name, product.brand)} 
+                            alt={`${product.name} - ${idx}`}
+                            className="w-full h-full object-contain p-1"
+                            referrerPolicy="no-referrer"
+                          />
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <h3 className="text-base font-black text-slate-900 leading-tight">
+                {/* Product Identity */}
+                <div className="space-y-2 text-right">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-600">برند: {product.brand}</span>
+                      {product.factoryName && (
+                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                          مبدا بارگیری (کارخانه): {product.factoryName}
+                        </span>
+                      )}
+                      {product.supplierName && (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">
+                          تأمین‌کننده: {product.supplierName}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">کد: {product.sku?.split('-')[1] || '۱۲۴'}</span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 leading-tight">
                     {product.name}
                   </h3>
-                  <div className="flex items-center justify-between bg-white px-3.5 py-2 rounded-2xl border border-slate-100 shadow-2xs">
-                    <span className="text-[10px] font-black text-slate-500">امتیاز کیفی و رضایت:</span>
-                    <StarRating 
-                      rating={product.rating || 5} 
-                      size={14} 
-                      interactive={true} 
-                      showCount={true} 
-                      count={(product as any).ratingCount || 24} 
-                      onRate={() => setActiveView('reviews')}
-                    />
+                  <p className="text-[10px] text-slate-500 font-bold">
+                    {product.pack_description || `داخل کارتن: ${toPersianNum(product.carton_pack_count)} عدد ${product.unit || 'بسته'}`}
+                  </p>
+                </div>
+
+                {/* Info Grid - The 4 key boxes requested by user */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs text-center space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 block">تعداد در کارتن</span>
+                    <span className="text-xs font-black text-slate-800">{toPersianNum(product.carton_pack_count)} عدد</span>
                   </div>
-                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-2xs">
-                    <ExpandableText text={product.description || ""} maxChars={120} scrollableIfLong={true} />
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs text-center space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 block">ظرفیت هر پالت</span>
+                    <span className="text-xs font-black text-slate-800">{toPersianNum((product as any).palletCapacity || 48)} کارتن</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs text-center space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 block">ارسال سفارش</span>
+                    <span className="text-xs font-black text-emerald-600">{toPersianNum(product.production_lead_time_days || 3)} الی ۵ روز</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs text-center space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 block">نوع تسویه</span>
+                    <span className="text-xs font-black text-slate-800">نقد / چک صیادی</span>
                   </div>
                 </div>
 
-                {/* B2B Pricing Metrics Block */}
-                <div className="grid grid-cols-2 gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">قیمت مصرف‌کننده (واحد):</span>
-                    <span className="text-xs font-black text-slate-700">
-                      {toPersianNum((product.consumer_price || 0).toLocaleString())} تومان
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">تعداد در کارتن:</span>
-                    <span className="text-xs font-black text-slate-700">
-                      {toPersianNum(product.carton_pack_count)} عدد
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">قیمت نماینده استانی (کف کارخانه):</span>
-                    <span className="text-xs font-black text-emerald-700 font-mono">
-                      {toPersianNum(((product.bulk_price || 0) * product.carton_pack_count).toLocaleString())} تومان
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 block">قیمت خریدار/بنکدار ({toPersianNum(rolePricing?.customerMarkupPercent || 10)}٪ مارک‌آپ):</span>
-                    <span className="text-xs font-black text-indigo-700 font-mono">
-                      {toPersianNum((Math.round((product.bulk_price || 0) * (1 + (rolePricing?.customerMarkupPercent || 10) / 100)) * product.carton_pack_count).toLocaleString())} تومان
-                    </span>
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-emerald-200/50 flex justify-between items-center text-[9px] text-slate-500 font-bold">
-                    <span>تفاوت قیمت نماینده و مشتری:</span>
-                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
-                      {toPersianNum((Math.round((product.bulk_price || 0) * (rolePricing?.customerMarkupPercent || 10) / 100) * product.carton_pack_count).toLocaleString())} تومان تخفیف عاملیت
-                    </span>
-                  </div>
-                </div>
-
-                {/* Health & FDA Certification Passport Block */}
-                <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-white p-4 rounded-2xl border border-emerald-200 space-y-3 relative overflow-hidden shadow-sm">
-                  <div className="flex items-center justify-between relative z-10">
+                {/* Confidential Seller Block - Simplified */}
+                <div className="bg-slate-900 text-white p-3.5 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
                     <div className="flex items-center gap-2">
-                      <HealthAppleLogo size={28} animated />
-                      <div>
-                        <span className="text-[10px] font-black text-emerald-600 block">پروانه بهداشتی و سلامت کالا</span>
-                        <h4 className="text-xs font-black text-slate-900">نشان سیب سلامت سازمان غذا و دارو</h4>
-                      </div>
+                      <Building2 size={14} className="text-emerald-400" />
+                      <span className="text-[10px] font-black">اطلاعات تولیدکننده و آگهی</span>
                     </div>
-                    <span className="bg-emerald-500/10 text-emerald-700 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-emerald-400/30">
-                      کد: {product.healthCertCode || "۱۶/۱۲۴۵۸"}
-                    </span>
+                    <Lock size={10} className="text-amber-400" />
                   </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-700 relative z-10">
-                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                      <span className="text-slate-400 block font-bold text-[9px]">درجه خلوص</span>
-                      <span className="font-black text-emerald-600">۱۰۰٪ طبیعی</span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-slate-400 font-bold">🏢 کارخانه:</span>
+                      <span className="font-black text-emerald-400">{product.brand}</span>
                     </div>
-                    <div className="bg-white p-2 rounded-xl border border-teal-100 text-center">
-                      <span className="text-slate-400 block font-bold text-[9px]">مواد نگهدارنده</span>
-                      <span className="font-black text-teal-600">فاقد افزودنی</span>
-                    </div>
-                    <div className="bg-white p-2 rounded-xl border border-amber-100 text-center">
-                      <span className="text-slate-400 block font-bold text-[9px]">آزمایشگاه</span>
-                      <span className="font-black text-amber-700">کنترل کیفیت کارخانه</span>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-slate-400 font-bold">🛡️ وضعیت اعتبار:</span>
+                      <span className="font-black text-teal-300">احراز هویت شده ✅</span>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("dastavval-open-ticket-with-product", {
+                        detail: { productId: product.id, productName: product.name }
+                      }));
+                    }}
+                    className="w-full py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black transition-all flex items-center justify-center gap-2 border border-white/5"
+                  >
+                    <MessageSquare size={12} />
+                    <span>تیکت استعلام مستقیم</span>
+                  </button>
                 </div>
-
-                {/* Technical Specifications Block */}
-                <div className="space-y-2 pt-2 border-t border-gray-200/50">
-                  <h4 className="text-xs font-black text-indigo-800">مشخصات فنی و استانداردها</h4>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600">
-                    <div className="p-2.5 bg-white rounded-xl border border-gray-100">
-                      <span className="text-slate-400 font-bold block">مبدا تولید:</span>
-                      <span className="font-black mt-0.5 block">{product.brand}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-xl border border-gray-100">
-                      <span className="text-slate-400 font-bold block">محل بارگیری ترانزیت:</span>
-                      <span className="font-black mt-0.5 block truncate">{product.shipping_origin || "البرز - کارخانه مرکزی"}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-xl border border-gray-100">
-                      <span className="text-slate-400 font-bold block">بسته‌بندی ضربه‌گیر:</span>
-                      <span className="font-black mt-0.5 block truncate">{product.pack_description || "شیرینگ حرارتی کارتنی"}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-xl border border-gray-100">
-                      <span className="text-slate-400 font-bold block">زمان تامین بارنامه:</span>
-                      <span className="font-black mt-0.5 block">{toPersianNum(product.production_lead_time_days || 3)} روز کاری</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Product SEO Tags & Keywords Block */}
-                {(() => {
-                  const effectiveTags = getEffectiveProductTags(product);
-                  return (
-                    <div className="space-y-2 pt-3 border-t border-slate-100">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
-                        <Tag size={13} className="text-emerald-600" />
-                        <span>کلیدواژه‌های جستجو و سئو:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {effectiveTags.map((tag, tIdx) => (
-                          <button
-                            key={`modal-tag-${tIdx}-${tag}`}
-                            onClick={() => {
-                              window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: tag } }));
-                              onClose();
-                            }}
-                            className="text-[10px] font-bold bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200/70 transition-all cursor-pointer flex items-center gap-1"
-                            title={`جستجوی تمام کالاهای مرتبط با ${tag}`}
-                          >
-                            <span>#</span>
-                            <span>{tag}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
 
               {/* Badges of Standard Compliance */}
@@ -508,7 +473,7 @@ export default function ProductDetailModal({
                   <ShieldCheck size={14} />
                   <span>نشان رسمی سیب سلامت</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-blue-600 font-bold text-[10px]">
+                <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-[10px]">
                   <CheckCircle2 size={14} />
                   <span>استاندارد ملی کیفیت</span>
                 </div>
@@ -528,9 +493,9 @@ export default function ProductDetailModal({
 
                 {/* Progress Indicators */}
                 <div className="flex items-center gap-1.5">
-                  {[1, 2, 3, 4].map((s, sIdx) => (
+                  {[1, 2, 3, 4].map((s) => (
                     <div 
-                      key={`modal-step-indicator-${s}-${sIdx}`}
+                      key={`modal-step-indicator-${s}`}
                       className={`h-1.5 rounded-full transition-all duration-300 ${
                         s === step 
                           ? "w-6 bg-emerald-600" 
@@ -552,7 +517,7 @@ export default function ProductDetailModal({
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
                       activeView === 'order' 
                         ? "bg-white text-emerald-600 shadow-sm" 
-                        : "text-slate-500 hover"
+                        : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
                     <Package size={14} />
@@ -563,7 +528,7 @@ export default function ProductDetailModal({
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
                       activeView === 'reviews' 
                         ? "bg-white text-emerald-600 shadow-sm" 
-                        : "text-slate-500 hover"
+                        : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
                     <MessageSquare size={14} />
@@ -576,486 +541,188 @@ export default function ProductDetailModal({
                     <ProductReviews productId={product.id} theme="light" />
                   </div>
                 ) : (
-                  <>
+                  <div className="flex-1">
                     {/* STEP 1: QUANTITY AND PACKAGING SELECTOR */}
                     {step === 1 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-black text-slate-700">انتخاب حجم و پله‌های تخفیف تیراژ:</h4>
-                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 flex items-center gap-1">
-                          <Package size={11} className="text-emerald-600" />
-                          <span>حداقل سفارش: {toPersianNum(minCartons)} کارتن</span>
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                        با افزایش حجم خرید، به صورت خودکار درصد تخفیف مازاد روی کل سفارش اعمال می‌شود.
-                      </p>
-                    </div>
-
-                    {/* Tiered Volume Discount Progression */}
-                    <div className="grid grid-cols-4 gap-1.5 text-center">
-                      {[
-                        { tier: `${toPersianNum(minCartons)} تا ۹ کارتن`, disc: "پایه کارخانه", active: cartons < 10, min: minCartons },
-                        { tier: "۱۰ تا ۱۹ کارتن", disc: "۳٪ تخفیف", active: cartons >= 10 && cartons < 20, min: 10 },
-                        { tier: "۲۰ تا ۴۹ کارتن", disc: "۵٪ تخفیف", active: cartons >= 20 && cartons < 50, min: 20 },
-                        { tier: "۵۰+ کارتن (پالت)", disc: "۸٪ تخفیف", active: cartons >= 50, min: 50 },
-                      ].map((t, idx) => (
-                        <button
-                          key={`tier-disc-${product.id}-${idx}-${t.min}`}
-                          type="button"
-                          onClick={() => setCartons(t.min)}
-                          className={`p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center justify-center ${
-                            t.active
-                              ? "bg-emerald-700 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40"
-                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                          }`}
-                        >
-                          <span className="text-[9px] font-bold opacity-90">{t.tier}</span>
-                          <span className="text-[10px] font-black mt-0.5">{t.disc}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Unit Selector Chips */}
-                    {(() => {
-                      const unitChips = salesUnitType === 'weight'
-                        ? [
-                            { id: 'carton', label: `کیسه / کارتن (${toPersianNum(kgPerCarton)} کیلوگرم)` },
-                            { id: 'kg', label: `کیلوگرم` }
-                          ]
-                        : [
-                            { id: 'carton', label: `کارتن عمده (${toPersianNum(packCount)} ${cleanUnit})` },
-                            { id: 'pack', label: cleanUnit !== 'کارتن' ? cleanUnit : 'واحد خرد' }
-                          ];
-
-                      return (
-                        <div className={`grid gap-2 ${unitChips.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                          {unitChips.map((u, uIdx) => (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-black text-slate-700">انتخاب حجم و پله‌های تخفیف تیراژ:</h4>
+                            <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 flex items-center gap-1">
+                              <Package size={11} className="text-emerald-600" />
+                              <span>حداقل سفارش: {toPersianNum(minCartons)} کارتن</span>
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
+                            با افزایش حجم خرید، به صورت خودکار درصد تخفیف مازاد روی کل سفارش اعمال می‌شود.
+                          </p>
+                        </div>
+                        {/* Discount Progression */}
+                        <div className="grid grid-cols-4 gap-1.5 text-center">
+                          {[
+                            { tier: `${toPersianNum(minCartons)} تا ۹ کارتن`, disc: "پایه کارخانه", active: cartons < 10, min: minCartons },
+                            { tier: "۱۰ تا ۱۹ کارتن", disc: "۳٪ تخفیف", active: cartons >= 10 && cartons < 20, min: 10 },
+                            { tier: "۲۰ تا ۴۹ کارتن", disc: "۵٪ تخفیف", active: cartons >= 20 && cartons < 50, min: 20 },
+                            { tier: "۵۰+ کارتن (پالت)", disc: "۸٪ تخفیف", active: cartons >= 50, min: 50 },
+                          ].map((t, idx) => (
                             <button
-                              key={`unit-chip-${u.id}-${uIdx}`}
-                              onClick={() => setUnitType(u.id as any)}
-                              className={`py-2 px-1 text-center rounded-xl text-[10px] font-black border transition-all cursor-pointer ${
-                                unitType === u.id 
-                                  ? "bg-emerald-600 text-white border-emerald-500 shadow-md" 
-                                  : "bg-slate-50 text-slate-500 border-gray-100"
+                              key={`tier-disc-${idx}`}
+                              type="button"
+                              onClick={() => setCartons(t.min)}
+                              className={`p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                                t.active
+                                  ? "bg-emerald-700 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400/40"
+                                  : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                               }`}
                             >
-                              {u.label}
+                              <span className="text-[9px] font-bold opacity-90">{t.tier}</span>
+                              <span className="text-[10px] font-black mt-0.5">{t.disc}</span>
                             </button>
                           ))}
                         </div>
-                      );
-                    })()}
-
-                    {/* Quantity Selector input panel */}
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center border border-gray-200 rounded-xl bg-white p-0.5 shadow-sm">
-                          <button 
-                            onClick={handleIncrement}
-                            className="p-1 hover text-emerald-600 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Plus size={16} />
-                          </button>
-                          <input 
-                            type="text"
-                            inputMode="numeric"
-                            value={
-                              cartons === 0 ? "" :
-                              unitType === 'carton' ? cartons :
-                              unitType === 'pack' ? (cartons * packCount) :
-                              unitType === 'kg' ? Math.round(cartons * kgPerCarton) : cartons
-                            }
-                            onChange={(e) => {
-                              const clean = toEnglishNum(e.target.value).replace(/[^0-9]/g, '');
-                              const numVal = clean === "" ? 0 : parseInt(clean, 10);
-                              handleUnitQuantityChange(numVal, unitType);
-                            }}
-                            className="w-16 text-center font-black text-sm text-gray-800 font-mono focus:outline-none"
-                          />
-                          <button 
-                            disabled={cartons <= minCartons}
-                            onClick={handleDecrement}
-                            className="p-1 hover text-emerald-600 rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
-                          >
-                            <Minus size={16} />
-                          </button>
-                        </div>
-                        <span className="text-xs font-black text-indigo-800">
-                          {unitType === 'carton' ? (salesUnitType === 'weight' ? 'کیسه / کارتن کالا' : 'کارتن کالا') :
-                           unitType === 'kg' ? 'کیلوگرم کالا' :
-                           cleanUnit}
-                        </span>
-                      </div>
-
-                      <div className="text-left">
-                        <span className="text-[10px] text-slate-400 font-bold block">مجموع فاکتور عمده:</span>
-                        <span className="text-base font-black text-emerald-600 font-mono">{toPersianNum(totalOrderPrice.toLocaleString())} <span className="text-[10px] font-black">تومان</span></span>
-                      </div>
-                    </div>
-
-                    {/* Dynamic Profit & Return Summary Banner */}
-                    <div className="bg-gradient-to-l from-emerald-50 via-teal-50 to-amber-50/50 p-3.5 rounded-2xl border border-emerald-200/90 space-y-2 text-right">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <span className="text-[9px] font-bold text-slate-500 block">سود ناخالص تخمینی شما از این سفارش:</span>
-                          <span className="text-xs font-black text-emerald-800 font-mono">
-                            {totalNetProfit > 0
-                              ? `+${toPersianNum(totalNetProfit.toLocaleString())} تومان (${toPersianNum(profitMarginPercent)}٪ حاشیه سود)`
-                              : "قیمت مصوب کارخانه (تامین بدون واسطه)"}
-                          </span>
-                        </div>
-                        {discountSavings > 0 && (
-                          <div className="bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[9px] font-black shadow-xs">
-                            {toPersianNum(discountSavings.toLocaleString())} ت صرفه‌جویی تیراژ
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Daily & Compound Nudges */}
-                      {totalNetProfit > 0 ? (
-                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200/50 text-[10px] font-black">
-                          <div className="bg-white/80 p-2 rounded-xl border border-emerald-100 flex items-center justify-between">
-                            <span className="text-slate-500 text-[9px]">سود روزانه:</span>
-                            <span className="text-cyan-800 font-mono">+{toPersianNum(Math.round(totalNetProfit / 30).toLocaleString())} ت/روز</span>
-                          </div>
-                          <div className="bg-white/80 p-2 rounded-xl border border-amber-200 flex items-center justify-between">
-                            <span className="text-slate-500 text-[9px]">سود مرکب ۶ ماهه:</span>
-                            <span className="text-amber-900 font-mono">
-                              +{toPersianNum(Math.round(totalOrderPrice * (Math.pow(1 + ((profitMarginPercent / 100) * 0.7), 6) - 1)).toLocaleString())} ت
+                        {/* Unit Selector */}
+                        {(() => {
+                          const unitChips = salesUnitType === 'weight'
+                            ? [{ id: 'carton', label: `کیسه / کارتن (${toPersianNum(kgPerCarton)} کیلوگرم)` }, { id: 'kg', label: `کیلوگرم` }]
+                            : [{ id: 'carton', label: `کارتن عمده (${toPersianNum(packCount)} ${cleanUnit})` }, { id: 'pack', label: cleanUnit !== 'کارتن' ? cleanUnit : 'واحد خرد' }];
+                          return (
+                            <div className={`grid gap-2 ${unitChips.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                              {unitChips.map((u) => (
+                                <button
+                                  key={`unit-chip-${u.id}`}
+                                  onClick={() => setUnitType(u.id as any)}
+                                  className={`py-2 px-1 text-center rounded-xl text-[10px] font-black border transition-all cursor-pointer ${unitType === u.id ? "bg-emerald-600 text-white border-emerald-500 shadow-md" : "bg-slate-50 text-slate-500 border-gray-100"}`}
+                                >
+                                  {u.label}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        {/* Quantity Counter */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center border border-gray-200 rounded-xl bg-white p-0.5 shadow-sm">
+                              <button onClick={handleIncrement} className="p-1 hover text-emerald-600 rounded-lg transition-colors cursor-pointer"><Plus size={16} /></button>
+                              <input 
+                                type="text"
+                                inputMode="numeric"
+                                value={cartons === 0 ? "" : unitType === 'carton' ? cartons : unitType === 'pack' ? (cartons * packCount) : unitType === 'kg' ? Math.round(cartons * kgPerCarton) : cartons}
+                                onChange={(e) => {
+                                  const clean = toEnglishNum(e.target.value).replace(/[^0-9]/g, '');
+                                  handleUnitQuantityChange(clean === "" ? 0 : parseInt(clean, 10), unitType);
+                                }}
+                                className="w-16 text-center font-black text-sm text-gray-800 font-mono focus:outline-none"
+                              />
+                              <button disabled={cartons <= minCartons} onClick={handleDecrement} className="p-1 hover text-emerald-600 rounded-lg transition-colors disabled:opacity-30 cursor-pointer"><Minus size={16} /></button>
+                            </div>
+                            <span className="text-xs font-black text-indigo-800">
+                              {unitType === 'carton' ? (salesUnitType === 'weight' ? 'کیسه / کارتن' : 'کارتن') : unitType === 'kg' ? 'کیلوگرم' : cleanUnit}
                             </span>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="pt-1.5 border-t border-emerald-200/50 text-center text-emerald-800 font-black text-[10px]">
-                          تامین مستقیم با نرخ مصوب تولیدکننده (حذف کامل هزینه‌های واسطه‌گری)
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Dynamic Conversions display */}
-                    <div className="grid grid-cols-3 gap-3 text-center bg-slate-50/50 p-3 rounded-2xl border border-gray-150 text-[10px] text-slate-500 font-black">
-                      <div>
-                        <span className="text-slate-400 block mb-0.5">{salesUnitType === 'weight' ? 'مقدار کل:' : 'تعداد کل بسته‌ها:'}</span>
-                        <span className="text-indigo-800 font-mono text-xs">
-                          {salesUnitType === 'weight' 
-                            ? `${toPersianNum(totalWeightKg)} کیلوگرم` 
-                            : `${toPersianNum(totalPacks.toLocaleString())} ${cleanUnit}`}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block mb-0.5">وزن تقریبی مرسوله:</span>
-                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(totalWeightKg)} کیلوگرم</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block mb-0.5">بار حجمی ترانزیت:</span>
-                        <span className="text-indigo-800 font-mono text-xs">{toPersianNum(cartons)} {salesUnitType === 'weight' ? 'کیسه/کارتن' : 'کارتن'}</span>
-                      </div>
-                    </div>
-
-                    {/* Official Tax Invoice & Escrow Assurance */}
-                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex items-center justify-between text-[10px] font-bold text-slate-600">
-                      <div className="flex items-center gap-1.5">
-                        <FileText size={14} className="text-indigo-600" />
-                        <span>امکان صدور فاکتور رسمی معتبر کارخانه همراه با ارزش افزوده</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-emerald-700 font-black">
-                        <ShieldCheck size={14} className="text-emerald-600" />
-                        <span>تسویه امانی امن</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 2: CUSTOMER AND SHIPPING DETAILS */}
-                {step === 2 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div className="space-y-1 mb-2">
-                      <h4 className="text-xs font-black text-slate-700">اطلاعات تحویل و ترابری سفارش</h4>
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                        اطلاعات دقیق بنکداری و محل تخلیه بار خودروهای سنگین را در این بخش تکمیل نمایید.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3.5">
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
-                          <UserIcon size={12} />
-                          نام و نام خانوادگی مسئول / رابط
-                        </label>
-                        <input 
-                          type="text" 
-                          value={buyerName}
-                          onChange={(e) => setBuyerName(e.target.value)}
-                          placeholder="مثال: مهندس علیرضا رضایی"
-                          className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 outline-none focus focus font-bold"
-                        />
-                        <p className="text-[9px] text-slate-400 font-bold">💡 نام تحویل‌گیرنده یا مسئول خرید</p>
-                        {errors.buyerName && <p className="text-rose-500 text-[9px] font-black">{errors.buyerName}</p>}
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
-                          <Phone size={12} />
-                          شماره موبایل رابط
-                        </label>
-                        <input 
-                          type="text" 
-                          value={buyerPhone}
-                          onChange={(e) => setBuyerPhone(e.target.value)}
-                          placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
-                          className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 font-mono outline-none focus focus text-left"
-                        />
-                        <p className="text-[9px] text-slate-400 font-bold">💡 جهت دریافت SMS پیش‌فاکتور</p>
-                        {errors.buyerPhone && <p className="text-rose-500 text-[9px] font-black">{errors.buyerPhone}</p>}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
-                        <Building size={12} />
-                        نام بنکداری / فروشگاه / شرکت
-                      </label>
-                      <input 
-                        type="text" 
-                        value={buyerCompany}
-                        onChange={(e) => setBuyerCompany(e.target.value)}
-                        placeholder="مثال: شرکت بازرگانی مواد غذایی البرز"
-                        className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 outline-none focus focus font-bold"
-                      />
-                      <p className="text-[9px] text-slate-400 font-bold">💡 عنوان رسمی جهت ثبت در فاکتور رسمی کارخانه</p>
-                      {errors.buyerCompany && <p className="text-rose-500 text-[9px] font-black">{errors.buyerCompany}</p>}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
-                        <MapPin size={12} />
-                        نشانی کامل انبار جهت تخلیه بار
-                      </label>
-                      <textarea 
-                        value={buyerAddress}
-                        onChange={(e) => setBuyerAddress(e.target.value)}
-                        placeholder="مثال: تهران، جاده قدیم کرج، خیابان هفدهم، پلاک ۱۲، انبار مرکزی توزیع..."
-                        rows={2}
-                        className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-indigo-800 outline-none focus focus font-bold"
-                      />
-                      <p className="text-[9px] text-slate-400 font-bold">💡 آدرس دقیق تخلیه به همراه پلاک جهت صدور بارنامه رسمی</p>
-                      {errors.buyerAddress && <p className="text-rose-500 text-[9px] font-black">{errors.buyerAddress}</p>}
-                    </div>
-
-                    {/* Transport Selection */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-500 font-black flex items-center gap-1">
-                        <Truck size={12} />
-                        ناوگان ترجیحی حمل و ترابری
-                      </label>
-                      <div className="grid grid-cols-3 gap-2.5">
-                        {[
-                          { id: "road_truck", label: "کامیون تک/ده‌چرخ", desc: "ظرفیت ۱,۰۰۰ الی ۱,۵۰۰ کارتن" },
-                          { id: "heavy_trailer", label: "تریلر چادری", desc: "ظرفیت ۲,۰۰۰ الی ۲,۵۰۰ کارتن" },
-                          { id: "local_cargo", label: "ایسوزو/خاور مسقف", desc: "ظرفیت ۳۰۰ الی ۶۰۰ کارتن" }
-                        ].map((t, tIdx) => (
-                          <div 
-                            key={`transport-type-${t.id}-${tIdx}`}
-                            onClick={() => setTransportType(t.id)}
-                            className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                              transportType === t.id 
-                                ? "bg-emerald-500/10 border-emerald-500 text-emerald-800" 
-                                : "bg-slate-50 border-gray-100 text-slate-500"
-                            }`}
-                          >
-                            <span className="text-[10px] font-black block">{t.label}</span>
-                            <span className="text-[8px] text-slate-400 font-bold block mt-0.5">{t.desc}</span>
+                          <div className="text-left">
+                            <span className="text-[10px] text-slate-400 font-bold block">مجموع فاکتور:</span>
+                            <span className="text-base font-black text-emerald-600 font-mono">{toPersianNum(totalOrderPrice.toLocaleString())} <span className="text-[10px] font-black">تومان</span></span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: DOCUMENT UPLOAD */}
-                {step === 3 && (
-                  <div className="space-y-5 animate-fadeIn text-center">
-                    <div className="space-y-1 text-right">
-                      <h4 className="text-xs font-black text-slate-700">مستندات اعتباری و تجاری بنکداری</h4>
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                        جهت بررسی شرایط پرداخت اعتباری (خرید با چک صیادی) در مجتمع دست اول، تصویر جواز کسب یا چک صیادی خود را آپلود کنید.
-                      </p>
-                    </div>
-
-                    {/* Drag and drop panel */}
-                    <div 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-gray-200 bg-slate-50 rounded-3xl p-8 hover transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer"
-                    >
-                      <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center">
-                        <UploadCloud size={24} />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <p className="text-xs font-black text-indigo-800">آپلود جواز کسب یا برگه چک صیادی</p>
-                        <p className="text-[9px] text-slate-400 font-bold">فایل‌های مجاز: JPG, PNG, PDF حداکثر ۵ مگابایت</p>
-                      </div>
-
-                      <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        onChange={handleFileUpload}
-                        className="hidden" 
-                        accept=".jpg,.jpeg,.png,.pdf"
-                      />
-                    </div>
-
-                    {/* Upload progress or file info */}
-                    {uploadedFile && (
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-gray-150 text-right space-y-2">
-                        <div className="flex justify-between items-center text-[10px] font-black">
-                          <span className="text-emerald-600 flex items-center gap-1.5">
-                            <CheckCircle2 size={12} />
-                            فایل با موفقیت بارگذاری شد
-                          </span>
-                          <span className="text-slate-500 truncate max-w-[150px]">{uploadedFile.name}</span>
                         </div>
-                        
-                        {/* Progress Bar */}
-                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-emerald-500 transition-all duration-300" 
-                            style={{ width: `${uploadProgress}%` }}
-                          />
+                        {/* Profit Banner */}
+                        <div className="bg-gradient-to-l from-emerald-50 via-teal-50 to-emerald-50/50 p-3.5 rounded-2xl border border-emerald-200/90 space-y-2 text-right">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] font-bold text-slate-500 block">سود تخمینی شما:</span>
+                              <span className="text-xs font-black text-emerald-800 font-mono">
+                                {totalNetProfit > 0 ? `+${toPersianNum(totalNetProfit.toLocaleString())} تومان (${toPersianNum(profitMarginPercent)}٪)` : "تامین بدون واسطه"}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
-
-                    {/* Quality Assurance info */}
-                    <div className="bg-blue-50/50 border border-blue-200/50 p-3.5 rounded-2xl flex gap-2 text-right">
-                      <ShieldCheck className="text-blue-600 shrink-0 mt-0.5" size={16} />
-                      <div className="text-[10px] text-blue-800 leading-relaxed font-bold">
-                        تمامی اسناد آپلود شده توسط دپارتمان مالی و اعتباری دست اول طی ۲ ساعت کاری بررسی می‌شوند. خرید نقدی نیازی به تأیید مدارک ندارد.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 4: FINAL INVOICE & SUMS */}
-                {step === 4 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div className="space-y-1 mb-2">
-                      <h4 className="text-xs font-black text-slate-700">پیش‌فاکتور مستقیم و بدون واسطه کارخانه</h4>
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                        محاسبه نهایی فاکتور بر اساس تخفیف‌های ویژه سطح همکار و فاقد کارمزد واسطه‌گری صادر گردیده است.
-                      </p>
-                    </div>
-
-                    {/* Invoice visual panel */}
-                    <div className="bg-slate-50 rounded-3xl p-5 border border-gray-150 text-[11px] space-y-3 font-bold text-slate-600">
-                      <div className="flex justify-between pb-2 border-b border-gray-200/50 font-black text-indigo-800">
-                        <span>شرح کالا</span>
-                        <span>مبلغ نهایی</span>
-                      </div>
-                      
-                      <div className="flex justify-between text-xs text-slate-700">
-                        <span>{product.name} (تعداد {toPersianNum(cartons)} کارتن)</span>
-                        <span className="font-mono">{toPersianNum(originalTotalPrice.toLocaleString())} تومان</span>
-                      </div>
-
-                      {discountSavings > 0 && (
-                        <div className="flex justify-between text-emerald-600 text-[10px] font-black">
-                          <span>تخفیف تیراژ و حجم خرید ({toPersianNum(volumeDiscountPercent)}٪)</span>
-                          <span className="font-mono">-{toPersianNum(discountSavings.toLocaleString())} تومان</span>
+                    {/* STEP 2: SHIPPING */}
+                    {step === 2 && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="space-y-1 mb-2 text-right">
+                          <h4 className="text-xs font-black text-slate-700">اطلاعات تحویل و ترابری</h4>
+                          <p className="text-[10px] text-slate-400 font-bold">اطلاعات دقیق محل تخلیه بار خودروهای سنگین را تکمیل نمایید.</p>
                         </div>
-                      )}
-
-                      <div className="flex justify-between text-blue-600 text-[10px]">
-                        <span>هزینه حمل و ترانزیت جاده‌ای</span>
-                        <span className="font-black font-mono">پس‌کرایه در مقصد</span>
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-500 font-black flex items-center gap-1"><UserIcon size={12} />نام رابط</label>
+                            <input type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 outline-none font-bold" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-500 font-black flex items-center gap-1"><Phone size={12} />شماره موبایل</label>
+                            <input type="text" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 font-mono outline-none text-left" />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-500 font-black flex items-center gap-1"><Building size={12} />نام شرکت / فروشگاه</label>
+                          <input type="text" value={buyerCompany} onChange={(e) => setBuyerCompany(e.target.value)} className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-indigo-800 outline-none font-bold" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-500 font-black flex items-center gap-1"><MapPin size={12} />نشانی انبار</label>
+                          <textarea value={buyerAddress} onChange={(e) => setBuyerAddress(e.target.value)} rows={2} className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-indigo-800 outline-none font-bold" />
+                        </div>
                       </div>
-
-                      <div className="flex justify-between pt-2.5 border-t border-gray-200/50 font-black text-indigo-800 text-xs sm bg-slate-100/40 -mx-5 px-5 py-2">
-                        <span>مبلغ قابل پرداخت فاکتور:</span>
-                        <span className="font-mono text-emerald-600">{toPersianNum(totalOrderPrice.toLocaleString())} تومان</span>
+                    )}
+                    {/* STEP 3: UPLOAD */}
+                    {step === 3 && (
+                      <div className="space-y-5 animate-fadeIn text-center">
+                        <div className="space-y-1 text-right">
+                          <h4 className="text-xs font-black text-slate-700">مستندات اعتباری</h4>
+                          <p className="text-[10px] text-slate-400 font-bold">تصویر جواز کسب یا چک صیادی خود را آپلود کنید.</p>
+                        </div>
+                        <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-200 bg-slate-50 rounded-3xl p-8 hover transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer">
+                          <UploadCloud size={24} className="text-emerald-600" />
+                          <p className="text-xs font-black text-indigo-800">آپلود جواز کسب یا برگه چک</p>
+                          <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".jpg,.jpeg,.png,.pdf" />
+                        </div>
+                        {uploadedFile && (
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-gray-150 text-right">
+                            <span className="text-emerald-600 text-[10px] font-black flex items-center justify-end gap-2"><CheckCircle2 size={12} /> فایل بارگذاری شد: {uploadedFile.name}</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
-
-                    {/* Bottom notes */}
-                    <div className="p-3 bg-emerald-50/40 rounded-2xl border border-emerald-100/50 text-[9px] text-slate-500 font-bold">
-                      💡 پس از ثبت سفارش، بارنامه رسمی وزارت راه همراه با پلمپ دیجیتال در منوی «رهگیری ناوگان» صادر خواهد شد و می‌توانید وضعیت تخلیه کالا را لحظه به لحظه رصد کنید.
-                    </div>
+                    )}
+                    {/* STEP 4: FINAL */}
+                    {step === 4 && (
+                      <div className="space-y-4 animate-fadeIn">
+                        <div className="space-y-1 mb-2 text-right">
+                          <h4 className="text-xs font-black text-slate-700">پیش‌فاکتور نهایی</h4>
+                          <p className="text-[10px] text-slate-400 font-bold">محاسبه نهایی فاکتور بر اساس قیمت مستقیم کارخانه.</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-3xl p-5 border border-gray-150 text-[11px] space-y-3 font-bold text-slate-600 text-right">
+                          <div className="flex justify-between pb-2 border-b border-gray-200/50 font-black text-indigo-800"><span>شرح کالا</span><span>مبلغ نهایی</span></div>
+                          <div className="flex justify-between text-xs text-slate-700"><span>{product.name} ({toPersianNum(cartons)} کارتن)</span><span className="font-mono">{toPersianNum(originalTotalPrice.toLocaleString())} تومان</span></div>
+                          {discountSavings > 0 && <div className="flex justify-between text-emerald-600 text-[10px] font-black"><span>تخفیف تیراژ ({toPersianNum(volumeDiscountPercent)}٪)</span><span className="font-mono">-{toPersianNum(discountSavings.toLocaleString())} تومان</span></div>}
+                          <div className="flex justify-between pt-2.5 border-t border-gray-200/50 font-black text-indigo-800 text-xs bg-slate-100/40 -mx-5 px-5 py-2"><span>مبلغ قابل پرداخت:</span><span className="font-mono text-emerald-600">{toPersianNum(totalOrderPrice.toLocaleString())} تومان</span></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-                </>
-              )}
               </div>
 
               {/* ACTION BUTTONS PANEL */}
               <div className="pt-4 border-t border-gray-150 flex flex-wrap items-center justify-between gap-2 shrink-0">
                 {step > 1 ? (
-                  <button 
-                    onClick={handlePrevStep}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <ArrowRight size={14} />
-                    مرحله قبل
-                  </button>
+                  <button onClick={handlePrevStep} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-full text-xs font-black flex items-center gap-1.5 transition-all duration-200 active:scale-[0.95] cursor-pointer"><ArrowRight size={14} />مرحله قبل</button>
                 ) : (
-                  <button 
-                    onClick={onClose}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer"
-                  >
-                    بستن جزئیات
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={onClose} className="bg-slate-50 hover:bg-slate-100 text-slate-700 px-4 py-2.5 rounded-full text-xs font-black transition-all duration-200 active:scale-[0.95] cursor-pointer">بستن</button>
+                    {onGoToProductPage && <button onClick={() => onGoToProductPage(product)} className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-4 py-2.5 rounded-full text-xs font-black flex items-center justify-center gap-1.5 transition-all duration-200 active:scale-[0.95] cursor-pointer border border-emerald-200"><Tag size={14} />صفحه محصول</button>}
+                  </div>
                 )}
 
                 {step === 1 ? (
-                  !user ? (
-                    <button 
-                      onClick={() => {
-                        onClose();
-                        window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { mode: 'signup' } }));
-                      }}
-                      className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white px-6 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer mr-auto"
-                    >
-                      <Lock size={14} className="text-amber-300" />
-                      ثبت‌نام همکاران جهت مشاهده قیمت و خرید
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 mr-auto">
-                      <button
-                        onClick={() => {
-                          onAddToCart(product, cartons);
-                          onClose();
-                        }}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                      >
-                        <ShoppingCart size={14} />
-                        افزودن به سبد
-                      </button>
-                      <button 
-                        onClick={handleNextStep}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
-                      >
-                        تسویه و صدور فاکتور
-                        <ArrowLeft size={14} />
-                      </button>
-                    </div>
-                  )
+                  <div className="flex items-center gap-2 mr-auto w-full sm:w-auto justify-end">
+                    <button onClick={() => { onAddToCart(product, cartons); onClose(); }} className="bg-emerald-100 hover:bg-emerald-200 text-emerald-900 px-5 py-2.5 rounded-full text-xs font-black flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.95] cursor-pointer border border-emerald-300/40 flex-1 sm:flex-initial"><ShoppingCart size={16} />افزودن به سبد</button>
+                    <button onClick={handleNextStep} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-full text-xs font-black flex items-center justify-center gap-1.5 transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.95] cursor-pointer flex-1 sm:flex-initial">خرید نهایی <ArrowLeft size={14} /></button>
+                  </div>
                 ) : step < 4 ? (
-                  <button 
-                    onClick={handleNextStep}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer mr-auto"
-                  >
-                    گام بعدی
-                    <ArrowLeft size={14} />
-                  </button>
+                  <button onClick={handleNextStep} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-full text-xs font-black flex items-center gap-1.5 transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.95] cursor-pointer mr-auto">گام بعدی <ArrowLeft size={14} /></button>
                 ) : (
-                  <button 
-                    onClick={handleOrderSubmit}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer mr-auto"
-                  >
-                    تأیید نهایی و صدور فاکتور مستقیم
-                    <CheckCircle2 size={14} />
-                  </button>
+                  <button onClick={handleOrderSubmit} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-full text-xs font-black flex items-center gap-1.5 transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.95] cursor-pointer mr-auto">تأیید نهایی <CheckCircle2 size={14} /></button>
                 )}
               </div>
             </div>

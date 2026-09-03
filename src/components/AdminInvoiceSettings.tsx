@@ -222,7 +222,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
       {/* Header Banner */}
       <div className="bg-white border border-slate-200 text-slate-900 p-6 sm:p-8 rounded-[2.5rem] shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100 shadow-sm">
+          <div className="inline-flex items-center gap-2 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold border border-emerald-100 shadow-sm">
             <FileText size={14} />
             <span>مدیریت کامل فاکتور و مدارک رسمی</span>
           </div>
@@ -348,7 +348,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                 placeholder="https://... یا بارگذاری فایل PDF"
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-500"
               />
-              <label className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-2xl text-xs font-black cursor-pointer shrink-0 transition-all shadow-md shadow-indigo-600/20 flex items-center gap-1.5">
+              <label className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-2xl text-xs font-black cursor-pointer shrink-0 transition-all shadow-md shadow-emerald-600/20 flex items-center gap-1.5">
                 <span>انتخاب PDF</span>
                 <input
                   type="file"
@@ -372,7 +372,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
             {catalogPdfUrl && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-[10px] text-emerald-600 font-bold">✓ فایل کاتالوگ آماده دانلود است</span>
-                <a href={catalogPdfUrl} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 font-bold underline">پیش‌نمایش</a>
+                <a href={catalogPdfUrl} target="_blank" rel="noreferrer" className="text-[10px] text-emerald-600 font-bold underline">پیش‌نمایش</a>
               </div>
             )}
           </div>
@@ -381,7 +381,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         {/* Section 2: Financial Rules (Cash Discount % & Cheque Markup %) */}
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
           <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Percent className="text-amber-500" size={18} />
+            <Percent className="text-emerald-500" size={18} />
             تنظیمات نرخ تخفیف نقدی و کارمزد چکی
           </h3>
 
@@ -407,7 +407,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
               </p>
             </div>
 
-            <div className="bg-amber-50/60 p-5 rounded-2xl border border-amber-200/60 space-y-3">
+            <div className="bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200/60 space-y-3">
               <label className="block text-xs font-black text-amber-900">
                 سقف درصد تخفیف طرح رسوب‌زدایی و انباشت انبار٪
               </label>
@@ -473,7 +473,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
           <div>
             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-              <Percent className="text-indigo-600" size={18} />
+              <Percent className="text-emerald-600" size={18} />
               مدیریت و پیکربندی تخفیف‌های پلکانی (تیراژ خرید و مبلغ کل)
             </h3>
             <p className="text-[11px] text-slate-500 font-bold mt-2">
@@ -492,7 +492,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                 <button
                   type="button"
                   onClick={() => setQuantityDiscountTiers([...quantityDiscountTiers, { threshold: 1, discountPercent: 1 }])}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={12} />
                   <span>افزودن پله تیراژ</span>
@@ -545,7 +545,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                       <button
                         type="button"
                         onClick={() => setQuantityDiscountTiers(quantityDiscountTiers.filter((_, i) => i !== index))}
-                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                        className="p-1.5 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                         title="حذف پله"
                       >
                         <Trash2 size={14} />
@@ -566,7 +566,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                 <button
                   type="button"
                   onClick={() => setVolumeDiscountTiers([...volumeDiscountTiers, { threshold: 10000000, discountPercent: 1 }])}
-                  className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                  className="bg-emerald-600 hover:bg-amber-700 text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={12} />
                   <span>افزودن پله ریالی</span>
@@ -619,7 +619,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                       <button
                         type="button"
                         onClick={() => setVolumeDiscountTiers(volumeDiscountTiers.filter((_, i) => i !== index))}
-                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                        className="p-1.5 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                         title="حذف پله"
                       >
                         <Trash2 size={14} />
@@ -636,13 +636,13 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <CreditCard className="text-blue-600" size={18} />
+              <CreditCard className="text-emerald-600" size={18} />
               حساب‌های بانکی صادرکننده جهت واریز وجه
             </h3>
             <button
               type="button"
               onClick={handleAddAccount}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-colors flex items-center gap-1"
+              className="bg-emerald-600 hover:bg-blue-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-colors flex items-center gap-1"
             >
               <Plus size={14} />
               <span>افزودن حساب جدید</span>
@@ -658,7 +658,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                     <button
                       type="button"
                       onClick={() => handleRemoveAccount(idx)}
-                      className="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                      className="text-emerald-500 hover:text-emerald-700 text-xs font-bold flex items-center gap-1"
                     >
                       <Trash2 size={14} />
                       <span>حذف</span>
@@ -827,9 +827,9 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                       { hex: '#1e293b', label: 'سرمه‌ای / مشکی اداری' },
                       { hex: '#0f766e', label: 'سبز یشمی / بازرگانی' },
                       { hex: '#991b1b', label: 'قرمز رسمی ثبت اسناد' },
-                    ].map(c => (
+                    ].map((c, cIdx) => (
                       <button
-                        key={c.hex}
+                        key={`seal-col-${c.hex}-${cIdx}`}
                         type="button"
                         onClick={() => setSealColor(c.hex)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
@@ -880,7 +880,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                     <button
                       type="button"
                       onClick={() => setOfficialSealUrl("")}
-                      className="text-[10px] text-rose-600 hover:underline font-bold"
+                      className="text-[10px] text-emerald-600 hover:underline font-bold"
                     >
                       حذف تصویر مهر
                     </button>
@@ -939,7 +939,7 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                       <button
                         type="button"
                         onClick={() => setOfficialSignatureUrl("")}
-                        className="text-[10px] text-rose-600 hover:underline font-bold"
+                        className="text-[10px] text-emerald-600 hover:underline font-bold"
                       >
                         حذف تصویر امضا
                       </button>

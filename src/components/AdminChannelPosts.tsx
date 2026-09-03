@@ -140,7 +140,7 @@ export default function AdminChannelPosts({
   return (
     <div className="space-y-8 pb-20" dir="rtl">
       {/* Top Banner / Stats */}
-      <div className="bg-gradient-to-l from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
+      <div className="bg-gradient-to-l from-emerald-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="space-y-2 text-right">
@@ -148,7 +148,7 @@ export default function AdminChannelPosts({
               مرکز کنترل کانال اطلاع‌رسانی هوشمند
               <Megaphone className="w-6 h-6 animate-bounce" />
             </h3>
-            <p className="text-xs text-indigo-100 font-bold opacity-80 leading-relaxed max-w-xl">
+            <p className="text-xs text-emerald-100 font-bold opacity-80 leading-relaxed max-w-xl">
               اطلاعیه‌های مهم، حراج‌های لحظه‌ای و اخبار کارخانه را به صورت مستقیم در اپلیکیشن و کانال عمومی منتشر کنید.
             </p>
           </div>
@@ -171,7 +171,7 @@ export default function AdminChannelPosts({
           <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden sticky top-8">
             <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-slate-50/50">
               <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
-                <Plus size={18} className="text-indigo-600" />
+                <Plus size={18} className="text-emerald-600" />
                 {editingChannelPostId ? "ویرایش پست موجود" : "ایجاد پست جدید در کانال"}
               </h4>
               {editingChannelPostId && (
@@ -181,7 +181,7 @@ export default function AdminChannelPosts({
                     setChannelPostTitle("");
                     setChannelPostContent("");
                   }}
-                  className="text-[10px] font-black text-rose-500 hover:bg-rose-50 px-3 py-1 rounded-lg transition-all"
+                  className="text-[10px] font-black text-emerald-500 hover:bg-emerald-50 px-3 py-1 rounded-lg transition-all"
                 >
                   انصراف از ویرایش
                 </button>
@@ -195,7 +195,7 @@ export default function AdminChannelPosts({
                   value={channelPostTitle}
                   onChange={e => setChannelPostTitle(e.target.value)}
                   placeholder="مثال: 🔥 حراج ۵۰ درصدی محصولات کیک و کلوچه"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-xs font-black text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-xs font-black text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                 />
               </div>
 
@@ -203,9 +203,9 @@ export default function AdminChannelPosts({
                 <label className="block text-[10px] font-black text-slate-500 mb-1.5 mr-1">دسته‌بندی محتوا</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    {id: 'info', label: 'اطلاع‌رسانی', icon: <Info size={14}/>, color: 'text-blue-600 bg-blue-50'},
+                    {id: 'info', label: 'اطلاع‌رسانی', icon: <Info size={14}/>, color: 'text-emerald-600 bg-blue-50'},
                     {id: 'festival', label: 'جشنواره فروش', icon: <Flame size={14}/>, color: 'text-orange-600 bg-orange-50'},
-                    {id: 'urgent', label: 'فوری/مهم', icon: <Bell size={14}/>, color: 'text-rose-600 bg-rose-50'},
+                    {id: 'urgent', label: 'فوری/مهم', icon: <Bell size={14}/>, color: 'text-emerald-600 bg-emerald-50'},
                     {id: 'system', label: 'سیستمی', icon: <Settings size={14}/>, color: 'text-slate-600 bg-slate-50'}
                   ].map((cat, catIdx) => (
                     <button 
@@ -213,7 +213,7 @@ export default function AdminChannelPosts({
                       onClick={() => setChannelPostCategory(cat.id)}
                       className={`flex items-center gap-2 p-3 rounded-2xl border transition-all text-[10px] font-black ${
                         channelPostCategory === cat.id 
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' 
+                          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm' 
                           : 'border-slate-100 bg-white text-slate-400 opacity-60 hover:opacity-100'
                       }`}
                     >
@@ -231,7 +231,7 @@ export default function AdminChannelPosts({
                   value={channelPostContent}
                   onChange={e => setChannelPostContent(e.target.value)}
                   placeholder="توضیحات کامل پست را اینجا بنویسید..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all leading-relaxed"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all leading-relaxed"
                 />
               </div>
 
@@ -242,7 +242,7 @@ export default function AdminChannelPosts({
                     value={channelPostActionLabel}
                     onChange={e => setChannelPostActionLabel(e.target.value)}
                     placeholder="مشاهده لیست قیمت"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-800 outline-none focus:border-emerald-500 transition-all"
                   />
                 </div>
                 <div>
@@ -251,14 +251,14 @@ export default function AdminChannelPosts({
                     value={channelPostActionUrl}
                     onChange={e => setChannelPostActionUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-800 outline-none focus:border-emerald-500 transition-all font-mono"
                   />
                 </div>
               </div>
 
               <button 
                 onClick={handlePublish}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
               >
                 <Send size={18} />
                 {editingChannelPostId ? "ذخیره تغییرات پست" : "انتشار در کانال اطلاع‌رسانی"}
@@ -315,8 +315,8 @@ export default function AdminChannelPosts({
                      <div className="flex items-center gap-3">
                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
                          post.category === 'festival' ? 'bg-orange-50 text-orange-600' :
-                         post.category === 'urgent' ? 'bg-rose-50 text-rose-600' :
-                         post.category === 'info' ? 'bg-blue-50 text-blue-600' :
+                         post.category === 'urgent' ? 'bg-emerald-600 text-white' :
+                         post.category === 'info' ? 'bg-blue-50 text-emerald-600' :
                          'bg-slate-50 text-slate-600'
                        }`}>
                          {post.category === 'festival' ? <Flame size={20}/> :
@@ -332,13 +332,13 @@ export default function AdminChannelPosts({
                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => handleEdit(post)}
-                          className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDelete(post.id)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -355,7 +355,7 @@ export default function AdminChannelPosts({
                          href={post.actionUrl}
                          target="_blank"
                          rel="noreferrer"
-                         className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black hover:bg-indigo-600 transition-all shadow-md shadow-slate-900/10"
+                         className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black hover:bg-emerald-600 transition-all shadow-md shadow-slate-900/10"
                        >
                          {post.actionLabel}
                          <ExternalLink size={14} />

@@ -1,6 +1,6 @@
 [
   {
-    "id": 84,
+    "id": "84",
     "sku": "درا-7429",
     "barcode": "62616497414819",
     "name": "پهباد اسمارتیزی شانتیا",
@@ -21,7 +21,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_84.webp",
     "description": "داخل کارتن : 4 بانکه 24 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 35000,
@@ -31,7 +31,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_84.webp"
   },
   {
-    "id": 107,
+    "id": "107",
     "sku": "شکل-4635",
     "barcode": "62627891502616",
     "name": "آب‌نبات جرقه ای الهام",
@@ -52,7 +52,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_107.webp",
     "description": "هر کارتن 12 بسته 56 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 9000,
     "bulk_price": 9000,
     "consumer_price": 20000,
@@ -62,7 +62,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_107.webp"
   },
   {
-    "id": 106,
+    "id": "106",
     "sku": "شکل-1211",
     "barcode": "62661890857529",
     "name": "آب‌نبات شوک مکس الهام",
@@ -83,7 +83,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_106.webp",
     "description": "هر کارتن 12 بسته 42 عددی ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 14500,
     "bulk_price": 14500,
     "consumer_price": 25000,
@@ -93,7 +93,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_106.webp"
   },
   {
-    "id": 186,
+    "id": "186",
     "sku": "آلو-8650",
     "barcode": "62622837454152",
     "name": "لواشک بستنی گرد ",
@@ -114,7 +114,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_186.webp",
     "description": "هر کارتن 450 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 7000,
     "bulk_price": 7000,
     "consumer_price": 25000,
@@ -124,7 +124,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_186.webp"
   },
   {
-    "id": 88,
+    "id": "88",
     "sku": "درا-4815",
     "barcode": "62664497880425",
     "name": "نیسان اسمارتیزی شانتیا",
@@ -145,7 +145,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_88.webp",
     "description": "هر کارتن : 4 بانکه 20 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 35000,
@@ -155,7 +155,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_88.webp"
   },
   {
-    "id": 85,
+    "id": "85",
     "sku": "درا-4956",
     "barcode": "62686497511569",
     "name": "پیکاپ اسمارتیزی شانتیا",
@@ -176,7 +176,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_85.webp",
     "description": "کارتن 40 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 25000,
     "bulk_price": 25000,
     "consumer_price": 50000,
@@ -186,7 +186,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_85.webp"
   },
   {
-    "id": 79,
+    "id": "79",
     "sku": "درا-9095",
     "barcode": "62620496563900",
     "name": "متور اسمارتیزی شانتیا ",
@@ -207,7 +207,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_79.webp",
     "description": "بسته بندی 4 بانکه 30 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 35000,
@@ -217,7 +217,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_79.webp"
   },
   {
-    "id": 83,
+    "id": "83",
     "sku": "درا-6329",
     "barcode": "62642497317717",
     "name": "ساعت اسمارتیزی شانتیا ",
@@ -238,7 +238,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_83.webp",
     "description": "داخل کارتن :  8 بانکه 40 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 12000,
     "bulk_price": 12000,
     "consumer_price": 25000,
@@ -248,7 +248,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_83.webp"
   },
   {
-    "id": 87,
+    "id": "87",
     "sku": "درا-3921",
     "barcode": "62693497675960",
     "name": "تانک اسمارتیزی شانتیا",
@@ -269,7 +269,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_87.webp",
     "description": "کارتن 32 عددی",
     "status": "فعال",
-    "brand": "قفسه ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 100000,
@@ -279,7 +279,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_87.webp"
   },
   {
-    "id": 91,
+    "id": "91",
     "sku": "درا-6654",
     "barcode": "62613498336110",
     "name": "مینی ماینر اسمارتیزی شانتیا",
@@ -300,7 +300,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_91.webp",
     "description": "هر کارتن : 32 عدد",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 100000,
@@ -310,7 +310,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_91.webp"
   },
   {
-    "id": 82,
+    "id": "82",
     "sku": "درا-8767",
     "barcode": "62615497221091",
     "name": "رالی اسمارتیزی شانتیا ",
@@ -331,7 +331,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_82.webp",
     "description": "داخل کارتن : 4 بانکه 27 عددی ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 35000,
@@ -341,7 +341,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_82.webp"
   },
   {
-    "id": 90,
+    "id": "90",
     "sku": "درا-4874",
     "barcode": "62684498269718",
     "name": "لبوبو اسمارتیزی شانتیا",
@@ -362,7 +362,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_90.webp",
     "description": "هر کارتن : 8 بسته 18 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 20000,
     "bulk_price": 20000,
     "consumer_price": 50000,
@@ -372,7 +372,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_90.webp"
   },
   {
-    "id": 163,
+    "id": "163",
     "sku": "آب‌-4049",
     "barcode": "62664186826226",
     "name": "آدامس استیک ترکیه ای",
@@ -393,7 +393,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_163.webp",
     "description": "هر کارتن 12 بسته 24 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 22500,
     "bulk_price": 22500,
     "consumer_price": 80000,
@@ -403,7 +403,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_163.webp"
   },
   {
-    "id": 151,
+    "id": "151",
     "sku": "آلو-1696",
     "barcode": "62697076643318",
     "name": "لواشک نوشابه ای ",
@@ -424,7 +424,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_151.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 6500,
     "bulk_price": 6500,
     "consumer_price": 15000,
@@ -434,7 +434,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_151.webp"
   },
   {
-    "id": 108,
+    "id": "108",
     "sku": "شکل-9018",
     "barcode": "62645891994930",
     "name": "آب‌نبات کپل کوچک توت فرنگی ",
@@ -455,7 +455,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_108.webp",
     "description": "هر کارتن 4 بانکه 200 عددی  وزن 12 گرم ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 10000,
@@ -465,7 +465,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_108.webp"
   },
   {
-    "id": 124,
+    "id": "124",
     "sku": "آلو-6461",
     "barcode": "62654073116322",
     "name": "لواشک پذیرایی رزین ",
@@ -486,7 +486,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_124.webp",
     "description": "هر کارتن 10 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 330000,
     "bulk_price": 330000,
     "consumer_price": 650000,
@@ -496,7 +496,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_124.webp"
   },
   {
-    "id": 126,
+    "id": "126",
     "sku": "آلو-6317",
     "barcode": "62671073381854",
     "name": "استیکی استریپ",
@@ -517,7 +517,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_126.webp",
     "description": "هرکارتن 6 جعبه 36 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 30000,
@@ -527,7 +527,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_126.webp"
   },
   {
-    "id": 122,
+    "id": "122",
     "sku": "آلو-3455",
     "barcode": "62658905561045",
     "name": "لواشک شلاقی",
@@ -548,7 +548,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_122.webp",
     "description": "هر کارتن 200 بسته 40 عددی وزن 40 گرم",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 7000,
     "bulk_price": 7000,
     "consumer_price": 30000,
@@ -558,7 +558,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_122.webp"
   },
   {
-    "id": 127,
+    "id": "127",
     "sku": "آلو-9656",
     "barcode": "62652073468201",
     "name": "استیکی طرح رانی ",
@@ -579,7 +579,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_127.webp",
     "description": "هر کارتن 6 جعبه 30 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 17500,
     "bulk_price": 17500,
     "consumer_price": 35000,
@@ -589,7 +589,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_127.webp"
   },
   {
-    "id": 138,
+    "id": "138",
     "sku": "آلو-3037",
     "barcode": "62657074979550",
     "name": "لواشک استیکی شفاف ",
@@ -610,7 +610,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_138.webp",
     "description": "هر کارتن 6 جعبه 36 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 14500,
     "bulk_price": 14500,
     "consumer_price": 30000,
@@ -620,7 +620,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_138.webp"
   },
   {
-    "id": 153,
+    "id": "153",
     "sku": "آلو-5130",
     "barcode": "62610098411723",
     "name": "لواشک استیکی خرسی",
@@ -641,7 +641,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_153.webp",
     "description": "هر کارتن 6 بسته 36 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 17500,
     "bulk_price": 17500,
     "consumer_price": 35000,
@@ -651,7 +651,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_153.webp"
   },
   {
-    "id": 152,
+    "id": "152",
     "sku": "آلو-4832",
     "barcode": "62630098017414",
     "name": "لواشک پذیرایی طرح رانی",
@@ -672,7 +672,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_152.webp",
     "description": "هر کارتن 10 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 330000,
     "bulk_price": 330000,
     "consumer_price": 650000,
@@ -682,7 +682,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_152.webp"
   },
   {
-    "id": 136,
+    "id": "136",
     "sku": "آلو-9913",
     "barcode": "62610074761938",
     "name": "پذیرایی شفاف میعاد",
@@ -703,7 +703,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_136.webp",
     "description": "هر کارتن 10 بسته 1 کیلویی ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 280000,
     "bulk_price": 280000,
     "consumer_price": 480000,
@@ -713,7 +713,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_136.webp"
   },
   {
-    "id": 81,
+    "id": "81",
     "sku": "درا-4254",
     "barcode": "62677497095721",
     "name": "مکوئین اسمارتیزی شانتیا ",
@@ -734,7 +734,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_81.webp",
     "description": "داخل کارتن 4 بانکه 20 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول",
+    "brand": "",
     "price": 20000,
     "bulk_price": 20000,
     "consumer_price": 50000,
@@ -744,7 +744,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_81.webp"
   },
   {
-    "id": 92,
+    "id": "92",
     "sku": "درا-8850",
     "barcode": "62689499123462",
     "name": "بستنی سوتی اسمارتیزی شانتیا",
@@ -765,7 +765,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_92.webp",
     "description": "هر کارتن : 8 بانکه 20 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 35000,
@@ -775,7 +775,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_92.webp"
   },
   {
-    "id": 148,
+    "id": "148",
     "sku": "آلو-2313",
     "barcode": "62634076306238",
     "name": "لواشک پذیرایی خمیری ",
@@ -796,7 +796,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_148.webp",
     "description": "هر کارتن 10 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 200000,
     "bulk_price": 200000,
     "consumer_price": 350000,
@@ -806,7 +806,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_148.webp"
   },
   {
-    "id": 112,
+    "id": "112",
     "sku": "SKU-1782892977738",
     "barcode": "62683892977738",
     "name": "آبنبات کپل 12 گرم کولا",
@@ -827,7 +827,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977738.webp",
     "description": "4 بانکه 200 عددی",
     "status": "فعال",
-    "brand": "تولیدکننده",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 10000,
@@ -837,7 +837,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977738.webp"
   },
   {
-    "id": 183,
+    "id": "183",
     "sku": "بيس-1733",
     "barcode": "62631688837826",
     "name": "ویفر فانتزی کاکائویی 40 گرم ",
@@ -858,7 +858,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_183.webp",
     "description": "هرکارتن 24 عدد",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 20000,
     "bulk_price": 20000,
     "consumer_price": 35000,
@@ -868,7 +868,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_183.webp"
   },
   {
-    "id": 89,
+    "id": "89",
     "sku": "درا-2682",
     "barcode": "62675498018988",
     "name": "یویو اسمارتیزی شانتیا",
@@ -889,7 +889,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_89.webp",
     "description": "هر کارتن : 4 بانکه 40 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 18000,
     "bulk_price": 18000,
     "consumer_price": 35000,
@@ -899,7 +899,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_89.webp"
   },
   {
-    "id": 80,
+    "id": "80",
     "sku": "درا-6009",
     "barcode": "62613496858181",
     "name": "فرفره اسمارتیزی شانتیا",
@@ -920,7 +920,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_80.webp",
     "description": "داخل کارتن 4 بانکه 40 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول",
+    "brand": "",
     "price": 12000,
     "bulk_price": 12000,
     "consumer_price": 35000,
@@ -930,7 +930,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_80.webp"
   },
   {
-    "id": 86,
+    "id": "86",
     "sku": "درا-6571",
     "barcode": "62694497603749",
     "name": "بسکتبال اسمارتیزی شانتیا",
@@ -951,7 +951,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_86.webp",
     "description": "داخل کارتن : 4 بانکه 16 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 20000,
     "bulk_price": 20000,
     "consumer_price": 50000,
@@ -961,7 +961,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_86.webp"
   },
   {
-    "id": 197,
+    "id": "197",
     "sku": "محص-7080",
     "barcode": "62627049569787",
     "name": "شکلات و ویفر خارجی ترکیه ",
@@ -982,7 +982,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_197.webp",
     "description": "برند : دبی لارک، دبی پلسون، ماردان، گوچی و... ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 100000,
@@ -992,7 +992,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_197.webp"
   },
   {
-    "id": 196,
+    "id": "196",
     "sku": "آلو-4341",
     "barcode": "62655045039249",
     "name": "لواشک پذیرایی شاهپسند",
@@ -1013,7 +1013,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_196.webp",
     "description": "هر کارتن 10 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 300000,
     "bulk_price": 300000,
     "consumer_price": 480000,
@@ -1023,7 +1023,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_196.webp"
   },
   {
-    "id": 123,
+    "id": "123",
     "sku": "آلو-3533",
     "barcode": "62687905782373",
     "name": "آلوچه آویزی مادر بزرگ",
@@ -1044,7 +1044,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_123.webp",
     "description": "هر کارتن : 8 آویز 10 عددی ",
     "status": "فعال",
-    "brand": "انبار بابایی",
+    "brand": "",
     "price": 35000,
     "bulk_price": 35000,
     "consumer_price": 90000,
@@ -1054,7 +1054,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_123.webp"
   },
   {
-    "id": 125,
+    "id": "125",
     "sku": "آلو-4703",
     "barcode": "62653073283660",
     "name": "لواشک پذیرایی مد فوریو",
@@ -1075,7 +1075,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_125.webp",
     "description": "هر کارتن 10 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 320000,
     "bulk_price": 320000,
     "consumer_price": 650000,
@@ -1085,7 +1085,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_125.webp"
   },
   {
-    "id": 113,
+    "id": "113",
     "sku": "SKU-1782892977738",
     "barcode": "62620892977738",
     "name": "آبنبات کپل 12 گرم انرژی زا",
@@ -1106,7 +1106,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977738.webp",
     "description": "4 بانکه 200 عددی",
     "status": "فعال",
-    "brand": "تولیدکننده",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 4500,
@@ -1116,7 +1116,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977738.webp"
   },
   {
-    "id": 188,
+    "id": "188",
     "sku": "کیک-4052",
     "barcode": "62618847916622",
     "name": "کیک وانیلی با روکش کاکائویی ",
@@ -1137,7 +1137,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_188.webp",
     "description": "هر کارتن 24 عدد",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 60000,
@@ -1147,7 +1147,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_188.webp"
   },
   {
-    "id": 191,
+    "id": "191",
     "sku": "محص-6475",
     "barcode": "62638041403953",
     "name": "شکلات دبی لارک  ترکیه ",
@@ -1168,7 +1168,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_191.webp",
     "description": "هر کارتن 24 عدد",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 95000,
@@ -1178,7 +1178,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_191.webp"
   },
   {
-    "id": 194,
+    "id": "194",
     "sku": "آلو-2141",
     "barcode": "62628494938390",
     "name": "لواشک استیکی اوی رز 2  50 گرم ",
@@ -1199,7 +1199,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_194.webp",
     "description": "هر کارتن 6 جعبه 35 عددی ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 17500,
     "bulk_price": 17500,
     "consumer_price": 40000,
@@ -1209,7 +1209,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_194.webp"
   },
   {
-    "id": 193,
+    "id": "193",
     "sku": "آلو-8438",
     "barcode": "62650494789148",
     "name": "لواشک استیکی ناربلا  50 گرم ",
@@ -1230,7 +1230,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_193.webp",
     "description": "هر کارتن 6 بسته 35 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 17500,
     "bulk_price": 17500,
     "consumer_price": 40000,
@@ -1240,7 +1240,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_193.webp"
   },
   {
-    "id": 146,
+    "id": "146",
     "sku": "آلو-7595",
     "barcode": "62681076084630",
     "name": "لواشک سسی",
@@ -1261,7 +1261,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_146.webp",
     "description": "هر کارتن 30 بسته 20 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 3500,
     "bulk_price": 3500,
     "consumer_price": 10000,
@@ -1271,7 +1271,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_146.webp"
   },
   {
-    "id": 161,
+    "id": "161",
     "sku": "شکل-6882",
     "barcode": "62696164913220",
     "name": "آب‌نبات قلبی 8 گرم",
@@ -1292,7 +1292,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_161.webp",
     "description": "هر کارتن 8 بانکه 50 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 4000,
     "bulk_price": 4000,
     "consumer_price": 10000,
@@ -1302,7 +1302,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_161.webp"
   },
   {
-    "id": 109,
+    "id": "109",
     "sku": "شکل-9071",
     "barcode": "62666892145668",
     "name": "آب‌نبات کپل مکیس کوچک",
@@ -1323,7 +1323,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_109.webp",
     "description": "هر کارتن 4 بانکه 200 عددی ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 10000,
@@ -1333,7 +1333,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_109.webp"
   },
   {
-    "id": 120,
+    "id": "120",
     "sku": "SKU-1782895117163",
     "barcode": "62699895117163",
     "name": "آب‌نبات پستونکی",
@@ -1354,7 +1354,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782895117163.webp",
     "description": "6 بانکه 100 عددی",
     "status": "فعال",
-    "brand": "تولیدکننده",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -1364,7 +1364,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782895117163.webp"
   },
   {
-    "id": 154,
+    "id": "154",
     "sku": "کیک-1506",
     "barcode": "62667111359302",
     "name": "کیک دوقلوی دورنگ",
@@ -1385,7 +1385,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_154.webp",
     "description": "هر کارتن 36 عدد کیک 40 گرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 15000,
     "bulk_price": 15000,
     "consumer_price": 30000,
@@ -1395,7 +1395,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_154.webp"
   },
   {
-    "id": 147,
+    "id": "147",
     "sku": "آلو-5421",
     "barcode": "62694076217984",
     "name": "لواشک یخمکی",
@@ -1416,7 +1416,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_147.webp",
     "description": "هر کارتن : 16 بسته 30عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -1426,7 +1426,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_147.webp"
   },
   {
-    "id": 185,
+    "id": "185",
     "sku": "بيس-9137",
     "barcode": "62671698490630",
     "name": "ویفر  کاکائویی طرح اسنیکرز ",
@@ -1447,7 +1447,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_185.webp",
     "description": "هر کارتن 4 جعبه 24 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 25000,
     "bulk_price": 25000,
     "consumer_price": 40000,
@@ -1457,7 +1457,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_185.webp"
   },
   {
-    "id": 158,
+    "id": "158",
     "sku": "کیک-6515",
     "barcode": "62681113718315",
     "name": "کیک صبحانه ۸۰گرمی متالایز ",
@@ -1478,7 +1478,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_158.webp",
     "description": "هر کارتن 24 عدد کیک 80 گرم (طعم جور) ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 25000,
     "bulk_price": 25000,
     "consumer_price": 50000,
@@ -1488,7 +1488,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_158.webp"
   },
   {
-    "id": 184,
+    "id": "184",
     "sku": "بيس-7974",
     "barcode": "62611688973782",
     "name": "ویفر 70 گرم بریک تایم ",
@@ -1509,7 +1509,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_184.webp",
     "description": "هر کارتن 24 عدد طعن ها : پرتقال، توت فرنگی، موز",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 50000,
@@ -1519,7 +1519,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_184.webp"
   },
   {
-    "id": 181,
+    "id": "181",
     "sku": "آب‌-7031",
     "barcode": "62669681582832",
     "name": "آب‌نبات کپل 12 گرم میکس",
@@ -1540,7 +1540,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_181.webp",
     "description": "هر کارتن 4 بانکه 200 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 15000,
@@ -1550,7 +1550,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_181.webp"
   },
   {
-    "id": 159,
+    "id": "159",
     "sku": "آلو-7060",
     "barcode": "62691115336249",
     "name": "تمر میوه ای ",
@@ -1571,7 +1571,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_159.webp",
     "description": "هر کارتن 10 بسته 16 عددی ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 6500,
     "bulk_price": 6500,
     "consumer_price": 15000,
@@ -1581,7 +1581,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_159.webp"
   },
   {
-    "id": 195,
+    "id": "195",
     "sku": "آلو-8363",
     "barcode": "62670557693054",
     "name": "لواشک بستنی شکری",
@@ -1602,7 +1602,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_195.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 3500,
     "bulk_price": 3500,
     "consumer_price": 10000,
@@ -1612,7 +1612,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_195.webp"
   },
   {
-    "id": 192,
+    "id": "192",
     "sku": "محص-1594",
     "barcode": "62676041472071",
     "name": "شکلات دبی چاکلت پولسون ترکیه ",
@@ -1633,7 +1633,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_192.webp",
     "description": "هر کارتن 24 عدد",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 120000,
@@ -1643,7 +1643,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_192.webp"
   },
   {
-    "id": 144,
+    "id": "144",
     "sku": "آلو-4772",
     "barcode": "62696075810553",
     "name": "آبمیوه  سیب  امیر 300 میلی ",
@@ -1664,7 +1664,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_144.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -1674,7 +1674,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_144.webp"
   },
   {
-    "id": 143,
+    "id": "143",
     "sku": "آلو-7278",
     "barcode": "62674075757616",
     "name": "آبمیوه  پرتقال  امیر 300 میلی ",
@@ -1695,7 +1695,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_143.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -1705,7 +1705,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_143.webp"
   },
   {
-    "id": 142,
+    "id": "142",
     "sku": "آلو-2976",
     "barcode": "62622075680312",
     "name": "آبمیوه  انبه  امیر 300 میلی ",
@@ -1726,7 +1726,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_142.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -1736,7 +1736,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_142.webp"
   },
   {
-    "id": 140,
+    "id": "140",
     "sku": "آلو-5566",
     "barcode": "62684075443937",
     "name": "آبمیوه  انار  امیر 300 میلی ",
@@ -1757,7 +1757,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_140.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -1767,7 +1767,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_140.webp"
   },
   {
-    "id": 139,
+    "id": "139",
     "sku": "آلو-7700",
     "barcode": "62636075240260",
     "name": "آبمیوه  آناناس امیر 300 میلی ",
@@ -1788,7 +1788,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_139.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -1798,7 +1798,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_139.webp"
   },
   {
-    "id": 189,
+    "id": "189",
     "sku": "شکل-9209",
     "barcode": "62640875904840",
     "name": "دراژه اسمارتیزی تانکر",
@@ -1819,7 +1819,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_189.webp",
     "description": "هر کارتن 4 بانکه 20 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 22000,
     "bulk_price": 22000,
     "consumer_price": 50000,
@@ -1829,7 +1829,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_189.webp"
   },
   {
-    "id": 121,
+    "id": "121",
     "sku": "درا-9974",
     "barcode": "62674901767891",
     "name": "آلوچه آویزی 50 گرم جنگلی",
@@ -1850,7 +1850,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_121.webp",
     "description": "هر کارتن 16 استند 12 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول",
+    "brand": "",
     "price": 20000,
     "bulk_price": 20000,
     "consumer_price": 45000,
@@ -1860,7 +1860,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_121.webp"
   },
   {
-    "id": 117,
+    "id": "117",
     "sku": "SKU-1782892977740",
     "barcode": "62678892977740",
     "name": "آبنبات کپل 22 گرم کولا",
@@ -1881,7 +1881,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977740.webp",
     "description": "4 بانکه  100 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -1891,7 +1891,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977740.webp"
   },
   {
-    "id": 134,
+    "id": "134",
     "sku": "آلو-2092",
     "barcode": "62623074424766",
     "name": "لواشک سیخی",
@@ -1912,7 +1912,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_134.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 12000,
     "bulk_price": 12000,
     "consumer_price": 30000,
@@ -1922,7 +1922,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_134.webp"
   },
   {
-    "id": 187,
+    "id": "187",
     "sku": "آلو-8436",
     "barcode": "62651837542284",
     "name": "لواشک پستونکی ",
@@ -1943,7 +1943,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_187.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 3500,
     "bulk_price": 3500,
     "consumer_price": 10000,
@@ -1953,7 +1953,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_187.webp"
   },
   {
-    "id": 115,
+    "id": "115",
     "sku": "SKU-1782892977739",
     "barcode": "62618892977739",
     "name": "آبنبات کپل 22 گرم فانتا",
@@ -1974,7 +1974,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977739.webp",
     "description": "4 بانکه 100 عددی",
     "status": "فعال",
-    "brand": "تولیدکننده",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -1984,7 +1984,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977739.webp"
   },
   {
-    "id": 119,
+    "id": "119",
     "sku": "SKU-1782892977740",
     "barcode": "62678892977740",
     "name": "آبنبات کپل 22 گرم توت فرنگی",
@@ -2005,7 +2005,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977740.webp",
     "description": "4 بانکه 100 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -2015,7 +2015,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977740.webp"
   },
   {
-    "id": 116,
+    "id": "116",
     "sku": "SKU-1782892977739",
     "barcode": "62618892977739",
     "name": "آبنبات کپل 22 گرم اسپرایت",
@@ -2036,7 +2036,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977739.webp",
     "description": "4 بانکه  100 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -2046,7 +2046,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977739.webp"
   },
   {
-    "id": 110,
+    "id": "110",
     "sku": "SKU-1782892977736",
     "barcode": "62612892977736",
     "name": "آبنبات کپل 12 گرم فانتا",
@@ -2067,7 +2067,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977736.webp",
     "description": "4 بانکه 200 عددی",
     "status": "فعال",
-    "brand": "تولیدکننده",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 10000,
@@ -2077,7 +2077,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977736.webp"
   },
   {
-    "id": 180,
+    "id": "180",
     "sku": "آب‌-8070",
     "barcode": "62637681361520",
     "name": "آب‌نبات کپل 12 گرم فوتبالی",
@@ -2098,7 +2098,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_180.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 15000,
@@ -2108,7 +2108,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_180.webp"
   },
   {
-    "id": 182,
+    "id": "182",
     "sku": "آب‌-4190",
     "barcode": "62616682303931",
     "name": "آب‌نبات کپل انرژی زا 22 گرم ",
@@ -2129,7 +2129,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_182.webp",
     "description": "هر کارتن 4 بانکه 200 عددی ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 7500,
     "bulk_price": 7500,
     "consumer_price": 20000,
@@ -2139,7 +2139,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_182.webp"
   },
   {
-    "id": 130,
+    "id": "130",
     "sku": "آلو-9539",
     "barcode": "62630073879124",
     "name": "لواشک استیکی دادینار",
@@ -2160,7 +2160,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_130.webp",
     "description": "هر کارتن 6 بسته 36 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 16000,
     "bulk_price": 16000,
     "consumer_price": 35000,
@@ -2170,7 +2170,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_130.webp"
   },
   {
-    "id": 179,
+    "id": "179",
     "sku": "شکل-9823",
     "barcode": "62686234320510",
     "name": "کرم کاکائو آمپولی",
@@ -2191,7 +2191,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_179.webp",
     "description": "هر کارتن 6 جعبه 24 عددی وزن 30 گرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 33000,
     "bulk_price": 33000,
     "consumer_price": 50000,
@@ -2201,7 +2201,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_179.webp"
   },
   {
-    "id": 178,
+    "id": "178",
     "sku": "شکل-4755",
     "barcode": "62638234163973",
     "name": "شکلات تبلتی قالبی 1 کیلویی",
@@ -2222,7 +2222,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_178.webp",
     "description": "موجود در وزن های 1 و 2 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 750000,
     "bulk_price": 750000,
     "consumer_price": 950000,
@@ -2232,7 +2232,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_178.webp"
   },
   {
-    "id": 177,
+    "id": "177",
     "sku": "شکل-1183",
     "barcode": "62656233956989",
     "name": "شوکو استیک ",
@@ -2253,7 +2253,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_177.webp",
     "description": "هر کارتن 30 عدد وزن 30 گرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 50000,
@@ -2263,7 +2263,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_177.webp"
   },
   {
-    "id": 176,
+    "id": "176",
     "sku": "شکل-5147",
     "barcode": "62614233642676",
     "name": "کرم کاکائو تیوبی 30 گرم",
@@ -2284,7 +2284,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_176.webp",
     "description": "هر کارتن 8 جعبه 24 عددی  30 گرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 50000,
@@ -2294,7 +2294,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_176.webp"
   },
   {
-    "id": 174,
+    "id": "174",
     "sku": "نوش-7697",
     "barcode": "62672233257011",
     "name": "کافی میکس بالمیتو",
@@ -2315,7 +2315,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_174.webp",
     "description": "هر کارتن 12 بسته 24 عددی وزن 18 گرم",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 50000,
@@ -2325,7 +2325,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_174.webp"
   },
   {
-    "id": 175,
+    "id": "175",
     "sku": "بيس-5855",
     "barcode": "62650233441525",
     "name": "بیسکو شکلاتی",
@@ -2346,7 +2346,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_175.webp",
     "description": "هر کارتن 24 عدد وزن 50 گرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 38000,
     "bulk_price": 38000,
     "consumer_price": 60000,
@@ -2356,7 +2356,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_175.webp"
   },
   {
-    "id": 173,
+    "id": "173",
     "sku": "شکل-2587",
     "barcode": "62683231211585",
     "name": "شکلات تبلت 40 گرم ",
@@ -2377,7 +2377,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_173.webp",
     "description": "هر کارتن 6 بسته 12 عددی ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 55000,
     "bulk_price": 55000,
     "consumer_price": 85000,
@@ -2387,7 +2387,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_173.webp"
   },
   {
-    "id": 172,
+    "id": "172",
     "sku": "بيس-7849",
     "barcode": "62631230990249",
     "name": "ویفر روکش دار کاکائویی 40 گرم",
@@ -2408,7 +2408,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_172.webp",
     "description": "هر کارتن 4 جعبه 24 عددس",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 50000,
@@ -2418,7 +2418,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_172.webp"
   },
   {
-    "id": 171,
+    "id": "171",
     "sku": "آب‌-9415",
     "barcode": "62692230654112",
     "name": "ویفر کرم دار میوه ای ",
@@ -2439,7 +2439,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_171.webp",
     "description": "هر کارتن 4 جعبه 24 عددی ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 20000,
     "bulk_price": 20000,
     "consumer_price": 30000,
@@ -2449,7 +2449,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_171.webp"
   },
   {
-    "id": 170,
+    "id": "170",
     "sku": "شکل-5113",
     "barcode": "62692230514511",
     "name": "شکلات  تبلتی 3 گرم ",
@@ -2470,7 +2470,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_170.webp",
     "description": "هر کارتن 5 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 780000,
     "bulk_price": 780000,
     "consumer_price": 1250000,
@@ -2480,7 +2480,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_170.webp"
   },
   {
-    "id": 169,
+    "id": "169",
     "sku": "شکل-5717",
     "barcode": "62619230327937",
     "name": "شکلات قالبی فله ای",
@@ -2501,7 +2501,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_169.webp",
     "description": "هر کارتن 4 جعبه 2 کیلوگرم",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 800000,
     "bulk_price": 800000,
     "consumer_price": 1200000,
@@ -2511,7 +2511,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_169.webp"
   },
   {
-    "id": 168,
+    "id": "168",
     "sku": "شکل-8225",
     "barcode": "62642229784812",
     "name": "اسمارتیز لوله ای",
@@ -2532,7 +2532,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_168.webp",
     "description": "هر کارتن 12 جعبه 24 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 32000,
     "bulk_price": 32000,
     "consumer_price": 50000,
@@ -2542,7 +2542,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_168.webp"
   },
   {
-    "id": 167,
+    "id": "167",
     "sku": "شکل-4283",
     "barcode": "62683229431054",
     "name": "دراژه پاکتی   ",
@@ -2563,7 +2563,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_167.webp",
     "description": "هر کارتن 24 بسته 50 گرمی با مدل های : (شکلاتی، بلدرچينی، سنگی)",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 38000,
     "bulk_price": 38000,
     "consumer_price": 60000,
@@ -2573,7 +2573,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_167.webp"
   },
   {
-    "id": 164,
+    "id": "164",
     "sku": "آب‌-4624",
     "barcode": "62683227521798",
     "name": "شکر پنیر پاکتی ",
@@ -2594,7 +2594,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_164.webp",
     "description": "هر کارتن 12 بسته 250 گرمی  (نعناع، گل محمدی) ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 75000,
     "bulk_price": 75000,
     "consumer_price": 120000,
@@ -2604,7 +2604,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_164.webp"
   },
   {
-    "id": 166,
+    "id": "166",
     "sku": "شکر-2044",
     "barcode": "62648228642317",
     "name": "قرص نعنا لیوانی ",
@@ -2625,7 +2625,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_166.webp",
     "description": "هر کارتن 12 بسته 150 گرمی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 95000,
     "bulk_price": 95000,
     "consumer_price": 150000,
@@ -2635,7 +2635,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_166.webp"
   },
   {
-    "id": 165,
+    "id": "165",
     "sku": "شکر-9817",
     "barcode": "62625228066557",
     "name": "شکر پنیر ظرفی ",
@@ -2656,7 +2656,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_165.webp",
     "description": "هر کارتن 12 بسته 350 گرمی طعم ها :دارچین، گل محمدی، زنجبیل، نعنا، هل، نازگل ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 125000,
     "bulk_price": 125000,
     "consumer_price": 200000,
@@ -2666,7 +2666,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_165.webp"
   },
   {
-    "id": 141,
+    "id": "141",
     "sku": "آلو-3801",
     "barcode": "62632075608742",
     "name": "آبمیوه  هلو  امیر 300 میلی ",
@@ -2687,7 +2687,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_141.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -2697,7 +2697,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_141.webp"
   },
   {
-    "id": 145,
+    "id": "145",
     "sku": "آلو-5214",
     "barcode": "62663075870556",
     "name": "آبمیوه  آلبالو  امیر 300 میلی ",
@@ -2718,7 +2718,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_145.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 30000,
     "bulk_price": 30000,
     "consumer_price": 55000,
@@ -2728,7 +2728,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_145.webp"
   },
   {
-    "id": 162,
+    "id": "162",
     "sku": "آلو-7816",
     "barcode": "62635164989590",
     "name": "نوشمک جعبه ای  X6",
@@ -2749,7 +2749,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_162.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 45000,
     "bulk_price": 45000,
     "consumer_price": 65000,
@@ -2759,7 +2759,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_162.webp"
   },
   {
-    "id": 160,
+    "id": "160",
     "sku": "کیک-4318",
     "barcode": "62695164226802",
     "name": "دانمارکی گل محمدی",
@@ -2780,7 +2780,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_160.webp",
     "description": "کارتن 24 عددی",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 35000,
     "bulk_price": 35000,
     "consumer_price": 55000,
@@ -2790,7 +2790,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_160.webp"
   },
   {
-    "id": 157,
+    "id": "157",
     "sku": "کیک-8038",
     "barcode": "62694113228230",
     "name": "کیک دوقلوی ۸۰گرمی شفاف",
@@ -2811,7 +2811,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_157.webp",
     "description": "هر کارتن 24 عدد کیک 80 گرم  (طعم جور و انتخابی) ",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 25000,
     "bulk_price": 25000,
     "consumer_price": 50000,
@@ -2821,7 +2821,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_157.webp"
   },
   {
-    "id": 156,
+    "id": "156",
     "sku": "کیک-5802",
     "barcode": "62678111951024",
     "name": "کیک توپی ۴۰گرمی دو رنگ",
@@ -2842,7 +2842,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_156.webp",
     "description": "هر کارتن 36 عدد کیک 40 گرم دو رنگ 40 گرم",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 13500,
     "bulk_price": 13500,
     "consumer_price": 25000,
@@ -2852,7 +2852,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_156.webp"
   },
   {
-    "id": 155,
+    "id": "155",
     "sku": "کیک-5822",
     "barcode": "62612111878541",
     "name": "کیک توپی ۴۰گرمی متالایز",
@@ -2873,7 +2873,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_155.webp",
     "description": "هر کارتن 36 عدد کیک 40 گرم",
     "status": "فعال",
-    "brand": "انبار مرکزی",
+    "brand": "",
     "price": 13300,
     "bulk_price": 13300,
     "consumer_price": 25000,
@@ -2883,7 +2883,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_155.webp"
   },
   {
-    "id": 150,
+    "id": "150",
     "sku": "آلو-4463",
     "barcode": "62688076495174",
     "name": "لواشک شلاقی بزرگ",
@@ -2904,7 +2904,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_150.webp",
     "description": "هر کارتن 100 بسته 60 گرمی ",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 12000,
     "bulk_price": 12000,
     "consumer_price": 40000,
@@ -2914,7 +2914,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_150.webp"
   },
   {
-    "id": 149,
+    "id": "149",
     "sku": "آلو-5434",
     "barcode": "62637076398131",
     "name": "لواشک نوشمکی",
@@ -2935,7 +2935,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_149.webp",
     "description": "هر کارتن 12 بسته 18 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 12000,
     "bulk_price": 12000,
     "consumer_price": 30000,
@@ -2945,7 +2945,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_149.webp"
   },
   {
-    "id": 137,
+    "id": "137",
     "sku": "آلو-3871",
     "barcode": "62622074906127",
     "name": "لواشک استیکی میعاد",
@@ -2966,7 +2966,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_137.webp",
     "description": "هر کارتن 6 جعبه 36 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول ",
+    "brand": "",
     "price": 15500,
     "bulk_price": 15500,
     "consumer_price": 30000,
@@ -2976,7 +2976,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_137.webp"
   },
   {
-    "id": 135,
+    "id": "135",
     "sku": "آلو-2773",
     "barcode": "62614074492993",
     "name": "لواشک آبنباتی ",
@@ -2997,7 +2997,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_135.webp",
     "description": "",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 5500,
     "bulk_price": 5500,
     "consumer_price": 20000,
@@ -3007,7 +3007,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_135.webp"
   },
   {
-    "id": 133,
+    "id": "133",
     "sku": "آلو-3238",
     "barcode": "62676074338230",
     "name": "لواشک فامیلی دادینار",
@@ -3028,7 +3028,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_133.webp",
     "description": "کارتن 70 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 25000,
     "bulk_price": 25000,
     "consumer_price": 45000,
@@ -3038,7 +3038,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_133.webp"
   },
   {
-    "id": 132,
+    "id": "132",
     "sku": "آلو-1863",
     "barcode": "62639074168050",
     "name": "لواشک رولی",
@@ -3059,7 +3059,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_132.webp",
     "description": "هر کارتن 12 بسته 18 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 25000,
     "bulk_price": 25000,
     "consumer_price": 50000,
@@ -3069,7 +3069,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_132.webp"
   },
   {
-    "id": 131,
+    "id": "131",
     "sku": "آلو-3417",
     "barcode": "62657074047573",
     "name": "لواشک پذیرایی دادینار",
@@ -3090,7 +3090,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_131.webp",
     "description": "هر کارتن 10 بسته 1 کیلوگرم ",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 320000,
     "bulk_price": 320000,
     "consumer_price": 650000,
@@ -3100,7 +3100,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_131.webp"
   },
   {
-    "id": 129,
+    "id": "129",
     "sku": "آلو-3111",
     "barcode": "62645073732147",
     "name": "لواشک سفره ای ",
@@ -3121,7 +3121,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_129.webp",
     "description": "هر کارتن 10 ورق 1 کیلویی ",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 280000,
     "bulk_price": 280000,
     "consumer_price": 450000,
@@ -3131,7 +3131,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_129.webp"
   },
   {
-    "id": 128,
+    "id": "128",
     "sku": "آلو-2718",
     "barcode": "62694073581877",
     "name": "لواشک گرد سنتی",
@@ -3152,7 +3152,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_128.webp",
     "description": "کارتن 50 عددی",
     "status": "فعال",
-    "brand": "انبار دست اول  ",
+    "brand": "",
     "price": 45000,
     "bulk_price": 45000,
     "consumer_price": 85000,
@@ -3162,7 +3162,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_128.webp"
   },
   {
-    "id": 111,
+    "id": "111",
     "sku": "SKU-1782892977737",
     "barcode": "62617892977738",
     "name": "آبنبات کپل 12 گرم اسپرایت",
@@ -3183,7 +3183,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977737.webp",
     "description": "4 بانکه 200 عددی",
     "status": "فعال",
-    "brand": "تولیدکننده",
+    "brand": "",
     "price": 4500,
     "bulk_price": 4500,
     "consumer_price": 10000,
@@ -3193,7 +3193,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fsku-1782892977737.webp"
   },
   {
-    "id": 102,
+    "id": "102",
     "sku": "درا-4457",
     "barcode": "62676640581382",
     "name": "نوشیدنی سیرما",
@@ -3214,7 +3214,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_102.webp",
     "description": "هر باکس 4:شیرینگ 6 عددی",
     "status": "فعال",
-    "brand": "قفسه ",
+    "brand": "",
     "price": 48000,
     "bulk_price": 48000,
     "consumer_price": 48000,
@@ -3224,7 +3224,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_102.webp"
   },
   {
-    "id": 104,
+    "id": "104",
     "sku": "محص-6262",
     "barcode": "62670644266019",
     "name": "شکلات مارس ",
@@ -3245,7 +3245,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_104.webp",
     "description": "8 جعبه 36 عددی ",
     "status": "فعال",
-    "brand": "قفسه ",
+    "brand": "",
     "price": 110000,
     "bulk_price": 110000,
     "consumer_price": 110000,
@@ -3255,7 +3255,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_104.webp"
   },
   {
-    "id": 105,
+    "id": "105",
     "sku": "محص-3210",
     "barcode": "62619644316965",
     "name": "روغن سونار",
@@ -3276,7 +3276,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_105.webp",
     "description": "هر شیرینگ 4 عدد",
     "status": "فعال",
-    "brand": "بازرگانی جلفا ",
+    "brand": "",
     "price": 2200000,
     "bulk_price": 2200000,
     "consumer_price": 2200000,
@@ -3286,7 +3286,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_105.webp"
   },
   {
-    "id": 103,
+    "id": "103",
     "sku": "محص-9620",
     "barcode": "62670644201235",
     "name": "اسنیکرز",
@@ -3307,7 +3307,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_103.webp",
     "description": "هر کارتن 6 جعبه 48 عددی",
     "status": "فعال",
-    "brand": "بازرگانی جلفا  ",
+    "brand": "",
     "price": 110000,
     "bulk_price": 110000,
     "consumer_price": 110000,
@@ -3317,7 +3317,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_103.webp"
   },
   {
-    "id": 101,
+    "id": "101",
     "sku": "محص-1575",
     "barcode": "62628640066411",
     "name": "آدامس ویویدنت ",
@@ -3338,7 +3338,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_101.webp",
     "description": "تعداد در کارتن 18 عدد",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 145000,
     "bulk_price": 145000,
     "consumer_price": 145000,
@@ -3348,7 +3348,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_101.webp"
   },
   {
-    "id": 100,
+    "id": "100",
     "sku": "محص-2510",
     "barcode": "62686639983132",
     "name": "کیت کت",
@@ -3369,7 +3369,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_100.webp",
     "description": "هر کارتن : 12 بسته 20 عددی",
     "status": "فعال",
-    "brand": "قفسه ",
+    "brand": "",
     "price": 85000,
     "bulk_price": 85000,
     "consumer_price": 85000,
@@ -3379,7 +3379,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_100.webp"
   },
   {
-    "id": 99,
+    "id": "99",
     "sku": "محص-2372",
     "barcode": "62648639900568",
     "name": "چیپس پرینگلز",
@@ -3400,7 +3400,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_99.webp",
     "description": "کارتن 19 عددی",
     "status": "فعال",
-    "brand": "قفسه ",
+    "brand": "",
     "price": 300000,
     "bulk_price": 300000,
     "consumer_price": 300000,
@@ -3410,7 +3410,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_99.webp"
   },
   {
-    "id": 98,
+    "id": "98",
     "sku": "محص-5941",
     "barcode": "62622639760291",
     "name": "بيسکوئيت ال بنی ",
@@ -3431,7 +3431,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_98.webp",
     "description": "کارتن 24 عددی",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 100000,
     "bulk_price": 100000,
     "consumer_price": 100000,
@@ -3441,7 +3441,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_98.webp"
   },
   {
-    "id": 97,
+    "id": "97",
     "sku": "محص-6605",
     "barcode": "62636639657184",
     "name": "ببتو پاستیل",
@@ -3462,7 +3462,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_97.webp",
     "description": "6 بسته 12 عددی",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 70000,
     "bulk_price": 70000,
     "consumer_price": 70000,
@@ -3472,7 +3472,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_97.webp"
   },
   {
-    "id": 96,
+    "id": "96",
     "sku": "محص-7543",
     "barcode": "62644639576386",
     "name": "لاویوا ",
@@ -3493,7 +3493,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_96.webp",
     "description": "6 جعبه 24 عددی",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 70000,
     "bulk_price": 70000,
     "consumer_price": 70000,
@@ -3503,7 +3503,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_96.webp"
   },
   {
-    "id": 94,
+    "id": "94",
     "sku": "محص-7061",
     "barcode": "62689639436847",
     "name": "مترو دوبل ",
@@ -3524,7 +3524,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_94.webp",
     "description": "6 جعبه 18 عددی",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 60000,
     "bulk_price": 60000,
     "consumer_price": 60000,
@@ -3534,7 +3534,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_94.webp"
   },
   {
-    "id": 95,
+    "id": "95",
     "sku": "محص-2772",
     "barcode": "62634639513523",
     "name": "آل بنی دوبل ",
@@ -3555,7 +3555,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_95.webp",
     "description": "6 جعبه 18 عددی",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 60000,
     "bulk_price": 60000,
     "consumer_price": 60000,
@@ -3565,7 +3565,7 @@
     "image_url": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_95.webp"
   },
   {
-    "id": 93,
+    "id": "93",
     "sku": "محص-4773",
     "barcode": "62634639365731",
     "name": "هوبی 25 گرم ",
@@ -3586,7 +3586,7 @@
     "imageUrl": "/api/proxy-image?url=https%3A%2F%2Fc102393.parspack.net%2Fc102393%2Fproducts%2Fprd_93.webp",
     "description": "6 بسته 24 عددی",
     "status": "فعال",
-    "brand": "انبار جلفا  ",
+    "brand": "",
     "price": 30500,
     "bulk_price": 30500,
     "consumer_price": 30500,

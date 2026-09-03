@@ -48,7 +48,7 @@ const STEPS = [
     badge: "فرصت نمایندگی ۳۱ استان با سود و پورسانت عالی",
     desc: "بدون نیاز به سرمایه اولیه سنگین و انبارداری، عاملیت یا نمایندگی استانی محصولات معتبر را بگیرید و درآمد ماهانه ۲۰ تا ۱۰۰ میلیون تومان بسازید.",
     icon: Briefcase,
-    color: "from-amber-500 to-yellow-600",
+    color: "from-emerald-500 to-yellow-600",
     role: "agency",
     actionText: "درخواست نمایندگی استانی",
     actionTab: "agency"
@@ -58,7 +58,7 @@ const STEPS = [
     badge: "فروش تضمینی تناژ بار و نقدینگی فوری",
     desc: "ظرفیت تولید خود را به شبکه ۱۲,۸۰۰ خریدار فعال عرضه کنید. تسویه نقدی پیش از بارگیری تضمین شده و ریسک چک صیادی برگشتی صفر است.",
     icon: Factory,
-    color: "from-indigo-600 to-blue-700",
+    color: "from-emerald-600 to-blue-700",
     role: "factory",
     actionText: "ثبت کارخانه و خط تولید",
     actionTab: "factories"
@@ -120,7 +120,7 @@ export default function OnboardingModal({ isOpen, onClose, theme, onSelectAction
               </motion.div>
 
               <div className="space-y-2.5 max-w-lg">
-                <span className="inline-block bg-emerald-50 text-emerald-800 text-[11px] font-black px-4 py-1.5 rounded-full border border-emerald-200 shadow-xs">
+                <span className="inline-block bg-emerald-600 text-white text-[11px] font-black px-4 py-1.5 rounded-full border border-emerald-200 shadow-xs">
                   {current.badge}
                 </span>
 
@@ -152,7 +152,7 @@ export default function OnboardingModal({ isOpen, onClose, theme, onSelectAction
                   onClick={() => handleActionClick(current.actionTab)}
                   className="px-6 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 font-black text-xs hover:bg-emerald-100 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Zap size={14} className="text-amber-500" />
+                  <Zap size={14} className="text-emerald-500" />
                   <span>انتقال مستقیم: {current.actionText}</span>
                   <ArrowLeft size={14} />
                 </button>

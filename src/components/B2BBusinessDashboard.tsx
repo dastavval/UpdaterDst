@@ -15,7 +15,9 @@ import { ReferralRewardModal } from "./ReferralRewardModal";
 import { t, Language } from "../lib/translations";
 import { ProfileManagement, SupportTicketSystem, SystemNotifications } from "./PortalModules";
 import ReportsView from "./ReportsView";
+import CategoryProfitMarginForecast from "./CategoryProfitMarginForecast";
 import { BarChart as BarChartIcon } from "lucide-react";
+import { AnimatedHatchedOverlay } from "./AnimatedHatchedOverlay";
 
 interface B2BBusinessDashboardProps {
   products: Product[];
@@ -29,6 +31,7 @@ interface B2BBusinessDashboardProps {
   lastOrderAmount?: number;
   transitRoutes?: any[];
   b2bConfig?: any;
+  orders?: any[];
   onLogout?: () => void;
   onUpdateUser?: (updatedUser: any) => void;
   onUpdateB2bConfig?: (updatedConfig: any) => void;
@@ -54,13 +57,14 @@ export default function B2BBusinessDashboard({
   lastOrderAmount = 0,
   transitRoutes = [],
   b2bConfig,
+  orders = [],
   onLogout,
   onUpdateUser,
   onUpdateB2bConfig
 }: B2BBusinessDashboardProps) {
 
   // Active Main tab of the partner portal
-  const [activeTab, setActiveTab] = useState<'overview' | 'tracking' | 'roi' | 'reports' | 'agents' | 'profile' | 'tickets' | 'notifications' | 'dealership_request'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tracking' | 'roi' | 'reports' | 'profit_forecast' | 'agents' | 'profile' | 'tickets' | 'notifications' | 'dealership_request'>('overview');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -147,9 +151,9 @@ export default function B2BBusinessDashboard({
   const getBadgeClass = (badge: string) => {
     switch (badge) {
       case 'vip': return "bg-purple-500 text-white shadow-md shadow-purple-500/20";
-      case 'gold': return "bg-amber-500 text-slate-900 shadow-md shadow-amber-500/20";
+      case 'gold': return "bg-emerald-600 text-white shadow-md shadow-emerald-500/20";
       case 'silver': return "bg-slate-400 text-slate-900 shadow-md shadow-slate-400/20";
-      case 'admin': return "bg-rose-600 text-white shadow-md shadow-rose-600/20";
+      case 'admin': return "bg-emerald-600 text-white shadow-md shadow-emerald-600/20";
       default: return "bg-emerald-700 text-white shadow-md shadow-emerald-700/20";
     }
   };
@@ -162,9 +166,9 @@ export default function B2BBusinessDashboard({
       case 'delivered': 
         return <span className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black border border-teal-100">تحویل شد / تخلیه در انبار</span>;
       case 'quality_assurance': 
-        return <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black border border-emerald-100">در حال ترانزیت / کنترل کیفی</span>;
+        return <span className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black border border-emerald-100">در حال ترانزیت / کنترل کیفی</span>;
       case 'production_line': 
-        return <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black border border-amber-100 animate-pulse">در خط تولید کارخانه</span>;
+        return <span className="bg-emerald-50 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black border border-emerald-100 animate-pulse">در خط تولید کارخانه</span>;
       default: 
         return <span className="bg-slate-50 text-slate-600 px-3 py-1 rounded-full text-[10px] font-black border border-slate-100">در حال بررسی نهایی</span>;
     }
@@ -286,9 +290,9 @@ export default function B2BBusinessDashboard({
           {onLogout && (
             <button 
               onClick={onLogout}
-              className="bg-rose-50 hover hover border border-rose-200 text-rose-700 px-5 py-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer w-full md:w-auto justify-center text-xs font-black group"
+              className="bg-emerald-50 hover hover border border-emerald-200 text-emerald-700 px-5 py-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer w-full md:w-auto justify-center text-xs font-black group"
             >
-              <LogOut size={16} className="text-rose-500 group-hover" />
+              <LogOut size={16} className="text-emerald-500 group-hover" />
               <span>خروج از حساب</span>
             </button>
           )}
@@ -297,17 +301,17 @@ export default function B2BBusinessDashboard({
 
       {/* 1.5 Representative Official Badge & Certificate Callout */}
       {user?.role === 'agent' && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/20 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+        <div className="bg-gradient-to-r from-emerald-500/10 via-yellow-500/5 to-transparent border border-emerald-500/20 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
           <div className="flex items-center gap-4 text-right">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 border border-amber-500/15 shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/15 shrink-0">
               <Award size={32} className="animate-bounce" />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider">
+                <span className="px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider">
                   {t("نماینده رسمی و انحصاری", language)}
                 </span>
-                <span className="font-mono bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200 text-[10px] font-black text-indigo-700">
+                <span className="font-mono bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200 text-[10px] font-black text-emerald-700">
                   {toPersianNum(user?.agencyCode || "AGN-5001")}
                 </span>
               </div>
@@ -315,14 +319,14 @@ export default function B2BBusinessDashboard({
                 {t("حکم رسمی اعطای نمایندگی انحصاری توزیع استانی صادر گردید", language)}
               </h3>
               <p className="text-slate-500 text-xs font-bold leading-relaxed max-w-2xl">
-                {t("مدارک حقوقی و شایستگی لجستیکی شما توسط مدیریت ارشد دست اول بررسی و تایید نهایی گردید. هم‌اکنون می‌توانید گواهی رسمی ممهور نمایندگی خود را مشاهده، چاپ و دانلود کنید.", language)}
+                {t("مدارک حقوقی و شایستگی لجستیکی شما توسط مدیریت ارشد دست اول بررسی و تایید نهایی گردید. هم‌اکنون می‌توانید گواهی رسمی ممهور نمایندگی خود را مشاهده و چاپ کنید.", language)}
               </p>
             </div>
           </div>
 
           <button 
             onClick={() => setShowAgentCertificate(true)}
-            className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg shadow-amber-500/25 transition-all cursor-pointer whitespace-nowrap"
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer whitespace-nowrap"
           >
             <Award size={16} />
             <span>{t("مشاهده و دریافت گواهی رسمی نمایندگی", language)}</span>
@@ -339,7 +343,7 @@ export default function B2BBusinessDashboard({
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black">
                   ارتقای پنل به نمایندگی
                 </span>
                 <span className="text-[11px] font-black text-slate-700">سوئیچ به پنل نمایندگان رسمی استانی</span>
@@ -422,6 +426,17 @@ export default function B2BBusinessDashboard({
           {t("گزارشات و نمودارهای تحلیلی", language)}
         </button>
         <button
+          onClick={() => setActiveTab('profit_forecast')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            activeTab === 'profit_forecast'
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+              : "text-slate-500 hover"
+          }`}
+        >
+          <TrendingUp size={14} />
+          {t("حاشیه سود دسته‌ها و ترند کارخانجات", language)}
+        </button>
+        <button
           onClick={() => setActiveTab('agents')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
             activeTab === 'agents'
@@ -447,7 +462,7 @@ export default function B2BBusinessDashboard({
 
         <button
           onClick={() => setShowReferralModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-xs cursor-pointer active:scale-95"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-amber-700 text-white shadow-xs cursor-pointer active:scale-95"
         >
           <Gift size={14} className="text-white" />
           <span>🎁 دعوت از همکاران و پاداش</span>
@@ -541,7 +556,7 @@ export default function B2BBusinessDashboard({
                     </span>
                     <span className="text-[9px] font-bold text-slate-400 block mt-1">{t("تخفیف ثابت بر کل فاکتورها", language)}</span>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <Percent size={18} />
                   </div>
                 </div>
@@ -574,7 +589,7 @@ export default function B2BBusinessDashboard({
                     <span className="text-[10px] text-slate-400 font-bold block mb-1">{t("مجموع خرید مستقیم", language)}</span>
                     <span className="text-xl font-black text-slate-900 font-mono">۷۳,۱۰۰,۰۰۰ <span className="text-xs font-normal text-slate-500">{t("تومان", language)}</span></span>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-emerald-600">
                     <Receipt size={18} />
                   </div>
                 </div>
@@ -583,6 +598,35 @@ export default function B2BBusinessDashboard({
                   <span className="text-emerald-600">{t("خرید نقدی / چکی", language)}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Quick Spotlight Banner: Category Profit Margin & Factory Price Trends */}
+            <div className="bg-gradient-to-l from-slate-900 via-slate-800 to-emerald-950 text-white p-5 rounded-3xl border border-emerald-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <TrendingUp size={24} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm sm:text-base font-black text-white">
+                      پیش‌بینی هوشمند حاشیه سود دسته‌های محصول و ترند کارخانجات
+                    </h4>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black">
+                      جدید
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                    محاسبه الگوریتمی حاشیه سود احتمالی هر گروه کالایی بر پایه تحلیل سفارشات قبلی، شتاب تورمی نهاده‌های کارخانه و نمایش در قالب نمودار میله‌ای تحلیلی
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab('profit_forecast')}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm active:scale-95 self-start md:self-auto"
+              >
+                <span>مشاهده نمودار میله‌ای و تحلیل دسته‌ها</span>
+                <ChevronLeft size={16} />
+              </button>
             </div>
 
             {/* B2B Action Portal & Simulated Past Invoices */}
@@ -710,7 +754,7 @@ export default function B2BBusinessDashboard({
                   </div>
                 )}
                 {licenseUploadStatus === 'error' && (
-                  <div className="mt-3 p-2.5 text-[10px] text-rose-700 bg-rose-50 rounded-xl border border-rose-100 font-black text-center">
+                  <div className="mt-3 p-2.5 text-[10px] text-emerald-700 bg-emerald-50 rounded-xl border border-emerald-100 font-black text-center">
                     ⚠ {t("لطفاً ابتدا فایلی را برای بارگذاری انتخاب کنید.", language)}
                   </div>
                 )}
@@ -784,7 +828,7 @@ export default function B2BBusinessDashboard({
                   {t("استعلام زنده ناوگان", language)}
                 </button>
               </form>
-              {trackerError && <p className="text-rose-500 text-[11px] font-black">{trackerError}</p>}
+              {trackerError && <p className="text-emerald-500 text-[11px] font-black">{trackerError}</p>}
             </div>
 
             {/* Interactive Timeline of Stages */}
@@ -825,7 +869,7 @@ export default function B2BBusinessDashboard({
                             isPassed 
                               ? 'bg-emerald-500 border-white scale-110 shadow-lg shadow-emerald-500/20' 
                               : isCurrent 
-                              ? 'bg-amber-500 border-white scale-125 shadow-lg shadow-amber-500/20 ring-4 ring-amber-500/10'
+                              ? 'bg-emerald-500 border-white scale-125 shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-500/10'
                               : 'bg-slate-200 border-white'
                           }`} />
 
@@ -833,7 +877,7 @@ export default function B2BBusinessDashboard({
                             isPassed 
                               ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
                               : isCurrent 
-                              ? 'bg-amber-50 border-amber-200 text-amber-600 font-bold'
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-600 font-bold'
                               : 'bg-slate-50 border-slate-100 text-slate-400'
                           }`}>
                             {stage.icon}
@@ -848,7 +892,7 @@ export default function B2BBusinessDashboard({
                                 : 'text-slate-400'
                             }`}>
                               {t(stage.label, language)}
-                              {isCurrent && <span className="mr-2 text-[9px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-black animate-pulse">{t("درحال کار", language)}</span>}
+                              {isCurrent && <span className="mr-2 text-[9px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-black animate-pulse">{t("درحال کار", language)}</span>}
                               {isPassed && <span className="mr-2 text-[9px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-black">{t("پایان یافته", language)}</span>}
                             </h5>
                             <p className="text-[10px] md text-slate-500 max-w-xl leading-relaxed">
@@ -879,13 +923,13 @@ export default function B2BBusinessDashboard({
                     >
                       <div className="absolute bottom-0 right-0 left-0 h-1 bg-slate-100">
                         <div 
-                          className={`h-full bg-gradient-to-l ${route.status === 'in_transit' ? 'from-emerald-500 to-emerald-400 animate-pulse w-2/3' : 'from-amber-500 to-amber-400 w-1/4'}`}
+                          className={`h-full bg-gradient-to-l ${route.status === 'in_transit' ? 'from-emerald-500 to-emerald-400 animate-pulse w-2/3' : 'from-emerald-500 to-amber-400 w-1/4'}`}
                         />
                       </div>
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-right">
                         <div className="space-y-1">
                           <span className={`text-[8px] font-black px-2 py-0.5 rounded ${
-                            route.status === 'in_transit' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                            route.status === 'in_transit' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-amber-700'
                           }`}>
                             {route.status === 'in_transit' ? t("بین راهی (در جاده)", language) : t("در حال تخلیه / بارگیری", language)}
                           </span>
@@ -907,7 +951,7 @@ export default function B2BBusinessDashboard({
 
               {/* Cargo Safety Standard Card */}
               <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
+                <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto border border-emerald-100">
                   <ShieldCheck size={24} />
                 </div>
                 <div className="space-y-2 text-center">
@@ -1074,6 +1118,18 @@ export default function B2BBusinessDashboard({
           <ReportsView language={language} user={user} userBadge={userBadge} />
         )}
 
+        {/* --- CATEGORY PROFIT MARGIN & FACTORY PRICE TRENDS FORECAST TAB --- */}
+        {activeTab === 'profit_forecast' && (
+          <div className="animate-in fade-in duration-300">
+            <CategoryProfitMarginForecast
+              products={products}
+              orders={orders}
+              language={language}
+              userBadge={userBadge}
+            />
+          </div>
+        )}
+
         {/* --- REGIONAL AGENTS TAB --- */}
         {activeTab === 'agents' && (
           <div>
@@ -1082,7 +1138,7 @@ export default function B2BBusinessDashboard({
                 <MapPin className="text-emerald-600" />
                 {t("شبکه توزیع استانی و باربری‌های معتمد دست اول", language)}
               </h3>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-black px-3 py-1 rounded-full border border-emerald-100">
+              <span className="text-[10px] bg-emerald-600 text-white font-black px-3 py-1 rounded-full border border-emerald-100">
                 {toPersianNum(7)} {t("نماینده توزیع فعال و معتمد", language)}
               </span>
             </div>
@@ -1092,7 +1148,7 @@ export default function B2BBusinessDashboard({
                 <div key={`b2b-dash-agent-${item.province || idx}-${idx}`} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover transition-all flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-center mb-3">
-                      <span className="text-xs bg-emerald-50 text-emerald-700 font-black px-2.5 py-1 rounded-lg">
+                      <span className="text-xs bg-emerald-600 text-white font-black px-2.5 py-1 rounded-lg">
                         {t("استان", language)} {t(item.province, language)}
                       </span>
                       <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
@@ -1234,7 +1290,9 @@ export default function B2BBusinessDashboard({
       {/* 5. MODAL: REQUEST CREDIT INCREASE */}
       {isCreditModalOpen && (
         <div className="fixed inset-0 z-[120] bg-white/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-slate-100 text-right">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-slate-100 text-right overflow-hidden">
+            <AnimatedHatchedOverlay intensity="light" />
+            <div className="relative z-10">
             <button 
               onClick={() => setIsCreditModalOpen(false)}
               className="absolute top-4 left-4 p-1 hover text-slate-400 rounded-full cursor-pointer"
@@ -1285,7 +1343,7 @@ export default function B2BBusinessDashboard({
                   </div>
                 </div>
 
-                <div className="bg-amber-50 p-3 rounded-xl flex items-start gap-2 text-[9px] text-amber-700 font-bold border border-amber-100">
+                <div className="bg-emerald-50 p-3 rounded-xl flex items-start gap-2 text-[9px] text-amber-700 font-bold border border-emerald-100">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
                     {t("توجه: فرآیند تخصیص اعتبار خرید مستقیم از انبار کارخانه‌ها نیاز به چک صیادی تایید شده بنکداری دارد. لطفا فیزیک چک را به شعب منتخب باربری تحویل دهید.", language)}
@@ -1308,7 +1366,7 @@ export default function B2BBusinessDashboard({
                 </button>
               </form>
             )}
-
+            </div>
           </div>
         </div>
       )}

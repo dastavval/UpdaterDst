@@ -59,34 +59,50 @@ export default function RepresentativeCertificateView({
         try { await document.fonts.ready; } catch (e) {}
       }
 
-      const origCss = certElem.getAttribute("style") || "";
-      // Temporarily expand certElem to full desktop width for high-res unclipped capture
-      certElem.style.width = "960px";
-      certElem.style.minWidth = "960px";
-      certElem.style.maxWidth = "none";
-      certElem.style.transform = "none";
+      // Create an unclipped off-screen clone with dynamic full height capture
+      const clone = certElem.cloneNode(true) as HTMLElement;
+      clone.id = "printable-certificate-clone-export";
+      clone.style.position = "fixed";
+      clone.style.left = "-9999px";
+      clone.style.top = "0px";
+      clone.style.width = "1050px";
+      clone.style.height = "auto";
+      clone.style.minWidth = "1050px";
+      clone.style.minHeight = "742px";
+      clone.style.maxWidth = "none";
+      clone.style.maxHeight = "none";
+      clone.style.transform = "none";
+      clone.style.zIndex = "-9999";
+      clone.style.boxSizing = "border-box";
+      clone.style.overflow = "visible";
 
-      await new Promise((res) => setTimeout(res, 100));
+      document.body.appendChild(clone);
+      await new Promise((res) => setTimeout(res, 150));
+
+      const captureW = 1050;
+      const captureH = Math.max(clone.scrollHeight, clone.offsetHeight, 742);
 
       let imgData = "";
       try {
-        imgData = await toPng(certElem, {
+        imgData = await toPng(clone, {
+          width: captureW,
+          height: captureH,
           pixelRatio: 2.5,
           backgroundColor: "#ffffff",
           cacheBust: true,
         });
       } catch {
-        imgData = await toJpeg(certElem, {
+        imgData = await toJpeg(clone, {
+          width: captureW,
+          height: captureH,
           quality: 0.98,
           pixelRatio: 2,
           backgroundColor: "#ffffff",
           cacheBust: true,
         });
       } finally {
-        if (origCss) {
-          certElem.setAttribute("style", origCss);
-        } else {
-          certElem.removeAttribute("style");
+        if (document.body.contains(clone)) {
+          document.body.removeChild(clone);
         }
       }
 
@@ -112,8 +128,8 @@ export default function RepresentativeCertificateView({
       const maxW = pageWidth - (margin * 2);
       const maxH = pageHeight - (margin * 2);
 
-      const naturalW = img.naturalWidth || 960;
-      const naturalH = img.naturalHeight || 680;
+      const naturalW = img.naturalWidth || captureW;
+      const naturalH = img.naturalHeight || captureH;
       const aspect = naturalW / naturalH;
 
       let renderW = maxW;
@@ -228,29 +244,29 @@ export default function RepresentativeCertificateView({
     return (
       <div className="fixed inset-0 z-[120] bg-slate-400/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 no-print">
         <div className="bg-white w-full max-w-xl rounded-[2rem] shadow-2xl p-8 text-center space-y-6 border border-slate-200">
-          <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto border-4 border-white shadow-lg">
-            <Loader2 size={40} className="text-amber-600 animate-spin" />
+          <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto border-4 border-white shadow-lg">
+            <Loader2 size={40} className="text-emerald-600 animate-spin" />
           </div>
           <div className="space-y-3">
             <h2 className="text-2xl font-black text-slate-800">وضعیت نمایندگی: در حال بررسی</h2>
             <p className="text-slate-500 leading-relaxed font-medium">
-              همکار گرامی <span className="text-indigo-600 font-bold">{repName}</span>، درخواست نمایندگی شما در سامانه ثبت شده و در حال حاضر توسط واحد بازرسی و نظارت دفتر مرکزی در حال بررسی مدارک و احراز صلاحیت است.
+              همکار گرامی <span className="text-#10b981 font-bold">{repName}</span>، درخواست نمایندگی شما در سامانه ثبت شده و در حال حاضر توسط واحد بازرسی و نظارت دفتر مرکزی در حال بررسی مدارک و احراز صلاحیت است.
             </p>
           </div>
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-2 text-sm text-slate-600">
             <div className="flex justify-between items-center px-2">
               <span className="font-bold">شناسه پیگیری:</span>
-              <span className="font-mono text-indigo-700 font-black">{toPersianNum(agencyCode)}</span>
+              <span className="font-mono text-#059669 font-black">{toPersianNum(agencyCode)}</span>
             </div>
             <div className="flex justify-between items-center px-2">
               <span className="font-bold">وضعیت:</span>
-              <span className="text-amber-600 font-black">در انتظار تایید مدیریت</span>
+              <span className="text-emerald-600 font-black">در انتظار تایید مدیریت</span>
             </div>
           </div>
           <div className="flex flex-col gap-3">
             <button 
               onClick={onClose}
-              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all cursor-pointer"
+              className="w-full py-4 bg-#10b981 text-white rounded-2xl font-black text-sm shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all cursor-pointer"
             >
               متوجه شدم (بستن)
             </button>
@@ -271,20 +287,8 @@ export default function RepresentativeCertificateView({
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[2.5rem] no-print">
           <div className="flex items-center gap-2">
             <button 
-              onClick={handleDownloadPdf}
-              disabled={isDownloading}
-              className="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-amber-600/20 hover:bg-amber-700 disabled:opacity-70 transition-all cursor-pointer"
-            >
-              {isDownloading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Download size={16} />
-              )}
-              <span>{isDownloading ? 'در حال صدور PDF...' : 'دانلود فایل گواهی رسمی (PDF)'}</span>
-            </button>
-            <button 
               onClick={handlePrint}
-              className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all cursor-pointer"
+              className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all cursor-pointer"
             >
               <Printer size={16} />
               چاپ مستقیم گواهی اعطای نمایندگی
@@ -292,7 +296,7 @@ export default function RepresentativeCertificateView({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[11px] text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-100 font-black animate-fade-in">
+            <span className="text-[11px] text-amber-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 font-black animate-fade-in">
               ✓ سند رسمی و دارای تاییدیه کارگزاری دست اول کشور
             </span>
             <button 
@@ -318,12 +322,12 @@ export default function RepresentativeCertificateView({
             }}
           >
             {/* Ornate Inner Border Line */}
-            <div className="absolute inset-2 border-[2px] border-double border-amber-600 rounded" style={{ pointerEvents: "none" }} />
+            <div className="absolute inset-2 border-[2px] border-double border-emerald-600 rounded" style={{ pointerEvents: "none" }} />
             {/* Corner Ornate Accents */}
-            <div className="absolute top-4 left-4 w-12 h-12 border-t-4 border-l-4 border-amber-600 rounded-tl" />
-            <div className="absolute top-4 right-4 w-12 h-12 border-t-4 border-r-4 border-amber-600 rounded-tr" />
-            <div className="absolute bottom-4 left-4 w-12 h-12 border-b-4 border-l-4 border-amber-600 rounded-bl" />
-            <div className="absolute bottom-4 right-4 w-12 h-12 border-b-4 border-r-4 border-amber-600 rounded-br" />
+            <div className="absolute top-4 left-4 w-12 h-12 border-t-4 border-l-4 border-emerald-600 rounded-tl" />
+            <div className="absolute top-4 right-4 w-12 h-12 border-t-4 border-r-4 border-emerald-600 rounded-tr" />
+            <div className="absolute bottom-4 left-4 w-12 h-12 border-b-4 border-l-4 border-emerald-600 rounded-bl" />
+            <div className="absolute bottom-4 right-4 w-12 h-12 border-b-4 border-r-4 border-emerald-600 rounded-br" />
 
             {/* Background Emblem Watermark */}
             <div className="absolute inset-0 flex items-center justify-center opacity-[0.03]" style={{ pointerEvents: "none" }}>
@@ -331,10 +335,10 @@ export default function RepresentativeCertificateView({
             </div>
 
             {/* Top metadata header */}
-            <div className="flex justify-between items-start border-b border-amber-100 pb-4 relative z-10 text-xs text-amber-950 font-black">
+            <div className="flex justify-between items-start border-b border-emerald-100 pb-4 relative z-10 text-xs text-amber-950 font-black">
               <div className="text-right space-y-1">
                 <div>تاریخ صدور: <span className="font-mono">{toPersianNum(issueDate)}</span></div>
-                <div>کد نمایندگی: <span className="font-mono text-indigo-700 font-black tracking-wider">{toPersianNum(agencyCode)}</span></div>
+                <div>کد نمایندگی: <span className="font-mono text-#059669 font-black tracking-wider">{toPersianNum(agencyCode)}</span></div>
                 <div>تاییدیه اصالت: <span className="text-emerald-700 font-black">معتبر و فعال</span></div>
               </div>
 
@@ -372,7 +376,7 @@ export default function RepresentativeCertificateView({
 
               {/* Title of Certificate */}
               <div className="space-y-1.5">
-                <h1 className="text-2xl sm:text-3xl font-black text-amber-900 tracking-wide font-sans pb-1.5 inline-block border-b-2 border-double border-amber-600 px-12">
+                <h1 className="text-2xl sm:text-3xl font-black text-amber-900 tracking-wide font-sans pb-1.5 inline-block border-b-2 border-double border-emerald-600 px-12">
                   لوح افتخار و حکم اعطای رتبه نمایندگی
                 </h1>
                 <p className="text-[10px] sm:text-xs text-amber-800 font-black block mt-2 tracking-wide uppercase">
@@ -383,7 +387,7 @@ export default function RepresentativeCertificateView({
               {/* Certificate content text - fully descriptive, professional and authentic */}
               <div className="max-w-3xl mx-auto text-xs sm:text-sm text-slate-800 leading-loose text-center font-semibold px-4 space-y-4">
                 <p>
-                  بدین‌وسیله و به موجب این حکم رسمی، همکار گرامی جناب آقای / سرکار خانم <strong className="text-amber-900 text-sm sm:text-base font-black border-b border-amber-600 pb-0.5 px-2">{repName}</strong> مدیریت محترم مجموعه تجاری و پخش بازرگانی <strong className="text-slate-900 text-sm sm:text-base font-black border-b border-amber-600 pb-0.5 px-2">{companyName}</strong> با ثبت عملکرد فروش ماهانه نقد به میزان <strong className="text-indigo-900 font-black font-mono px-2 py-0.5 bg-indigo-50 rounded-lg">{toPersianNum(monthlySales.toLocaleString('fa-IR'))} تومان</strong>، موفق به احراز جایگاه رسمی:
+                  بدین‌وسیله و به موجب این حکم رسمی، همکار گرامی جناب آقای / سرکار خانم <strong className="text-amber-900 text-sm sm:text-base font-black border-b border-emerald-600 pb-0.5 px-2">{repName}</strong> مدیریت محترم مجموعه تجاری و پخش بازرگانی <strong className="text-slate-900 text-sm sm:text-base font-black border-b border-emerald-600 pb-0.5 px-2">{companyName}</strong> با ثبت عملکرد فروش ماهانه نقد به میزان <strong className="text-#059669 font-black font-mono px-2 py-0.5 bg-emerald-50 rounded-lg">{toPersianNum(monthlySales.toLocaleString('fa-IR'))} تومان</strong>، موفق به احراز جایگاه رسمی:
                 </p>
                 <p className="py-2.5">
                   <strong className="text-base sm:text-lg text-emerald-800 font-black bg-emerald-50 border border-emerald-200 px-8 py-2 rounded-2xl tracking-wide shadow-xs">
@@ -397,7 +401,7 @@ export default function RepresentativeCertificateView({
             </div>
 
             {/* Bottom layout containing seals, signatures, QR verification and stickers */}
-            <div className="flex justify-between items-end relative z-10 pt-4 border-t border-amber-100">
+            <div className="flex justify-between items-end relative z-10 pt-4 border-t border-emerald-100">
               
               {/* Left Side: Verification QR Code simulation & details */}
               <div className="flex items-center gap-4 text-right">
@@ -405,22 +409,22 @@ export default function RepresentativeCertificateView({
                   {/* Beautiful mock QR code representation */}
                   <div className="w-14 h-14 bg-slate-100 flex flex-col items-center justify-center p-1 border border-dashed border-slate-300">
                     <div className="grid grid-cols-4 gap-0.5 w-11 h-11">
-                      <div className="bg-indigo-600 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
                       <div className="bg-slate-200 rounded-sm"></div>
-                      <div className="bg-indigo-600 rounded-sm"></div>
+                      <div className="bg-#10b981 rounded-sm"></div>
                     </div>
                   </div>
                 </div>
@@ -436,7 +440,7 @@ export default function RepresentativeCertificateView({
 
               {/* Center: Golden seal sticker graphic */}
               <div className="flex flex-col items-center justify-center">
-                <div className="w-14 h-14 bg-gradient-to-br from-amber-300 via-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-lg relative border-2 border-double border-white rotate-[-6deg]">
+                <div className="w-14 h-14 bg-gradient-to-br from-amber-300 via-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg relative border-2 border-double border-white rotate-[-6deg]">
                   <div className="absolute inset-0.5 rounded-full border border-dashed border-amber-900/40" />
                   <Award className="text-white drop-shadow" size={28} />
                 </div>
@@ -450,12 +454,12 @@ export default function RepresentativeCertificateView({
                 
                 {/* Visual signature/seal */}
                 <div className="h-16 relative flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full border-4 border-double border-indigo-600 flex flex-col items-center justify-center text-[7px] text-indigo-600 font-black rotate-[-12deg] p-0.5 bg-white shadow-inner absolute translate-x-2 translate-y-[-10px] opacity-80 mix-blend-multiply">
-                    <span className="border-b border-indigo-600 tracking-wider font-mono text-[6px]">DAST AVVAL</span>
+                  <div className="w-20 h-20 rounded-full border-4 border-double border-#10b981 flex flex-col items-center justify-center text-[7px] text-#10b981 font-black rotate-[-12deg] p-0.5 bg-white shadow-inner absolute translate-x-2 translate-y-[-10px] opacity-80 mix-blend-multiply">
+                    <span className="border-b border-#10b981 tracking-wider font-mono text-[6px]">DAST AVVAL</span>
                     <span>شرکت توسعه بازرگانی</span>
                     <span className="text-[5px] text-slate-400 font-mono font-bold">REG: 88492</span>
                   </div>
-                  <div className="font-mono text-xs italic text-indigo-700 tracking-wider rotate-[-5deg] font-black z-10 translate-y-[-4px]">
+                  <div className="font-mono text-xs italic text-#059669 tracking-wider rotate-[-5deg] font-black z-10 translate-y-[-4px]">
                     Alireza Rezayi
                   </div>
                 </div>

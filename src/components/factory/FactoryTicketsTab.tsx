@@ -52,8 +52,8 @@ const DEPARTMENT_LABELS: Record<string, string> = {
 const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
   low: { label: "عادی", color: "bg-slate-100 text-slate-700" },
   medium: { label: "متوسط", color: "bg-blue-100 text-blue-800" },
-  high: { label: "مهم", color: "bg-amber-100 text-amber-800" },
-  urgent: { label: "فوری / آنی", color: "bg-rose-100 text-rose-800" }
+  high: { label: "مهم", color: "bg-emerald-100 text-amber-800" },
+  urgent: { label: "فوری / آنی", color: "bg-emerald-100 text-rose-800" }
 };
 
 export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
@@ -180,7 +180,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Headphones size={20} className="text-indigo-600" />
+            <Headphones size={20} className="text-emerald-600" />
             <h3 className="text-base font-black text-slate-900">میز مکاتبات و تیکت‌های پشتیبانی کارخانه</h3>
           </div>
           <p className="text-xs text-slate-500 font-medium">
@@ -190,7 +190,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
 
         <button
           onClick={() => setIsNewTicketModalOpen(true)}
-          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
         >
           <Plus size={16} />
           <span>ثبت تیکت جدید</span>
@@ -220,12 +220,12 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
                     onClick={() => setActiveTicketId(t.id)}
                     className={`p-3.5 rounded-2xl border transition-all cursor-pointer space-y-2 ${
                       isActive 
-                        ? "bg-indigo-50/80 border-indigo-300 shadow-2xs" 
+                        ? "bg-emerald-50/80 border-indigo-300 shadow-2xs" 
                         : "bg-slate-50/70 border-slate-200/80 hover:bg-white hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[11px] font-mono font-bold text-indigo-700">{t.ticketNumber}</span>
+                      <span className="text-[11px] font-mono font-bold text-emerald-700">{t.ticketNumber}</span>
                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${priorityInfo.color}`}>
                         {priorityInfo.label}
                       </span>
@@ -254,7 +254,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-1 shadow-2xs">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
                       {activeTicket.ticketNumber}
                     </span>
                     <h4 className="text-xs font-black text-slate-900">{activeTicket.subject}</h4>
@@ -278,7 +278,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
                       <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs space-y-1 shadow-2xs ${
                         isFactory 
                           ? "bg-white text-slate-900 border border-slate-200 rounded-br-xs" 
-                          : "bg-indigo-600 text-white rounded-bl-xs"
+                          : "bg-emerald-600 text-white rounded-bl-xs"
                       }`}>
                         <div className="flex items-center justify-between gap-4 text-[10px] font-bold opacity-75">
                           <span>{msg.senderName}</span>
@@ -298,12 +298,12 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="پاسخ یا توضیح تکمیلی خود را بنویسید..."
-                  className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:border-indigo-600"
+                  className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:border-emerald-600"
                 />
                 <button
                   type="submit"
                   disabled={!replyText.trim()}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   <Send size={14} />
                   <span>ارسال</span>
@@ -313,7 +313,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">
                 💬
               </div>
               <h4 className="text-xs font-black text-slate-700">یک تیکت را جهت مشاهده پیام‌ها انتخاب فرمایید</h4>
@@ -336,7 +336,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <Plus size={20} className="text-indigo-600" />
+                  <Plus size={20} className="text-emerald-600" />
                   <h4 className="text-sm font-black text-slate-900">ثبت تیکت و درخواست جدید کارخانه</h4>
                 </div>
                 <button
@@ -357,7 +357,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
                     value={newSubject}
                     onChange={(e) => setNewSubject(e.target.value)}
                     placeholder="مثال: هماهنگی تاریخ بارگیری سفارش #DX-38910"
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -400,7 +400,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="شرح کامل درخواست، شماره سفارش یا مشخصات مورد نظر..."
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -415,7 +415,7 @@ export default function FactoryTicketsTab({ user }: FactoryTicketsTabProps) {
 
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Check size={16} />
                     <span>ارسال تیکت به واحد مربوطه</span>

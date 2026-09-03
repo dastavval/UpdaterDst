@@ -139,7 +139,7 @@ export default function ProductReviews({ productId, theme = 'light' }: ProductRe
 
         <button
           onClick={() => setShowAddReview(!showAddReview)}
-          className="flex items-center gap-2 bg-white text-white px-5 py-2.5 rounded-2xl text-xs font-black hover:opacity-90 transition-all cursor-pointer"
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl text-xs font-black shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
         >
           <Plus size={16} />
           ثبت تجربه خرید
@@ -232,7 +232,7 @@ export default function ProductReviews({ productId, theme = 'light' }: ProductRe
                   <div>
                     <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
                       {review.userName}
-                      <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">خریدار تایید شده</span>
+                      <span className="text-[8px] bg-blue-50 text-emerald-600 px-2 py-0.5 rounded-full">خریدار تایید شده</span>
                     </h4>
                     <p className="text-[9px] text-slate-400 font-bold mt-0.5">
                       {review.createdAt?.toDate ? new Date(review.createdAt.toDate()).toLocaleDateString('fa-IR') : 'به‌زودی'}
@@ -246,7 +246,7 @@ export default function ProductReviews({ productId, theme = 'light' }: ProductRe
                       <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">کیفیت: {toPersianNum(review.qualityRating)}</span>
                     )}
                     {review.packagingRating && (
-                      <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">بسته‌بندی: {toPersianNum(review.packagingRating)}</span>
+                      <span className="text-[8px] font-bold text-emerald-600 bg-blue-50 px-2 py-0.5 rounded-md">بسته‌بندی: {toPersianNum(review.packagingRating)}</span>
                     )}
                   </div>
                 </div>

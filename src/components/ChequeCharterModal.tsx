@@ -49,7 +49,7 @@ export default function ChequeCharterModal({
       duration: "۴۵ الی ۶۰ روزه",
       condition: "وصول موفق و پاس‌شدن به‌موقع اولین چک صادر شده در پلتفرم",
       badge: "ارتقاء ۱۰۰ میلیونی",
-      color: "border-amber-300 bg-amber-50/60 text-amber-900"
+      color: "border-amber-300 bg-emerald-50/60 text-amber-900"
     },
     {
       level: 3,
@@ -60,7 +60,7 @@ export default function ChequeCharterModal({
       duration: "۶۰ الی ۷۵ روزه",
       condition: "وصول موفق حداقل ۲ الی ۳ فقره چک متوالی بدون سابقه تاخیر یا برگشتی",
       badge: "اعتبار ۲۵۰ میلیونی",
-      color: "border-indigo-300 bg-indigo-50/60 text-indigo-900"
+      color: "border-indigo-300 bg-emerald-50/60 text-indigo-900"
     },
     {
       level: 4,
@@ -105,7 +105,7 @@ export default function ChequeCharterModal({
                     نگارش ۱۴۰۵
                   </span>
                 </h2>
-                <p className="text-xs text-indigo-200 font-medium">
+                <p className="text-xs text-emerald-200 font-medium">
                   ضوابط تخصیص اعتبار پلکانی، فرمول نصف نقد - نصف چک و شرایط ترخیص بار
                 </p>
               </div>
@@ -123,9 +123,9 @@ export default function ChequeCharterModal({
           <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-slate-700 text-xs sm:text-sm leading-relaxed custom-scrollbar">
             
             {/* Quick Summary Card */}
-            <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl border border-indigo-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-4 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-2xl border border-indigo-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
                   <Receipt size={20} />
                 </div>
                 <div className="space-y-1">
@@ -137,9 +137,9 @@ export default function ChequeCharterModal({
                   </p>
                 </div>
               </div>
-              <div className="bg-white px-4 py-2.5 rounded-xl border border-indigo-200 shadow-xs text-center shrink-0 w-full sm:w-auto">
+              <div className="bg-white px-4 py-2.5 rounded-xl border border-emerald-200 shadow-xs text-center shrink-0 w-full sm:w-auto">
                 <span className="text-[10px] text-slate-400 font-bold block">حداکثر سهم چک فعال</span>
-                <span className="text-sm sm:text-base font-black text-indigo-700 font-mono">
+                <span className="text-sm sm:text-base font-black text-emerald-700 font-mono">
                   {userCredit.toLocaleString()} تومان
                 </span>
               </div>
@@ -148,7 +148,7 @@ export default function ChequeCharterModal({
             {/* Section 1: The Core 50/50 Cash & Cheque Formula */}
             <div className="space-y-3">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-2">
-                <Coins size={18} className="text-amber-600" />
+                <Coins size={18} className="text-emerald-600" />
                 ۱. ضابطه نصف نقد - نصف چک و مبالغ مازاد بر اعتبار
               </h3>
               <div className="space-y-2 text-slate-600 text-xs leading-relaxed bg-slate-50/80 p-4 rounded-2xl border border-slate-150">
@@ -165,7 +165,7 @@ export default function ChequeCharterModal({
                   </p>
 
                   <div className="flex items-center gap-1.5 text-indigo-800 font-black pt-2">
-                    <AlertCircle size={15} className="text-amber-600" />
+                    <AlertCircle size={15} className="text-emerald-600" />
                     <span>اگر مبلغ فاکتور بیشتر از ۱۰۰ میلیون تومان باشد (مثلاً ۱۴۰ میلیون تومان):</span>
                   </div>
                   <p className="text-[11px] text-slate-600 pr-5">
@@ -178,7 +178,7 @@ export default function ChequeCharterModal({
             {/* Section 2: Progressive Ladder of Credit */}
             <div className="space-y-3">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-2">
-                <TrendingUp size={18} className="text-indigo-600" />
+                <TrendingUp size={18} className="text-emerald-600" />
                 ۲. جدول پلکانی افزایش سقف اعتبار چکی بر مبنای وصول چک
               </h3>
               <p className="text-xs text-slate-500 font-medium">
@@ -206,7 +206,7 @@ export default function ChequeCharterModal({
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500 font-bold">حداکثر سهم چک:</span>
-                          <span className="font-black font-mono text-indigo-700">{tier.chequeLimit}</span>
+                          <span className="font-black font-mono text-emerald-700">{tier.chequeLimit}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500 font-bold">مدت زمان سررسید:</span>
@@ -253,8 +253,8 @@ export default function ChequeCharterModal({
             </div>
 
             {/* Section 4: Notice */}
-            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl flex items-start gap-2.5 text-[11px] text-amber-900">
-              <AlertCircle size={17} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex items-start gap-2.5 text-[11px] text-amber-900">
+              <AlertCircle size={17} className="text-emerald-600 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
                 <strong>توجه مالی:</strong> در صورت عدم وصول چک در تاریخ سررسید، طبق مقررات قانون تجارت و قرارداد الکترونیکی دست اول، علاوه بر توقف فوری کلیه امتیازات اعتباری، مراتب از طریق مراجع قانونی و پیگیری وکیل پلتفرم اقدام خواهد گردید.
               </p>
@@ -269,7 +269,7 @@ export default function ChequeCharterModal({
             </span>
             <button
               onClick={onClose}
-              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-colors cursor-pointer shadow-sm"
+              className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-colors cursor-pointer shadow-sm"
             >
               متوجه شدم و قبول دارم
             </button>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, Package, Truck, Printer, X, ArrowRight, Sparkles, UserCheck, ExternalLink, Copy, Check } from 'lucide-react';
 import { generateInvoiceUrl } from '../lib/invoice-url-helper';
+import { AnimatedHatchedOverlay } from "./AnimatedHatchedOverlay";
 
 interface OrderSuccessModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export default function OrderSuccessModal({ isOpen, onClose, trackingNumber, amo
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="relative w-full max-w-lg bg-white rounded-[3rem] shadow-2xl overflow-hidden text-right max-h-[92vh] overflow-y-auto"
           >
+            <AnimatedHatchedOverlay intensity="light" />
             {/* Header / Banner */}
             <div className="bg-emerald-600 p-8 text-white text-center relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />

@@ -125,7 +125,7 @@ export default function ParsPackImageUploader({
       <div className="flex items-center justify-between">
         <label className="text-xs font-black text-slate-800 flex items-center gap-1">
           <span>{label}</span>
-          {required && <span className="text-rose-500">*</span>}
+          {required && <span className="text-emerald-500">*</span>}
         </label>
         {subLabel && <span className="text-[10px] text-slate-400 font-bold">{subLabel}</span>}
       </div>
@@ -173,7 +173,7 @@ export default function ParsPackImageUploader({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw size={13} />
                 <span>تغییر عکس از گالری</span>
@@ -182,7 +182,7 @@ export default function ParsPackImageUploader({
               <button
                 type="button"
                 onClick={handleRemove}
-                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 size={13} />
                 <span>حذف</span>
@@ -199,21 +199,21 @@ export default function ParsPackImageUploader({
           onClick={() => !isUploading && fileInputRef.current?.click()}
           className={`relative border-2 border-dashed rounded-2xl p-4 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
             isDragging
-              ? "border-indigo-600 bg-indigo-50/80 scale-[0.99]"
-              : "border-slate-300 bg-white hover:bg-indigo-50/20 hover:border-indigo-400 shadow-2xs"
+              ? "border-emerald-600 bg-emerald-50/80 scale-[0.99]"
+              : "border-slate-300 bg-white hover:bg-emerald-50/20 hover:border-indigo-400 shadow-2xs"
           } ${isUploading ? "pointer-events-none opacity-90" : ""}`}
         >
           {isUploading ? (
             <div className="space-y-2 py-2 w-full max-w-xs text-center">
-              <Loader2 size={24} className="animate-spin text-indigo-600 mx-auto" />
+              <Loader2 size={24} className="animate-spin text-emerald-600 mx-auto" />
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] font-black text-indigo-950">
                   <span>در حال بارگذاری در فضای ابری...</span>
                   <span>{uploadProgress}٪</span>
                 </div>
-                <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-indigo-600 transition-all duration-200 rounded-full"
+                    className="h-full bg-emerald-600 transition-all duration-200 rounded-full"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -221,12 +221,12 @@ export default function ParsPackImageUploader({
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-1 text-center sm:text-right w-full">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 border border-emerald-100">
                 <Camera size={20} />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-black text-slate-800">
-                  برای <span className="text-indigo-600 underline underline-offset-2">انتخاب عکس از گالری یا دستگاه</span> کلیک کنید
+                  برای <span className="text-emerald-600 underline underline-offset-2">انتخاب عکس از گالری یا دستگاه</span> کلیک کنید
                 </p>
                 <p className="text-[10px] text-slate-400 font-medium">
                   پشتیبانی از فرمت‌های تصویری JPG، PNG و WEBP (آپلود آنی و خودکار)
@@ -239,8 +239,8 @@ export default function ParsPackImageUploader({
 
       {/* Error Alert */}
       {errorMessage && (
-        <div className="bg-rose-50 text-rose-700 p-2.5 rounded-xl text-[11px] font-bold flex items-center gap-2 border border-rose-200">
-          <AlertCircle size={14} className="text-rose-600 shrink-0" />
+        <div className="bg-emerald-600 text-white p-2.5 rounded-xl text-[11px] font-bold flex items-center gap-2 border border-emerald-200">
+          <AlertCircle size={14} className="text-emerald-600 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}

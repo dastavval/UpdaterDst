@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Calendar, Clock, Share2, Tag, ArrowLeft, Building2, ShoppingBag, 
   Sparkles, CheckCircle2, ChevronDown, ChevronUp, Copy, Check, 
-  ExternalLink, Layers, ArrowUpRight, HelpCircle
+  ExternalLink, Layers, ArrowUpRight, HelpCircle, List, Compass, Target, Quote, MessageSquareText, Link2
 } from 'lucide-react';
 import { Product } from '../types';
 import { updatePageSEO } from '../utils/seoHelper';
+import { autoInjectProductShortcodes } from '../utils/autoLinker';
 
 export interface ArticleData {
   id?: string;
@@ -25,6 +26,12 @@ export interface ArticleData {
   isAiGenerated?: boolean;
   aiProvider?: string;
   faqs?: Array<{ question: string; answer: string }>;
+  articleType?: 'pillar' | 'cluster';
+  focusKeyword?: string;
+  secondaryKeywords?: string[];
+  metaTitle?: string;
+  metaDescription?: string;
+  pillarTopic?: string;
 }
 
 interface ArticleDetailModalProps {
@@ -35,6 +42,7 @@ interface ArticleDetailModalProps {
   onOpenProduct?: (product: Product) => void;
   onOpenFactory?: (factoryId: string) => void;
   onSwitchTab?: (tab: string) => void;
+  onSelectArticle?: (article: ArticleData) => void;
 }
 
 export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
@@ -44,16 +52,29 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   factories = [],
   onOpenProduct,
   onOpenFactory,
-  onSwitchTab
+  onSwitchTab,
+  onSelectArticle
 }) => {
   const [copied, setCopied] = useState(false);
-  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [activeFaq, setActiveFaq] = useState<number | null>(0);
 
+  // Deep Linking & PushState URL update
   useEffect(() => {
     if (!article) return;
 
+    // Update Browser Address Bar for Dedicated Article URL
+    const originalUrl = window.location.href;
+    const articleIdOrSlug = article.id || article.slug || 'view';
+    const newUrl = `${window.location.origin}/?article=${encodeURIComponent(articleIdOrSlug)}`;
+    
+    try {
+      window.history.pushState({ articleId: articleIdOrSlug }, '', newUrl);
+    } catch (e) {
+      console.warn("Could not pushState:", e);
+    }
+
     // Dynamically update Google SEO Meta Tags & Article JSON-LD Schema
-    const canonical = `https://dastavval.com/?article=${article.id || article.slug || 'view'}`;
+    const canonical = newUrl;
     const schema = {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
@@ -61,14 +82,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         "@type": "WebPage",
         "@id": canonical
       },
-      "headline": article.title,
-      "description": article.summary,
+      "headline": article.metaTitle || article.title,
+      "description": article.metaDescription || article.summary,
       "image": [article.imageUrl || "https://dastavval.com/assets/logo.png"],
       "datePublished": new Date().toISOString(),
       "dateModified": new Date().toISOString(),
       "author": {
         "@type": "Organization",
-        "name": "تحریریه هوش مصنوعی دست‌اول",
+        "name": article.source || "تحریریه هوش مصنوعی دست‌اول",
         "url": "https://dastavval.com"
       },
       "publisher": {
@@ -79,17 +100,34 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           "url": "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png"
         }
       },
-      "keywords": article.tags ? article.tags.join(', ') : "خرید عمده, صنایع غذایی, دست اول"
+      "keywords": [article.focusKeyword, ...(article.secondaryKeywords || []), ...(article.tags || [])].filter(Boolean).join(', ')
     };
 
+    // FAQ Page Schema
+    let faqSchema: any = null;
+    if (article.faqs && article.faqs.length > 0) {
+      faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": article.faqs.map(faq => ({
+          "@type": "Question",
+          "name": faq.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.answer
+          }
+        }))
+      };
+    }
+
     updatePageSEO({
-      title: `${article.title} | مجله تخصصی بنکداری دست اول`,
-      description: article.summary,
-      keywords: article.tags || ["خرید عمده", "صنایع غذایی", "دست اول"],
+      title: `${article.metaTitle || article.title} | مجله B2B دست اول`,
+      description: article.metaDescription || article.summary,
+      keywords: [article.focusKeyword, ...(article.secondaryKeywords || []), ...(article.tags || [])].filter(Boolean) as string[],
       canonicalUrl: canonical,
       ogImage: article.imageUrl,
       ogType: "article",
-      schema
+      schema: faqSchema ? [schema, faqSchema] : schema
     });
 
     // Handle ESC key to close
@@ -97,25 +135,54 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      try {
+        window.history.replaceState({}, '', originalUrl);
+      } catch (e) {}
+    };
   }, [article, onClose]);
 
   if (!article) return null;
 
+  const isPillar = article.articleType === 'pillar' || article.category?.includes('پیلار') || article.category?.includes('جامع');
+
+  // Extract Table of Contents headings from markdown content
+  const extractHeadings = (text: string) => {
+    if (!text) return [];
+    const lines = text.split('\n');
+    const headings: Array<{ id: string; text: string; level: number }> = [];
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('## ')) {
+        const titleText = trimmed.replace(/^##\s*/, '');
+        headings.push({ id: `heading-${idx}`, text: titleText, level: 2 });
+      } else if (trimmed.startsWith('### ')) {
+        const titleText = trimmed.replace(/^###\s*/, '');
+        headings.push({ id: `heading-${idx}`, text: titleText, level: 3 });
+      }
+    });
+    return headings;
+  };
+
+  const tableOfContents = extractHeadings(article.content);
+
   const handleCopyLink = () => {
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(`${window.location.origin}/?article=${article.id}`);
+      const directUrl = `${window.location.origin}/?article=${article.id || article.slug || 'view'}`;
+      navigator.clipboard.writeText(directUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     }
   };
 
   const handleProductClick = (productId: string) => {
-    const found = products.find(p => p.id === productId || (p as any).productCode === productId);
+    const found = products.find(p => String(p.id) === String(productId) || (p as any).productCode === productId);
     if (found && onOpenProduct) {
       onOpenProduct(found);
-    } else {
-      if (onSwitchTab) onSwitchTab('order');
+    } else if (onSwitchTab) {
+      onSwitchTab('order');
     }
   };
 
@@ -127,43 +194,171 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     }
   };
 
-  // Find linked products & factories for bottom carousel
-  const linkedProductItems = (article.linkedProducts || [])
-    .map(id => products.find(p => p.id === id || (p as any).productCode === id))
-    .filter(Boolean) as Product[];
+  // Automatically detect and inject internal product links into article text
+  const processedArticle = useMemo(() => {
+    if (!article || !article.content) {
+      return { updatedContent: '', linksCount: 0, linkedProducts: [] };
+    }
+    return autoInjectProductShortcodes(article.content, products || [], 2);
+  }, [article, products]);
 
-  const linkedFactoryItems = (article.linkedFactories || [])
-    .map(id => factories.find(f => f.id === id || f.factoryCode === id))
+  const linkedProductItems = useMemo(() => {
+    const explicitIds = (article?.linkedProducts || []);
+    const autoLinkedIds = (processedArticle.linkedProducts || []).map(p => String(p.id));
+    const combinedIds = Array.from(new Set([...explicitIds, ...autoLinkedIds]));
+
+    return combinedIds
+      .map(id => products.find(p => String(p.id) === String(id) || (p as any).productCode === id))
+      .filter(Boolean) as Product[];
+  }, [article?.linkedProducts, processedArticle.linkedProducts, products]);
+
+  const linkedFactoryItems = (article?.linkedFactories || [])
+    .map(id => factories.find(f => String(f.id) === String(id) || f.factoryCode === id))
     .filter(Boolean);
 
   /**
-   * Parser that replaces internal link tokens [[product:ID|Label]], [[factory:ID|Label]], etc.
-   * with clickable Iranian interactive elements.
+   * Helper to parse inline tokens like [[product:PRD-1001|چیپس چی‌توز]]
+   */
+  const renderInlineTokens = (text: string) => {
+    const tokenRegex = /\[\[([a-zA-Z0-9_-]+):?([^|\]]*)\|?([^\]]*)\]\]/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = tokenRegex.exec(text)) !== null) {
+      const matchIndex = match.index;
+      if (matchIndex > lastIndex) {
+        parts.push(text.substring(lastIndex, matchIndex));
+      }
+
+      const type = match[1];
+      const param1 = match[2];
+      const param2 = match[3];
+
+      let id = param1;
+      let label = param2 || param1;
+
+      if (!param2 && param1) {
+        label = param1;
+        id = param1;
+      }
+
+      if (type === 'product') {
+        const prod = products.find(p => String(p.id) === String(id) || (p as any).productCode === id);
+        const priceDisplay = prod?.bulk_price || prod?.price 
+          ? `${(prod.bulk_price || prod.price).toLocaleString('fa-IR')} تومان`
+          : null;
+
+        parts.push(
+          <button
+            key={`inline-prod-${matchIndex}`}
+            type="button"
+            onClick={() => handleProductClick(id)}
+            title={`لینک داخلی سئو به محصول: ${prod?.name || label} ${priceDisplay ? '| قیمت عمده: ' + priceDisplay : ''}`}
+            className="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-black border border-emerald-500 px-2.5 py-0.5 rounded-lg text-xs mx-1 transition-all cursor-pointer shadow-xs group"
+          >
+            <ShoppingBag size={12} className="text-emerald-200 group-hover:scale-110 transition-transform" />
+            <span>{label || prod?.name || "مشاهده محصول"}</span>
+            {priceDisplay && (
+              <span className="bg-emerald-950/40 text-emerald-200 text-[10px] px-1.5 py-0.2 rounded font-extrabold mr-0.5">
+                {priceDisplay}
+              </span>
+            )}
+            <ArrowUpRight size={11} className="text-emerald-300" />
+          </button>
+        );
+      } else if (type === 'factory') {
+        parts.push(
+          <button
+            key={`inline-fac-${matchIndex}`}
+            type="button"
+            onClick={() => handleFactoryClick(id)}
+            className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-950 border border-emerald-300 px-2.5 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs group hover:bg-emerald-200"
+          >
+            <Building2 size={12} className="text-emerald-700 group-hover:scale-110 transition-transform" />
+            <span>{label || "کارخانه همکار"}</span>
+            <ArrowUpRight size={11} className="text-emerald-700" />
+          </button>
+        );
+      } else if (type === 'billboard') {
+        parts.push(
+          <button
+            key={`inline-bb-${matchIndex}`}
+            type="button"
+            onClick={() => onSwitchTab && onSwitchTab('billboard')}
+            className="inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 px-2.5 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs"
+          >
+            <Layers size={12} className="text-purple-700" />
+            <span>{label || "تالار کف بازار"}</span>
+          </button>
+        );
+      } else if (type === 'cta') {
+        parts.push(
+          <button
+            key={`inline-cta-${matchIndex}`}
+            type="button"
+            onClick={() => onSwitchTab && onSwitchTab('order')}
+            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3 py-1 rounded-xl text-xs mx-1 my-1 transition-all cursor-pointer shadow-md shadow-emerald-600/20"
+          >
+            <ShoppingBag size={13} />
+            <span>{label || "ثبت سفارش آنلاین"}</span>
+          </button>
+        );
+      } else if (type === 'quote') {
+        parts.push(
+          <span key={`inline-quote-${matchIndex}`} className="block my-3 p-3 bg-amber-50 border-r-4 border-amber-500 rounded-xl text-xs font-bold text-amber-950">
+            <Quote size={14} className="text-amber-600 inline ml-1" />
+            {label}
+          </span>
+        );
+      } else {
+        parts.push(label || match[0]);
+      }
+
+      lastIndex = tokenRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts;
+  };
+
+  /**
+   * Parser that replaces markdown paragraphs and headings
    */
   const renderFormattedContent = (content: string) => {
     if (!content) return null;
 
-    // Split content by paragraphs or headings
     const paragraphs = content.split('\n\n');
 
     return paragraphs.map((block, pIdx) => {
       const trimmed = block.trim();
       if (!trimmed) return null;
 
+      // Handle [[toc]] shortcode inline insertion
+      if (trimmed === '[[toc]]') {
+        return renderTocBox(`toc-inline-${pIdx}`);
+      }
+
       // H3 Heading
       if (trimmed.startsWith('### ')) {
+        const titleText = trimmed.replace(/^###\s*/, '');
         return (
-          <h3 key={`h3-${pIdx}`} className="text-base sm:text-lg font-black text-slate-900 mt-6 mb-3 flex items-center gap-2 border-r-4 border-emerald-600 pr-3">
-            {trimmed.replace(/^###\s*/, '')}
+          <h3 key={`h3-${pIdx}`} id={`heading-${pIdx}`} className="text-base sm:text-lg font-black text-slate-900 mt-6 mb-3 flex items-center gap-2 border-r-4 border-emerald-600 pr-3 scroll-mt-20">
+            {titleText}
           </h3>
         );
       }
 
       // H2 Heading
       if (trimmed.startsWith('## ')) {
+        const titleText = trimmed.replace(/^##\s*/, '');
         return (
-          <h2 key={`h2-${pIdx}`} className="text-lg sm:text-xl font-black text-slate-900 mt-8 mb-4 border-b border-slate-200 pb-2">
-            {trimmed.replace(/^##\s*/, '')}
+          <h2 key={`h2-${pIdx}`} id={`heading-${pIdx}`} className="text-lg sm:text-xl font-black text-slate-900 mt-8 mb-4 border-b border-slate-200 pb-2 scroll-mt-20 flex items-center justify-between">
+            <span>{titleText}</span>
+            <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">بخش اصلی</span>
           </h2>
         );
       }
@@ -196,7 +391,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         );
       }
 
-      // Regular paragraph with inline link tokens
+      // Regular paragraph with inline tokens
       return (
         <p key={`p-${pIdx}`} className="text-xs sm:text-sm font-medium text-slate-700 leading-loose mb-4">
           {renderInlineTokens(trimmed)}
@@ -205,97 +400,33 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     });
   };
 
-  /**
-   * Helper to parse inline tokens like [[product:PRD-1001|چیپس چی‌توز]] or [[factory:fac-1|به‌آرا]]
-   */
-  const renderInlineTokens = (text: string) => {
-    // Regex for [[type:id|label]] or [[type:label]]
-    const tokenRegex = /\[\[([a-zA-Z0-9_-]+):?([^|\]]*)\|?([^\]]*)\]\]/g;
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = tokenRegex.exec(text)) !== null) {
-      const matchIndex = match.index;
-      if (matchIndex > lastIndex) {
-        parts.push(text.substring(lastIndex, matchIndex));
-      }
-
-      const type = match[1];
-      const param1 = match[2];
-      const param2 = match[3];
-
-      let id = param1;
-      let label = param2 || param1;
-
-      // Handle cases where label is the only param
-      if (!param2 && param1) {
-        label = param1;
-        id = param1;
-      }
-
-      if (type === 'product') {
-        const prod = products.find(p => p.id === id || (p as any).productCode === id);
-        parts.push(
-          <button
-            key={`inline-prod-${matchIndex}`}
-            type="button"
-            onClick={() => handleProductClick(id)}
-            className="inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 px-2 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs group"
-          >
-            <ShoppingBag size={12} className="text-emerald-600 group-hover:scale-110 transition-transform" />
-            <span>{label || prod?.name || "مشاهده محصول"}</span>
-            <ArrowUpRight size={11} className="text-emerald-500" />
-          </button>
-        );
-      } else if (type === 'factory') {
-        parts.push(
-          <button
-            key={`inline-fac-${matchIndex}`}
-            type="button"
-            onClick={() => handleFactoryClick(id)}
-            className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 px-2 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs group"
-          >
-            <Building2 size={12} className="text-amber-600 group-hover:scale-110 transition-transform" />
-            <span>{label || "کارخانه همکار"}</span>
-            <ArrowUpRight size={11} className="text-amber-600" />
-          </button>
-        );
-      } else if (type === 'billboard') {
-        parts.push(
-          <button
-            key={`inline-bb-${matchIndex}`}
-            type="button"
-            onClick={() => onSwitchTab && onSwitchTab('billboard')}
-            className="inline-flex items-center gap-1 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300/80 px-2 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs"
-          >
-            <Layers size={12} className="text-purple-600" />
-            <span>{label || "تالار کف بازار"}</span>
-          </button>
-        );
-      } else if (type === 'category' || type === 'tab') {
-        parts.push(
-          <button
-            key={`inline-tab-${matchIndex}`}
-            type="button"
-            onClick={() => onSwitchTab && onSwitchTab(id === 'order' || type === 'category' ? 'order' : id)}
-            className="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 px-2 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer"
-          >
-            <span>{label}</span>
-          </button>
-        );
-      } else {
-        parts.push(label || match[0]);
-      }
-
-      lastIndex = tokenRegex.lastIndex;
-    }
-
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-
-    return parts;
+  const renderTocBox = (keyStr: string) => {
+    if (tableOfContents.length === 0) return null;
+    return (
+      <div key={keyStr} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 my-6 shadow-2xs">
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+          <List size={16} className="text-emerald-600" />
+          <h4 className="text-xs sm:text-sm font-black text-slate-900">فهرست مطالب این مقاله (سئو پیلار)</h4>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {tableOfContents.map((item, idx) => (
+            <a
+              key={`toc-${idx}`}
+              href={`#${item.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(item.id);
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`text-xs font-bold text-slate-700 hover:text-emerald-700 transition-colors flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-emerald-50/80 ${item.level === 3 ? 'mr-3 text-[11px] text-slate-600' : ''}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+              <span className="truncate">{item.text}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -312,7 +443,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           {/* Top Sticky Action Bar */}
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-white/90 backdrop-blur-md sticky top-0 z-20 shrink-0">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
+              <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
                 <Sparkles size={11} className="text-emerald-600" />
                 {article.category || "مقاله تخصصی"}
               </span>
@@ -378,20 +509,51 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
             {/* Title & Summary */}
             <div className="space-y-3">
+              {/* Pillar Page & SEO Badge */}
+              <div className="flex flex-wrap items-center gap-2">
+                {isPillar ? (
+                  <span className="bg-emerald-600 text-white text-[10px] font-black px-3 py-1 rounded-xl shadow-xs flex items-center gap-1">
+                    <Compass size={12} className="text-emerald-200" />
+                    📌 مقاله مادر (Pillar Page) | استراتژی جامع سئو
+                  </span>
+                ) : (
+                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                    <Target size={11} className="text-emerald-600" />
+                    مقاله خوشه‌ای (Cluster Content)
+                  </span>
+                )}
+
+                {article.focusKeyword && (
+                  <span className="bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                    🎯 کلیدواژه اصلی: {article.focusKeyword}
+                  </span>
+                )}
+
+                {processedArticle.linksCount > 0 && (
+                  <span className="bg-teal-50 text-teal-900 border border-teal-300 text-[10px] font-black px-2.5 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs">
+                    <Link2 size={11} className="text-teal-600" />
+                    🔗 لینک‌دهی سئو داخلی: {processedArticle.linksCount.toLocaleString('fa-IR')} کلمه محصول
+                  </span>
+                )}
+              </div>
+
               <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug tracking-tight">
                 {article.title}
               </h1>
 
               {article.summary && (
-                <div className="p-4 bg-emerald-50/80 border-r-4 border-emerald-600 rounded-2xl text-xs sm:text-sm font-bold text-emerald-950 leading-relaxed shadow-2xs">
+                <div className="p-4 bg-emerald-50/80 border-r-4 border-emerald-600 rounded-2xl text-xs sm:text-sm font-bold text-slate-900 leading-relaxed shadow-2xs">
                   {article.summary}
                 </div>
               )}
+
+              {/* Table of Contents */}
+              {renderTocBox('top-toc-box')}
             </div>
 
             {/* Article Markdown Body */}
             <div className="prose prose-slate max-w-none text-right">
-              {renderFormattedContent(article.content)}
+              {renderFormattedContent(processedArticle.updatedContent || article.content)}
             </div>
 
             {/* Embedded Linked Products Card Box */}
@@ -446,7 +608,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {linkedFactoryItems.length > 0 && (
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl sm:rounded-3xl p-5 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Building2 size={18} className="text-amber-600" />
+                  <Building2 size={18} className="text-emerald-600" />
                   <h4 className="text-xs sm:text-sm font-black text-slate-900">کارخانجات همکار مرتبط</h4>
                 </div>
 
@@ -455,10 +617,10 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                     <div
                       key={`linked-fac-${fac.id || fIdx}-${fIdx}`}
                       onClick={() => handleFactoryClick(fac.id)}
-                      className="bg-white rounded-2xl p-3 border border-slate-200 hover:border-amber-500 transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
+                      className="bg-white rounded-2xl p-3 border border-slate-200 hover:border-emerald-500 transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-700 font-black text-sm shrink-0 border border-amber-200/60">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-amber-700 font-black text-sm shrink-0 border border-emerald-200/60">
                           🏢
                         </div>
                         <div>
@@ -470,7 +632,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                           </span>
                         </div>
                       </div>
-                      <ArrowLeft size={14} className="text-slate-400 group-hover:text-amber-600 transition-colors" />
+                      <ArrowLeft size={14} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
                     </div>
                   ))}
                 </div>

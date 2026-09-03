@@ -15,16 +15,27 @@ export interface CityTierData {
   population: number; // Estimated population
   tier: 1 | 2 | 3 | 4;
   tierLabel: string;
+  isMetropolis: boolean;
   
+  // Regional Zones & Multi-level tiers to prevent monopoly
+  availableZones?: string[];
+  representativeLevels?: {
+    level: "diamond" | "gold" | "silver";
+    title: string;
+    description: string;
+    minMonthlyVolumeToman: number;
+    minMonthlyVolumeFormatted: string;
+  }[];
+
   // Carton-based metrics
-  starterMinCartons: string; // حداقل کارتن برای ورود آسان
+  starterMinCartons: string; // حداقل کارتن برای ورود
   monthlyCartons: string; // ظرفیت توزیع کارتنی ماهانه
   growthTargetCartons: string; // هدف رشد کارتنی
   
-  // Financial metrics (Realistic & Accessible)
+  // Financial metrics
   initialMinOrderToman: number; // حداقل سفارش ورود (تومان)
   initialMinOrderFormatted: string;
-  monthlyQuotaCeilingToman: number; // سقف سهمیه پلکانی ماهانه (تومان)
+  monthlyQuotaCeilingToman: number; // سقف سهمیه ماهانه (تومان)
   monthlyQuotaCeilingFormatted: string;
   guaranteeLimitToman: number; // سقف ضمانت صیادی آسان (تومان)
   guaranteeLimitFormatted: string;
@@ -39,14 +50,14 @@ export interface CityTierData {
 // Normalized lookup map for Iranian cities and population estimates
 const KNOWN_CITIES_DATA: Record<string, { province: string; population: number; tier: 1 | 2 | 3 | 4; tierLabel: string }> = {
   // Tier 1: کلان‌شهرهای بالای ۱.۵ میلیون نفر
-  "تهران": { province: "تهران", population: 9250000, tier: 1, tierLabel: "کلان‌شهر ویژه پایتخت (سطح ۱)" },
-  "مشهد": { province: "خراسان رضوی", population: 3300000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
-  "اصفهان": { province: "اصفهان", population: 2200000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
-  "کرج": { province: "البرز", population: 1900000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
-  "شیراز": { province: "فارس", population: 1750000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
-  "تبریز": { province: "آذربایجان شرقی", population: 1700000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
-  "قم": { province: "قم", population: 1350000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
-  "اهواز": { province: "خوزستان", population: 1300000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱)" },
+  "تهران": { province: "تهران", population: 9250000, tier: 1, tierLabel: "کلان‌شهر ویژه پایتخت (سطح ۱ - توزیع منطقه‌ای)" },
+  "مشهد": { province: "خراسان رضوی", population: 3300000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "اصفهان": { province: "اصفهان", population: 2200000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "کرج": { province: "البرز", population: 1900000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "شیراز": { province: "فارس", population: 1750000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "تبریز": { province: "آذربایجان شرقی", population: 1700000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "قم": { province: "قم", population: 1350000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "اهواز": { province: "خوزستان", population: 1300000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
 
   // Tier 2: کلان‌شهرهای منطقه‌ای و مراکز استان پرجمعیت (۳۵۰ هزار تا ۱.۲ میلیون)
   "کرمانشاه": { province: "کرمانشاه", population: 1020000, tier: 2, tierLabel: "مرکز استان و قطب منطقه‌ای (سطح ۲)" },
@@ -112,7 +123,7 @@ const KNOWN_CITIES_DATA: Record<string, { province: string; population: number; 
   "چابهار": { province: "سیستان و بلوچستان", population: 120000, tier: 3, tierLabel: "بندر استراتژیک تجاری (سطح ۳)" }
 };
 
-function normalizeName(str?: string): string {
+export function normalizeName(str?: string): string {
   if (!str) return "";
   return str
     .replace(/[ي]/g, "ی")
@@ -141,13 +152,12 @@ export function toPersianDigits(num: string | number): string {
 }
 
 /**
- * Calculates Dealership Carton Quota, Progressive Growth Tiers, and Accessible Guarantees
- * dynamically based on city demographic scale with an encouraging, low-barrier starting point.
+ * Calculates Dealership Carton Quota, Progressive Growth Tiers, and Multi-level Zones
+ * tailored dynamically for Iranian Metropolises vs Small Towns.
  */
 export function calculateDealershipTier(city: string, province?: string): CityTierData {
   const normCity = normalizeName(city);
   
-  // 1. Direct or partial lookup
   let matchedKey = Object.keys(KNOWN_CITIES_DATA).find((k) => normalizeName(k) === normCity);
   
   if (!matchedKey) {
@@ -156,7 +166,6 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
 
   let baseData = matchedKey ? KNOWN_CITIES_DATA[matchedKey] : null;
 
-  // 2. Fallback heuristic based on province or default
   if (!baseData) {
     const normProv = normalizeName(province);
     if (normProv.includes("تهران")) {
@@ -169,6 +178,8 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
   }
 
   const pop = baseData.population;
+  const isMetropolis = baseData.tier === 1;
+
   let starterMinCartons: string;
   let monthlyCartons: string;
   let growthTargetCartons: string;
@@ -179,157 +190,207 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
   let recommendedFleet: string;
   let estimatedGrossMargin: string;
   let growthSteps: DealershipGrowthStep[];
+  let availableZones: string[] | undefined;
+  let representativeLevels: CityTierData['representativeLevels'] | undefined;
 
-  // Accessible, Progressive Growth Model (All in Cartons):
   if (baseData.tier === 1) {
-    // Tier 1: Metropolises
-    starterMinCartons = "۳۰ تا ۶۰ کارتن";
-    monthlyCartons = "۱۵۰ تا ۵۰۰ کارتن";
-    growthTargetCartons = "تا ۸۰۰ کارتن در ماه";
-    initialMinOrderToman = 45_000_000;
-    monthlyQuotaCeilingToman = 650_000_000;
-    guaranteeLimitToman = 80_000_000;
-    recommendedWarehouseSpace = "از ۱۰۰ تا ۳۰۰ متر مربع";
-    recommendedFleet = "۱ الی ۳ دستگاه وانت یا وانت‌بار";
-    estimatedGrossMargin = "۲۲٪ تا ۲۸٪ سود خالص";
+    // Tier 1: Metropolises - HIGH VOLUME & MULTI-LEVEL ZONES TO PREVENT MONOPOLY
+    starterMinCartons = "۲۰۰ تا ۵۰۰ کارتن";
+    monthlyCartons = "۱,۰۰۰ تا ۳,۰۰۰ کارتن";
+    growthTargetCartons = "تا ۵,۰۰۰ کارتن در ماه";
+    initialMinOrderToman = 300_000_000; // 300 Million Tomans
+    monthlyQuotaCeilingToman = 2_500_000_000; // 2.5 Billion Tomans
+    guaranteeLimitToman = 400_000_000;
+    recommendedWarehouseSpace = "از ۲۰۰ تا ۸۰۰ متر مربع انبار مکانیزه";
+    recommendedFleet = "۲ الی ۵ دستگاه وانت یا خاور پخش مویرگی";
+    estimatedGrossMargin = "۲۵٪ تا ۳۲٪ سود خالص";
+
+    availableZones = [
+      "منطقه ۱ - شمال (شمیرانات و شمال کلان‌شهر)",
+      "منطقه ۲ - غرب (قطب صنعتی و پخش مویرگی)",
+      "منطقه ۳ - مرکز (بازار اصلی و بنکداری)",
+      "منطقه ۴ - شرق (مراکز توزیع و هایپرمارکت‌ها)",
+      "منطقه ۵ - جنوب و حومه (انبارداری و لجستیک سنگین)"
+    ];
+
+    representativeLevels = [
+      {
+        level: "diamond",
+        title: "💎 سطح ۱: نماینده الماس (بنکداری و مدیریت منطقه‌ای)",
+        description: "توزیع انحصاری در منطقه مشخص کلان‌شهر و ارجاع کلیه خریداران عمده و هایپرمارکت‌ها",
+        minMonthlyVolumeToman: 1_500_000_000,
+        minMonthlyVolumeFormatted: "۱.۵ میلیارد تومان"
+      },
+      {
+        level: "gold",
+        title: "🥇 سطح ۲: نماینده طلایی (پخش مویرگی محلی)",
+        description: "عاملیت توزیع در ناحیه مشخص با پشتیبانی مویرگی سوپرمارکت‌ها",
+        minMonthlyVolumeToman: 600_000_000,
+        minMonthlyVolumeFormatted: "۶۰۰ میلیون تومان"
+      },
+      {
+        level: "silver",
+        title: "🥈 سطح ۳: نماینده نقره‌ای (عامل تحویل و توزیع سریع)",
+        description: "تحویل مستقیم سفارشات و عاملیت فروشگاه‌های زنجیره‌ای منطقه",
+        minMonthlyVolumeToman: 300_000_000,
+        minMonthlyVolumeFormatted: "۳۰۰ میلیون تومان"
+      }
+    ];
 
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: شروع آسان و تست اولیه",
-        cartonRange: "۳۰ تا ۶۰ کارتن",
-        volumeTomanFormatted: "۴۵ میلیون تومان",
-        marginPercent: "۱۸٪ تا ۲۲٪",
-        description: "تست بازار محلی با حداقل سرمایه و ضمانت آسان چک صیادی"
+        title: "گام ۱: ورود کلان‌شهری و اخذ عاملیت منطقه",
+        cartonRange: "۲۰۰ تا ۵۰۰ کارتن",
+        volumeTomanFormatted: "۳۰۰ میلیون تومان",
+        marginPercent: "۲۲٪ تا ۲۵٪",
+        description: "شروع عاملیت رسمی در یکی از مناطق پنج‌گانه کلان‌شهر بدون انحصار تک‌نفره"
       },
       {
         stepNumber: 2,
-        title: "گام ۲: تثبیت و توسعه توزیع",
-        cartonRange: "۱۵۰ تا ۳۰۰ کارتن",
-        volumeTomanFormatted: "۲۰۰ تا ۳۵۰ میلیون تومان",
-        marginPercent: "۲۲٪ تا ۲۵٪",
-        description: "افزایش خودکار سهمیه با ارجاع سوپرمارکت‌های ثبتی منطقه به شما"
+        title: "گام ۲: توسعه شبکه مویرگی منطقه",
+        cartonRange: "۱,۰۰۰ تا ۲,۰۰۰ کارتن",
+        volumeTomanFormatted: "۱ الی ۱.۵ میلیارد تومان",
+        marginPercent: "۲۶٪ تا ۲۹٪",
+        description: "پوشش مویرگی سوپرمارکت‌ها و فروشگاه‌های منطقه با ارجاع مستقیم سیستمی"
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت انحصاری کلان‌شهر",
-        cartonRange: "۵۰۰ تا ۸۰۰ کارتن",
-        volumeTomanFormatted: "۶۵۰ میلیون تومان",
-        marginPercent: "۲۸٪ ماکزیمم",
-        description: "انحصار کامل توزیع منطقه همراه با بیشترین تخفیف پله‌ای کارخانه"
+        title: "گام ۳: نماینده ارشد الماس کلان‌شهر",
+        cartonRange: "۳,۰۰۰ تا ۵,۰۰۰ کارتن",
+        volumeTomanFormatted: "۲.۵ میلیارد تومان",
+        marginPercent: "۳۲٪ ماکزیمم",
+        description: "بنکداری و پشتیبانی تجاری کلان‌شهر همراه با بالاترین درصد حاشیه سود کارخانه‌ای"
       }
     ];
   } else if (baseData.tier === 2) {
     // Tier 2: Provincial Hubs
-    starterMinCartons = "۲۵ تا ۵۰ کارتن";
-    monthlyCartons = "۱۰۰ تا ۳۵۰ کارتن";
-    growthTargetCartons = "تا ۵۰۰ کارتن در ماه";
-    initialMinOrderToman = 35_000_000;
-    monthlyQuotaCeilingToman = 450_000_000;
-    guaranteeLimitToman = 60_000_000;
-    recommendedWarehouseSpace = "۸۰ تا ۲۰۰ متر مربع";
-    recommendedFleet = "۱ الی ۲ دستگاه وانت بار";
-    estimatedGrossMargin = "۲۰٪ تا ۲۶٪ سود خالص";
+    starterMinCartons = "۶۰ تا ۱۲۰ کارتن";
+    monthlyCartons = "۳۰۰ تا ۸۰۰ کارتن";
+    growthTargetCartons = "تا ۱,۵۰۰ کارتن در ماه";
+    initialMinOrderToman = 85_000_000;
+    monthlyQuotaCeilingToman = 850_000_000;
+    guaranteeLimitToman = 120_000_000;
+    recommendedWarehouseSpace = "۱۰۰ تا ۲۵۰ متر مربع";
+    recommendedFleet = "۱ الی ۳ دستگاه وانت بار";
+    estimatedGrossMargin = "۲۲٪ تا ۲۸٪ سود خالص";
+
+    representativeLevels = [
+      {
+        level: "gold",
+        title: "🥇 سطح ۱: نماینده طلایی استانی",
+        description: "توزیع انحصاری مرکز استان و ارجاع کلیه خریداران عمده استان",
+        minMonthlyVolumeToman: 400_000_000,
+        minMonthlyVolumeFormatted: "۴۰۰ میلیون تومان"
+      },
+      {
+        level: "silver",
+        title: "🥈 سطح ۲: نماینده نقره‌ای توزیع",
+        description: "عاملیت فروش مویرگی در سطح شهر و حومه",
+        minMonthlyVolumeToman: 150_000_000,
+        minMonthlyVolumeFormatted: "۱۵۰ میلیون تومان"
+      }
+    ];
 
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: ورود منعطف",
-        cartonRange: "۲۵ تا ۵۰ کارتن",
-        volumeTomanFormatted: "۳۵ میلیون تومان",
-        marginPercent: "۱۸٪ تا ۲۰٪",
-        description: "آغاز همکاری سریع بدون نیاز به انبارهای بزرگ یا سرمایه‌گذاری سنگین"
+        title: "گام ۱: ورود مرکز استان",
+        cartonRange: "۶۰ تا ۱۲۰ کارتن",
+        volumeTomanFormatted: "۸۵ میلیون تومان",
+        marginPercent: "۲۰٪ تا ۲۲٪",
+        description: "شروع توزیع در مرکز استان با پشتیبانی باربری کارخانه"
       },
       {
         stepNumber: 2,
-        title: "گام ۲: رشد ماهانه",
-        cartonRange: "۱۰۰ تا ۲۵۰ کارتن",
-        volumeTomanFormatted: "۱۵۰ تا ۳۰۰ میلیون تومان",
-        marginPercent: "۲۱٪ تا ۲۴٪",
-        description: "پوشش فروشگاه‌ها و سوپرمارکت‌های فعال در شهرستان"
+        title: "گام ۲: گسترش سهمیه استانی",
+        cartonRange: "۳۰۰ تا ۸۰۰ کارتن",
+        volumeTomanFormatted: "۴۰۰ تا ۶۰۰ میلیون تومان",
+        marginPercent: "۲۴٪ تا ۲۶٪",
+        description: "توزیع گسترده در فروشگاه‌های استان و ارجاع سفارشات بومی"
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت رسمی استان",
-        cartonRange: "۳۵۰ تا ۵۰۰ کارتن",
-        volumeTomanFormatted: "۴۵۰ میلیون تومان",
-        marginPercent: "۲۶٪ ماکزیمم",
-        description: "توزیع انحصاری و تحویل مستقیم باربری درب مغازه"
+        title: "گام ۳: عاملیت ارشد استان",
+        cartonRange: "۱,۰۰۰ تا ۱,۵۰۰ کارتن",
+        volumeTomanFormatted: "۸۵۰ میلیون تومان",
+        marginPercent: "۲۸٪ ماکزیمم",
+        description: "نماینده اصلی توزیع استان با بالاترین تخفیف پلکانی"
       }
     ];
   } else if (baseData.tier === 3) {
-    // Tier 3: Medium Cities (100k to 300k, e.g. Quchan, Sabzevar, Kashan, Amol)
+    // Tier 3: Medium Cities (100k to 300k, e.g. Quchan, Sabzevar, Kashan, Amol) - ACCESSIBLE FOR SMALL TOWNS
     starterMinCartons = "۱۵ تا ۳۰ کارتن";
-    monthlyCartons = "۴۰ تا ۱۲۰ کارتن";
-    growthTargetCartons = "تا ۲۰۰ کارتن در ماه";
-    initialMinOrderToman = 15_000_000;
-    monthlyQuotaCeilingToman = 120_000_000;
-    guaranteeLimitToman = 20_000_000;
-    recommendedWarehouseSpace = "۴0 تا ۱۰۰ متر مربع (فروشگاه، مغازه یا انبار)";
-    recommendedFleet = "۱ دستگاه وانت پخش یا خودرو سواری باربری";
-    estimatedGrossMargin = "۱۸٪ تا ۲۴٪ سود خالص";
+    monthlyCartons = "۵۰ تا ۱۵۰ کارتن";
+    growthTargetCartons = "تا ۳۰۰ کارتن در ماه";
+    initialMinOrderToman = 18_000_000; // 18 Million Tomans - Accessible
+    monthlyQuotaCeilingToman = 180_000_000;
+    guaranteeLimitToman = 30_000_000;
+    recommendedWarehouseSpace = "۳۰ تا ۸۰ متر مربع (مغازه، انبار یا فروشگاه)";
+    recommendedFleet = "۱ دستگاه وانت یا خودرو سواری باربری";
+    estimatedGrossMargin = "۲۰٪ تا ۲۵٪ سود خالص";
 
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: ورود فوق‌العاده آسان",
+        title: "گام ۱: شروع بسیار آسان شهرستان",
         cartonRange: "۱۵ تا ۳۰ کارتن",
-        volumeTomanFormatted: "۱۵ میلیون تومان",
-        marginPercent: "۱۸٪",
-        description: "شروع کم‌ریسک و تست بازار محلی با حداقل سرمایه اولیه"
-      },
-      {
-        stepNumber: 2,
-        title: "گام ۲: توسعه توزیع محلی",
-        cartonRange: "۴۰ تا ۸۰ کارتن",
-        volumeTomanFormatted: "۴۰ تا ۸۰ میلیون تومان",
-        marginPercent: "۲۱٪",
-        description: "افزایش خودکار سهمیه متناسب با کشش بازار شهرستان"
-      },
-      {
-        stepNumber: 3,
-        title: "گام ۳: عاملیت رسمی شهرستان",
-        cartonRange: "۱۰۰ تا ۲۰۰ کارتن",
-        volumeTomanFormatted: "۱۲۰ میلیون تومان",
-        marginPercent: "۲۴٪ ماکزیمم",
-        description: "عاملیت اصلی شهر با ارجاع کلیه خریداران عمده بومی"
-      }
-    ];
-  } else {
-    // Tier 4: Small Towns (< 100k)
-    starterMinCartons = "۱۰ تا ۲۰ کارتن";
-    monthlyCartons = "۲۵ تا ۶۰ کارتن";
-    growthTargetCartons = "تا ۱۲۰ کارتن در ماه";
-    initialMinOrderToman = 9_000_000;
-    monthlyQuotaCeilingToman = 75_000_000;
-    guaranteeLimitToman = 12_000_000;
-    recommendedWarehouseSpace = "۲۵ تا ۶۰ متر مربع (فروشگاه یا انبار کوچک)";
-    recommendedFleet = "۱ دستگاه وانت یا خودرو شخصی باربری";
-    estimatedGrossMargin = "۱۸٪ تا ۲۲٪ سود خالص";
-
-    growthSteps = [
-      {
-        stepNumber: 1,
-        title: "گام ۱: ثبت و شروع سریع",
-        cartonRange: "۱۰ تا ۲۰ کارتن",
-        volumeTomanFormatted: "۹ میلیون تومان",
-        marginPercent: "۱۸٪",
+        volumeTomanFormatted: "۱۸ میلیون تومان",
+        marginPercent: "۱۹٪",
         description: "شروع کار بدون نیاز به چک سنگین یا انبار تجاری بزرگ"
       },
       {
         stepNumber: 2,
+        title: "گام ۲: توسعه توزیع محلی",
+        cartonRange: "۵۰ تا ۱۵۰ کارتن",
+        volumeTomanFormatted: "۵۰ تا ۱۰۰ میلیون تومان",
+        marginPercent: "۲۲٪",
+        description: "افزایش خودکار سهمیه متناسب با کشش بازار شهرستان"
+      },
+      {
+        stepNumber: 3,
+        title: "گام ۳: عاملیت انحصاری شهرستان",
+        cartonRange: "۲۰۰ تا ۳۰۰ کارتن",
+        volumeTomanFormatted: "۱۸۰ میلیون تومان",
+        marginPercent: "۲۵٪ ماکزیمم",
+        description: "عاملیت اصلی شهر با ارجاع کلیه خریداران عمده بومی"
+      }
+    ];
+  } else {
+    // Tier 4: Small Towns (< 100k) - VERY LOW BARRIER FOR SMALL CITIES
+    starterMinCartons = "۸ تا ۱۵ کارتن";
+    monthlyCartons = "۲۰ تا ۵۰ کارتن";
+    growthTargetCartons = "تا ۱۰۰ کارتن در ماه";
+    initialMinOrderToman = 10_000_000; // 10 Million Tomans - Ultra Accessible
+    monthlyQuotaCeilingToman = 80_000_000;
+    guaranteeLimitToman = 15_000_000;
+    recommendedWarehouseSpace = "۲۰ تا ۵۰ متر مربع (مغازه یا انبار محلی)";
+    recommendedFleet = "۱ دستگاه وانت یا خودرو شخصی";
+    estimatedGrossMargin = "۲۰٪ تا ۲۴٪ سود خالص";
+
+    growthSteps = [
+      {
+        stepNumber: 1,
+        title: "گام ۱: ثبت و ورود سریع شهر کوچک",
+        cartonRange: "۸ تا ۱۵ کارتن",
+        volumeTomanFormatted: "۱۰ میلیون تومان",
+        marginPercent: "۱۹٪",
+        description: "حداقل سرمایه اولیه برای همه متقاضیان شهرهای کوچک"
+      },
+      {
+        stepNumber: 2,
         title: "گام ۲: رشد تدریجی",
-        cartonRange: "۲۵ تا ۵۰ کارتن",
-        volumeTomanFormatted: "۲۵ تا ۵۰ میلیون تومان",
-        marginPercent: "۲۰٪",
+        cartonRange: "۲۰ تا ۵0 کارتن",
+        volumeTomanFormatted: "۲۰ تا ۵۰ میلیون تومان",
+        marginPercent: "۲۱٪",
         description: "رشد پلکانی سهمیه متناسب با فروش ماهانه مغازه"
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت معتبر منطقه",
-        cartonRange: "۶۰ تا ۱۲۰ کارتن",
-        volumeTomanFormatted: "۷۵ میلیون تومان",
-        marginPercent: "۲۲٪",
+        title: "گام ۳: عاملیت رسمی منطقه",
+        cartonRange: "۶۰ تا ۱۰۰ کارتن",
+        volumeTomanFormatted: "۸۰ میلیون تومان",
+        marginPercent: "۲۴٪",
         description: "نماینده رسمی ثبت‌شده با ارسال مستقیم باربری"
       }
     ];
@@ -341,6 +402,9 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
     population: pop,
     tier: baseData.tier,
     tierLabel: baseData.tierLabel,
+    isMetropolis,
+    availableZones,
+    representativeLevels,
     starterMinCartons,
     monthlyCartons,
     growthTargetCartons,
@@ -356,3 +420,55 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
     growthSteps
   };
 }
+
+/**
+ * Finds exact representative in city OR nearest representative in the same province/region.
+ */
+export function findNearestRepresentative(targetCity: string, targetProvince: string, allReps: any[]): {
+  exactMatches: any[];
+  nearestMatches: any[];
+  nearestCityName?: string;
+  isProvinceFallback: boolean;
+} {
+  if (!Array.isArray(allReps) || allReps.length === 0) {
+    return { exactMatches: [], nearestMatches: [], isProvinceFallback: false };
+  }
+
+  const normCity = normalizeName(targetCity);
+  const normProv = normalizeName(targetProvince);
+
+  // 1. Exact city matches
+  const exact = allReps.filter(r => {
+    const rCity = normalizeName(r.city);
+    return rCity && (rCity === normCity || rCity.includes(normCity) || normCity.includes(rCity));
+  });
+
+  if (exact.length > 0) {
+    return { exactMatches: exact, nearestMatches: [], isProvinceFallback: false };
+  }
+
+  // 2. Nearest in same province
+  const sameProvinceReps = allReps.filter(r => {
+    const rProv = normalizeName(r.province);
+    return rProv && (rProv === normProv || rProv.includes(normProv) || normProv.includes(rProv));
+  });
+
+  if (sameProvinceReps.length > 0) {
+    const nearestCity = sameProvinceReps[0]?.city || "مرکز استان";
+    return {
+      exactMatches: [],
+      nearestMatches: sameProvinceReps,
+      nearestCityName: nearestCity,
+      isProvinceFallback: true
+    };
+  }
+
+  // 3. Fallback to all approved reps if province doesn't match
+  return {
+    exactMatches: [],
+    nearestMatches: allReps.slice(0, 3),
+    nearestCityName: allReps[0]?.city || "کلان‌شهر همجوار",
+    isProvinceFallback: true
+  };
+}
+

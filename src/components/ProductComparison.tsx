@@ -36,7 +36,7 @@ export default function ProductComparison({ isOpen, onClose, products, theme }: 
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
                 <Scale size={20} />
               </div>
               <div>
@@ -124,7 +124,7 @@ export default function ProductComparison({ isOpen, onClose, products, theme }: 
                   <tr className="border-t border-slate-100">
                     <td className="p-4 font-black">حداقل سفارش (کارتن)</td>
                     {products.map((p, idx) => (
-                      <td key={`cmp-min-order-${p.id || idx}-${idx}`} className="p-4 text-center font-bold text-amber-600">{Math.max(5, p.min_order_cartons || 5)}</td>
+                      <td key={`cmp-min-order-${p.id || idx}-${idx}`} className="p-4 text-center font-bold text-emerald-600">{Math.max(5, p.min_order_cartons || 5)}</td>
                     ))}
                   </tr>
                   <tr className="border-t border-slate-100">

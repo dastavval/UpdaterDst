@@ -124,7 +124,7 @@ export default function WholesaleCatalogView({ products, activeCategory, onAddTo
           <div className="hidden sm:block w-[1px] h-3 bg-gray-200"></div>
           <div className="flex justify-between items-center gap-1">
             <span className="text-gray-400">قیمت مبنا:</span>{" "}
-            <span className="text-slate-900 font-black bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md text-[10px]">درب کارخانه</span>
+            <span className="text-slate-900 font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded-md text-[10px]">درب کارخانه</span>
           </div>
         </div>
       </div>

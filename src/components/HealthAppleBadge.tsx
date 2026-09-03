@@ -146,15 +146,15 @@ export const HealthBadgesStrip: React.FC<{
       )}
 
       {isNatural && (
-        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200/90 px-2 py-0.5 rounded-lg text-[9px] font-black shadow-2xs">
+        <span className="inline-flex items-center gap-1 bg-emerald-600 text-white border border-emerald-200/90 px-2 py-0.5 rounded-lg text-[9px] font-black shadow-2xs">
           <Leaf size={11} className="text-emerald-600 fill-emerald-500" />
           <span>۱۰۰٪ طبیعی</span>
         </span>
       )}
 
       {isOrganic && (
-        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300/80 px-2 py-0.5 rounded-lg text-[9px] font-black shadow-2xs">
-          <Sparkles size={11} className="text-amber-600" />
+        <span className="inline-flex items-center gap-1 bg-emerald-50 text-amber-900 border border-amber-300/80 px-2 py-0.5 rounded-lg text-[9px] font-black shadow-2xs">
+          <Sparkles size={11} className="text-emerald-600" />
           <span>گواهی ارگانیک</span>
         </span>
       )}
@@ -278,7 +278,7 @@ export const HealthCertModal: React.FC<{
                 </div>
 
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <Activity size={16} className="text-blue-600 shrink-0" />
+                  <Activity size={16} className="text-emerald-600 shrink-0" />
                   <div>
                     <span className="font-bold text-slate-800 block">کنترل کیفیت (QC)</span>
                     <span className="text-[10px] text-slate-500">توسط آزمایشگاه مرجع کارخانه</span>

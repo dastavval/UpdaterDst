@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
+import { getDisplayImageUrl, getProductFallbackSvg } from "../lib/image-utils";
 import { 
   ShoppingCart, Plus, Minus, Package, Check, 
   Search, Filter, Phone, ArrowRight, Share2, 
@@ -295,15 +296,16 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                 className="bg-white rounded-3xl border border-slate-200 p-4 shadow-xs flex gap-4 hover:border-emerald-500/30 hover:shadow-md transition-all relative overflow-hidden"
               >
                 {/* Product Image */}
-                <div className="w-24 sm:w-28 h-24 sm:h-28 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100 relative">
+                <div className="w-24 sm:w-28 h-24 sm:h-28 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100 relative flex items-center justify-center p-1">
                   <img 
-                    src={p.image_url} 
+                    src={getDisplayImageUrl(p.image_url || p.imageUrl, p.name, p.brand)} 
                     alt={p.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     referrerPolicy="no-referrer"
+                    onError={(e) => { (e.target as HTMLImageElement).src = getProductFallbackSvg(p.name, p.brand); }}
                   />
                   {p.badge && (
-                    <span className="absolute top-1 right-1 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-md">
+                    <span className="absolute top-1 right-1 bg-emerald-600 text-white font-black text-[9px] px-2 py-0.5 rounded-md shadow-xs">
                       {p.badge}
                     </span>
                   )}
@@ -314,7 +316,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-slate-400">{p.brand}</span>
-                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                         {p.category}
                       </span>
                     </div>
@@ -343,7 +345,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                             onClick={() => updateQuantity(p.id, inCartQty - 1, p.min_order_cartons)}
                             className="w-7 h-7 rounded-lg bg-white hover:bg-emerald-100 flex items-center justify-center text-emerald-800 transition-all cursor-pointer border border-emerald-200/50"
                           >
-                            {inCartQty <= p.min_order_cartons ? <Trash2 size={14} className="text-rose-500" /> : <Minus size={14} />}
+                            {inCartQty <= p.min_order_cartons ? <Trash2 size={14} className="text-emerald-500" /> : <Minus size={14} />}
                           </button>
                           <span className="text-xs font-black text-slate-800 px-1 font-mono min-w-[20px] text-center">
                             {toPersianNum(inCartQty)}
@@ -392,7 +394,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-emerald-600 flex items-center justify-center text-white relative">
                 <ShoppingCart size={20} />
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 border-slate-900 font-mono">
+                <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 border-slate-900 font-mono">
                   {toPersianNum(cartSummary.totalItems)}
                 </span>
               </div>
@@ -477,7 +479,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                             onClick={() => updateQuantity(item.product.id, item.qty - 1, item.product.min_order_cartons)}
                             className="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600"
                           >
-                            {item.qty <= item.product.min_order_cartons ? <Trash2 size={12} className="text-rose-500" /> : <Minus size={12} />}
+                            {item.qty <= item.product.min_order_cartons ? <Trash2 size={12} className="text-emerald-500" /> : <Minus size={12} />}
                           </button>
                           <span className="text-xs font-black text-slate-800 px-1 font-mono w-6 text-center">
                             {toPersianNum(item.qty)}

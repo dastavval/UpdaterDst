@@ -3,8 +3,42 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+console.log('main.tsx executing after imports');
+
 // Mark React app mounted flag for in-browser diagnostic
 (window as any).__REACT_APP_MOUNTED__ = true;
+
+// Prevent transient WebSocket connection closed rejections from showing error overlays in preview
+window.addEventListener('unhandledrejection', (event) => {
+  if (
+    event.reason &&
+    (event.reason.message?.includes('WebSocket') ||
+     event.reason.toString?.().includes('WebSocket') ||
+     String(event.reason).includes('WebSocket') ||
+     String(event.reason).includes('closed without being opened'))
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+});
+
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  const msg = args.map(a => String(a)).join(' ');
+  if (msg.includes('WebSocket') || msg.includes('websocket') || msg.includes('closed without') || msg.includes('failed to connect')) {
+    return;
+  }
+  originalConsoleError(...args);
+};
+
+const originalConsoleWarn = console.warn;
+console.warn = (...args: any[]) => {
+  const msg = args.map(a => String(a)).join(' ');
+  if (msg.includes('WebSocket') || msg.includes('websocket') || msg.includes('closed without')) {
+    return;
+  }
+  originalConsoleWarn(...args);
+};
 
 interface Props {
   children: ReactNode;

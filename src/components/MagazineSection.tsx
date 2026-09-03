@@ -82,7 +82,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
   return (
     <div className="my-6 font-sans font-medium text-right" dir="rtl">
       {/* Container: Dast-e-Aval Magazine Header - Light Theme */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-50/90 via-white to-amber-50/50 text-slate-800 p-5 sm:p-7 border border-emerald-200/80 shadow-md shadow-emerald-950/5">
+      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/50 text-slate-800 p-5 sm:p-7 border border-emerald-200/80 shadow-md shadow-emerald-950/5">
         {/* Soft Decorative Ambient Circles */}
         <div className="absolute top-0 right-1/4 w-80 h-80 bg-emerald-300/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
         <div className="absolute bottom-0 left-10 w-72 h-72 bg-amber-300/20 rounded-full blur-3xl pointer-events-none" />
@@ -99,9 +99,9 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
                   <span className="bg-emerald-600 text-white font-black px-2.5 py-0.5 rounded-full text-[10px] shadow-2xs">
                     ✨ مجله و اخبار رسمی دست اول
                   </span>
-                  <span className="bg-purple-100 text-purple-900 border border-purple-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
-                    <Sparkles size={10} className="text-purple-600" />
-                    تولید محتوای هوشمند روزانه با GapGPT
+                  <span className="bg-teal-50 text-teal-800 border border-teal-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
+                    <Sparkles size={10} className="text-teal-600" />
+                    تحلیل روزانه بازار و اخبار صنایع غذایی
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
@@ -111,19 +111,6 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
-              {(userRole === 'admin' || userRole === 'manager') && (
-                <button
-                  type="button"
-                  onClick={handleGenerateBatch}
-                  disabled={isGenerating}
-                  className="text-xs font-black text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300/80 px-3 py-1.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="تولید خودکار روزانه مقالات سئو با هوش مصنوعی"
-                >
-                  <Wand2 size={13} className={`text-purple-700 ${isGenerating ? 'animate-spin' : ''}`} />
-                  <span>{isGenerating ? "در حال تولید..." : "تولید مقالات روزانه با AI"}</span>
-                </button>
-              )}
-
               <span className="text-xs font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200/80 px-3 py-1.5 rounded-xl shadow-2xs">
                 {displayArticles.length} خبر و تحلیل بازار
               </span>
@@ -196,7 +183,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
                     )}
 
                     <span className="absolute bottom-2 right-2.5 text-[10px] font-black text-slate-900 flex items-center gap-1 bg-white/90 px-2 py-0.5 rounded-md backdrop-blur-md border border-slate-200 shadow-xs">
-                      <Calendar size={11} className="text-amber-500" />
+                      <Calendar size={11} className="text-emerald-500" />
                       {article.date}
                     </span>
                   </div>

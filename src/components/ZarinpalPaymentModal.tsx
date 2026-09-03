@@ -100,8 +100,8 @@ export default function ZarinpalPaymentModal({
 
               {/* Direct Admin Call Info */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-indigo-50/50 border border-indigo-100/50 rounded-2xl p-3.5 flex flex-col justify-between">
-                  <div className="flex items-center gap-1.5 text-indigo-700 mb-1">
+                <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-3.5 flex flex-col justify-between">
+                  <div className="flex items-center gap-1.5 text-emerald-700 mb-1">
                     <Phone size={14} />
                     <span className="text-[10px] font-black">ارتباط تلفنی مستقیم:</span>
                   </div>
@@ -115,9 +115,9 @@ export default function ZarinpalPaymentModal({
                     <span className="text-[10px] font-black">پشتیبانی آنلاین:</span>
                   </div>
                   <div className="flex gap-2">
-                    <a href="https://t.me/dastavval_official" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-indigo-600 hover:underline">تلگرام</a>
+                    <a href="https://t.me/dastavval_official" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-emerald-600 hover:underline">تلگرام</a>
                     <span className="text-slate-300">|</span>
-                    <a href="https://rubika.ir/dastavval_official" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-emerald-600 hover:underline">روبیکا</a>
+                    <a href="https://rubika.ir/dastavval_com" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-emerald-600 hover:underline">روبیکا</a>
                   </div>
                   <span className="text-[8px] text-slate-400 font-bold mt-1">پاسخگویی سریع ۲۴ ساعته</span>
                 </div>

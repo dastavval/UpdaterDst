@@ -449,23 +449,29 @@ if (isset($_GET['action'])) {
         $js_mtime = 0;
         $css_file = '';
         $css_mtime = 0;
-        if (is_dir($assets_dir)) {
-            foreach (scandir($assets_dir) as $f) {
-                $f_path = $assets_dir . '/' . $f;
-                if (!is_file($f_path)) continue;
+        
+        $searchDirs = [$assets_dir, $dist_dir . '/assets'];
+        foreach ($searchDirs as $sDir) {
+            if (is_dir($sDir)) {
+                foreach (scandir($sDir) as $f) {
+                    $f_path = $sDir . '/' . $f;
+                    if (!is_file($f_path)) continue;
 
-                if (preg_match('/^index-.*\.js$/i', $f)) {
-                    $mtime = filemtime($f_path);
-                    if ($mtime > $js_mtime) {
-                        $js_mtime = $mtime;
-                        $js_file = $f;
+                    if (preg_match('/^index-.*\.js$/i', $f) || (empty($js_file) && preg_match('/\.js$/i', $f))) {
+                        $mtime = filemtime($f_path);
+                        if ($mtime > $js_mtime || strpos($f, 'index-') === 0) {
+                            $js_mtime = $mtime;
+                            $js_file = $f;
+                            if ($sDir !== $assets_dir) @copy($f_path, $assets_dir . '/' . $f);
+                        }
                     }
-                }
-                if (preg_match('/^index-.*\.css$/i', $f)) {
-                    $mtime = filemtime($f_path);
-                    if ($mtime > $css_mtime) {
-                        $css_mtime = $mtime;
-                        $css_file = $f;
+                    if (preg_match('/^index-.*\.css$/i', $f) || (empty($css_file) && preg_match('/\.css$/i', $f))) {
+                        $mtime = filemtime($f_path);
+                        if ($mtime > $css_mtime || strpos($f, 'index-') === 0) {
+                            $css_mtime = $mtime;
+                            $css_file = $f;
+                            if ($sDir !== $assets_dir) @copy($f_path, $assets_dir . '/' . $f);
+                        }
                     }
                 }
             }
@@ -495,27 +501,46 @@ if (isset($_GET['action'])) {
             }
         }
 
-        if (empty($js_file)) $js_file = 'index-BrUKkIGA.js';
-        if (empty($css_file)) $css_file = 'index-4m3HRGoy.css';
-
         // د) ساخت و بازسازی کامل index.html استاندارد و کامپایل‌شده
+        if (empty($js_file)) {
+            // Last resort: check index.html in dist
+            if (file_exists($dist_dir . '/index.html')) {
+                $dContent = file_get_contents($dist_dir . '/index.html');
+                if (preg_match('/src=["\']\.\/assets\/([^"\']+\.js)["\']/', $dContent, $m)) $js_file = $m[1];
+                if (preg_match('/href=["\']\.\/assets\/([^"\']+\.css)["\']/', $dContent, $m)) $css_file = $m[1];
+            }
+        }
+
         $final_index = "<!DOCTYPE html>\n";
         $final_index .= "<html lang=\"fa\" dir=\"rtl\">\n";
         $final_index .= "<head>\n";
         $final_index .= "  <meta charset=\"UTF-8\">\n";
         $final_index .= "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
         $final_index .= "  <title>پلتفرم بازرگانی دست اول - تامین مستقیم از کارخانجات</title>\n";
-        $final_index .= "  <link rel=\"stylesheet\" crossorigin href=\"./assets/$css_file\">\n";
+        if (!empty($css_file)) {
+            $final_index .= "  <link rel=\"stylesheet\" crossorigin href=\"./assets/$css_file\">\n";
+        }
         $final_index .= "</head>\n";
-        $final_index .= "<body class=\"bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white\">\n";
+        $final_index .= "<body class=\"bg-white text-slate-900 antialiased selection:bg-emerald-500 selection:text-white\">\n";
         $final_index .= "  <div id=\"root\"></div>\n";
-        $final_index .= "  <script type=\"module\" crossorigin src=\"./assets/$js_file\"></script>\n";
+        if (!empty($js_file)) {
+            $final_index .= "  <script type=\"module\" crossorigin src=\"./assets/$js_file\"></script>\n";
+        } else {
+            $final_index .= "  <script type=\"module\" src=\"./src/main.tsx\"></script>\n";
+        }
         $final_index .= "</body>\n";
         $final_index .= "</html>\n";
 
         file_put_contents($root_dir . '/index.html', $final_index);
         @chmod($root_dir . '/index.html', 0644);
-        $messages[] = "فایل index.html کامپایل‌شده با ارجاع به اسکریپت ($js_file) و المان #root بازسازی شد.";
+        
+        // جابجایی فایل های مزاحم
+        if (file_exists($root_dir . '/index.html') && strpos(file_get_contents($root_dir . '/index.html'), 'src/main.tsx') !== false && !empty($js_file)) {
+             // If we have a compiled JS but the root index.html is still the source one, overwrite it.
+             file_put_contents($root_dir . '/index.html', $final_index);
+        }
+
+        $messages[] = "فایل index.html بازسازی شد. (JS: " . ($js_file ?: '<span style="color:red">یافت نشد! لطفا بررسی کنید پوشه dist و assets در هاست آپلود شده باشند</span>') . ")";
 
         // ه) بازسازی فایل .htaccess پیشرفته جهت پشتیبانی از cPanel و ساب‌دامنه
         $htaccess_content = "# ============================================================\n";

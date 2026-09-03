@@ -422,13 +422,13 @@ export default function SealSignatureCaptureModal({
           {activeTab === 'camera' && (
             <div className="space-y-4">
               {cameraError ? (
-                <div className="p-5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 space-y-3 text-center">
-                  <AlertCircle className="mx-auto text-rose-500" size={32} />
+                <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-rose-800 space-y-3 text-center">
+                  <AlertCircle className="mx-auto text-emerald-500" size={32} />
                   <p className="text-xs font-bold leading-relaxed">{cameraError}</p>
                   <button
                     type="button"
                     onClick={startCamera}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <RefreshCw size={13} />
                     <span>تلاش مجدد اتصال به وبکم</span>
@@ -496,7 +496,7 @@ export default function SealSignatureCaptureModal({
                           setCapturedImage(null);
                           startCamera();
                         }}
-                        className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw size={12} />
                         <span>عکاسی دوباره</span>
@@ -551,7 +551,7 @@ export default function SealSignatureCaptureModal({
                     type="button"
                     onClick={handleSnapPhoto}
                     disabled={!isCameraActive}
-                    className="px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl font-black text-sm flex items-center gap-2 shadow-lg shadow-purple-500/25 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                    className="px-8 py-3.5 bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-700 hover:to-emerald-700 text-white rounded-2xl font-black text-sm flex items-center gap-2 shadow-lg shadow-purple-500/25 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                   >
                     <Camera size={18} />
                     <span>عکاسی و پردازش تصویر</span>
@@ -582,7 +582,7 @@ export default function SealSignatureCaptureModal({
                   <button
                     type="button"
                     onClick={clearCanvas}
-                    className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1 text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
                   >
                     <Eraser size={13} />
                     <span>پاک کردن</span>
@@ -621,9 +621,9 @@ export default function SealSignatureCaptureModal({
                     { hex: '#0f172a', label: 'مشکی' },
                     { hex: '#0f766e', label: 'سبز' },
                     { hex: '#b91c1c', label: 'قرمز' },
-                  ].map(c => (
+                  ].map((c, cIdx) => (
                     <button
-                      key={c.hex}
+                      key={`pen-color-${c.hex}-${cIdx}`}
                       type="button"
                       onClick={() => setPenColor(c.hex)}
                       className={`w-6 h-6 rounded-full border-2 transition-transform cursor-pointer ${
@@ -637,9 +637,9 @@ export default function SealSignatureCaptureModal({
 
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold text-slate-600">ضخامت قلم:</span>
-                  {[2, 3, 5].map(w => (
+                  {[2, 3, 5].map((w, wIdx) => (
                     <button
-                      key={w}
+                      key={`pen-width-${w}-${wIdx}`}
                       type="button"
                       onClick={() => setPenWidth(w)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
@@ -690,7 +690,7 @@ export default function SealSignatureCaptureModal({
                     <button
                       type="button"
                       onClick={() => setCapturedImage(null)}
-                      className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw size={12} />
                       <span>انتخاب فایل دیگر</span>

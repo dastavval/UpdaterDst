@@ -81,7 +81,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
           {/* Header */}
           <div className="space-y-2 border-b border-slate-100 pb-5 mb-6">
             <div className="flex items-center gap-2">
-              <span className="bg-emerald-100 text-emerald-800 text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1 border border-emerald-200">
+              <span className="bg-emerald-600 text-white text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1 border border-emerald-200">
                 <Sparkles size={14} />
                 <span>راهنمای جامع ورود و نقشه راه کاربران</span>
               </span>
@@ -112,7 +112,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
               onClick={() => setActivePersona('agency')}
               className={`py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 activePersona === 'agency'
-                  ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/20'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
@@ -124,7 +124,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
               onClick={() => setActivePersona('factory')}
               className={`py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 activePersona === 'factory'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
@@ -140,7 +140,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
             {activePersona === 'buyer' && (
               <div className="space-y-6">
                 <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-5 space-y-3">
-                  <h3 className="text-base font-black text-emerald-950 flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                     <ShoppingBag size={20} className="text-emerald-600" />
                     <span>مسیر خریدار: از مشاهده کالا تا تحویل درب انبار شما</span>
                   </h3>
@@ -191,7 +191,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                       <Scale size={18} className="text-emerald-700 shrink-0" />
                       <span>محاسبه‌گر زنده سود شما از خرید مستقیم کارخانه</span>
                     </h4>
-                    <span className="text-[11px] bg-emerald-100 text-emerald-800 font-black px-3 py-1 rounded-full border border-emerald-300">
+                    <span className="text-[11px] bg-emerald-600 text-white font-black px-3 py-1 rounded-full border border-emerald-300">
                       ۳۲٪ صرفه‌جویی میانگین
                     </span>
                   </div>
@@ -249,9 +249,9 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
             {/* Persona 2: Agency & Income Flow */}
             {activePersona === 'agency' && (
               <div className="space-y-6">
-                <div className="bg-amber-50/60 border border-amber-100 rounded-3xl p-5 space-y-3">
+                <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-5 space-y-3">
                   <h3 className="text-base font-black text-amber-950 flex items-center gap-2">
-                    <Briefcase size={20} className="text-amber-600" />
+                    <Briefcase size={20} className="text-emerald-600" />
                     <span>مسیر اخذ نمایندگی: درآمد ماهانه بدون نیاز به سرمایه انبارداری</span>
                   </h3>
                   <p className="text-xs text-amber-800 font-bold leading-relaxed">
@@ -261,7 +261,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center">۱</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۱</span>
                     <h4 className="text-xs font-black text-slate-900">ثبت فرم نمایندگی</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       استان، شهر و دسته کالایی مورد نظر خود را انتخاب و فرم کوتاه درخواست را تکمیل کنید.
@@ -269,7 +269,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center">۲</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۲</span>
                     <h4 className="text-xs font-black text-slate-900">دریافت مجوز و کاتالوگ</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       گواهی رسمی نمایندگی، کاتالوگ دیجیتال و نمونه سمپل برای ارائه به مشتریان در اختیارتان قرار می‌گیرد.
@@ -277,7 +277,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center">۳</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۳</span>
                     <h4 className="text-xs font-black text-slate-900">ثبت سفارش خریداران</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       سفارشات مشتریان خود را در سامانه ثبت کنید؛ ارسال بار و تسویه حساب با خریدار تماماً توسط ما انجام می‌شود.
@@ -285,7 +285,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center">۴</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۴</span>
                     <h4 className="text-xs font-black text-slate-900">تسویه منظم هفتگی</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       پورسانت فروش هر سفارش بلافاصله پس از تحویل بار به شماره شبای شما واریز می‌شود.
@@ -299,7 +299,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                       onClose();
                       onSelectAgency();
                     }}
-                    className="px-8 py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl font-black text-xs sm:text-sm transition-all shadow-xl shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
+                    className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs sm:text-sm transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
                   >
                     <span>ثبت‌نام و اخذ نمایندگی ۳۱ استان</span>
                     <ArrowLeft size={16} />
@@ -311,9 +311,9 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
             {/* Persona 3: Factory Owner Flow */}
             {activePersona === 'factory' && (
               <div className="space-y-6">
-                <div className="bg-indigo-50/60 border border-indigo-100 rounded-3xl p-5 space-y-3">
+                <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-5 space-y-3">
                   <h3 className="text-base font-black text-indigo-950 flex items-center gap-2">
-                    <Factory size={20} className="text-indigo-600" />
+                    <Factory size={20} className="text-emerald-600" />
                     <span>مسیر کارخانه: فروش نقدی و توزیع در شبکه ۱۲,۸۰۰ خریدار کشوری</span>
                   </h3>
                   <p className="text-xs text-indigo-800 font-bold leading-relaxed">
@@ -323,7 +323,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center">۱</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۱</span>
                     <h4 className="text-xs font-black text-slate-900">ثبت خط تولید و محصولات</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       مشخصات کارخانه، مجوز بهداشت، سیب سلامت و کاتالوگ کالاهای تولیدی خود را وارد کنید.
@@ -331,7 +331,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center">۲</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۲</span>
                     <h4 className="text-xs font-black text-slate-900">تایید کیفی و لیست قیمت</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       قیمت پایه کارخانه برای پالت و کارتن ثبت شده و در صفحه اختصاصی کارخانه شما قرار می‌گیرد.
@@ -339,7 +339,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center">۳</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۳</span>
                     <h4 className="text-xs font-black text-slate-900">دریافت سفارشات عمده</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       سفارشات حجمی از سراسر کشور تجمیع شده و پیش‌فاکتور قطعی صادر می‌شود.
@@ -347,7 +347,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-right">
-                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center">۴</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center">۴</span>
                     <h4 className="text-xs font-black text-slate-900">تسویه نقدی و بارگیری</h4>
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
                       مبلغ قبل از بارگیری به حساب کارخانه منظور شده و ناوگان حمل بار را تحویل می‌گیرد.
@@ -361,7 +361,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
                       onClose();
                       onSelectFactory();
                     }}
-                    className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs sm:text-sm transition-all shadow-xl shadow-indigo-600/20 flex items-center gap-2 cursor-pointer"
+                    className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs sm:text-sm transition-all shadow-xl shadow-emerald-600/20 flex items-center gap-2 cursor-pointer"
                   >
                     <span>ثبت مشخصات کارخانه و خطوط تولید</span>
                     <ArrowLeft size={16} />
@@ -386,7 +386,7 @@ export const CustomerJourneyModal: React.FC<CustomerJourneyModalProps> = ({
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
               <h5 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                <PhoneCall size={16} className="text-amber-600" />
+                <PhoneCall size={16} className="text-emerald-600" />
                 <span>مشاوره و پشتیبانی ۲۴ ساعته بازرگانی</span>
               </h5>
               <p className="text-[11px] text-slate-500 font-bold leading-relaxed">

@@ -118,7 +118,7 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <History size={20} className="text-indigo-600" />
+            <History size={20} className="text-emerald-600" />
             <h3 className="text-base font-black text-slate-900">گزارشات و تاریخچه فعالیت‌های کارخانه</h3>
           </div>
           <p className="text-xs text-slate-500 font-medium">
@@ -187,12 +187,12 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
                         <td className="py-3 px-4 font-mono text-slate-500 line-through">
                           {toPersianNum(ph.oldPrice.toLocaleString('fa-IR'))} تومان
                         </td>
-                        <td className="py-3 px-4 font-mono font-black text-indigo-700">
+                        <td className="py-3 px-4 font-mono font-black text-emerald-700">
                           {toPersianNum(ph.newPrice.toLocaleString('fa-IR'))} تومان
                         </td>
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center gap-0.5 text-[11px] font-black px-2 py-0.5 rounded-md ${
-                            ph.changePercent >= 0 ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"
+                            ph.changePercent >= 0 ? "bg-emerald-50 text-amber-800" : "bg-emerald-50 text-emerald-800"
                           }`}>
                             {ph.changePercent >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                             <span>{toPersianNum(Math.abs(ph.changePercent))}٪</span>
@@ -215,7 +215,7 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 space-y-1">
               <span className="text-[11px] text-slate-500 font-bold">مجموع واریزی‌های پایا به حساب کارخانه:</span>
-              <div className="text-lg font-black text-indigo-700">
+              <div className="text-lg font-black text-emerald-700">
                 {toPersianNum("۱۳۶,۵۰۰,۰۰۰")} تومان
               </div>
             </div>
@@ -277,7 +277,7 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
                 >
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <Truck size={15} className="text-indigo-600" />
+                      <Truck size={15} className="text-emerald-600" />
                       <span className="font-black text-slate-900">سفارش #{String(ord.id || "").slice(-6)}</span>
                       <span className="bg-blue-50 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-md">تحویل مقصد گردید</span>
                     </div>
@@ -286,7 +286,7 @@ export default function FactoryHistoryTab({ user, products, orders }: FactoryHis
                     </span>
                   </div>
 
-                  <div className="text-left font-black text-indigo-700">
+                  <div className="text-left font-black text-emerald-700">
                     {toPersianNum((ord.totalAmount || 0).toLocaleString('fa-IR'))} تومان
                   </div>
                 </div>

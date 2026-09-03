@@ -18,9 +18,9 @@ export function AboutUsSection({ theme }: { articles?: any[]; theme: 'light' | '
 
 export function LearningCenter({ theme }: { theme: 'light' | 'dark' | 'classic' }) {
   const courses = [
-    { title: "اصول انبارداری مواد غذایی", icon: <BookOpen className="text-blue-500" />, level: "مقدماتی", time: "۴۵ دقیقه" },
+    { title: "اصول انبارداری مواد غذایی", icon: <BookOpen className="text-emerald-500" />, level: "مقدماتی", time: "۴۵ دقیقه" },
     { title: "مدیریت نقدینگی در خرید عمده", icon: <TrendingUp className="text-emerald-500" />, level: "متوسط", time: "۶۰ دقیقه" },
-    { title: "بازاریابی محصولات در خرده‌فروشی", icon: <Lightbulb className="text-amber-500" />, level: "پیشرفته", time: "۳۰ دقیقه" },
+    { title: "بازاریابی محصولات در خرده‌فروشی", icon: <Lightbulb className="text-emerald-500" />, level: "پیشرفته", time: "۳۰ دقیقه" },
   ];
 
   return (
@@ -66,7 +66,7 @@ export function AIAdvisorSection({ theme }: { theme: 'light' | 'dark' | 'classic
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center relative z-10">
           <div className="space-y-4 md:space-y-6 text-right">
-             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20">
+             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20">
                 <BrainCircuit size={14} />
                 موتور هوشمند برآورد سود و تحلیل زنجیره تأمین دست اول
              </div>
@@ -78,7 +78,7 @@ export function AIAdvisorSection({ theme }: { theme: 'light' | 'dark' | 'classic
              </p>
              <button 
                onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
-               className="w-full md:w-auto px-8 py-3.5 md:py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs shadow-xl transition-all cursor-pointer"
+               className="w-full md:w-auto px-8 py-3.5 md:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-xl transition-all cursor-pointer"
              >
                 ورود به سامانه شبیه‌سازی سود و استعلام مالی
              </button>
@@ -90,27 +90,27 @@ export function AIAdvisorSection({ theme }: { theme: 'light' | 'dark' | 'classic
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                     <span className="text-[10px] font-black text-slate-500">پایش پویا و زنده بازار عمده</span>
                   </div>
-                  <span className="text-[9px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md">بخش محاسبات سود</span>
+                  <span className="text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-md">بخش محاسبات سود</span>
                 </div>
                 
                 <div className="space-y-2.5 text-right">
-                  <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50 flex justify-between items-center">
+                  <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex justify-between items-center">
                     <div>
                       <p className="text-[9px] text-slate-500 font-bold">میانگین حاشیه سود بنکداری</p>
                       <p className="text-xs font-black text-indigo-950 mt-0.5">محاسبه بر اساس MOQ کارخانجات</p>
                     </div>
-                    <span className="text-base font-black text-indigo-700 font-mono">۲۸.۴٪</span>
+                    <span className="text-base font-black text-emerald-700 font-mono">۲۸.۴٪</span>
                   </div>
 
                   <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex justify-between items-center">
                     <div>
                       <p className="text-[9px] text-slate-500 font-bold">بیشترین رشد سود خرده‌فروشی</p>
-                      <p className="text-xs font-black text-emerald-950 mt-0.5">گروه محصولات شوینده و بهداشتی</p>
+                      <p className="text-xs font-black text-slate-900 mt-0.5">گروه محصولات شوینده و بهداشتی</p>
                     </div>
                     <span className="text-base font-black text-emerald-750 font-mono">+۴۲٪</span>
                   </div>
 
-                  <div className="p-3 bg-amber-50/50 rounded-2xl border border-amber-100/50 flex justify-between items-center">
+                  <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex justify-between items-center">
                     <div>
                       <p className="text-[9px] text-slate-500 font-bold">پیش‌بینی ثبات قیمت کارخانه</p>
                       <p className="text-xs font-black text-amber-950 mt-0.5">تحلیل فصلی تا انتهای ماه جاری</p>
@@ -132,9 +132,9 @@ export function AIAdvisorSection({ theme }: { theme: 'light' | 'dark' | 'classic
 
 export function BusinessModelSection({ theme }: { theme: 'light' | 'dark' | 'classic' }) {
   const models = [
-    { title: "خرید و پخش", desc: "کالا را مستقیم بخرید و با سود بالا در منطقه خودتان پخش کنید.", icon: <TrendingUp size={24} />, color: "text-blue-500" },
+    { title: "خرید و پخش", desc: "کالا را مستقیم بخرید و با سود بالا در منطقه خودتان پخش کنید.", icon: <TrendingUp size={24} />, color: "text-emerald-500" },
     { title: "نمایندگی شهر شما", desc: "نماینده ما باشید و روی هر فروش پورسانت عالی بگیرید.", icon: <Users size={24} />, color: "text-emerald-500" },
-    { title: "تامین برای ادارات", desc: "مواد غذایی اداره‌ها و سازمان‌ها را با سود مطمئن تامین کنید.", icon: <BarChart3 size={24} />, color: "text-amber-500" },
+    { title: "تامین برای ادارات", desc: "مواد غذایی اداره‌ها و سازمان‌ها را با سود مطمئن تامین کنید.", icon: <BarChart3 size={24} />, color: "text-emerald-500" },
   ];
 
   return (
@@ -169,13 +169,13 @@ export function CatalogueSection({ theme }: { theme: 'light' | 'dark' | 'classic
     <div id="catalogues" className="py-16" dir="rtl">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div className="space-y-2 text-center md">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
             <Download size={14} />
             دریافت لیست قیمت‌ها
           </div>
           <h2 className="text-2xl font-black text-slate-900">کاتالوگ محصولات و لیست قیمت رسمی</h2>
         </div>
-        <button className="px-6 py-3 bg-white text-white rounded-2xl font-black text-xs hover transition-all flex items-center gap-2">
+        <button className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
            <Grid size={16} />
            آرشیو کامل اسناد
         </button>
@@ -185,7 +185,7 @@ export function CatalogueSection({ theme }: { theme: 'light' | 'dark' | 'classic
         {catalogues.map((cat, idx) => (
           <div key={`info-cat-${cat.title}-${idx}`} className="min-w-[80vw] md:min-w-0 snap-center shrink-0 p-6 rounded-2xl border bg-white border-slate-200 shadow-sm flex items-center justify-between group hover transition-all cursor-pointer">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                  <FileText size={24} />
               </div>
               <div className="text-right">
@@ -205,10 +205,10 @@ export function CatalogueSection({ theme }: { theme: 'light' | 'dark' | 'classic
 
 export function TrustSection({ theme }: { theme: 'light' | 'dark' | 'classic' }) {
   const steps = [
-    { title: "حذف کامل واسطه‌ها", desc: "خرید مستقیم از درب کارخانجات با کوتاه کردن زنجیره تامین و دستیابی به سود واقعی و نهایی تولید.", icon: <Users size={22} />, color: "from-blue-500 to-indigo-600", bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200" },
+    { title: "حذف کامل واسطه‌ها", desc: "خرید مستقیم از درب کارخانجات با کوتاه کردن زنجیره تامین و دستیابی به سود واقعی و نهایی تولید.", icon: <Users size={22} />, color: "from-emerald-500 to-emerald-600", bg: "bg-blue-50", text: "text-emerald-600", border: "border-blue-200" },
     { title: "تضمین مالی امانی وجه", desc: "حفاظت کامل از سرمایه و نقدینگی شما در حساب امانی دست اول تا تایید تخلیه فیزیکی و امضای بارنامه.", icon: <ShieldCheck size={22} />, color: "from-emerald-500 to-teal-600", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200" },
-    { title: "عدالت در قیمت‌گذاری کشوری", desc: "قیمت‌های دست اول منطبق بر نرخ مصوب سازمان حمایت و خروجی رسمی خطوط تولید بدون پورسانت.", icon: <Scale size={22} />, color: "from-amber-500 to-orange-600", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200" },
-    { title: "اصالت بهداشتی و سلامت کالا", desc: "تایید سیب سلامت، استانداردهای اجباری، کدهای ترخیص بهداشتی و تاریخ تولید مستقیم کارخانه.", icon: <ShieldAlert size={22} />, color: "from-rose-500 to-pink-600", bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200" },
+    { title: "عدالت در قیمت‌گذاری کشوری", desc: "قیمت‌های دست اول منطبق بر نرخ مصوب سازمان حمایت و خروجی رسمی خطوط تولید بدون پورسانت.", icon: <Scale size={22} />, color: "from-emerald-500 to-orange-600", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200" },
+    { title: "اصالت بهداشتی و سلامت کالا", desc: "تایید سیب سلامت، استانداردهای اجباری، کدهای ترخیص بهداشتی و تاریخ تولید مستقیم کارخانه.", icon: <ShieldAlert size={22} />, color: "from-emerald-500 to-pink-600", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200" },
     { title: "حمایت از تغذیه ارگانیک", desc: "رتبه‌بندی ویژه کارخانجات سبز و ترویج عرضه محصولات فاقد افزودنی‌های غیرمجاز و باکیفیت.", icon: <Leaf size={22} />, color: "from-teal-500 to-emerald-600", bg: "bg-teal-50", text: "text-teal-600", border: "border-teal-200" },
   ];
 
@@ -480,7 +480,7 @@ export function TermsAndRulesSection({ theme }: { theme: 'light' | 'dark' | 'cla
 
   return (
     <div className={`p-6 sm:p-8 rounded-[2rem] border text-right space-y-6 ${
-      theme === 'dark' ? 'bg-white/40 border-slate-800' : 'bg-gradient-to-br from-teal-500/[0.04] via-teal-500/[0.01] to-blue-500/[0.04] border-teal-200/50 shadow-sm'
+      theme === 'dark' ? 'bg-white/40 border-slate-800' : 'bg-gradient-to-br from-teal-500/[0.04] via-teal-500/[0.01] to-emerald-500/[0.04] border-teal-200/50 shadow-sm'
     }`} dir="rtl">
       <div className="space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">

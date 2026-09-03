@@ -38,6 +38,7 @@ import { CartItem, Product, User } from '../types';
 import { getDisplayImageUrl } from '../lib/image-utils';
 import { getApiUrl } from '../utils/api-utils';
 import { isValidIranianMobile, toPersianNum } from '../utils/persian-utils';
+import { getUserSession, saveUserSession } from '../lib/auth-helper';
 import ChequeCharterModal from './ChequeCharterModal';
 import { 
   getLoyaltySummary, 
@@ -48,6 +49,7 @@ import {
   redeemLoyaltyPoints,
   LOYALTY_CONFIG 
 } from '../lib/loyalty-store';
+import { ResilientVault } from '../lib/resilient-storage';
 
 interface CheckoutWizardProps {
   isOpen: boolean;
@@ -382,55 +384,14 @@ export default function CheckoutWizard({
       const sellerId = firstProd?.sellerId || "factory_central";
       const sellerName = firstProd?.sellerName || "گروه صنایع غذایی و بازرگانی دست اول";
 
-      // Auto-create local account for guest user if not logged in
-      let autoCreatedAccount = null;
-      let currentUser = user;
-
+      // Ensure user session is verified via SMS
+      let currentUser = user || getUserSession();
       if (!currentUser && buyerPhone) {
-        try {
-          const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
-          const cleanPhone = buyerPhone.trim();
-          
-          if (localUsers[cleanPhone]) {
-            // Existing account detected - Auto login to existing account
-            currentUser = localUsers[cleanPhone];
-            
-            // Check if password was never changed (still matches phone) for seamless auto-login
-            if (currentUser.password === cleanPhone) {
-              autoCreatedAccount = {
-                username: cleanPhone,
-                password: cleanPhone
-              };
-            }
-          } else {
-            // Create new account
-            currentUser = {
-              name: buyerName || "خریدار عمده",
-              email: cleanPhone,
-              phone: cleanPhone,
-              mobile: cleanPhone,
-              password: cleanPhone, // Temporary password is their phone number
-              role: "customer",
-              badge: "خریدار عمده",
-              company: buyerCompany || "فروشگاه / پخش عمده",
-              address: buyerAddress || "تهران",
-              createdAt: new Date().toISOString()
-            };
-            localUsers[cleanPhone] = currentUser;
-            localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
-            
-            autoCreatedAccount = {
-              username: cleanPhone,
-              password: cleanPhone
-            };
-          }
-
-          // Auto-login: Update state in App.tsx
-          if (onLogin && currentUser) {
-            onLogin(currentUser);
-          }
-        } catch (e) {
-          console.warn("Could not handle guest user account logic:", e);
+        // Check if there is a local authenticated session or prompt auth
+        const cleanPhone = buyerPhone.trim();
+        const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
+        if (localUsers[cleanPhone]) {
+          currentUser = localUsers[cleanPhone];
         }
       }
 
@@ -494,15 +455,15 @@ export default function CheckoutWizard({
         sellerName,
         createdAt: serverTimestamp(),
         trackingNumber,
-        autoCreatedAccount,
+        autoCreatedAccount: null,
         customerPhone: buyerPhone,
         phone: buyerPhone,
         mobile: buyerPhone,
         userPhone: buyerPhone,
         customerName: buyerName,
-        userId: user?.id || null,
-        username: (user as any)?.username || (user as any)?.phoneNumber || (user as any)?.phone || buyerPhone,
-        buyerEmail: user?.email || null
+        userId: user?.id || currentUser?.id || `usr-${buyerPhone}`,
+        username: (user as any)?.username || currentUser?.username || (user as any)?.phoneNumber || (user as any)?.phone || buyerPhone,
+        buyerEmail: user?.email || currentUser?.email || buyerPhone
       };
 
       const storedAffiliateRepId = typeof window !== 'undefined' ? localStorage.getItem('dastavval_affiliate_rep_id') : null;
@@ -513,6 +474,23 @@ export default function CheckoutWizard({
 
       const docRef = await addDoc(collection(db, "orders"), orderData);
       await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalPayableAmount);
+
+      // Explicitly register and update user record in user management database
+      try {
+        const { syncUserFromOrder } = await import('../lib/user-sync-helper');
+        await syncUserFromOrder({
+          buyerName,
+          buyerPhone,
+          buyerCompany,
+          buyerAddress,
+          city: cityAgency?.city || "تهران",
+          province: cityAgency?.province || "تهران",
+          totalAmount: finalPayableAmount,
+          finalPayableAmount
+        });
+      } catch (userSyncErr) {
+        console.warn("Could not sync user from order in CheckoutWizard:", userSyncErr);
+      }
 
       // Record affiliate commission for representative if applicable
       if (storedAffiliateRepId) {
@@ -531,19 +509,16 @@ export default function CheckoutWizard({
 
       const createdOrder = { 
         ...orderData, 
-        id: docRef.id, 
+        id: docRef.id || `ord_${Date.now()}`, 
         createdAt: new Date().toISOString() 
       };
 
-      // Instantly cache in localStorage so UserPanel and AdminPanel show it immediately
+      // Resilient Multi-layer Save (IndexedDB + LocalStorage + Server + Vault)
       try {
-        const cached = JSON.parse(localStorage.getItem("dastavval_orders_cache") || "[]");
-        cached.unshift(createdOrder);
-        localStorage.setItem("dastavval_orders_cache", JSON.stringify(cached));
-        localStorage.setItem("dastavval_last_order_tracking", trackingNumber);
-        if (docRef.id) localStorage.setItem("dastavval_last_order_id", docRef.id);
-        window.dispatchEvent(new Event("dastavval-manual-sync"));
-      } catch (err) {}
+        await ResilientVault.saveOrder(createdOrder);
+      } catch (vaultErr) {
+        console.warn("Vault save error:", vaultErr);
+      }
 
       // Loyalty Club Points Processing
       try {
@@ -637,7 +612,7 @@ export default function CheckoutWizard({
           <div className="bg-white border-b border-slate-200/80 p-4 sm:p-5 space-y-3.5">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200/60 shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center border border-emerald-200/60 shadow-xs">
                   <ShoppingBag size={20} />
                 </div>
                 <div>
@@ -686,7 +661,7 @@ export default function CheckoutWizard({
                     step === s.id
                       ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                       : step > s.id
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100"
+                      ? "bg-emerald-600 text-white border border-emerald-200/80 hover:bg-emerald-100"
                       : "bg-slate-50 text-slate-400 border border-slate-200/60"
                   }`}
                 >
@@ -699,7 +674,7 @@ export default function CheckoutWizard({
           {/* Content Body */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-white">
             {errorMessage && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs">
                 <AlertCircle size={16} className="shrink-0" />
                 <span>{errorMessage}</span>
               </div>
@@ -766,7 +741,7 @@ export default function CheckoutWizard({
                             <div className="min-w-0">
                               <h4 className="text-xs font-black text-slate-900 truncate">{item.name}</h4>
                               <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold mt-1">
-                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 rounded-md font-mono">
+                                <span className="bg-emerald-600 text-white border border-emerald-200/60 px-2 py-0.5 rounded-md font-mono">
                                   {item.pricePerCarton.toLocaleString()} ت/کارتن
                                 </span>
                                 <span>({packCount} عدد در کارتن - عددی {unitPrice.toLocaleString()} ت)</span>
@@ -806,7 +781,7 @@ export default function CheckoutWizard({
                                     onRemoveItem(item.productId);
                                   }
                                 }}
-                                className="p-1 hover:bg-white text-slate-700 hover:text-rose-700 rounded-lg cursor-pointer transition-colors"
+                                className="p-1 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
                                 title="کاهش کارتن"
                               >
                                 <Minus size={14} />
@@ -825,7 +800,7 @@ export default function CheckoutWizard({
                             <button
                               type="button"
                               onClick={() => onRemoveItem(item.productId)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="حذف از سبد"
                             >
                               <Trash2 size={16} />
@@ -850,7 +825,7 @@ export default function CheckoutWizard({
                   const currentSavingsPotential = totalAmount > 0 && nextTier ? Math.round(totalAmount * (nextTier.discount / 100)) : 0;
 
                   return (
-                    <div className="bg-linear-to-r from-amber-50/90 via-orange-50/60 to-amber-50/90 border border-amber-200 rounded-2xl p-4 space-y-3 shadow-xs">
+                    <div className="bg-linear-to-r from-emerald-50/90 via-orange-50/60 to-emerald-50/90 border border-emerald-200 rounded-2xl p-4 space-y-3 shadow-xs">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">🎁</span>
@@ -869,7 +844,7 @@ export default function CheckoutWizard({
                         </div>
 
                         {nextTier && (
-                          <div className="text-left font-mono font-black text-amber-900 text-xs bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-300/60 shrink-0">
+                          <div className="text-left font-mono font-black text-amber-900 text-xs bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-amber-300/60 shrink-0">
                             {totalCartons}/{nextTier.cartons} کارتن
                           </div>
                         )}
@@ -877,19 +852,19 @@ export default function CheckoutWizard({
 
                       {/* Progress bar to next tier */}
                       {nextTier && (
-                        <div className="w-full bg-amber-200/80 h-2.5 rounded-full overflow-hidden">
+                        <div className="w-full bg-emerald-200/80 h-2.5 rounded-full overflow-hidden">
                           <div 
-                            className="bg-linear-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
+                            className="bg-linear-to-r from-emerald-500 to-orange-500 h-full rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, Math.round((totalCartons / nextTier.cartons) * 100))}%` }}
                           />
                         </div>
                       )}
 
                       {/* Suggested Additions Section with Working +5 Add Button and Feedback */}
-                      <div className="pt-1.5 border-t border-amber-200/60">
+                      <div className="pt-1.5 border-t border-emerald-200/60">
                         <div className="text-[11px] font-black text-amber-950 mb-2.5 flex items-center justify-between">
                           <span className="flex items-center gap-1">
-                            <Sparkles size={13} className="text-amber-600" />
+                            <Sparkles size={13} className="text-emerald-600" />
                             کالاهای پرفروش پیشنهادی جهت تکمیل ظرفیت بار و دریافت تخفیف:
                           </span>
                           <button 
@@ -929,7 +904,7 @@ export default function CheckoutWizard({
                                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                       />
                                     ) : (
-                                      <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 text-xs">📦</div>
+                                      <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 text-xs">📦</div>
                                     )}
                                     <div className="min-w-0">
                                       <span className="text-[11px] font-black text-slate-900 block truncate">{suggested.name}</span>
@@ -996,7 +971,7 @@ export default function CheckoutWizard({
                   <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between text-xs font-bold text-slate-700 shadow-xs">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-slate-600">تخمین خودرو ترابری:</span>
-                      <span className="font-black text-indigo-700">
+                      <span className="font-black text-emerald-700">
                         {estimatedWeightKg < 1500 ? "وانت / نیسان بار" : estimatedWeightKg < 5000 ? "کامیونت خاور ۶ تنی" : "کامیون تک / جفت ۲۰ تنی"}
                       </span>
                     </div>
@@ -1010,10 +985,10 @@ export default function CheckoutWizard({
                 <div className={`p-3.5 rounded-2xl text-[11px] font-bold flex justify-between items-center border transition-all ${
                   (totalAmount >= minOrderAmount || totalCartons >= minOrderCartons)
                     ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
-                    : "bg-amber-50/70 text-amber-800 border-amber-200"
+                    : "bg-emerald-50/70 text-amber-800 border-emerald-200"
                 }`}>
                   <span className="flex items-center gap-1.5 font-black">
-                    <Package size={14} className={totalAmount >= minOrderAmount || totalCartons >= minOrderCartons ? "text-emerald-600" : "text-amber-600"} />
+                    <Package size={14} className={totalAmount >= minOrderAmount || totalCartons >= minOrderCartons ? "text-emerald-600" : "text-emerald-600"} />
                     شرایط حداقل سفارش عمده:
                   </span>
                   <span>حداقل ۵ کارتن یا حداقل ۱۰,۰۰۰,۰۰۰ تومان</span>
@@ -1029,13 +1004,40 @@ export default function CheckoutWizard({
                     <MapPin size={16} className="text-emerald-600" />
                     مشخصات خریدار و آدرس دقیق تخلیه بار
                   </h3>
-                  { (user?.name || user?.phone || user?.address) && (
-                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 size={12} className="text-emerald-600" />
-                      فراخوانی خودکار از حساب
+                  { (user || getUserSession()) ? (
+                    <span className="text-[10px] font-black bg-emerald-600 text-white border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <CheckCircle2 size={12} className="text-white" />
+                      حساب تأیید شده پیامکی
                     </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'customer' } }))}
+                      className="text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                    >
+                      <ShieldCheck size={13} className="text-emerald-700" />
+                      <span>ورود / ثبت‌نام سریع با پیامک</span>
+                    </button>
                   )}
                 </div>
+
+                {!(user || getUserSession()) && (
+                  <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck size={18} className="text-amber-700 shrink-0" />
+                      <p className="text-[11px] font-bold text-amber-900">
+                        جهت پیگیری وضعیت بار و صدور فاکتور رسمی، شماره همراه شما با پیامک یکبارمصرف (OTP) تأیید خواهد شد.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'customer' } }))}
+                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg shrink-0 cursor-pointer shadow-xs"
+                    >
+                      تأیید پیامکی
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
@@ -1087,7 +1089,7 @@ export default function CheckoutWizard({
                           setBuyerAddress(prefix + buyerAddress);
                         }
                       }}
-                      className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/50 px-2.5 py-1 rounded-lg font-black transition-all cursor-pointer"
+                      className="text-[10px] bg-emerald-50 hover:bg-emerald-600 text-white border border-emerald-200/50 px-2.5 py-1 rounded-lg font-black transition-all cursor-pointer"
                     >
                       📍 درج خودکار «{userCity}» در آدرس
                     </button>
@@ -1165,7 +1167,7 @@ export default function CheckoutWizard({
                           onClick={() => setShippingMethod(m.id)}
                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
-                              ? "border-emerald-500 bg-emerald-50/80 text-emerald-950 shadow-sm ring-2 ring-emerald-500/20 font-black"
+                              ? "border-emerald-500 bg-emerald-50/80 text-slate-900 shadow-sm ring-2 ring-emerald-500/20 font-black"
                               : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-bold"
                           }`}
                         >
@@ -1239,18 +1241,18 @@ export default function CheckoutWizard({
                       hasNonChequeProducts 
                         ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
                         : paymentMethod === 'cheque'
-                          ? "border-indigo-500 bg-indigo-50/60 shadow-md ring-2 ring-indigo-500/20 cursor-pointer"
+                          ? "border-emerald-500 bg-emerald-50/60 shadow-md ring-2 ring-emerald-500/20 cursor-pointer"
                           : "border-slate-200 bg-white hover:border-slate-300 cursor-pointer"
                     }`}
                   >
                     <div className="flex justify-between items-center mb-2 w-full">
                       <span className="text-xs font-black text-slate-900">تسویه چکی (۵۰٪ نقد + ۵۰٪ چک صیادی)</span>
-                      <Receipt size={18} className={`${hasNonChequeProducts ? "text-slate-400" : "text-indigo-600"}`} />
+                      <Receipt size={18} className={`${hasNonChequeProducts ? "text-slate-400" : "text-emerald-600"}`} />
                     </div>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block w-max ${
                       hasNonChequeProducts 
-                        ? "text-rose-700 bg-rose-50"
-                        : "text-indigo-700 bg-indigo-100/70"
+                        ? "text-emerald-700 bg-emerald-50"
+                        : "text-emerald-700 bg-emerald-100/70"
                     }`}>
                       {hasNonChequeProducts ? "🚫 غیرفعال: شامل اقلام غیرچکی" : "🛡️ مدل امن کارخانه (اعتبارسنجی اولیه)"}
                     </span>
@@ -1258,12 +1260,12 @@ export default function CheckoutWizard({
                 </div>
 
                 {hasNonChequeProducts && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-950 space-y-1">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-rose-950 space-y-1">
                     <p className="font-black">⚠️ امکان تسویه چکی برای این سفارش وجود ندارد:</p>
                     <p className="text-[11px] text-rose-800 leading-relaxed font-semibold">
                       محصولات زیر امکان فروش اعتباری/چکی ندارند و نقدی دست اول هستند:
                     </p>
-                    <ul className="list-disc list-inside text-[10px] text-rose-700 font-mono mt-1 space-y-0.5">
+                    <ul className="list-disc list-inside text-[10px] text-emerald-700 font-mono mt-1 space-y-0.5">
                       {nonChequeProductsNames.map((name, idx) => (
                         <li key={`non-cheque-item-${idx}`}>{name}</li>
                       ))}
@@ -1334,10 +1336,10 @@ export default function CheckoutWizard({
 
                 {/* Cheque & Split Cash/Cheque Details */}
                 {paymentMethod === 'cheque' && (
-                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-indigo-200 space-y-4 shadow-xs">
+                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-200 space-y-4 shadow-xs">
                     
                     {/* Policy & Risk Explanation Banner */}
-                    <div className="p-3.5 bg-linear-to-r from-indigo-50/90 via-blue-50/60 to-indigo-50/90 border border-indigo-200 rounded-xl space-y-2">
+                    <div className="p-3.5 bg-linear-to-r from-emerald-50/90 via-blue-50/60 to-emerald-50/90 border border-emerald-200 rounded-xl space-y-2">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-start gap-2">
                           <span className="text-base mt-0.5">🛡️</span>
@@ -1351,7 +1353,7 @@ export default function CheckoutWizard({
                         <button
                           type="button"
                           onClick={() => setShowCharterModal(true)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1 self-start sm:self-center"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1 self-start sm:self-center"
                         >
                           <span>📜 اساس‌نامه چکی</span>
                         </button>
@@ -1364,7 +1366,7 @@ export default function CheckoutWizard({
                         <label className="text-xs font-black text-slate-800">
                           نسبت واریز نقد و چک صیادی (حداقل ۵۰٪ نقد الزامی است):
                         </label>
-                        <span className="text-[11px] font-black text-indigo-700 font-mono">
+                        <span className="text-[11px] font-black text-emerald-700 font-mono">
                           {splitCashPercent}٪ نقد / {100 - splitCashPercent}٪ چک
                         </span>
                       </div>
@@ -1382,7 +1384,7 @@ export default function CheckoutWizard({
                             onClick={() => setSplitCashPercent(opt.cash)}
                             className={`p-2.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
                               splitCashPercent === opt.cash
-                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-500/20"
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-500/20"
                                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                             }`}
                           >
@@ -1396,7 +1398,7 @@ export default function CheckoutWizard({
                     <div className="space-y-2 pt-1 border-t border-slate-100">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-black text-slate-800">مدت زمان و سررسید چک صیادی:</span>
-                        <span className="text-[10px] font-black text-indigo-600">
+                        <span className="text-[10px] font-black text-emerald-600">
                           کارمزد {chequeMarkupPerMonth}٪ در ماه (فقط روی بخش چکی)
                         </span>
                       </div>
@@ -1419,7 +1421,7 @@ export default function CheckoutWizard({
                             }}
                             className={`py-2 px-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                               chequeDays === dur.days
-                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
                                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                             }`}
                           >
@@ -1432,12 +1434,12 @@ export default function CheckoutWizard({
                       </div>
 
                       {/* Computed Maturity Date Banner */}
-                      <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl flex items-center justify-between">
+                      <div className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Calendar size={16} className="text-indigo-700" />
+                          <Calendar size={16} className="text-emerald-700" />
                           <span className="text-xs font-black text-indigo-950">تاریخ دقیق سررسید مندرج در چک:</span>
                         </div>
-                        <span className="font-mono font-black text-indigo-900 text-xs bg-white px-3 py-1 rounded-lg border border-indigo-200 shadow-2xs">
+                        <span className="font-mono font-black text-indigo-900 text-xs bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-2xs">
                           {computedDueDateLong} ({computedDueDate})
                         </span>
                       </div>
@@ -1449,11 +1451,11 @@ export default function CheckoutWizard({
                       {/* 1. Cash Deposit Card */}
                       <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                          <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                             <DollarSign size={15} className="text-emerald-700" />
                             ۱. مبلغ واریز نقدی (پیش‌پرداخت {effectiveCashPercent}٪)
                           </span>
-                          <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full">
                             واریز به حساب
                           </span>
                         </div>
@@ -1502,31 +1504,31 @@ export default function CheckoutWizard({
                       </div>
 
                       {/* 2. Cheque Card */}
-                      <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-3">
+                      <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                            <Receipt size={15} className="text-indigo-700" />
+                            <Receipt size={15} className="text-emerald-700" />
                             ۲. مبلغ چک صیادی ({effectiveChequePercent}٪ فاکتور)
                           </span>
-                          <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-black bg-emerald-100 text-indigo-800 px-2 py-0.5 rounded-full">
                             چک صیادی بنفش
                           </span>
                         </div>
 
-                        <div className="bg-white p-3 rounded-xl border border-indigo-200/70 text-right space-y-1">
+                        <div className="bg-white p-3 rounded-xl border border-emerald-200/70 text-right space-y-1">
                           <span className="text-[10px] text-slate-500 font-bold block">مبلغ مندرج روی چک صیادی:</span>
-                          <span className="text-base sm:text-lg font-mono font-black text-indigo-700 block">
+                          <span className="text-base sm:text-lg font-mono font-black text-emerald-700 block">
                             {chequePortionAmount.toLocaleString()} تومان
                           </span>
                         </div>
 
-                        <div className="text-[10px] text-slate-600 font-bold space-y-1 bg-white/80 p-2.5 rounded-xl border border-indigo-100">
+                        <div className="text-[10px] text-slate-600 font-bold space-y-1 bg-white/80 p-2.5 rounded-xl border border-emerald-100">
                           <div>سررسید: <strong className="text-indigo-900 font-mono">{chequeDays} روزه ({computedDueDate})</strong></div>
                           <div>وضعیت کارمزد: <strong className="text-slate-800">+{chequeMarkupAmount.toLocaleString()} تومان ({chequeMonths * chequeMarkupPerMonth}٪)</strong></div>
                         </div>
 
                         {/* Cheque Mailing Address */}
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 shadow-xs">
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 shadow-xs">
                           <div className="flex items-center gap-1.5 text-amber-900 font-black text-[10px]">
                             <MapPin size={14} className="text-amber-700" />
                             آدرس جهت ارسال فیزیکی چک:
@@ -1536,7 +1538,7 @@ export default function CheckoutWizard({
                             <br />
                             <span className="text-amber-900">کد پستی: 5384155355 | تلفن: 09999123001</span>
                           </p>
-                          <div className="flex items-center gap-1 text-[9px] text-rose-600 font-black bg-rose-50 p-1.5 rounded-lg border border-rose-100 mt-1">
+                          <div className="flex items-center gap-1 text-[9px] text-emerald-600 font-black bg-emerald-50 p-1.5 rounded-lg border border-emerald-100 mt-1">
                             <AlertCircle size={12} />
                             <span>برای مشاهده فاکتور نیازی به آپلود نیست، اما جهت خروج بار از انبار الزامی است.</span>
                           </div>
@@ -1559,7 +1561,7 @@ export default function CheckoutWizard({
                           />
                           <label
                             htmlFor="cheque-image-split-input"
-                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                           >
                             <Upload size={13} />
                             <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی (اختیاری جهت مشاهده فاکتور)"}</span>
@@ -1610,7 +1612,7 @@ export default function CheckoutWizard({
                           value={chequeSayadiNo}
                           onChange={e => setChequeSayadiNo(e.target.value)}
                           placeholder="مثال: 8839029102938102"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-xs"
                           dir="ltr"
                         />
                       </div>
@@ -1621,42 +1623,42 @@ export default function CheckoutWizard({
                           value={chequeBankName}
                           onChange={e => setChequeBankName(e.target.value)}
                           placeholder="مثال: بانک صادرات"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-xs"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-xs"
                         />
                       </div>
                     </div>
 
                     {/* Mailing Address & Warning for Cheque */}
-                    <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 mt-4 space-y-3">
+                    <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 mt-4 space-y-3">
                       <div className="flex items-center gap-2 text-amber-800 font-black text-sm">
-                        <AlertTriangle size={18} className="text-amber-600" />
+                        <AlertTriangle size={18} className="text-emerald-600" />
                         توجه مهم: ارسال فیزیکی چک صیادی
                       </div>
                       <p className="text-xs font-bold text-amber-900/80 leading-relaxed">
                         لطفاً پس از آپلود تصویر چک و رسید ثبت صیادی، لاشه فیزیکی چک را از طریق پست پیشتاز به آدرس زیر ارسال فرمایید.
-                        <strong className="block mt-2 text-rose-700">⚠️ تذکر: تا زمانی که چک ثبت و به آدرس زیر پست نشود (ارسال کد رهگیری پستی)، بار شما ارسال نخواهد شد.</strong>
+                        <strong className="block mt-2 text-emerald-700">⚠️ تذکر: تا زمانی که چک ثبت و به آدرس زیر پست نشود (ارسال کد رهگیری پستی)، بار شما ارسال نخواهد شد.</strong>
                       </p>
                       
-                      <div className="bg-white p-3 rounded-lg border border-amber-200 text-[11px] font-bold text-slate-700 leading-relaxed">
-                        <div className="flex gap-1.5"><MapPin size={14} className="text-amber-500 shrink-0" /> <span><strong>آدرس:</strong> آذربایجان شرقی، شهرستان شبستر، شهرک صنعتی شندآباد، کوچه شهرک صنعتی st 20، بازرگانی دست اول</span></div>
-                        <div className="flex gap-1.5 mt-1.5"><Mail size={14} className="text-amber-500 shrink-0" /> <span><strong>کد پستی:</strong> <span className="font-mono">5384155355</span></span></div>
-                        <div className="flex gap-1.5 mt-1.5"><Phone size={14} className="text-amber-500 shrink-0" /> <span><strong>تلفن:</strong> <span className="font-mono">09999123001</span></span></div>
+                      <div className="bg-white p-3 rounded-lg border border-emerald-200 text-[11px] font-bold text-slate-700 leading-relaxed">
+                        <div className="flex gap-1.5"><MapPin size={14} className="text-emerald-500 shrink-0" /> <span><strong>آدرس:</strong> آذربایجان شرقی، شهرستان شبستر، شهرک صنعتی شندآباد، کوچه شهرک صنعتی st 20، بازرگانی دست اول</span></div>
+                        <div className="flex gap-1.5 mt-1.5"><Mail size={14} className="text-emerald-500 shrink-0" /> <span><strong>کد پستی:</strong> <span className="font-mono">5384155355</span></span></div>
+                        <div className="flex gap-1.5 mt-1.5"><Phone size={14} className="text-emerald-500 shrink-0" /> <span><strong>تلفن:</strong> <span className="font-mono">09999123001</span></span></div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* LOYALTY CLUB POINTS REDEMPTION CARD */}
-                <div className="bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent border border-amber-300/60 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+                <div className="bg-gradient-to-br from-emerald-500/10 via-amber-400/5 to-transparent border border-amber-300/60 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-xs">
                         <Sparkles size={18} />
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
                           <span>باشگاه مشتریان و پاداش خرید</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold border border-amber-300">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-100 text-amber-800 font-bold border border-amber-300">
                             سطح {loyaltySummary.tierLabel}
                           </span>
                         </h4>
@@ -1679,7 +1681,7 @@ export default function CheckoutWizard({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                       </label>
                     )}
                   </div>
@@ -1690,7 +1692,7 @@ export default function CheckoutWizard({
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="pt-3 border-t border-amber-200/70 space-y-2 text-xs"
+                        className="pt-3 border-t border-emerald-200/70 space-y-2 text-xs"
                       >
                         <div className="flex items-center justify-between font-bold text-slate-700">
                           <span>تعداد امتیاز جهت تبدیل به تخفیف:</span>
@@ -1707,7 +1709,7 @@ export default function CheckoutWizard({
                             step="5"
                             value={pointsToRedeem}
                             onChange={(e) => setPointsToRedeemInput(Number(e.target.value))}
-                            className="w-full accent-amber-600 cursor-pointer h-2 bg-amber-200/80 rounded-lg"
+                            className="w-full accent-emerald-600 cursor-pointer h-2 bg-emerald-200/80 rounded-lg"
                           />
                         </div>
 
@@ -1718,7 +1720,7 @@ export default function CheckoutWizard({
                       </motion.div>
                     )
                   ) : (
-                    <div className="text-[11px] text-slate-500 font-bold bg-amber-50/50 p-2.5 rounded-xl border border-amber-200/50">
+                    <div className="text-[11px] text-slate-500 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-200/50">
                       ℹ️ حداقل امتیاز لازم جهت تبدیل به تخفیف در فاکتور ۱۰ امتیاز می‌باشد.
                     </div>
                   )}
@@ -1744,7 +1746,7 @@ export default function CheckoutWizard({
                 <div className="bg-emerald-50 border border-emerald-200/90 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
                   <ShieldCheck className="text-emerald-600 shrink-0" size={24} />
                   <div>
-                    <h3 className="text-xs font-black text-emerald-950">پیش‌فاکتور رسمی آماده صدور می‌باشد</h3>
+                    <h3 className="text-xs font-black text-slate-900">پیش‌فاکتور رسمی آماده صدور می‌باشد</h3>
                     <p className="text-[11px] text-emerald-800 font-bold mt-0.5">
                       پس از تایید، فایل پیش‌فاکتور مستقیم کارخانه صادر و امکان چاپ یا دانلود PDF بلافاصله فعال می‌شود.
                     </p>
@@ -1782,7 +1784,7 @@ export default function CheckoutWizard({
                   </div>
 
                   {tierDiscountAmount > 0 && (
-                    <div className="flex justify-between items-center text-amber-700 bg-amber-50/70 px-2.5 py-1.5 rounded-xl border border-amber-200/80">
+                    <div className="flex justify-between items-center text-amber-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
                       <span className="flex items-center gap-1 font-black">
                         <span>🎁</span>
                         <span>تخفیف پلکانی تیراژ سفارش ({tierDiscountPercent}٪):</span>
@@ -1806,9 +1808,9 @@ export default function CheckoutWizard({
                   )}
 
                   {loyaltyDiscountAmount > 0 && (
-                    <div className="flex justify-between items-center text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-200">
+                    <div className="flex justify-between items-center text-amber-800 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
                       <span className="flex items-center gap-1 font-black">
-                        <Sparkles size={14} className="text-amber-600" />
+                        <Sparkles size={14} className="text-emerald-600" />
                         <span>تخفیف امتیاز باشگاه مشتریان ({pointsToRedeem.toLocaleString()} امتیاز):</span>
                       </span>
                       <span className="font-mono font-black text-amber-700">-{loyaltyDiscountAmount.toLocaleString()} تومان</span>
@@ -1816,7 +1818,7 @@ export default function CheckoutWizard({
                   )}
 
                   {paymentMethod === 'cheque' && chequeMarkupAmount > 0 && (
-                    <div className="flex justify-between items-center text-indigo-700 bg-indigo-50/70 px-2.5 py-1.5 rounded-xl border border-indigo-200/80">
+                    <div className="flex justify-between items-center text-emerald-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
                       <span className="font-black">کارمزد تسویه چکی ({chequeDays} روزه - +{chequeMarkupPercent}٪):</span>
                       <span className="font-mono font-black">+{chequeMarkupAmount.toLocaleString()} تومان</span>
                     </div>
@@ -1834,7 +1836,7 @@ export default function CheckoutWizard({
                     <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
                       <div className="text-[11px] font-black text-slate-800 pb-1 border-b border-slate-200 flex justify-between">
                         <span>تفکیک و جزئیات تسویه چکی کارخانه:</span>
-                        <span className="text-indigo-700 font-mono font-black">{splitCashPercent}٪ نقد + {100 - splitCashPercent}٪ چک</span>
+                        <span className="text-emerald-700 font-mono font-black">{splitCashPercent}٪ نقد + {100 - splitCashPercent}٪ چک</span>
                       </div>
 
                       <div className="flex justify-between text-emerald-800 font-bold">
@@ -1847,7 +1849,7 @@ export default function CheckoutWizard({
 
                       <div className="flex justify-between text-indigo-900 font-bold">
                         <span className="flex items-center gap-1">
-                          <Receipt size={14} className="text-indigo-600" />
+                          <Receipt size={14} className="text-emerald-600" />
                           مبلغ مندرج در چک صیادی ({effectiveChequePercent}٪):
                         </span>
                         <span className="font-mono font-black">{chequePortionAmount.toLocaleString()} تومان</span>
@@ -1875,7 +1877,7 @@ export default function CheckoutWizard({
                     <span className="text-slate-900 font-black truncate max-w-xs">{buyerName} ({buyerPhone})</span>
                   </div>
 
-                  <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-[10px] text-indigo-700 font-bold leading-relaxed">
+                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-[10px] text-emerald-700 font-bold leading-relaxed">
                     ℹ️ شما می‌توانید با زدن دکمه زیر، پیش‌فاکتور رسمی را مشاهده، چاپ و یا ذخیره نمایید. امکان آپلود مدارک و تسویه نهایی جهت ارسال بار، در پنل کاربری شما محفوظ خواهد ماند.
                   </div>
 
@@ -1918,7 +1920,7 @@ export default function CheckoutWizard({
                   <button
                     type="button"
                     onClick={handleQuickCheckout}
-                    className="px-4 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-xl text-[10px] sm:text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    className="px-4 py-2.5 bg-emerald-50 text-amber-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-[10px] sm:text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                   >
                     <Zap size={14} className="fill-amber-700" />
                     <span>خرید سریع (تایید آدرس ذخیره شده)</span>

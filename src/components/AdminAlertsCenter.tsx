@@ -47,6 +47,9 @@ interface AdminAlertsCenterProps {
   callbackRequests: any[];
   supportTickets: any[];
   sponsoredAds: any[];
+  rawMaterialAds?: any[];
+  equipmentAds?: any[];
+  serviceAds?: any[];
   safeBuyRequests: any[];
   registeredUsers?: any[];
   onNavigateTab: (tab: string, param?: any) => void;
@@ -62,6 +65,9 @@ export default function AdminAlertsCenter({
   callbackRequests = [],
   supportTickets = [],
   sponsoredAds = [],
+  rawMaterialAds = [],
+  equipmentAds = [],
+  serviceAds = [],
   safeBuyRequests = [],
   registeredUsers = [],
   onNavigateTab,
@@ -185,7 +191,7 @@ export default function AdminAlertsCenter({
       }
     });
 
-    // E. Pending Advertisements
+    // E. Pending Advertisements (KafBazaar, Raw Materials, Equipment, Services)
     sponsoredAds.forEach(a => {
       if (a.status === 'pending') {
         const rawDate = a.createdAt ? new Date(a.createdAt).getTime() : Date.now() - 3600000;
@@ -203,6 +209,69 @@ export default function AdminAlertsCenter({
           priorityLabel: 'بررسی اصالت و قیمت',
           targetTab: 'ads',
           details: a
+        });
+      }
+    });
+
+    rawMaterialAds.forEach(rm => {
+      if (rm.isPendingApproval || rm.status === 'pending' || !rm.status || rm.status === 'در حال بررسی') {
+        const rawDate = rm.createdAt ? new Date(rm.createdAt).getTime() : Date.now() - 3600000;
+        list.push({
+          id: `rm_${rm.id}`,
+          type: 'ad',
+          typeLabel: 'مواد اولیه صنعتی',
+          title: `ماده اولیه: ${rm.title || rm.name}`,
+          requesterName: rm.supplierName || 'تامین‌کننده',
+          requesterPhone: rm.phone || rm.supplierPhone || rm.contactPhone || '',
+          requesterCompany: rm.supplierName || '',
+          timeAgo: formatTimeAgo(rawDate),
+          rawTimestamp: rawDate,
+          isUrgent: false,
+          priorityLabel: 'تایید کیفیت صنعتی',
+          targetTab: 'ads',
+          details: rm
+        });
+      }
+    });
+
+    equipmentAds.forEach(eq => {
+      if (eq.isPendingApproval || eq.status === 'pending' || !eq.status || eq.status === 'در حال بررسی') {
+        const rawDate = eq.createdAt ? new Date(eq.createdAt).getTime() : Date.now() - 3600000;
+        list.push({
+          id: `eq_${eq.id}`,
+          type: 'ad',
+          typeLabel: 'ماشین‌آلات صنعتی',
+          title: `تجهیزات: ${eq.title || eq.name}`,
+          requesterName: eq.contactPerson || eq.factoryName || 'فروشنده',
+          requesterPhone: eq.contactPhone || eq.phone || '',
+          requesterCompany: eq.factoryName || '',
+          timeAgo: formatTimeAgo(rawDate),
+          rawTimestamp: rawDate,
+          isUrgent: false,
+          priorityLabel: 'تایید اصالت دستگاه',
+          targetTab: 'ads',
+          details: eq
+        });
+      }
+    });
+
+    serviceAds.forEach(srv => {
+      if (srv.isPendingApproval || srv.status === 'pending' || !srv.status || srv.status === 'در حال بررسی') {
+        const rawDate = srv.createdAt ? new Date(srv.createdAt).getTime() : Date.now() - 3600000;
+        list.push({
+          id: `srv_${srv.id}`,
+          type: 'ad',
+          typeLabel: 'خدمات صنعتی',
+          title: `خدمت: ${srv.title}`,
+          requesterName: srv.providerName || 'پیمانکار',
+          requesterPhone: srv.phone || srv.contactPhone || '',
+          requesterCompany: srv.providerName || '',
+          timeAgo: formatTimeAgo(rawDate),
+          rawTimestamp: rawDate,
+          isUrgent: false,
+          priorityLabel: 'تایید مدارک پیمانکاری',
+          targetTab: 'ads',
+          details: srv
         });
       }
     });
@@ -275,16 +344,16 @@ export default function AdminAlertsCenter({
   const getAlertIcon = (type: string) => {
     switch (type) {
       case 'order':
-        return <ShoppingCart size={16} className="text-blue-600" />;
+        return <ShoppingCart size={16} className="text-emerald-600" />;
       case 'dealership':
       case 'user':
-        return <Building2 size={16} className="text-amber-600" />;
+        return <Building2 size={16} className="text-emerald-600" />;
       case 'callback':
         return <PhoneCall size={16} className="text-emerald-600" />;
       case 'ticket':
         return <MessageSquare size={16} className="text-purple-600" />;
       case 'ad':
-        return <Megaphone size={16} className="text-indigo-600" />;
+        return <Megaphone size={16} className="text-emerald-600" />;
       case 'safebuy':
         return <ShieldCheck size={16} className="text-teal-600" />;
       default:
@@ -322,11 +391,11 @@ export default function AdminAlertsCenter({
         title="مرکز اعلان‌ها و رویدادهای زنده"
       >
         <div className="relative">
-          <Bell size={20} className={unreadCount > 0 ? "text-amber-600 animate-bounce" : "text-slate-500"} />
+          <Bell size={20} className={unreadCount > 0 ? "text-emerald-600 animate-bounce" : "text-slate-500"} />
           {unreadCount > 0 && (
             <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-600 text-white text-[9px] font-black items-center justify-center font-mono">
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-600 text-white text-[9px] font-black items-center justify-center font-mono">
                 {unreadCount > 99 ? "+۹۹" : toPersianNum(unreadCount)}
               </span>
             </span>
@@ -336,7 +405,7 @@ export default function AdminAlertsCenter({
           رویدادها و درخواست‌ها
         </span>
         {unreadCount > 0 && (
-          <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200">
+          <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-amber-900 border border-emerald-200">
             {toPersianNum(unreadCount)} مورد جدید
           </span>
         )}
@@ -363,14 +432,14 @@ export default function AdminAlertsCenter({
               {/* Header */}
               <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center font-black">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-amber-400 flex items-center justify-center font-black">
                     <Sparkles size={18} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-black">مرکز رویدادها و درخواست‌های زنده</h4>
                       {unreadCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black font-mono">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black font-mono">
                           {toPersianNum(unreadCount)} اقدام فوری
                         </span>
                       )}
@@ -419,7 +488,7 @@ export default function AdminAlertsCenter({
                   onClick={() => setSelectedFilter("orders")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                     selectedFilter === "orders"
-                      ? "bg-blue-600 text-white shadow-xs"
+                      ? "bg-emerald-600 text-white shadow-xs"
                       : "bg-white text-slate-600 hover:bg-blue-50 border border-slate-200/80"
                   }`}
                 >
@@ -432,8 +501,8 @@ export default function AdminAlertsCenter({
                   onClick={() => setSelectedFilter("reps")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                     selectedFilter === "reps"
-                      ? "bg-amber-600 text-white shadow-xs"
-                      : "bg-white text-slate-600 hover:bg-amber-50 border border-slate-200/80"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-white text-slate-600 hover:bg-emerald-50 border border-slate-200/80"
                   }`}
                 >
                   <Building2 size={13} />
@@ -458,7 +527,7 @@ export default function AdminAlertsCenter({
               <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar divide-y divide-slate-100">
                 {filteredAlerts.length === 0 ? (
                   <div className="py-12 px-4 text-center space-y-3">
-                    <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100">
+                    <div className="w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto border border-emerald-100">
                       <CheckCircle2 size={28} />
                     </div>
                     <div>
@@ -498,7 +567,7 @@ export default function AdminAlertsCenter({
                                 {alert.timeAgo}
                               </span>
                               {alert.priorityLabel && (
-                                <span className={`font-black ${alert.isUrgent ? "text-rose-600" : "text-amber-600"}`}>
+                                <span className={`font-black ${alert.isUrgent ? "text-emerald-600" : "text-emerald-600"}`}>
                                   • {alert.priorityLabel}
                                 </span>
                               )}

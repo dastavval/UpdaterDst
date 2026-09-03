@@ -59,7 +59,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ language, user, userBadge }) 
 
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-emerald-600">
               <DollarSign size={20} />
             </div>
             <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -75,10 +75,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ language, user, userBadge }) 
 
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
               <Package size={20} />
             </div>
-            <span className="flex items-center gap-1 text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
               <ArrowDownRight size={12} />
               ۳٪
             </span>
@@ -165,7 +165,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ language, user, userBadge }) 
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <TrendingUp size={16} className="text-blue-600" />
+                <TrendingUp size={16} className="text-emerald-600" />
                 {t("روند سود خالص و حاشیه سود", language)}
               </h3>
               <p className="text-[10px] text-slate-400 font-bold">{t("تحلیل نوسانات سودآوری روزانه بر اساس قیمت خرید و مصرف‌کننده", language)}</p>
@@ -230,7 +230,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ language, user, userBadge }) 
       </div>
 
       {/* Additional Stats */}
-      <div className="bg-indigo-600 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
+      <div className="bg-emerald-600 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
         <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-2">

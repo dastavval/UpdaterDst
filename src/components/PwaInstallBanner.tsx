@@ -107,7 +107,7 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleInstallShortcut}
-            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
           >
             <Download size={14} />
             <span>نصب میانبر</span>
@@ -115,7 +115,7 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
 
           <button
             onClick={handleDismiss}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-600 transition-all cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-all cursor-pointer shrink-0"
             title="بستن دائمی اعلان"
           >
             <X size={16} />

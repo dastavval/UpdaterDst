@@ -7,7 +7,7 @@ export interface AdItem {
   contactPerson: string;
   contactPhone: string;
   badgeText: string;
-  category: "under_market" | "liquid" | "direct_supply";
+  category: "under_market" | "liquid" | "direct_supply" | "materials" | "services" | "equipment";
   quantity: string;
   wholesalePrice: string;
   marketPrice: string;
@@ -21,6 +21,12 @@ export interface AdItem {
   specialRequest?: boolean;
   specialRequestMessage?: string;
   isHotFireDeal?: boolean;
+  publisherType?: "factory" | "individual" | "broker";
+  creatorPhone?: string; // Links ad to a user account
+  specialPaymentStatus?: "none" | "pending" | "approved" | "rejected";
+  specialReceiptUrl?: string;
+  adminNote?: string;
+  productCategory?: string;
 }
 
 export const getAdFallbackImage = (title: string, category: string): string => {

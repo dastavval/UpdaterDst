@@ -428,7 +428,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> قطب اصلی انتخاب شده
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> سایر قطب‌های توزیع فعال
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> سایر قطب‌های توزیع فعال
             </span>
           </div>
         </div>
@@ -457,7 +457,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
             <div className="space-y-3 mb-4">
               <h4 className="text-xs font-black text-slate-500 flex items-center gap-1 justify-end">
                 <span>کارخانجات تولیدی متصل</span>
-                <Building size={14} className="text-blue-500" />
+                <Building size={14} className="text-emerald-500" />
               </h4>
               <div className="grid grid-cols-1 gap-1.5">
                 {selectedHub.factories.map((factory, i) => (
@@ -467,7 +467,7 @@ export default function IranMap({ theme, onSelectProduct }: { theme: 'light' | '
                       theme === 'dark' ? 'bg-slate-50/40 border-slate-850' : 'bg-white border-slate-200/40'
                     }`}
                   >
-                    <span className="text-[9px] bg-blue-500/10 text-blue-500 border border-blue-500/20 px-1.5 py-0.5 rounded-full font-black">
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded-full font-black">
                       تامین مستقیم
                     </span>
                     <span className="text-slate-800">{factory}</span>

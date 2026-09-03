@@ -291,7 +291,7 @@ export default function RepresentativeKYCView({
     <div className={`text-right font-sans ${isModal ? 'p-1' : 'space-y-6'}`} dir="rtl">
       {/* Top Banner & Status Indicator */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white border border-indigo-800/30 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="flex items-center gap-3.5">
@@ -299,10 +299,10 @@ export default function RepresentativeKYCView({
               currentStatus === 'verified'
                 ? 'bg-gradient-to-br from-emerald-500 to-teal-700 shadow-emerald-900/30'
                 : currentStatus === 'pending'
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-900/30'
+                ? 'bg-gradient-to-br from-emerald-500 to-orange-600 shadow-amber-900/30'
                 : currentStatus === 'rejected'
-                ? 'bg-gradient-to-br from-rose-500 to-red-700 shadow-red-900/30'
-                : 'bg-gradient-to-br from-indigo-600 to-purple-700 shadow-indigo-900/30'
+                ? 'bg-gradient-to-br from-emerald-500 to-red-700 shadow-red-900/30'
+                : 'bg-gradient-to-br from-emerald-600 to-purple-700 shadow-indigo-900/30'
             }`}>
               {currentStatus === 'verified' ? (
                 <ShieldCheck size={28} className="text-white animate-pulse" />
@@ -329,25 +329,25 @@ export default function RepresentativeKYCView({
                   </span>
                 )}
                 {currentStatus === 'pending' && (
-                  <span className="bg-amber-500/30 text-amber-300 border border-amber-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-emerald-500/30 text-amber-300 border border-amber-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
                     <Clock size={12} />
                     در حال بررسی توسط کارشناسان
                   </span>
                 )}
                 {currentStatus === 'rejected' && (
-                  <span className="bg-rose-500/30 text-rose-300 border border-rose-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-emerald-500/30 text-rose-300 border border-rose-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
                     <AlertCircle size={12} />
                     نیاز به ویرایش و ارسال مجدد
                   </span>
                 )}
                 {currentStatus === 'unsubmitted' && (
-                  <span className="bg-indigo-500/30 text-indigo-300 border border-indigo-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full">
+                  <span className="bg-emerald-500/30 text-indigo-300 border border-indigo-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full">
                     مدارک هنوز ارسال نشده
                   </span>
                 )}
               </div>
 
-              <p className="text-xs text-indigo-200/80 font-medium mt-1 leading-relaxed max-w-2xl">
+              <p className="text-xs text-emerald-200/80 font-medium mt-1 leading-relaxed max-w-2xl">
                 با بارگذاری کارت ملی و اطلاعات ثبتی انبار، هویت رسمی عاملیت شما تایید شده و گواهینامه معتبر بازرگانی و سهمیه‌های خرید کارخانه فعال می‌گردد.
               </p>
             </div>
@@ -365,7 +365,7 @@ export default function RepresentativeKYCView({
 
         {/* Rejection Alert if applicable */}
         {currentStatus === 'rejected' && kycRecord?.rejectionReason && (
-          <div className="mt-4 p-3.5 bg-rose-500/20 border border-rose-400/30 rounded-2xl flex items-center gap-3 text-rose-200 text-xs">
+          <div className="mt-4 p-3.5 bg-emerald-500/20 border border-rose-400/30 rounded-2xl flex items-center gap-3 text-emerald-200 text-xs">
             <AlertCircle size={16} className="text-rose-400 shrink-0" />
             <div>
               <span className="font-bold text-rose-300">علت عدم تأیید کارشناس: </span>
@@ -386,7 +386,7 @@ export default function RepresentativeKYCView({
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <User size={15} className={activeSubSection === 'identity' ? 'text-indigo-600' : 'text-slate-400'} />
+          <User size={15} className={activeSubSection === 'identity' ? 'text-emerald-600' : 'text-slate-400'} />
           <span>۱. مشخصات هویتی</span>
         </button>
 
@@ -399,7 +399,7 @@ export default function RepresentativeKYCView({
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Building2 size={15} className={activeSubSection === 'warehouse' ? 'text-indigo-600' : 'text-slate-400'} />
+          <Building2 size={15} className={activeSubSection === 'warehouse' ? 'text-emerald-600' : 'text-slate-400'} />
           <span>۲. انبار و لجستیک</span>
         </button>
 
@@ -412,7 +412,7 @@ export default function RepresentativeKYCView({
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Upload size={15} className={activeSubSection === 'documents' ? 'text-indigo-600' : 'text-slate-400'} />
+          <Upload size={15} className={activeSubSection === 'documents' ? 'text-emerald-600' : 'text-slate-400'} />
           <span>۳. آپلود کارت ملی و مدارک</span>
           {nationalCardFrontUrl && (
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -431,7 +431,7 @@ export default function RepresentativeKYCView({
           >
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <User size={17} className="text-indigo-600" />
+                <User size={17} className="text-emerald-600" />
                 <span>اطلاعات شناسنامه‌ای و کد ملی نماینده</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -443,14 +443,14 @@ export default function RepresentativeKYCView({
               {/* Full Name */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-700 block">
-                  نام و نام خانوادگی کامل (مطابق کارت ملی): <span className="text-rose-500">*</span>
+                  نام و نام خانوادگی کامل (مطابق کارت ملی): <span className="text-emerald-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="مثال: علی رضایی طباطبایی"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                 />
               </div>
 
@@ -458,11 +458,11 @@ export default function RepresentativeKYCView({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-700 block">
-                    کد ملی (۱۰ رقم): <span className="text-rose-500">*</span>
+                    کد ملی (۱۰ رقم): <span className="text-emerald-500">*</span>
                   </label>
                   {nationalCode && (
                     <span className={`text-[10px] font-bold flex items-center gap-1 ${
-                      isNationalCodeValid ? 'text-emerald-600' : 'text-rose-500'
+                      isNationalCodeValid ? 'text-emerald-600' : 'text-emerald-500'
                     }`}>
                       {isNationalCodeValid ? (
                         <>
@@ -487,8 +487,8 @@ export default function RepresentativeKYCView({
                   dir="ltr"
                   className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-xs font-mono text-center font-bold outline-none transition-all ${
                     nationalCode && !isNationalCodeValid
-                      ? 'border-rose-300 text-rose-700 focus:ring-rose-100'
-                      : 'border-slate-200 text-slate-800 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'
+                      ? 'border-rose-300 text-emerald-700 focus:ring-emerald-100'
+                      : 'border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100'
                   }`}
                 />
               </div>
@@ -503,7 +503,7 @@ export default function RepresentativeKYCView({
                   value={fatherName}
                   onChange={(e) => setFatherName(e.target.value)}
                   placeholder="مثال: محمد"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                 />
               </div>
 
@@ -518,14 +518,14 @@ export default function RepresentativeKYCView({
                   onChange={(e) => setBirthDate(e.target.value)}
                   placeholder="مثال: 1365/04/18"
                   dir="ltr"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
               {/* Mobile Phone */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-700 block">
-                  شماره تلفن همراه (احراز پیامکی): <span className="text-rose-500">*</span>
+                  شماره تلفن همراه (احراز پیامکی): <span className="text-emerald-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -533,7 +533,7 @@ export default function RepresentativeKYCView({
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder="09123456789"
                   dir="ltr"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
@@ -548,7 +548,7 @@ export default function RepresentativeKYCView({
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="051-38400000"
                   dir="ltr"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
             </div>
@@ -557,7 +557,7 @@ export default function RepresentativeKYCView({
               <button
                 type="button"
                 onClick={() => setActiveSubSection('warehouse')}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
               >
                 <span>مرحله بعد: مشخصات انبار و توزیع</span>
                 <ChevronLeft size={15} />
@@ -575,7 +575,7 @@ export default function RepresentativeKYCView({
           >
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <Building2 size={17} className="text-indigo-600" />
+                <Building2 size={17} className="text-emerald-600" />
                 <span>مشخصات مرکز توزیع، انبار و ناوگان لجستیکی</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -594,7 +594,7 @@ export default function RepresentativeKYCView({
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="مثال: بازرگانی و پخش رضایی"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
@@ -608,7 +608,7 @@ export default function RepresentativeKYCView({
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
                   placeholder="مثال: خراسان رضوی"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
@@ -622,7 +622,7 @@ export default function RepresentativeKYCView({
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="مثال: مشهد / نیشابور"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
@@ -638,7 +638,7 @@ export default function RepresentativeKYCView({
                   onChange={(e) => setPostalCode(e.target.value.replace(/[^\d]/g, ''))}
                   placeholder="مثال: 9173512345"
                   dir="ltr"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
@@ -653,7 +653,7 @@ export default function RepresentativeKYCView({
                   onChange={(e) => setWarehouseAreaM2(e.target.value)}
                   placeholder="مثال: 300"
                   dir="ltr"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-center text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
@@ -667,7 +667,7 @@ export default function RepresentativeKYCView({
                   value={distributionVehiclesCount}
                   onChange={(e) => setDistributionVehiclesCount(e.target.value)}
                   placeholder="مثال: 2 دستگاه وانت / ایسوزو"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:bg-white focus:border-emerald-500 outline-none"
                 />
               </div>
             </div>
@@ -682,7 +682,7 @@ export default function RepresentativeKYCView({
                 value={warehouseAddress}
                 onChange={(e) => setWarehouseAddress(e.target.value)}
                 placeholder="مثال: خیابان مصلی، کوچه مصلی ۷، پلاک ۱۲، مجتمع انبارداری رضایی"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:bg-white focus:border-indigo-500 outline-none resize-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:bg-white focus:border-emerald-500 outline-none resize-none"
               />
             </div>
 
@@ -698,7 +698,7 @@ export default function RepresentativeKYCView({
               <button
                 type="button"
                 onClick={() => setActiveSubSection('documents')}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
               >
                 <span>مرحله بعد: آپلود مدارک و کارت ملی</span>
                 <ChevronLeft size={15} />
@@ -716,7 +716,7 @@ export default function RepresentativeKYCView({
           >
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <Upload size={17} className="text-indigo-600" />
+                <Upload size={17} className="text-emerald-600" />
                 <span>بارگذاری مدارک هویتی، کارت ملی و پروانه فعالیت</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -726,12 +726,12 @@ export default function RepresentativeKYCView({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* 1. National Card Front (MANDATORY) */}
-              <div className="p-4.5 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 space-y-3">
+              <div className="p-4.5 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/30 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CreditCard size={17} className="text-indigo-600" />
+                    <CreditCard size={17} className="text-emerald-600" />
                     <span className="text-xs font-black text-slate-800">
-                      روی کارت ملی هوشمند <span className="text-rose-500">* الزامی</span>
+                      روی کارت ملی هوشمند <span className="text-emerald-500">* الزامی</span>
                     </span>
                   </div>
                   {nationalCardFrontUrl && (
@@ -759,7 +759,7 @@ export default function RepresentativeKYCView({
                       <button
                         type="button"
                         onClick={() => setNationalCardFrontUrl("")}
-                        className="p-2 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-rose-700 cursor-pointer"
+                        className="p-2 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-emerald-700 cursor-pointer"
                       >
                         <Trash2 size={13} /> حذف
                       </button>
@@ -769,7 +769,7 @@ export default function RepresentativeKYCView({
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2">
                       <label className="flex-1 py-2.5 px-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition-all">
-                        <Upload size={14} className="text-indigo-600" />
+                        <Upload size={14} className="text-emerald-600" />
                         <span>انتخاب فایل عکس</span>
                         <input
                           type="file"
@@ -781,7 +781,7 @@ export default function RepresentativeKYCView({
                       <button
                         type="button"
                         onClick={() => startWebcam('front')}
-                        className="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                       >
                         <Camera size={14} />
                         <span>عکاسی وبکم</span>
@@ -828,7 +828,7 @@ export default function RepresentativeKYCView({
                       <button
                         type="button"
                         onClick={() => setNationalCardBackUrl("")}
-                        className="p-2 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-rose-700 cursor-pointer"
+                        className="p-2 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-emerald-700 cursor-pointer"
                       >
                         <Trash2 size={13} /> حذف
                       </button>
@@ -892,7 +892,7 @@ export default function RepresentativeKYCView({
                       <button
                         type="button"
                         onClick={() => setBusinessLicenseUrl("")}
-                        className="p-2 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-rose-700 cursor-pointer"
+                        className="p-2 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-emerald-700 cursor-pointer"
                       >
                         <Trash2 size={13} /> حذف
                       </button>
@@ -946,7 +946,7 @@ export default function RepresentativeKYCView({
                       <button
                         type="button"
                         onClick={() => setSelfieWithIdUrl("")}
-                        className="p-2 bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-rose-700 cursor-pointer"
+                        className="p-2 bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-emerald-700 cursor-pointer"
                       >
                         <Trash2 size={13} /> حذف
                       </button>
@@ -979,7 +979,7 @@ export default function RepresentativeKYCView({
 
             {/* Toasts */}
             {errorToast && (
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs font-bold">
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-emerald-700 text-xs font-bold">
                 <AlertCircle size={16} className="shrink-0" />
                 <span>{errorToast}</span>
               </div>

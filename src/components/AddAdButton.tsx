@@ -17,11 +17,13 @@ import {
   User,
   Phone,
   Building2,
-  ChevronLeft
+  ChevronLeft,
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { getAdFallbackImage, AdItem } from "../utils/ad-utils";
+import { getUserSession } from "../lib/auth-helper";
 
 interface AddAdButtonProps {
   variant?: "desktop" | "mobile-fab" | "inline";
@@ -41,20 +43,74 @@ export default function AddAdButton({
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // Debounce / prevent double-clicks
 
+  // Load dynamic categories from localStorage
+  const getDynamicCategories = () => {
+    try {
+      const saved = localStorage.getItem("dastavval_b2b_config");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+          return parsed.categories.map((c: any, index: number) => {
+            if (typeof c === 'string') {
+              return { id: `cat-${index + 1}`, name: c, emoji: '🏷️' };
+            }
+            return {
+              id: c.id || `cat-${index + 1}`,
+              name: c.name || '',
+              emoji: c.emoji || c.icon || '🏷️'
+            };
+          });
+        }
+      }
+    } catch (e) {}
+    return [
+      { id: "cat-1", name: "تنقلات و شکلات", emoji: "🍫" },
+      { id: "cat-2", name: "کیک، کلوچه و بیسکویت", emoji: "🍪" },
+      { id: "cat-3", name: "مواد غذایی و کنسروجات", emoji: "🥫" },
+      { id: "cat-4", name: "نوشیدنی‌ها", emoji: "🥤" },
+      { id: "cat-5", name: "شوینده و بهداشتی", emoji: "🧼" }
+    ];
+  };
+
+  const dynamicCategories = getDynamicCategories();
+
   // Form Fields
+  const [currentUser, setCurrentUser] = useState<any>(() => getUserSession());
   const [category, setCategory] = useState<"under_market" | "liquid" | "direct_supply">("under_market");
+  const [productCategory, setProductCategory] = useState<string>(() => {
+    return dynamicCategories[0]?.name || "";
+  });
   const [title, setTitle] = useState("");
-  const [factoryName, setFactoryName] = useState("");
+  const [factoryName, setFactoryName] = useState(() => currentUser?.company || "");
   const [wholesalePrice, setWholesalePrice] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [contactPerson, setContactPerson] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [contactPerson, setContactPerson] = useState(() => currentUser?.name || "");
+  const [contactPhone, setContactPhone] = useState(() => currentUser?.phone || currentUser?.mobile || "");
   const [description, setDescription] = useState("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isSpecialRequested, setIsSpecialRequested] = useState(false);
   const [specialMessage, setSpecialMessage] = useState("");
   const [phoneWarning, setPhoneWarning] = useState("");
+
+  // Sync user session changes
+  React.useEffect(() => {
+    const handleAuthUpdate = () => {
+      const u = getUserSession();
+      setCurrentUser(u);
+      if (u) {
+        if (!contactPerson && u.name) setContactPerson(u.name);
+        if (!contactPhone && (u.phone || u.mobile)) setContactPhone(u.phone || u.mobile);
+        if (!factoryName && u.company) setFactoryName(u.company);
+      }
+    };
+    window.addEventListener('dastavval_users_updated', handleAuthUpdate);
+    window.addEventListener('dastavval_auth_changed', handleAuthUpdate);
+    return () => {
+      window.removeEventListener('dastavval_users_updated', handleAuthUpdate);
+      window.removeEventListener('dastavval_auth_changed', handleAuthUpdate);
+    };
+  }, [contactPerson, contactPhone, factoryName]);
 
   const detectAndScrubPhoneNumbers = (text: string) => {
     const phoneRegex = /(۰|0|۹|9)[۰-۹0-9]{9,10}/g;
@@ -97,6 +153,7 @@ export default function AddAdButton({
       contactPhone: contactPhone || "درج نشده",
       badgeText: finalBadge,
       category,
+      productCategory,
       quantity: quantity || "توافقی",
       wholesalePrice: wholesalePrice.includes("تومان") || wholesalePrice.includes("توافقی") || !wholesalePrice ? wholesalePrice : `${wholesalePrice} تومان`,
       marketPrice: marketPrice.includes("تومان") || marketPrice.includes("توافقی") || !marketPrice ? marketPrice : `${marketPrice} تومان`,
@@ -109,6 +166,13 @@ export default function AddAdButton({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !wholesalePrice || !marketPrice || !contactPhone) return;
+
+    // Strict SMS Verification Guard
+    const activeSession = getUserSession();
+    if (!activeSession) {
+      window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'ad_poster' } }));
+      return;
+    }
 
     // Safety check / Debounce trigger
     if (isSubmitting) return;
@@ -127,6 +191,7 @@ export default function AddAdButton({
         contactPhone: preparedData.contactPhone,
         badgeText: preparedData.badgeText,
         category,
+        productCategory,
         quantity: preparedData.quantity,
         wholesalePrice: preparedData.wholesalePrice,
         marketPrice: preparedData.marketPrice,
@@ -217,7 +282,7 @@ export default function AddAdButton({
       {variant === "desktop" && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`hidden sm:flex px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-xl text-xs font-black transition-all items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] whitespace-nowrap min-w-fit ${className}`}
+          className={`hidden sm:flex px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-amber-700 text-slate-950 rounded-xl text-xs font-black transition-all items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] whitespace-nowrap min-w-fit ${className}`}
         >
           <Plus size={15} />
           <span>ثبت عرضه بار</span>
@@ -227,7 +292,7 @@ export default function AddAdButton({
       {variant === "inline" && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black rounded-xl text-xs shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer ${className}`}
+          className={`w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 via-emerald-500 to-emerald-600 text-slate-950 font-black rounded-xl text-xs shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer ${className}`}
         >
           <Plus size={15} />
           <span>ثبت عرضه بار در تالار</span>
@@ -235,13 +300,15 @@ export default function AddAdButton({
       )}
 
       {variant === "mobile-fab" && (
-        <div className={`fixed bottom-24 left-5 z-[100] md:hidden ${className}`}>
+        <div className={`fixed bottom-20 left-4 z-[100] md:hidden ${className}`}>
           <button
             onClick={() => setIsOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-slate-950 font-black px-4 py-2.5 rounded-full shadow-md shadow-amber-500/25 border border-amber-400 active:scale-95 transition-all text-xs"
+            className="flex items-center gap-2 bg-white/95 text-slate-950 font-black px-4 py-3 rounded-2xl shadow-xl shadow-emerald-500/15 border border-emerald-500/30 active:scale-95 transition-all text-xs backdrop-blur-md ring-4 ring-emerald-500/10 group hover:bg-emerald-50"
           >
-            <Plus size={16} />
-            <span>ثبت عرضه بار</span>
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 group-hover:scale-105 transition-transform">
+              <Plus size={16} />
+            </div>
+            <span className="bg-gradient-to-r from-emerald-700 to-teal-800 bg-clip-text text-transparent font-black text-xs">ثبت بار</span>
           </button>
         </div>
       )}
@@ -249,12 +316,12 @@ export default function AddAdButton({
       {/* Unified Form Modal */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md overflow-y-auto" dir="rtl">
+          <div className="fixed inset-0 z-[9999] flex justify-center items-start sm:items-center p-4 bg-slate-950/40 backdrop-blur-xs overflow-y-auto" dir="rtl">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white w-full max-w-xl rounded-[28px] border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right my-8 max-h-[90vh] overflow-y-auto"
+              className="bg-white w-full max-w-xl rounded-[28px] border border-slate-100 p-6 sm:p-8 shadow-2xl relative text-right my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto scrollbar-thin"
             >
               {/* Close Button */}
               <button
@@ -270,7 +337,7 @@ export default function AddAdButton({
 
               {submitSuccess ? (
                 <div className="py-10 flex flex-col items-center text-center space-y-5">
-                  <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shadow-md shadow-emerald-100/50 animate-bounce">
+                  <div className="w-20 h-20 bg-emerald-600 text-white rounded-full flex items-center justify-center border border-emerald-100 shadow-md shadow-emerald-100/50 animate-bounce">
                     <CheckCircle size={40} />
                   </div>
                   <h4 className="font-black text-slate-900 text-base">درخواست شما با موفقیت ثبت گردید</h4>
@@ -282,7 +349,7 @@ export default function AddAdButton({
                       setIsOpen(false);
                       setIsPreviewMode(false);
                     }}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md"
                   >
                     بستن پنجره
                   </button>
@@ -308,7 +375,7 @@ export default function AddAdButton({
 
                   {/* Aesthetic Replica Card of AdBoard */}
                   <div className="bg-slate-50 rounded-3xl p-4 sm:p-5 border border-slate-200/60 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 bg-amber-500 text-slate-950 text-[10px] font-black px-3 py-1.5 rounded-br-2xl shadow-sm">
+                    <div className="absolute top-0 left-0 bg-emerald-600 text-white text-[10px] font-black px-3 py-1.5 rounded-br-2xl shadow-sm">
                       {previewAd.badgeText}
                     </div>
 
@@ -340,7 +407,7 @@ export default function AddAdButton({
                           </div>
                           <div>
                             <span className="block text-[9px] text-slate-400 font-bold">قیمت آزاد بازار:</span>
-                            <span className="text-xs font-black text-slate-600 line-through decoration-rose-500/50">{previewAd.marketPrice || "توافقی"}</span>
+                            <span className="text-xs font-black text-slate-600 line-through decoration-emerald-500/50">{previewAd.marketPrice || "توافقی"}</span>
                           </div>
                         </div>
 
@@ -364,8 +431,8 @@ export default function AddAdButton({
                     </div>
 
                     {/* Escrow protection indicator */}
-                    <div className="mt-3 bg-indigo-50 border border-indigo-100/50 rounded-xl p-2.5 flex items-center gap-2 text-[9px] text-indigo-900 font-black">
-                      <Lock size={12} className="text-indigo-600" />
+                    <div className="mt-3 bg-emerald-50 border border-emerald-100/50 rounded-xl p-2.5 flex items-center gap-2 text-[9px] text-indigo-900 font-black">
+                      <Lock size={12} className="text-emerald-600" />
                       <span>محافظت تحت صندوق امانی دست‌اول فعال است. اطلاعات تماس مستقیم مخفی می‌ماند.</span>
                     </div>
                   </div>
@@ -412,24 +479,53 @@ export default function AddAdButton({
                   className="space-y-5 text-right"
                 >
                   {/* Header Title */}
-                  <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                    <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                      <Package size={20} />
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                        <Package size={20} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-900 text-base">درج محصول جدید در تالار کف بازار</h4>
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">معرفی مستقیم کالا و فرصت‌های خرید زیر قیمت بازار به صنایع سراسر کشور</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-black text-slate-900 text-base">درج محصول جدید در تالار کف بازار</h4>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">معرفی مستقیم کالا و فرصت‌های خرید زیر قیمت بازار به صنایع سراسر کشور</p>
-                    </div>
+
+                    {currentUser ? (
+                      <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                        <CheckCircle size={13} className="text-emerald-600" />
+                        <span>حساب احراز شده: {currentUser.name || currentUser.phone}</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'ad_poster' } }))}
+                        className="text-[10px] font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <ShieldCheck size={13} className="text-emerald-700" />
+                        <span>ورود / ثبت‌نام با پیامک</span>
+                      </button>
+                    )}
                   </div>
 
-                  {/* Informative Guidance */}
-                  <div className="bg-gradient-to-r from-indigo-50/70 to-blue-50/70 border border-indigo-100/60 rounded-2xl p-4 flex gap-3 text-[11px] text-indigo-950 font-medium leading-relaxed shadow-xs">
-                    <AlertTriangle className="text-indigo-600 shrink-0 mt-0.5" size={16} />
-                    <div>
-                      <span className="font-black block text-indigo-900 mb-0.5">امنیت و واسطه‌گری امین دست‌اول:</span>
-                      کلیه هماهنگی‌های مالی، آنالیزهای فنی بار و عقد قراردادهای رسمی جهت محافظت از خریدار و فروشنده، به صورت مستقیم و امن توسط مدیریت واسطه‌گری پلتفرم دست‌اول صورت می‌پذیرد.
+                  {!currentUser && (
+                    <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-2xl flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={18} className="text-amber-700 shrink-0" />
+                        <p className="text-[11px] font-bold text-amber-900 leading-relaxed">
+                          جهت حفظ سلامت معاملات بازار و جلوگیری از آگهی‌های غیرواقعی، ثبت آگهی ملزم به ورود با شماره همراه و کد پیامکی است.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'ad_poster' } }))}
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg shrink-0 cursor-pointer shadow-xs whitespace-nowrap"
+                      >
+                        ورود پیامکی
+                      </button>
                     </div>
-                  </div>
+                  )}
+
+
 
                   {/* Category Selection */}
                   <div className="space-y-4">
@@ -461,14 +557,14 @@ export default function AddAdButton({
                           onClick={() => setCategory("liquid")}
                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer relative flex flex-col justify-between ${
                             category === "liquid"
-                              ? "bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/20 shadow-sm"
+                              ? "bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm"
                               : "bg-slate-50 hover:bg-slate-100 border-slate-200"
                           }`}
                         >
                           <div className="flex justify-between items-center w-full">
                             <span className="text-xs font-black text-slate-800 font-sans">🔥 حراج و مازاد</span>
-                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${category === "liquid" ? "border-amber-600" : "border-slate-300"}`}>
-                              {category === "liquid" && <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />}
+                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${category === "liquid" ? "border-emerald-600" : "border-slate-300"}`}>
+                              {category === "liquid" && <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
                             </div>
                           </div>
                           <p className="text-[9px] text-slate-500 font-bold mt-1.5 leading-tight">
@@ -481,14 +577,14 @@ export default function AddAdButton({
                           onClick={() => setCategory("direct_supply")}
                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer relative flex flex-col justify-between ${
                             category === "direct_supply"
-                              ? "bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/20 shadow-sm"
+                              ? "bg-blue-50/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm"
                               : "bg-slate-50 hover:bg-slate-100 border-slate-200"
                           }`}
                         >
                           <div className="flex justify-between items-center w-full">
                             <span className="text-xs font-black text-slate-800 font-sans">📦 تامین مستقیم</span>
-                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${category === "direct_supply" ? "border-blue-600" : "border-slate-300"}`}>
-                              {category === "direct_supply" && <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${category === "direct_supply" ? "border-emerald-600" : "border-slate-300"}`}>
+                              {category === "direct_supply" && <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
                             </div>
                           </div>
                           <p className="text-[9px] text-slate-500 font-bold mt-1.5 leading-tight">
@@ -496,6 +592,24 @@ export default function AddAdButton({
                           </p>
                         </button>
                       </div>
+                    </div>
+
+                    {/* Dynamic Product Category Selection */}
+                    <div className="mt-4">
+                      <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                        دسته‌بندی موضوعی کالا:
+                      </label>
+                      <select
+                        value={productCategory}
+                        onChange={(e) => setProductCategory(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 transition-colors cursor-pointer"
+                      >
+                        {dynamicCategories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.emoji} {cat.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Product Title */}
@@ -516,9 +630,9 @@ export default function AddAdButton({
                           }
                         }}
                         placeholder="مثال: ۵۰۰ کارتن تن ماهی ۱۸۰ گرمی یا ۵۰ تن شکر ۵ کیلویی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 transition-colors"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 transition-colors"
                       />
-                      {phoneWarning && <span className="text-[10px] text-rose-500 font-bold block mt-1">{phoneWarning}</span>}
+                      {phoneWarning && <span className="text-[10px] text-emerald-500 font-bold block mt-1">{phoneWarning}</span>}
                     </div>
 
                     {/* Brand / Factory */}
@@ -531,7 +645,7 @@ export default function AddAdButton({
                         value={factoryName}
                         onChange={(e) => setFactoryName(e.target.value)}
                         placeholder="مثال: کارخانه کشت و صنعت دهخدا یا برند معتبر ایرانی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 transition-colors"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 transition-colors"
                       />
                     </div>
 
@@ -547,7 +661,7 @@ export default function AddAdButton({
                           value={wholesalePrice}
                           onChange={(e) => setWholesalePrice(e.target.value)}
                           placeholder="مثال: ۴۲,۰۰۰ تومان"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
                         />
                       </div>
                       <div>
@@ -560,7 +674,7 @@ export default function AddAdButton({
                           value={marketPrice}
                           onChange={(e) => setMarketPrice(e.target.value)}
                           placeholder="مثال: ۶۵,۰۰۰ تومان"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
                         />
                       </div>
                       <div>
@@ -573,15 +687,15 @@ export default function AddAdButton({
                           value={quantity}
                           onChange={(e) => setQuantity(e.target.value)}
                           placeholder="مثال: ۲۰ تن"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600"
                         />
                       </div>
                     </div>
 
                     {/* Contact Info Group */}
-                    <div className="grid grid-cols-2 gap-3 bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100/20">
+                    <div className="grid grid-cols-2 gap-3 bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100/20">
                       <div className="col-span-2 flex items-center gap-1.5 text-indigo-900 text-[10px] font-black mb-1">
-                        <Lock size={12} className="text-indigo-600" />
+                        <Lock size={12} className="text-emerald-600" />
                         <span>اطلاعات هماهنگی کارشناسی (محفوظ نزد ادمین جهت معامله امن واسطه‌ای):</span>
                       </div>
                       <div>
@@ -627,7 +741,7 @@ export default function AddAdButton({
                               <button
                                 type="button"
                                 onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== idx))}
-                                className="absolute top-1 left-1 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-full transition-colors cursor-pointer shadow-sm"
+                                className="absolute top-1 left-1 bg-emerald-600 hover:bg-emerald-700 text-white p-1 rounded-full transition-colors cursor-pointer shadow-sm"
                               >
                                 <Trash2 size={11} />
                               </button>
@@ -690,7 +804,7 @@ export default function AddAdButton({
                           }}
                           className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
                             isDraggingImage
-                              ? "border-indigo-500 bg-indigo-50/50"
+                              ? "border-emerald-500 bg-emerald-50/50"
                               : "border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-indigo-400"
                           }`}
                           onClick={triggerUpload}
@@ -724,12 +838,12 @@ export default function AddAdButton({
                           />
                           {isUploading ? (
                             <div className="flex flex-col items-center justify-center space-y-2">
-                              <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-                              <span className="text-[10px] font-black text-indigo-600">در حال آپلود...</span>
+                              <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto"></div>
+                              <span className="text-[10px] font-black text-emerald-600">در حال آپلود...</span>
                             </div>
                           ) : (
                             <>
-                              <UploadCloud className="text-indigo-600 mx-auto" size={28} />
+                              <UploadCloud className="text-emerald-600 mx-auto" size={28} />
                               <span className="text-xs font-black text-slate-800 block mt-2">
                                 کشیدن و رها کردن تصاویر نمونه کالا یا اسناد آنالیز
                               </span>
@@ -753,18 +867,18 @@ export default function AddAdButton({
                         onChange={(e) => setDescription(e.target.value)}
                         rows={3}
                         placeholder="مثال: محصول با گرید آزمایشگاهی استاندارد و مدارک COA معتبر، حداقل خرید ۵ تن، تحویل روی جک خریدار در محل کارخانه..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 resize-none transition-colors"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 resize-none transition-colors"
                       />
                     </div>
 
                     {/* Special Escrow Brokerage Checkbox */}
-                    <div className="bg-amber-50/40 border border-amber-100/60 rounded-2xl p-4">
+                    <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-2xl p-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input 
                           type="checkbox"
                           checked={isSpecialRequested}
                           onChange={(e) => setIsSpecialRequested(e.target.checked)}
-                          className="w-4 h-4 rounded accent-amber-600 cursor-pointer"
+                          className="w-4 h-4 rounded accent-emerald-600 cursor-pointer"
                         />
                         <span className="text-[10px] font-black text-amber-900">درخواست مشاوره و نظارت کارگزار اختصاصی معامله (عقد قرارداد امن)</span>
                       </label>
@@ -776,7 +890,7 @@ export default function AddAdButton({
                             onChange={(e) => setSpecialMessage(e.target.value)}
                             rows={2}
                             placeholder="مثال: نیاز مبرم به تست کیفیت در آزمایشگاه معتمد قبل از بارگیری..."
-                            className="w-full bg-white border border-amber-200/50 rounded-xl p-2.5 text-xs font-semibold text-amber-900 outline-none focus:border-amber-400"
+                            className="w-full bg-white border border-emerald-200/50 rounded-xl p-2.5 text-xs font-semibold text-amber-900 outline-none focus:border-amber-400"
                           />
                         </div>
                       )}
@@ -787,7 +901,7 @@ export default function AddAdButton({
                   <div className="flex gap-3 pt-3 border-t border-slate-100">
                     <button
                       type="submit"
-                      className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
+                      className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
                     >
                       <Eye size={16} />
                       <span>مشاهده پیش‌نمایش آگهی</span>

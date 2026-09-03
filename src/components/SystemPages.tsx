@@ -139,14 +139,14 @@ export default function SystemPages({
   }> = {
     '404': {
       badge: "صفحه پیدا نشد",
-      badgeColor: "bg-amber-50 text-amber-800 border-amber-200",
+      badgeColor: "bg-emerald-50 text-amber-800 border-emerald-200",
       numberBadge: "404",
       title: title || "صفحه یا محصول مورد نظر در دسترس نیست",
       subtitle: "شاید آدرس اشتباه وارد شده یا کالا موقتاً ناموجود یا منتقل شده است",
       desc: message || "مسیری که به دنبال آن بودید در ساختار فعلی سامانه دست اول وجود ندارد. می‌توانید از طریق جستجوی سریع زیر، کالاها یا کارخانجات مدنظر خود را پیدا کنید.",
-      icon: <FileQuestion className="w-12 h-12 text-amber-600" />,
-      bgGlow: "from-amber-500/10 via-amber-500/5 to-transparent",
-      borderHighlight: "border-amber-200",
+      icon: <FileQuestion className="w-12 h-12 text-emerald-600" />,
+      bgGlow: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+      borderHighlight: "border-emerald-200",
       quickActions: [
         { label: "پیشخوان اصلی", icon: Home, primary: true, action: onNavigateHome },
         { label: "فهرست سفارش عمده", tab: "order", icon: ShoppingBag, action: () => onNavigateTab && onNavigateTab('order') },
@@ -155,14 +155,14 @@ export default function SystemPages({
     },
     '403': {
       badge: "عدم دسترسی مجاز",
-      badgeColor: "bg-rose-50 text-rose-800 border-rose-200",
+      badgeColor: "bg-emerald-50 text-rose-800 border-emerald-200",
       numberBadge: "403",
       title: title || "دسترسی به این بخش نیازمند مجوز سازمانی است",
       subtitle: "حساب کاربری فعلی شما اجازه مشاهده یا ویرایش این منبع را ندارد",
       desc: message || "این بخش اختصاصی برای مدیران کل، مدیران کارخانه یا نمایندگان استانی تنظیم شده است. در صورتی که دارای حساب مربوطه هستید، لطفاً وارد شوید.",
-      icon: <Lock className="w-12 h-12 text-rose-600" />,
-      bgGlow: "from-rose-500/10 via-rose-500/5 to-transparent",
-      borderHighlight: "border-rose-200",
+      icon: <Lock className="w-12 h-12 text-emerald-600" />,
+      bgGlow: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+      borderHighlight: "border-emerald-200",
       quickActions: [
         { label: "ورود با نقش مجاز", icon: Lock, primary: true, action: onOpenAuthModal },
         { label: "پیشخوان اصلی", icon: Home, action: onNavigateHome },
@@ -187,14 +187,14 @@ export default function SystemPages({
     },
     '503': {
       badge: "بهینه‌سازی و به‌روزرسانی",
-      badgeColor: "bg-indigo-50 text-indigo-800 border-indigo-200",
+      badgeColor: "bg-emerald-50 text-indigo-800 border-emerald-200",
       numberBadge: "503",
       title: title || "سامانه در حال ارتقا و بهینه‌سازی است",
       subtitle: "عملیات دوره‌ای بهبود کارایی و پایگاه داده در جریان است",
       desc: message || "به منظور افزایش سرعت پردازش فاکتورهای عمده و هماهنگی با سامانه ترابری، سرویس‌دهی موقتاً با اعمال آخرین پچ‌های امنیتی ادامه خواهد یافت.",
-      icon: <Clock className="w-12 h-12 text-indigo-600" />,
-      bgGlow: "from-indigo-500/10 via-indigo-500/5 to-transparent",
-      borderHighlight: "border-indigo-200",
+      icon: <Clock className="w-12 h-12 text-emerald-600" />,
+      bgGlow: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+      borderHighlight: "border-emerald-200",
       quickActions: [
         { label: "بررسی وضعیت اتصال", icon: RotateCw, primary: true, action: handleSimulateRetry },
         { label: "صفحه اصلی", icon: Home, action: onNavigateHome }
@@ -237,8 +237,8 @@ export default function SystemPages({
       title: title || "مدارک و حساب شما در صف تأیید کارشناسی است",
       subtitle: "واحد پذیرش کارخانجات و نمایندگی‌ها در حال بررسی مدارک هستند",
       desc: message || "پس از بررسی پروانه کسب، مدارک هویتی یا صلاحیت عاملیت استانی، پیامک فعال‌سازی حساب از طریق وب‌سرویس ملی‌پیامک برای شما ارسال خواهد شد.",
-      icon: <LifeBuoy className="w-12 h-12 text-cyan-600" />,
-      bgGlow: "from-cyan-500/10 via-cyan-500/5 to-transparent",
+      icon: <LifeBuoy className="w-12 h-12 text-emerald-600" />,
+      bgGlow: "from-emerald-500/10 via-emerald-500/5 to-transparent",
       borderHighlight: "border-cyan-200",
       quickActions: [
         { label: "تماس با واحد پذیرش", icon: PhoneCall, primary: true, action: () => window.open(`tel:${supportPhone}`) },
@@ -255,7 +255,7 @@ export default function SystemPages({
       {/* Interactive Switcher for Development & Testing */}
       <div className="mb-4 p-2 bg-slate-100/80 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-600 overflow-x-auto">
         <div className="flex items-center gap-1.5 shrink-0 px-2">
-          <Sparkles size={14} className="text-indigo-600" />
+          <Sparkles size={14} className="text-emerald-600" />
           <span>تست زنده‌ی انواع خطاها:</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -266,7 +266,7 @@ export default function SystemPages({
               onClick={() => setActiveError(errKey)}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
                 activeError === errKey
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-emerald-600 text-white shadow-xs"
                   : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200/60"
               }`}
             >
@@ -334,12 +334,12 @@ export default function SystemPages({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="جستجوی نام کالا، برند یا کارخانه مورد نظر..."
-                  className="w-full pl-24 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all outline-none"
+                  className="w-full pl-24 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all outline-none"
                 />
                 <Search size={16} className="absolute right-3.5 text-slate-400" />
                 <button
                   type="submit"
-                  className="absolute left-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-lg transition-all cursor-pointer shadow-xs"
+                  className="absolute left-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-lg transition-all cursor-pointer shadow-xs"
                 >
                   جستجو
                 </button>
@@ -381,7 +381,7 @@ export default function SystemPages({
               <span>پشتیبانی سریع سفارشات و امور فنی:</span>
               <a 
                 href={`tel:${supportPhone}`} 
-                className="font-mono font-black text-slate-900 hover:text-indigo-600 transition-colors"
+                className="font-mono font-black text-slate-900 hover:text-emerald-600 transition-colors"
                 dir="ltr"
               >
                 {supportPhone}

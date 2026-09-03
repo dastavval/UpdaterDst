@@ -191,10 +191,10 @@ export default function AdminFactoryProductAudit({
     <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 text-right font-sans" dir="rtl">
       
       {/* Header Banner */}
-      <div className="bg-linear-to-r from-amber-500/10 via-amber-50 to-indigo-50 border border-amber-200/80 rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-linear-to-r from-emerald-500/10 via-emerald-50 to-emerald-50 border border-emerald-200/80 rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="w-9 h-9 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
+            <span className="w-9 h-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-xs shrink-0">
               🏭
             </span>
             <h2 className="text-base font-black text-slate-900">کارتابل ممیزی و تایید کالاهای کارخانجات</h2>
@@ -206,7 +206,7 @@ export default function AdminFactoryProductAudit({
 
         {/* Quick Counters */}
         <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
-          <div className="bg-amber-100/80 text-amber-900 px-3.5 py-1.5 rounded-2xl text-xs font-black flex items-center gap-1.5 border border-amber-200">
+          <div className="bg-emerald-100/80 text-amber-900 px-3.5 py-1.5 rounded-2xl text-xs font-black flex items-center gap-1.5 border border-emerald-200">
             <Clock size={14} className="text-amber-700 animate-spin" />
             <span>نیازمند ممیزی: {toPersianNum(counts.pending)} کالا</span>
           </div>
@@ -218,7 +218,7 @@ export default function AdminFactoryProductAudit({
       </div>
 
       {successNotice && (
-        <div className="bg-emerald-50 text-emerald-800 p-4 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200 animate-fade-in">
+        <div className="bg-emerald-600 text-white p-4 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200 animate-fade-in">
           <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
           <span>{successNotice}</span>
         </div>
@@ -233,13 +233,13 @@ export default function AdminFactoryProductAudit({
             onClick={() => setFilterStatus('pending')}
             className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               filterStatus === 'pending'
-                ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                ? "bg-emerald-600 text-white font-black shadow-xs"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
             }`}
           >
             <Clock size={15} />
             <span>در انتظار ممیزی</span>
-            <span className="bg-amber-100 text-amber-900 text-[10px] px-2 py-0.2 rounded-full font-black">
+            <span className="bg-emerald-100 text-amber-900 text-[10px] px-2 py-0.2 rounded-full font-black">
               {toPersianNum(counts.pending)}
             </span>
           </button>
@@ -263,13 +263,13 @@ export default function AdminFactoryProductAudit({
             onClick={() => setFilterStatus('rejected')}
             className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               filterStatus === 'rejected'
-                ? "bg-rose-600 text-white font-black shadow-xs"
+                ? "bg-emerald-600 text-white font-black shadow-xs"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
             }`}
           >
             <XCircle size={15} />
             <span>رد شده با علت</span>
-            <span className="bg-rose-100 text-rose-900 text-[10px] px-2 py-0.2 rounded-full font-black">
+            <span className="bg-emerald-100 text-rose-900 text-[10px] px-2 py-0.2 rounded-full font-black">
               {toPersianNum(counts.rejected)}
             </span>
           </button>
@@ -293,12 +293,12 @@ export default function AdminFactoryProductAudit({
             onClick={() => setFilterStatus('all')}
             className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               filterStatus === 'all'
-                ? "bg-indigo-600 text-white font-black shadow-xs"
+                ? "bg-emerald-600 text-white font-black shadow-xs"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
             }`}
           >
             <span>همه کالاهای کارخانه</span>
-            <span className="bg-indigo-100 text-indigo-900 text-[10px] px-2 py-0.2 rounded-full font-black">
+            <span className="bg-emerald-100 text-indigo-900 text-[10px] px-2 py-0.2 rounded-full font-black">
               {toPersianNum(counts.total)}
             </span>
           </button>
@@ -313,7 +313,7 @@ export default function AdminFactoryProductAudit({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="جستجوی نام کالا، برند یا نام کارخانه..."
-              className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-600"
+              className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-600"
             />
           </div>
 
@@ -356,7 +356,7 @@ export default function AdminFactoryProductAudit({
                   status === 'pending'
                     ? "border-amber-300/80 ring-2 ring-amber-400/20"
                     : status === 'rejected'
-                    ? "border-rose-200 bg-rose-50/20"
+                    ? "border-emerald-200 bg-emerald-50/20"
                     : prod.disabled
                     ? "border-slate-200 opacity-75"
                     : "border-slate-200/90"
@@ -367,13 +367,13 @@ export default function AdminFactoryProductAudit({
                   
                   {/* Factory Origin Info */}
                   <div className="flex items-center gap-2">
-                    <span className="bg-indigo-50 text-indigo-900 border border-indigo-200 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
-                      <Building2 size={14} className="text-indigo-600" />
+                    <span className="bg-emerald-50 text-indigo-900 border border-emerald-200 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1.5">
+                      <Building2 size={14} className="text-emerald-600" />
                       <span>تولید کارخانه: <strong>{factoryName}</strong></span>
                     </span>
 
                     {prod.healthLicense && (
-                      <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-lg border border-emerald-200/60 font-mono">
+                      <span className="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-lg border border-emerald-200/60 font-mono">
                         سیب سلامت: {prod.healthLicense}
                       </span>
                     )}
@@ -382,7 +382,7 @@ export default function AdminFactoryProductAudit({
                   {/* Status Badge */}
                   <div className="flex items-center gap-2">
                     {status === 'pending' && !prod.disabled && (
-                      <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1">
+                      <span className="bg-emerald-100 text-amber-900 border border-amber-300 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1">
                         <Clock size={14} className="text-amber-700 animate-spin" />
                         <span>در انتظار ممیزی ادمین</span>
                       </span>
@@ -396,8 +396,8 @@ export default function AdminFactoryProductAudit({
                     )}
 
                     {status === 'rejected' && !prod.disabled && (
-                      <span className="bg-rose-100 text-rose-900 border border-rose-300 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1">
-                        <XCircle size={14} className="text-rose-700" />
+                      <span className="bg-emerald-100 text-rose-900 border border-rose-300 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1">
+                        <XCircle size={14} className="text-emerald-700" />
                         <span>رد شده توسط ممیزی</span>
                       </span>
                     )}
@@ -445,7 +445,7 @@ export default function AdminFactoryProductAudit({
 
                     <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
                       <span className="text-indigo-900 font-black">قیمت فروش در ویترین سایت:</span>
-                      <span className="font-mono font-black text-indigo-700 text-sm">
+                      <span className="font-mono font-black text-emerald-700 text-sm">
                         {toPersianNum(sitePrice.toLocaleString('fa-IR'))} تومان
                       </span>
                     </div>
@@ -453,7 +453,7 @@ export default function AdminFactoryProductAudit({
                     <div className="flex items-center justify-between text-[11px] pt-1">
                       <span className="text-slate-500 font-bold">مارجین / سود بازاریابی سایت:</span>
                       <span className={`font-black px-2 py-0.2 rounded-md ${
-                        marginPercent > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"
+                        marginPercent > 0 ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"
                       }`}>
                         +{toPersianNum(marginPercent)}٪ سود
                       </span>
@@ -469,7 +469,7 @@ export default function AdminFactoryProductAudit({
                         setEditingPriceProd(prod);
                         setNewSitePrice(String(prod.price || prod.bulk_price || ""));
                       }}
-                      className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                       <DollarSign size={15} />
                       <span>{status === 'approved' ? "تغییر قیمت فروش سایت" : "تعیین قیمت و انتشار کالا"}</span>
@@ -479,7 +479,7 @@ export default function AdminFactoryProductAudit({
                       {/* Reject Button */}
                       <button
                         onClick={() => handleOpenRejectModal(prod)}
-                        className="py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        className="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <XCircle size={13} />
                         <span>رد کالا</span>
@@ -490,7 +490,7 @@ export default function AdminFactoryProductAudit({
                         onClick={() => handleToggleDisabled(prod)}
                         className={`py-1.5 px-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer border ${
                           prod.disabled 
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
+                            ? "bg-emerald-600 text-white border-emerald-200" 
                             : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
                         }`}
                       >
@@ -505,8 +505,8 @@ export default function AdminFactoryProductAudit({
 
                 {/* Show rejection reason if exists */}
                 {(prod as any).rejectionReason && status === 'rejected' && (
-                  <div className="bg-rose-100/70 text-rose-900 p-3 rounded-2xl text-xs font-medium border border-rose-200 flex items-start gap-2">
-                    <AlertTriangle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div className="bg-emerald-100/70 text-rose-900 p-3 rounded-2xl text-xs font-medium border border-emerald-200 flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                     <div>
                       <strong className="font-black">علت رد شده قبلی: </strong>
                       <span>{(prod as any).rejectionReason}</span>
@@ -532,7 +532,7 @@ export default function AdminFactoryProductAudit({
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <DollarSign size={20} className="text-indigo-600" />
+                  <DollarSign size={20} className="text-emerald-600" />
                   <h4 className="text-sm font-black text-slate-900">تعیین قیمت فروش سایت و انتشار کالا</h4>
                 </div>
                 <button
@@ -563,7 +563,7 @@ export default function AdminFactoryProductAudit({
                           key={`audit-margin-${margin}-${mIdx}`}
                           type="button"
                           onClick={() => setNewSitePrice(String(calculated))}
-                          className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 rounded-xl text-[11px] font-black border border-indigo-200 cursor-pointer"
+                          className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-indigo-900 rounded-xl text-[11px] font-black border border-emerald-200 cursor-pointer"
                         >
                           +{toPersianNum(margin)}٪ سود
                         </button>
@@ -579,7 +579,7 @@ export default function AdminFactoryProductAudit({
                     value={newSitePrice}
                     onChange={(e) => setNewSitePrice(e.target.value)}
                     placeholder="مثال: 480000"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 font-mono text-left"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 font-mono text-left"
                   />
                 </div>
               </div>
@@ -627,7 +627,7 @@ export default function AdminFactoryProductAudit({
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <XCircle size={20} className="text-rose-600" />
+                  <XCircle size={20} className="text-emerald-600" />
                   <h4 className="text-sm font-black text-slate-900">ثبت عدم تایید و رد محصول کارخانه</h4>
                 </div>
                 <button
@@ -639,7 +639,7 @@ export default function AdminFactoryProductAudit({
               </div>
 
               <form onSubmit={handleSubmitRejection} className="space-y-4">
-                <div className="bg-rose-50 p-3 rounded-2xl border border-rose-200 text-xs text-rose-900 font-medium">
+                <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs text-rose-900 font-medium">
                   کالای «{rejectionModalProd.name}» غیرفعال شده و علت رد به کارخانه اطلاع داده خواهد شد.
                 </div>
 
@@ -651,7 +651,7 @@ export default function AdminFactoryProductAudit({
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     placeholder="مثال: قیمت پایه نامتعارف، عدم تطابق تصویر کالا با سیب سلامت..."
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-rose-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -666,7 +666,7 @@ export default function AdminFactoryProductAudit({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <XCircle size={16} />
                     <span>تایید و ثبت رد کالا</span>

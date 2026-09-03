@@ -53,19 +53,19 @@ export default function OfflineBanner({ onSyncPendingData }: OfflineBannerProps)
             initial={{ opacity: 0, y: -50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -50, scale: 0.95 }}
-            className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 z-[999999] max-w-md bg-amber-900/95 text-amber-100 border border-amber-600/60 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-xs font-bold"
+            className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 z-[999999] max-w-md bg-amber-900/95 text-emerald-100 border border-emerald-600/60 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-xs font-bold"
             dir="rtl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 animate-pulse">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-amber-400 shrink-0 animate-pulse">
                 <WifiOff size={18} />
               </div>
               <div className="space-y-0.5">
                 <p className="text-white font-black flex items-center gap-1.5">
                   <span>اتصال اینترنت قطع است</span>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded border border-amber-500/30">حالت آفلاین امن</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-amber-300 px-1.5 py-0.2 rounded border border-emerald-500/30">حالت آفلاین امن</span>
                 </p>
-                <p className="text-[11px] text-amber-200/90 leading-tight">
+                <p className="text-[11px] text-emerald-200/90 leading-tight">
                   تغییرات شما در حافظه دستگاه ذخیره می‌شود و پس از اتصال به اینترنت همگام خواهد شد.
                 </p>
               </div>

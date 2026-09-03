@@ -6,7 +6,7 @@ export interface CacheStatus {
   lastUpdate: number | null;
 }
 
-const DB_NAME = 'dastavval_cache_v3';
+const DB_NAME = 'dastavval_cache_v4';
 const DB_VERSION = 1;
 const PRODUCTS_STORE = 'products';
 const CONFIG_STORE = 'b2b_config';

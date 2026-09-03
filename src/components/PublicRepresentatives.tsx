@@ -28,13 +28,14 @@ import {
   Download,
   ExternalLink,
   Tag,
-  Briefcase
+  Briefcase,
+  Crown
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { toPng, toJpeg } from "html-to-image";
 import { jsPDF } from "jspdf";
-import { calculateDealershipTier, formatTomanCurrency } from "../utils/dealershipCityTiers";
+import { calculateDealershipTier, formatTomanCurrency, findNearestRepresentative } from "../utils/dealershipCityTiers";
 import { isWarehouseBrand } from "../utils/api-utils";
 
 interface PublicRepresentativesProps {
@@ -248,6 +249,11 @@ export default function PublicRepresentatives({
     });
   }, [representatives, searchTerm, selectedProvince, selectedBrand]);
 
+  const nearestRepData = useMemo(() => {
+    if (filteredReps.length > 0) return null;
+    return findNearestRepresentative(searchTerm, selectedProvince, representatives);
+  }, [filteredReps, searchTerm, selectedProvince, representatives]);
+
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
       const scrollAmount = 340;
@@ -293,36 +299,52 @@ export default function PublicRepresentatives({
       }
 
       const element = certificateRef.current;
-      const origCss = element.getAttribute("style") || "";
+      
+      // Create an unclipped off-screen clone with dynamic full height capture
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.id = "public-certificate-clone-export";
+      clone.style.position = "fixed";
+      clone.style.left = "-9999px";
+      clone.style.top = "0px";
+      clone.style.width = "1050px";
+      clone.style.height = "auto";
+      clone.style.minWidth = "1050px";
+      clone.style.minHeight = "742px";
+      clone.style.maxWidth = "none";
+      clone.style.maxHeight = "none";
+      clone.style.transform = "none";
+      clone.style.zIndex = "-9999";
+      clone.style.boxSizing = "border-box";
+      clone.style.overflow = "visible";
 
-      // Temporarily expand element to full desktop width for high-res unclipped capture
-      element.style.width = "960px";
-      element.style.minWidth = "960px";
-      element.style.maxWidth = "none";
-      element.style.transform = "none";
+      document.body.appendChild(clone);
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const captureW = 1050;
+      const captureH = Math.max(clone.scrollHeight, clone.offsetHeight, 742);
 
       let dataUrl = "";
       try {
-        dataUrl = await toPng(element, {
+        dataUrl = await toPng(clone, {
+          width: captureW,
+          height: captureH,
           quality: 0.98,
           pixelRatio: 2.5,
           backgroundColor: '#ffffff',
           cacheBust: true,
         });
       } catch (err) {
-        dataUrl = await toJpeg(element, {
+        dataUrl = await toJpeg(clone, {
+          width: captureW,
+          height: captureH,
           quality: 0.98,
           pixelRatio: 2,
           backgroundColor: '#ffffff',
           cacheBust: true,
         });
       } finally {
-        if (origCss) {
-          element.setAttribute("style", origCss);
-        } else {
-          element.removeAttribute("style");
+        if (document.body.contains(clone)) {
+          document.body.removeChild(clone);
         }
       }
 
@@ -348,8 +370,8 @@ export default function PublicRepresentatives({
       const maxW = pageWidth - (margin * 2);
       const maxH = pageHeight - (margin * 2);
 
-      const naturalW = img.naturalWidth || 960;
-      const naturalH = img.naturalHeight || 680;
+      const naturalW = img.naturalWidth || captureW;
+      const naturalH = img.naturalHeight || captureH;
       const aspect = naturalW / naturalH;
 
       let renderW = maxW;
@@ -387,18 +409,18 @@ export default function PublicRepresentatives({
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
             
             <div className="space-y-2.5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/80 shadow-2xs">
-                <Award size={15} className="text-amber-500" />
-                <span>شبکه سراسری عاملیت و نمایندگی‌های مجاز</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-bold border border-emerald-200/80 shadow-2xs">
+                <Award size={15} className="text-emerald-500" />
+                <span>شبکه سراسری نمایندگان مجاز</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-                <span>دفاتر و نمایندگان رسمی توزیع پلتفرم دست اول</span>
+              <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+                <span>نمایندگان توزیع پلتفرم دست اول</span>
               </h2>
 
-              <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed max-w-2xl">
-                توزیع مستقیم تولیدات کارخانجات به سراسر کشور با شروع آسان و منعطف (از ۳۰ کارتن) و فیلتر اختصاصی بر اساس برندهای تحت عاملیت هر منطقه.
+              <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-2xl">
+                توزیع مستقیم و ایمن تولیدات کارخانه به سراسر کشور با شروع منعطف از ۳۰ کارتن.
               </p>
             </div>
 
@@ -418,7 +440,7 @@ export default function PublicRepresentatives({
                 </span>
               </div>
 
-              <div className="col-span-2 sm:col-span-1 bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center space-y-0.5">
+              <div className="col-span-2 sm:col-span-1 bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center space-y-0.5">
                 <span className="text-[10px] font-bold text-amber-800 block">شروع ورود</span>
                 <span className="text-xs font-black text-amber-900">از ۲۰ تا ۳۰ کارتن</span>
               </div>
@@ -626,10 +648,17 @@ export default function PublicRepresentatives({
                         <span className="text-slate-500 font-medium">({rep.province || 'استان'})</span>
                       </span>
 
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                        <CheckCircle2 size={11} className="text-emerald-600" />
-                        <span>{rep.badge || "عاملیت رسمی"}</span>
-                      </span>
+                      {rep.badge === "برند دست اول" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-[10px] font-black border border-amber-500 shadow-sm">
+                          <Crown size={12} className="fill-slate-950" />
+                          <span>برند دست اول 👑</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-[10px] font-bold border border-emerald-200">
+                          <CheckCircle2 size={11} className="text-white" />
+                          <span>{rep.badge || "عاملیت رسمی"}</span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Representative Info */}
@@ -647,59 +676,70 @@ export default function PublicRepresentatives({
                       </div>
                     </div>
 
-                    {/* Represented Brands Tag Strip */}
+                    {/* Represented Brands: Creative Logo Strip */}
                     {rep.brands && Array.isArray(rep.brands) && rep.brands.length > 0 && (
-                      <div className="mb-3.5 flex flex-wrap gap-1 items-center">
-                        <span className="text-[10px] text-slate-400 font-bold ml-1">برندها:</span>
-                        {rep.brands.map((b: string, bIdx: number) => (
-                          <span
-                            key={`card-b-${b}-${bIdx}`}
-                            className="px-2 py-0.5 rounded-lg bg-emerald-50/90 text-emerald-900 text-[10px] font-bold border border-emerald-200/70"
-                          >
-                            {b}
-                          </span>
-                        ))}
+                      <div className="mb-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-400 font-black">برندهای تحت پوشش:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {rep.brands.map((bName: string, bIdx: number) => {
+                            const factory = b2bConfig?.factories?.find((f: any) => 
+                              f.name?.toLowerCase().includes(bName.toLowerCase()) || 
+                              bName.toLowerCase().includes(f.name?.toLowerCase()) ||
+                              f.ownedBrands?.some((ob: string) => ob.toLowerCase() === bName.toLowerCase())
+                            );
+                            const logo = factory?.logoUrl;
+                            
+                            return (
+                              <div
+                                key={`card-b-${bName}-${bIdx}`}
+                                className="group/brand flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white border border-slate-100 shadow-sm hover:border-emerald-300 transition-all"
+                              >
+                                {logo ? (
+                                  <img 
+                                    src={logo} 
+                                    alt={bName} 
+                                    className="w-4 h-4 object-contain mix-blend-multiply" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                )}
+                                <span className="text-[10px] font-black text-slate-700">{bName}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
-                    {/* Compact Carton Quota Box */}
-                    <div className="bg-slate-50 rounded-2xl p-2.5 border border-slate-200/80 space-y-1.5 mb-3 text-xs">
-                      
+                    {/* Compact Quota & Performance Box */}
+                    <div className="bg-emerald-50/40 rounded-2xl p-3 border border-emerald-100/50 space-y-2 mb-4">
                       <div className="flex justify-between items-center text-slate-600 font-medium">
-                        <span className="flex items-center gap-1 text-slate-500 text-[11px]">
-                          <Package size={11} className="text-emerald-600" />
-                          شروع آسان ورود:
+                        <span className="flex items-center gap-1.5 text-slate-500 text-[11px] font-black">
+                          <Package size={12} className="text-emerald-600" />
+                          حداقل سفارش ورود:
                         </span>
-                        <span className="font-extrabold text-emerald-800 text-[11px] bg-emerald-100/80 px-2 py-0.5 rounded-lg">
+                        <span className="font-black text-emerald-800 text-[11px] bg-white px-2 py-0.5 rounded-lg border border-emerald-100">
                           {tierData.starterMinCartons}
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center text-slate-600 font-medium border-t border-slate-200/60 pt-1.5">
-                        <span className="flex items-center gap-1 text-slate-500 text-[11px]">
-                          <TrendingUp size={11} className="text-amber-500" />
-                          توزیع کارتنی ماهانه:
+                      <div className="flex justify-between items-center text-slate-600 font-medium border-t border-emerald-100/30 pt-2">
+                        <span className="flex items-center gap-1.5 text-slate-500 text-[11px] font-black">
+                          <Coins size={12} className="text-emerald-500" />
+                          سقف سهمیه منطقه:
                         </span>
                         <span className="font-black text-slate-800 text-[11px]">
-                          {tierData.monthlyCartons}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center text-slate-600 font-medium border-t border-slate-200/60 pt-1.5">
-                        <span className="flex items-center gap-1 text-slate-500 text-[11px]">
-                          <Coins size={11} className="text-emerald-500" />
-                          سقف سهمیه پلکانی:
-                        </span>
-                        <span className="font-extrabold text-emerald-700 font-mono text-[11px]">
                           {tierData.monthlyQuotaCeilingFormatted}
                         </span>
                       </div>
-
                     </div>
 
-                    {/* Address */}
-                    <div className="text-[11px] text-slate-600 font-normal leading-relaxed mb-3 min-h-[32px] flex items-start gap-1">
-                      <span className="text-slate-400 shrink-0 mt-0.5">📍</span>
+                    {/* Address with High Contrast */}
+                    <div className="text-[11px] text-slate-600 font-bold leading-relaxed mb-4 min-h-[32px] flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <MapPin size={14} className="text-emerald-500 shrink-0 mt-0.5" />
                       <span className="line-clamp-2">{rep.address || `دفتر رسمی توزیع و پخش کالا در حوزه ${rep.city}`}</span>
                     </div>
                   </div>
@@ -751,7 +791,7 @@ export default function PublicRepresentatives({
                   <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
                     <Sparkles size={20} />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-200 text-[10px] font-black">
                     تکمیل ظرفیت عاملیت
                   </span>
                 </div>
@@ -779,27 +819,102 @@ export default function PublicRepresentatives({
 
           </div>
         ) : (
-          /* Empty Search Results Box */
-          <div className="w-full bg-white rounded-3xl p-8 sm:p-10 text-center border border-slate-200 shadow-xs flex flex-col items-center justify-center space-y-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
-              <Search size={22} />
+          /* Empty Search Results Box / Nearest Representative Suggestion */
+          <div className="w-full space-y-4">
+            {nearestRepData && nearestRepData.nearestMatches.length > 0 && (
+              <div className="bg-emerald-50/90 border border-emerald-200 rounded-3xl p-5 sm:p-6 text-right space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-emerald-200/80 pb-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                      <MapPin size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900">
+                        در شهر یا فیلتر انتخابی شما ({searchTerm || (selectedProvince !== 'all' ? selectedProvince : 'شهر موردنظر')}) نماینده مستقیم ثبت نشده است
+                      </h3>
+                      <p className="text-xs text-emerald-900 font-bold mt-0.5">
+                        پیشنهاد هوشمند: نزدیک‌ترین نماینده فعال استانی در شهر <span className="font-black text-emerald-950 underline underline-offset-4">{nearestRepData.nearestCityName}</span> آماده ارسال سریع و تحویل سفارش است:
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDealership(searchTerm)}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5 shrink-0 active:scale-95"
+                  >
+                    <Sparkles size={14} />
+                    <span>درخواست اخذ نمایندگی جدید در {searchTerm || 'شهر شما'}</span>
+                  </button>
+                </div>
+
+                {/* Render Nearest Matches Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  {nearestRepData.nearestMatches.map((rep, nIdx) => {
+                    const tierData = calculateDealershipTier(rep.city || "تهران", rep.province);
+                    return (
+                      <div
+                        key={`nearest-rep-${rep.id || nIdx}`}
+                        onClick={() => {
+                          setSelectedRepForDetails(rep);
+                          setModalTab('profile');
+                        }}
+                        className="bg-white rounded-2xl p-4 border border-emerald-200/90 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10.5px] font-black px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 flex items-center gap-1">
+                            <MapPin size={11} />
+                            {rep.city} ({rep.province})
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-500">
+                            نزدیک‌ترین مرکز
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900">{rep.company || rep.name}</h4>
+                          <p className="text-[11px] text-slate-500">مدیریت: {rep.name}</p>
+                        </div>
+
+                        <div className="text-[10.5px] text-slate-600 bg-slate-50 p-2 rounded-xl font-mono flex justify-between">
+                          <span>سقف سهمیه تحویل:</span>
+                          <span className="font-bold text-emerald-800">{tierData.monthlyQuotaCeilingFormatted}</span>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <span className="font-mono text-emerald-800 font-bold" dir="ltr">{rep.phone || rep.tel}</span>
+                          <span className="text-[10.5px] font-bold text-emerald-700 hover:underline">مشاهده جزییات و تماس ←</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="w-full bg-white rounded-3xl p-8 sm:p-10 text-center border border-slate-200 shadow-xs flex flex-col items-center justify-center space-y-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl">
+                <Search size={22} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-800">
+                  {nearestRepData && nearestRepData.nearestMatches.length > 0
+                    ? `نماینده مستقیم در ${searchTerm || selectedProvince} ثبت نشده است`
+                    : "نماینده‌ای مطابق با فیلترها یافت نشد"}
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  می‌توانید فیلتر استان یا برند را تغییر دهید یا به عنوان اولین عاملیت رسمی در شهر خود درخواست ثبت کنید.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenDealership(searchTerm)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2 active:scale-95"
+              >
+                <Sparkles size={14} />
+                <span>درخواست عاملیت در این شهر</span>
+              </button>
             </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-black text-slate-800">
-                نماینده‌ای مطابق با فیلترها یافت نشد
-              </h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                می‌توانید فیلتر استان یا برند را تغییر دهید یا به عنوان اولین عاملیت رسمی در شهر خود درخواست ثبت کنید.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleOpenDealership(searchTerm)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-2 active:scale-95"
-            >
-              <Sparkles size={14} />
-              <span>درخواست عاملیت در این شهر</span>
-            </button>
           </div>
         )}
 
@@ -864,7 +979,7 @@ export default function PublicRepresentatives({
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  <Award size={15} className="text-amber-500" />
+                  <Award size={15} className="text-emerald-500" />
                   <span>گواهینامه رسمی و چاپی عاملیت</span>
                 </button>
               </div>
@@ -885,7 +1000,7 @@ export default function PublicRepresentatives({
                     <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
                       <span className="text-[10px] text-slate-400 font-bold block">مدیریت عاملیت</span>
                       <span className="text-xs font-black text-slate-800 flex items-center gap-1">
-                        <Users size={13} className="text-indigo-600" />
+                        <Users size={13} className="text-emerald-600" />
                         {selectedRepForDetails.name || 'مدیر رسمی'}
                       </span>
                     </div>
@@ -978,19 +1093,11 @@ export default function PublicRepresentatives({
                     </span>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={handleDownloadCertificatePdf}
-                        disabled={isExportingPdf}
-                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-                      >
-                        <Download size={13} />
-                        <span>{isExportingPdf ? "در حال دریافت..." : "دانلود PDF"}</span>
-                      </button>
-                      <button
                         onClick={handlePrintCertificate}
-                        className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                       >
                         <Printer size={13} />
-                        <span>چاپ گواهی</span>
+                        <span>چاپ مستقیم گواهی</span>
                       </button>
                     </div>
                   </div>
@@ -999,19 +1106,19 @@ export default function PublicRepresentatives({
                   <div className="overflow-x-auto p-1">
                     <div
                       ref={certificateRef}
-                      className="bg-white border-8 border-amber-600/25 p-6 sm:p-8 rounded-3xl relative text-slate-900 shadow-sm w-[760px] min-w-[760px] mx-auto"
+                      className="bg-white border-8 border-emerald-600/25 p-6 sm:p-8 rounded-3xl relative text-slate-900 shadow-sm w-[760px] min-w-[760px] mx-auto"
                       style={{
                         backgroundImage: "radial-gradient(#f8fafc 15%, transparent 16%)",
                         backgroundSize: "20px 20px"
                       }}
                     >
                       {/* Outer Decorative Gold Border */}
-                      <div className="border-2 border-dashed border-amber-500/40 p-5 rounded-2xl space-y-5 relative">
+                      <div className="border-2 border-dashed border-emerald-500/40 p-5 rounded-2xl space-y-5 relative">
                         
                         {/* Certificate Header */}
-                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+                        <div className="flex items-center justify-between border-b border-emerald-500/20 pb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                            <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-amber-700">
                               <Award size={32} />
                             </div>
                             <div>
@@ -1031,7 +1138,7 @@ export default function PublicRepresentatives({
 
                         {/* Certificate Title */}
                         <div className="text-center space-y-1.5 py-1">
-                          <span className="px-3.5 py-0.5 rounded-full bg-amber-100/70 text-amber-900 text-[11px] font-black border border-amber-300">
+                          <span className="px-3.5 py-0.5 rounded-full bg-emerald-100/70 text-amber-900 text-[11px] font-black border border-amber-300">
                             گواهی‌نامه رسمی اعطای عاملیت و نمایندگی توزیع
                           </span>
                           <h3 className="text-xl font-extrabold text-slate-900 tracking-tight pt-1">
@@ -1059,7 +1166,7 @@ export default function PublicRepresentatives({
                         </div>
 
                         {/* Certificate Signatures & QR Seal */}
-                        <div className="flex items-center justify-between pt-3 border-t border-amber-500/20">
+                        <div className="flex items-center justify-between pt-3 border-t border-emerald-500/20">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-2xs">
                               <QRCodeSVG
@@ -1075,7 +1182,7 @@ export default function PublicRepresentatives({
                           </div>
 
                           <div className="text-center space-y-1">
-                            <div className="w-16 h-16 rounded-full bg-amber-50 border-2 border-amber-400 flex items-center justify-center mx-auto text-amber-700 shadow-inner">
+                            <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-amber-400 flex items-center justify-center mx-auto text-amber-700 shadow-inner">
                               <ShieldCheck size={32} />
                             </div>
                             <span className="text-[10px] font-black text-slate-700 block">مهر برجسته و دبیرخانه مرکزی</span>

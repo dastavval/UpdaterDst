@@ -140,13 +140,13 @@ export default function QuickMatrixOrderModal({
           {/* Header */}
           <div className="bg-white text-slate-900 p-4 sm:p-5 flex items-center justify-between border-b border-slate-200 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-sm">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm">
                 <Sparkles size={20} />
               </div>
               <div>
                 <h3 className="text-base font-black flex items-center gap-2 text-slate-900">
                   <span>ثبت سفارش سریع ردیفی و ماتریسی عمده</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300">
+                  <span className="text-[10px] px-2 py-0.5 rounded-lg bg-emerald-100 text-amber-900 font-bold border border-amber-300">
                     ویژه بنکداران و سوپرمارکت‌ها
                   </span>
                 </h3>
@@ -170,19 +170,19 @@ export default function QuickMatrixOrderModal({
                 placeholder="جستجوی سریع نام کالا، برند یا کد SKU..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-xl pr-10 pl-4 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 shadow-2xs"
+                className="w-full bg-white border border-slate-300 rounded-xl pr-10 pl-4 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-600 shadow-2xs"
               />
             </div>
 
             {/* Category Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0">
-              {categories.map(cat => (
+              {categories.map((cat, cIdx) => (
                 <button
-                  key={cat}
+                  key={`qcat-${cat}-${cIdx}`}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
                     selectedCategory === cat
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -201,16 +201,16 @@ export default function QuickMatrixOrderModal({
               </div>
             ) : (
               <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-                {filteredProducts.map(prod => {
+                {filteredProducts.map((prod, pIdx) => {
                   const pricing = getProductRolePricing(prod, userBadge);
                   const qty = orderQuantities[prod.id] || 0;
                   const itemTotal = pricing.pricePerCarton * qty;
 
                   return (
                     <div 
-                      key={prod.id} 
+                      key={`qprod-${prod.id || pIdx}-${pIdx}`} 
                       className={`p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${
-                        qty > 0 ? 'bg-amber-50/50 border-r-4 border-r-amber-500' : 'hover:bg-slate-50/80'
+                        qty > 0 ? 'bg-emerald-50/50 border-r-4 border-r-emerald-500' : 'hover:bg-slate-50/80'
                       }`}
                     >
                       {/* Product Info */}
@@ -235,7 +235,7 @@ export default function QuickMatrixOrderModal({
                             <span>•</span>
                             <span>بسته‌بندی: <strong className="text-slate-800">{prod.carton_pack_count || 24} عددی در کارتن</strong></span>
                             <span>•</span>
-                            <span>دسته: <strong className="text-indigo-700">{prod.category}</strong></span>
+                            <span>دسته: <strong className="text-emerald-700">{prod.category}</strong></span>
                           </div>
                         </div>
                       </div>
@@ -269,12 +269,12 @@ export default function QuickMatrixOrderModal({
                             value={qty || ""}
                             placeholder="۰"
                             onChange={(e) => handleSetQuantity(prod.id, Math.max(0, Number(e.target.value)))}
-                            className="w-12 text-center text-xs font-black font-sans bg-white border border-slate-200 rounded-lg py-1 focus:outline-none focus:border-indigo-600 text-slate-900 shadow-2xs"
+                            className="w-12 text-center text-xs font-black font-sans bg-white border border-slate-200 rounded-lg py-1 focus:outline-none focus:border-emerald-600 text-slate-900 shadow-2xs"
                           />
 
                           <button
                             onClick={() => handleIncrement(prod.id)}
-                            className="w-7 h-7 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-2xs transition-colors cursor-pointer"
+                            className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-2xs transition-colors cursor-pointer"
                             title="افزایش تعداد کارتن"
                           >
                             <Plus size={14} />
@@ -337,7 +337,7 @@ export default function QuickMatrixOrderModal({
                 disabled={selectedCount === 0}
                 className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs transition-all ${
                   selectedCount > 0
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-lg shadow-amber-500/20 cursor-pointer'
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-amber-700 text-slate-950 shadow-lg shadow-emerald-500/20 cursor-pointer'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                 }`}
               >

@@ -130,13 +130,13 @@ export default function AdminSafeBuy({
           <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-150 flex gap-1">
             <button 
               onClick={() => setSafeBuyFilter('all')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${safeBuyFilter === 'all' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white'}`}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${safeBuyFilter === 'all' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white'}`}
             >
               همه
             </button>
             <button 
               onClick={() => setSafeBuyFilter('pending')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${safeBuyFilter === 'pending' ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:bg-white'}`}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${safeBuyFilter === 'pending' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-white'}`}
             >
               در انتظار
             </button>
@@ -178,9 +178,9 @@ export default function AdminSafeBuy({
                    </div>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-[9px] font-black ${
-                  req.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                  req.status === 'rejected' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                  'bg-amber-50 text-amber-600 border border-amber-100'
+                  req.status === 'approved' ? 'bg-emerald-600 text-white border border-emerald-100' :
+                  req.status === 'rejected' ? 'bg-emerald-600 text-white border border-emerald-100' :
+                  'bg-emerald-600 text-white border border-emerald-100'
                 }`}>
                   {req.status === 'approved' ? 'تایید شده' : req.status === 'rejected' ? 'رد شده' : 'در انتظار بررسی'}
                 </div>
@@ -227,13 +227,13 @@ export default function AdminSafeBuy({
                   <>
                     <button 
                       onClick={() => handleUpdateSafeBuyStatus(req.id, req.firebaseId, 'approved')}
-                      className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all cursor-pointer border border-emerald-100"
+                      className="p-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-600 hover:text-white transition-all cursor-pointer border border-emerald-100"
                     >
                       <Check size={18} />
                     </button>
                     <button 
                       onClick={() => handleUpdateSafeBuyStatus(req.id, req.firebaseId, 'rejected')}
-                      className="p-3 bg-rose-50 text-rose-600 rounded-2xl hover:bg-rose-600 hover:text-white transition-all cursor-pointer border border-rose-100"
+                      className="p-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-600 hover:text-white transition-all cursor-pointer border border-emerald-100"
                     >
                       <X size={18} />
                     </button>
@@ -277,8 +277,8 @@ export default function AdminSafeBuy({
               <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-8">
                 {/* Buyer & Summary Card */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-100 space-y-3">
-                    <h5 className="text-[10px] font-black text-indigo-600 flex items-center gap-1.5">
+                  <div className="p-5 bg-emerald-50/50 rounded-3xl border border-emerald-100 space-y-3">
+                    <h5 className="text-[10px] font-black text-emerald-600 flex items-center gap-1.5">
                       <User size={14} /> مشخصات خریدار
                     </h5>
                     <div className="space-y-2">
@@ -308,7 +308,7 @@ export default function AdminSafeBuy({
                 {/* Items List */}
                 <div className="space-y-4">
                   <h5 className="text-xs font-black text-slate-800 flex items-center gap-2">
-                    <ShoppingCart size={16} className="text-indigo-600" />
+                    <ShoppingCart size={16} className="text-emerald-600" />
                     لیست کالاهای درخواستی ({toPersianNum(selectedSafeBuyDetail.items?.length || 0)} مورد)
                   </h5>
                   <div className="space-y-2">
@@ -355,7 +355,7 @@ export default function AdminSafeBuy({
                         handleUpdateSafeBuyStatus(selectedSafeBuyDetail.id, selectedSafeBuyDetail.firebaseId, 'rejected');
                         setSelectedSafeBuyDetail(null);
                       }}
-                      className="px-8 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white font-black py-4 rounded-2xl text-xs transition-all border border-rose-100 cursor-pointer"
+                      className="px-8 bg-emerald-600 text-white hover:bg-emerald-600 hover:text-white font-black py-4 rounded-2xl text-xs transition-all border border-emerald-100 cursor-pointer"
                     >
                       <X size={18} />
                       رد درخواست

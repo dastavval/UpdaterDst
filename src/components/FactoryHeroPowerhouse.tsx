@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Building2, 
   Sparkles, 
@@ -20,6 +20,7 @@ import {
   Coins,
   ChevronLeft
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 import { getDisplayImageUrl } from '../lib/image-utils';
 import { ProductImage } from './ProductImage';
@@ -35,6 +36,7 @@ interface FactoryHeroPowerhouseProps {
   onAddToCart?: (product: Product, quantityCartons: number) => void;
   user?: any;
   userBadge?: string;
+  b2bConfig?: any;
 }
 
 const initialAdsFallback: any[] = [];
@@ -48,11 +50,62 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
   onAddToCart,
   user,
   userBadge,
+  b2bConfig,
 }) => {
   const [activeMode, setActiveMode] = useState<'under_market' | 'liquid' | 'high_margin'>('under_market');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [ads, setAds] = useState<any[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const thumbnailsRef = useRef<HTMLDivElement>(null);
+
+  const modeTheme = useMemo(() => {
+    switch (activeMode) {
+      case 'under_market':
+        return {
+          primary: 'from-emerald-500 to-teal-600',
+          text: 'text-emerald-600',
+          bg: 'bg-emerald-50',
+          border: 'border-emerald-200/60',
+          lightText: 'text-emerald-800',
+          accentBg: 'bg-emerald-100/80',
+          buttonBg: 'bg-emerald-600 hover:bg-emerald-700',
+        };
+      case 'liquid':
+        return {
+          primary: 'from-orange-500 to-amber-600',
+          text: 'text-orange-600',
+          bg: 'bg-orange-50',
+          border: 'border-orange-200/60',
+          lightText: 'text-orange-800',
+          accentBg: 'bg-orange-100/80',
+          buttonBg: 'bg-orange-600 hover:bg-orange-700',
+        };
+      case 'high_margin':
+        return {
+          primary: 'from-blue-600 to-indigo-600',
+          text: 'text-blue-600',
+          bg: 'bg-blue-50',
+          border: 'border-blue-200/60',
+          lightText: 'text-blue-800',
+          accentBg: 'bg-blue-100/80',
+          buttonBg: 'bg-blue-600 hover:bg-blue-700',
+        };
+    }
+  }, [activeMode]);
+
+  useEffect(() => {
+    if (thumbnailsRef.current) {
+      const activeElement = thumbnailsRef.current.children[selectedIndex] as HTMLElement;
+      if (activeElement) {
+        thumbnailsRef.current.scrollTo({
+          left: activeElement.offsetLeft - thumbnailsRef.current.offsetWidth / 2 + activeElement.offsetWidth / 2,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [selectedIndex]);
 
   useEffect(() => {
     const savedAds = localStorage.getItem("dastavval_sponsored_ads_v2");
@@ -117,7 +170,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         rawAd: item
       };
     } else {
-      const rolePricing = getProductRolePricing(item, user, userBadge as any);
+      const rolePricing = getProductRolePricing(item, user, userBadge as any, b2bConfig);
       const userWholesalePrice = rolePricing.unitWholesalePrice;
       const customerPrice = rolePricing.customerPrice;
       const repFloorPrice = rolePricing.representativeFloorPrice;
@@ -148,6 +201,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
         repFloorPrice,
         consumerPrice,
         isRepresentative: rolePricing.isRepresentative,
+        customerMarkupPercent: rolePricing.customerMarkupPercent || 20,
         badgeLabel: rolePricing.badgeLabel,
         marketPriceStr,
         buyerProfitStr,
@@ -164,57 +218,96 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
   const { underMarketList, liquidList, highMarginList } = useMemo(() => {
     const allAds = ads && ads.length > 0 ? ads : initialAdsFallback;
     
-    // Process Ads
+    // Process Ads (only featured/sponsored ads)
     const underMarketAds = allAds
-      .filter((ad: any) => ad.category === 'under_market' && ad.status === 'approved')
+      .filter((ad: any) => ad.category === 'under_market' && ad.status === 'approved' && (ad.isSponsored || ad.isHotFireDeal || ad.specialRequest))
       .map((ad: any) => normalizeItem(ad, true));
 
     const liquidAds = allAds
-      .filter((ad: any) => ad.category === 'liquid' && ad.status === 'approved')
+      .filter((ad: any) => ad.category === 'liquid' && ad.status === 'approved' && (ad.isSponsored || ad.isHotFireDeal || ad.specialRequest))
       .map((ad: any) => normalizeItem(ad, true));
 
     // Process Catalog Products
     const processedProducts = (products || []).map((prod) => normalizeItem(prod, false));
 
-    // Under Market: prioritize explicit isKafBazaar products, then underMarket ads
-    const kafProducts = processedProducts.filter((p) => p.rawProduct?.isKafBazaar);
-    const finalUnderMarket = kafProducts.length > 0
-      ? kafProducts.slice(0, 4)
-      : underMarketAds.length > 0 
-      ? underMarketAds.slice(0, 4)
-      : processedProducts.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
+    // Under Market: prioritize featured/special items, then fallback to regular ads and products
+    const featuredUnderMarketAds = allAds
+      .filter((ad: any) => ad.category === 'under_market' && ad.status === 'approved' && (ad.isSponsored || ad.isHotFireDeal || ad.specialRequest))
+      .map((ad: any) => normalizeItem(ad, true));
+    
+    const regularUnderMarketAds = allAds
+      .filter((ad: any) => ad.category === 'under_market' && ad.status === 'approved' && !(ad.isSponsored || ad.isHotFireDeal || ad.specialRequest))
+      .map((ad: any) => normalizeItem(ad, true));
 
-    // Liquid / Clearance: prioritize explicit isLiquid products, then liquid ads
-    const liquidProducts = processedProducts.filter((p) => p.rawProduct?.isLiquid);
-    const finalLiquid = liquidProducts.length > 0
-      ? liquidProducts.slice(0, 4)
-      : liquidAds.length > 0 
-      ? liquidAds.slice(0, 4)
-      : processedProducts.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
+    const featuredKafProducts = processedProducts.filter((p) => p.rawProduct?.isKafBazaar || p.rawProduct?.isHotFireDeal || p.rawProduct?.isSponsored);
+    const regularKafProducts = processedProducts.filter((p) => !p.rawProduct?.isKafBazaar && !p.rawProduct?.isHotFireDeal && !p.rawProduct?.isSponsored);
 
-    // High Margin: sorted by unit profit margin and discount percent
+    let finalUnderMarket = [...featuredUnderMarketAds, ...featuredKafProducts].slice(0, 8);
+    if (finalUnderMarket.length < 8) {
+      finalUnderMarket = [...finalUnderMarket, ...processedProducts.slice(0, 8 - finalUnderMarket.length)];
+    }
+
+    // Liquid / Clearance: prioritize featured items, then fallback
+    const featuredLiquidAds = allAds
+      .filter((ad: any) => ad.category === 'liquid' && ad.status === 'approved' && (ad.isSponsored || ad.isHotFireDeal || ad.specialRequest))
+      .map((ad: any) => normalizeItem(ad, true));
+    
+    const regularLiquidAds = allAds
+      .filter((ad: any) => ad.category === 'liquid' && ad.status === 'approved' && !(ad.isSponsored || ad.isHotFireDeal || ad.specialRequest))
+      .map((ad: any) => normalizeItem(ad, true));
+
+    const featuredLiquidProducts = processedProducts.filter((p) => p.rawProduct?.isLiquid || p.rawProduct?.isHotFireDeal || p.rawProduct?.isSponsored);
+    const regularLiquidProducts = processedProducts.filter((p) => p.rawProduct?.isLiquid && !p.rawProduct?.isHotFireDeal && !p.rawProduct?.isSponsored);
+
+    let finalLiquid = [...featuredLiquidAds, ...featuredLiquidProducts, ...regularLiquidAds, ...regularLiquidProducts].slice(0, 8);
+    if (finalLiquid.length < 8) {
+      finalLiquid = [...finalLiquid, ...processedProducts.slice(4, 12)];
+    }
+
+    // High Margin: filtered for featured items first, then regular
     const highMarginSorted = [...processedProducts]
       .sort((a, b) => {
         const profitA = (a.unitProfit || 0) * (a.discountPercent || 1);
         const profitB = (b.unitProfit || 0) * (b.discountPercent || 1);
         return profitB - profitA;
-      })
-      .slice(0, 4);
+      });
+
+    const finalHighMargin = highMarginSorted.slice(0, 8);
 
     return {
-      underMarketList: finalUnderMarket,
-      liquidList: finalLiquid,
-      highMarginList: highMarginSorted.length > 0 ? highMarginSorted : finalUnderMarket
+      underMarketList: finalUnderMarket.length > 0 ? finalUnderMarket : (processedProducts.length > 0 ? [processedProducts[0]] : []),
+      liquidList: finalLiquid.length > 0 ? finalLiquid : (finalUnderMarket.length > 0 ? finalUnderMarket : (processedProducts.length > 0 ? [processedProducts[0]] : [])),
+      highMarginList: finalHighMargin.length > 0 ? finalHighMargin : (finalUnderMarket.length > 0 ? finalUnderMarket : (processedProducts.length > 0 ? [processedProducts[0]] : []))
     };
-  }, [products, ads]);
+  }, [products, ads, user, userBadge]);
 
-  const currentList = activeMode === 'under_market' 
-    ? underMarketList 
-    : activeMode === 'liquid' 
-    ? liquidList 
-    : highMarginList;
+  const currentList = useMemo(() => {
+    const list = activeMode === 'under_market' 
+      ? underMarketList 
+      : activeMode === 'liquid' 
+      ? liquidList 
+      : highMarginList;
+    return list.length > 0 ? list : underMarketList;
+  }, [activeMode, underMarketList, liquidList, highMarginList]);
+
+  // Auto-cycle effect for products
+  useEffect(() => {
+    if (!isAutoPlaying || currentList.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setSelectedIndex((prev) => (prev + 1) % currentList.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, currentList.length]);
 
   const currentProduct = currentList[selectedIndex] || currentList[0];
+
+  if (!currentProduct && (products.length > 0 || ads.length > 0)) {
+    // If we have data but currentProduct is null for some reason, try to recover
+    const fallback = underMarketList[0] || (products.length > 0 ? normalizeItem(products[0], false) : null);
+    if (fallback) return <div className="hidden" />; // Return something to avoid crash but try to handle it gracefully
+  }
 
   if (!currentProduct) {
     return null;
@@ -236,257 +329,296 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
 
   return (
     <>
-      <div className="w-full bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-all duration-200 p-3.5 sm:p-4 text-right relative overflow-hidden" dir="rtl">
+      <div 
+        onMouseEnter={() => setIsAutoPlaying(false)}
+        onMouseLeave={() => setIsAutoPlaying(true)}
+        className="w-full bg-slate-50/45 backdrop-blur-[12px] rounded-3xl border border-slate-200/80 shadow-md hover:shadow-lg transition-all duration-350 p-4 sm:p-5 text-right relative overflow-hidden" 
+        dir="rtl"
+      >
         
-        {/* Subtle Ambient Background Gradients */}
+        {/* Top Autoplay Progress Bar */}
+        {isAutoPlaying && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-slate-100 z-30 overflow-hidden" dir="ltr">
+            <motion.div
+              key={`${activeMode}-${selectedIndex}`}
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 5, ease: "linear" }}
+              className={`h-full bg-gradient-to-r ${modeTheme.primary}`}
+            />
+          </div>
+        )}
+
+        {/* Subtle Immersive Ambient Background Gradients */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Header Bar: Title & 3 Options in Exactly One Single Responsive Row */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 border-b border-slate-100 pb-2.5 mb-3 relative z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 pb-3 mb-4 relative z-10">
           
           {/* Header Identity */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
-              <Factory size={18} />
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${modeTheme.primary} text-white flex items-center justify-center font-bold shrink-0 shadow-sm transition-all duration-300`}>
+              <Factory size={20} />
             </div>
             <div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h2 className="text-sm font-black text-slate-900 tracking-tight">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
                   تالار معاملات مستقیم و بارهای مازاد کارخانجات
                 </h2>
-                <span className="bg-gradient-to-r from-orange-500 via-rose-500 to-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
-                  <Flame size={10} className="text-amber-200" />
-                  <span>عرضه مستقیم</span>
+                <span className={`bg-gradient-to-r ${modeTheme.primary} text-white text-[9px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-3xs transition-all duration-300`}>
+                  <Flame size={10} className="text-white/80 animate-bounce" />
+                  <span>عرضه مستقیم فعال</span>
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                خرید مستقیم از کارخانه
+              <p className="text-[10px] sm:text-xs text-slate-500 font-bold mt-0.5">
+                تضمین پایین‌ترین قیمت کف بازار به صورت مستقیم بدون واسطه
               </p>
             </div>
           </div>
           
-          {/* Unified 3 Options in ONE Single Clean Line */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/60 w-full lg:w-auto shrink-0">
+          {/* Unified 3 Options with Dynamic Active States */}
+          <div className="grid grid-cols-3 gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 w-full lg:w-auto shrink-0">
             <button
               onClick={() => { setActiveMode('under_market'); setSelectedIndex(0); }}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeMode === 'under_market'
-                  ? 'bg-white text-emerald-900 shadow-2xs border border-slate-200/60 font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  ? 'bg-white text-emerald-900 shadow-sm border border-emerald-100/80 font-black scale-[1.02]'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
-              <TrendingDown size={12} className="text-emerald-600 shrink-0" />
+              <TrendingDown size={13} className="text-emerald-600 shrink-0" />
               <span>زیر قیمت ({toPersianNum(underMarketList.length)})</span>
             </button>
 
             <button
               onClick={() => { setActiveMode('liquid'); setSelectedIndex(0); }}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeMode === 'liquid'
-                  ? 'bg-white text-orange-900 shadow-2xs border border-slate-200/60 font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  ? 'bg-white text-orange-900 shadow-sm border border-orange-100/80 font-black scale-[1.02]'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
-              <Layers size={12} className="text-orange-600 shrink-0" />
+              <Layers size={13} className="text-orange-600 shrink-0" />
               <span>مازاد خط ({toPersianNum(liquidList.length)})</span>
             </button>
 
             <button
               onClick={() => { setActiveMode('high_margin'); setSelectedIndex(0); }}
-              className={`px-2.5 sm:px-3.5 py-1.5 rounded-md text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeMode === 'high_margin'
-                  ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white shadow-2xs font-black'
-                  : 'text-slate-700 hover:text-slate-950 hover:bg-white/50'
+                  ? 'bg-white text-blue-900 shadow-sm border border-blue-100/80 font-black scale-[1.02]'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
-              <Coins size={12} className={activeMode === 'high_margin' ? 'text-amber-100 shrink-0' : 'text-amber-600 shrink-0'} />
+              <Coins size={13} className="text-blue-600 shrink-0" />
               <span>بیشترین سود ({toPersianNum(highMarginList.length)})</span>
             </button>
           </div>
         </div>
 
         {/* Compact & Creative Main Showcase: 2-Column Balanced Side-by-Side View */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 relative z-10 items-stretch">
-          
-          {/* Left / Visual Image Frame Podium (5 Cols on Desktop) */}
-          <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200/80 flex flex-col justify-between relative group overflow-hidden shadow-2xs">
-            
-            {/* Square Clean Image taking the entire box space with minimal padding */}
-            <div 
-              onClick={() => setPreviewImage(currentProduct.imageUrl || currentProduct.image_url)}
-              className="w-full h-64 sm:h-72 lg:h-full min-h-[250px] lg:min-h-[300px] flex items-center justify-center p-0 cursor-pointer relative group transition-all duration-300 bg-white"
+        <div className="relative min-h-[350px] sm:min-h-[300px]">
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={`${activeMode}-${selectedIndex}`}
+              initial={{ opacity: 0, x: -20, y: 0 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, x: 20, y: 0 }}
+              transition={{ type: "spring", stiffness: 150, damping: 20 }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-4 relative z-10 items-stretch"
             >
-              {/* Top Floating Badges Overlaid Directly on Image */}
-              <div className="absolute top-2.5 right-2.5 left-2.5 flex items-center justify-between gap-2 z-20 pointer-events-none">
-                <span className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs flex items-center gap-1 pointer-events-auto">
-                  <Percent size={10} className="text-emerald-200" />
-                  <span>{toPersianNum(currentProduct.discountPercent || 30)}٪ سود بنکداری</span>
-                </span>
-              </div>
-
-              <div className="absolute inset-x-8 bottom-4 h-8 bg-indigo-600/10 blur-2xl rounded-full transition-all duration-300 group-hover:bg-emerald-500/20" />
-
-              <ProductImage 
-                src={currentProduct.imageUrl || currentProduct.image_url} 
-                alt={currentProduct.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300 relative z-10"
-              />
-
-              {/* Hover Quick Action */}
-              <div className="absolute inset-0 bg-slate-400/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center z-30 rounded-xl">
-                <span className="bg-white/95 text-slate-950 text-[11px] font-bold px-3.5 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
-                  <Eye size={13} className="text-emerald-600" />
-                  <span>مشاهده آنالیز کالا</span>
-                </span>
-              </div>
-
-              {/* Bottom Floating Factory Source Badge */}
-              <div className="absolute bottom-2 inset-x-2 text-center text-[10px] text-slate-600 font-medium bg-white/90 backdrop-blur-xs py-0.5 px-2 rounded border border-slate-100 shadow-2xs z-20">
-                مبدا بارگیری: <strong className="text-slate-900">{currentProduct.factoryName || currentProduct.brand}</strong>
-              </div>
-            </div>
-          </div>
-
-          {/* Right / Product Details & Commercial Matrix (7 Cols on Desktop) */}
-          <div className="lg:col-span-7 flex flex-col justify-between gap-2.5 bg-slate-50/60 rounded-xl p-3.5 border border-slate-200/70 shadow-2xs">
-            
-            {/* Title & Description */}
-            <div className="space-y-1 text-right">
-              <div className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded">
-                <Sparkles size={10} className="text-emerald-700" />
-                <span>تامین مستقیم با تسویه امانی</span>
-              </div>
               
-              <h3 className="text-sm font-black text-slate-900 leading-snug">
-                {currentProduct.name}
-              </h3>
-
-              {currentProduct.description && (
-                <p className="text-[11px] text-slate-600 font-normal leading-relaxed bg-white/90 p-2 rounded-lg border border-slate-200/50 line-clamp-2">
-                  {currentProduct.description}
-                </p>
-              )}
-            </div>
-
-            {/* Pricing Matrix Block */}
-            <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-slate-400 block font-medium">قیمت مصرف‌کننده (روی جلد)</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-slate-400 line-through font-mono font-medium">
-                      {toPersianNum(currentProduct.marketPriceStr)}
+              {/* Left / Visual Image Frame Podium (5 Cols on Desktop) */}
+              <div className={`lg:col-span-5 bg-white rounded-2xl border ${modeTheme.border} flex flex-col justify-between relative group overflow-hidden shadow-3xs transition-colors duration-300`}>
+              
+                {/* Square Clean Image taking the entire box space with minimal padding */}
+                <div 
+                  onClick={() => setPreviewImage(currentProduct.imageUrl || currentProduct.image_url)}
+                  className="w-full h-64 sm:h-72 lg:h-full min-h-[260px] lg:min-h-[310px] flex items-center justify-center p-0 cursor-pointer relative group transition-all duration-300 bg-white"
+                >
+                  {/* Top Floating Badges Overlaid Directly on Image */}
+                  <div className="absolute top-3 right-3 left-3 flex items-center justify-between gap-2 z-20 pointer-events-none">
+                    <span className={`bg-gradient-to-r ${modeTheme.primary} text-white text-[10px] font-black px-2.5 py-1 rounded-md shadow-xs flex items-center gap-1.5 pointer-events-auto`}>
+                      <Percent size={10} className="text-white/80" />
+                      <span>{toPersianNum(currentProduct.discountPercent || 30)}٪ سود بنکداری</span>
                     </span>
-                    <span className="text-[8px] bg-rose-50 text-rose-700 font-bold px-1 rounded">مصوب</span>
                   </div>
-                </div>
 
-                <div className="text-left space-y-0.5 border-r border-slate-100 pr-2.5">
-                  <span className="text-[10px] text-slate-500 block font-medium">
-                    {currentProduct.isRepresentative ? "قیمت خرید عاملیت شما (کف)" : "قیمت خرید عمده"}
-                  </span>
-                  <div className="flex items-center gap-1.5 justify-end">
-                    <span className="text-sm sm:text-base font-black text-emerald-600 font-mono">
-                      {toPersianNum(currentProduct.wholesalePriceStr)}
+                  <div className="absolute inset-x-8 bottom-4 h-8 bg-emerald-600/10 blur-2xl rounded-full transition-all duration-300 group-hover:bg-emerald-500/20" />
+
+                  <ProductImage 
+                    src={currentProduct.imageUrl || currentProduct.image_url} 
+                    alt={currentProduct.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300 relative z-10"
+                  />
+
+                  {/* Hover Quick Action */}
+                  <div className="absolute inset-0 bg-slate-400/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center z-30 rounded-2xl">
+                    <span className="bg-white/95 text-slate-950 text-[11px] font-bold px-3.5 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
+                      <Eye size={13} className={`${modeTheme.text}`} />
+                      <span>مشاهده آنالیز کالا</span>
                     </span>
-                    <SpecialPriceBagIcon size={14} animated={true} showBadge={false} />
+                  </div>
+
+                  {/* Bottom Floating Factory Source Badge */}
+                  <div className="absolute bottom-2.5 inset-x-2.5 text-center text-[10px] text-slate-600 font-bold bg-white/95 backdrop-blur-xs py-1 px-2 rounded-lg border border-slate-100 shadow-3xs z-20">
+                    مبدا بارگیری: <strong className="text-slate-900">{currentProduct.factoryName || currentProduct.brand}</strong>
                   </div>
                 </div>
               </div>
 
-              {/* Representative Floor Price Strip */}
-              {currentProduct.repPriceStr && !currentProduct.isRepresentative && (
-                <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                  <span className="text-slate-500 font-medium flex items-center gap-1">
-                    <Percent size={10} className="text-indigo-600" />
-                    <span>نرخ کف کارخانه (۱۰٪ تخفیف عاملیت):</span>
-                  </span>
-                  <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/70">
-                    {toPersianNum(currentProduct.repPriceStr)}
-                  </span>
-                </div>
-              )}
+              {/* Right / Product Details & Commercial Matrix (7 Cols on Desktop) */}
+              <div className="lg:col-span-7 flex flex-col justify-between gap-2.5 sm:gap-3.5 bg-white/70 backdrop-blur-md rounded-2xl p-3 sm:p-5 border border-slate-200/50 shadow-3xs relative">
+                
+                {/* Title & Description */}
+                <div className="space-y-1 text-right">
+                  <div className={`inline-flex items-center gap-1 bg-emerald-100 ${modeTheme.lightText} text-[9px] font-black px-2 py-0.5 rounded transition-colors duration-300`}>
+                    <Sparkles size={10} className="animate-pulse" />
+                    <span>تامین مستقیم با تسویه امانی</span>
+                  </div>
+                  
+                  <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 leading-snug">
+                    {currentProduct.name}
+                  </h3>
 
-              {currentProduct.isRepresentative && (
-                <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                  <span className="text-emerald-700 font-medium flex items-center gap-1">
-                    <CheckCircle2 size={10} className="text-emerald-600" />
-                    <span>تخفیف ۱۰٪ عاملیت روی قیمت خرید شما اعمال شد</span>
-                  </span>
-                  <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/70">
-                    کف قیمت
-                  </span>
+                  {currentProduct.description && (
+                    <p className="text-[11px] sm:text-xs text-slate-600 font-medium leading-relaxed bg-white/90 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-slate-150/80 line-clamp-2 shadow-3xs">
+                      {currentProduct.description}
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Live Margin Calculation Pill */}
-            {currentProduct.unitProfit > 0 && (
-              <div className="bg-emerald-50/80 rounded-lg p-2 border border-emerald-200/60 flex items-center justify-between text-[11px] font-bold text-emerald-900">
-                <div className="flex items-center gap-1">
-                  <Coins size={13} className="text-emerald-600" />
-                  <span>سود خالص هر کارتن به نفع خریدار:</span>
+                {/* Pricing Matrix Block */}
+                <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/70 shadow-3xs space-y-3">
+                  {/* Flat Dual Price Grid */}
+                  <div className="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100 pb-0.5">
+                    {/* Wholesale / Special Price Column (RTL Right Side) */}
+                    <div className="text-right pl-2 min-w-0">
+                      <span className="text-[10px] sm:text-[11px] text-slate-500 block font-black mb-1 truncate">
+                        {currentProduct.isRepresentative ? "قیمت عاملیت شما (کف)" : "قیمت خرید عمده مستقیم"}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-sm sm:text-lg font-black ${modeTheme.text} transition-colors duration-300 whitespace-nowrap`}>
+                          {toPersianNum(currentProduct.wholesalePriceStr)}
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                      </div>
+                    </div>
+
+                    {/* Market / Consumer Price Column (RTL Left Side) */}
+                    <div className="text-right pr-3 sm:pr-4 min-w-0">
+                      <span className="text-[10px] sm:text-[11px] text-slate-400 block font-bold mb-1 truncate">روی جلد (مصرف‌کننده)</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs sm:text-sm text-slate-400 line-through font-bold whitespace-nowrap">
+                          {toPersianNum(currentProduct.marketPriceStr)}
+                        </span>
+                        <span className="text-[8px] sm:text-[9px] bg-slate-50 text-slate-400 font-extrabold px-1 py-0.5 rounded border border-slate-200/40 whitespace-nowrap">
+                          مصوب
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Flat Representative Floor Price Strip (Voucher Divider Style) */}
+                  {currentProduct.repPriceStr && !currentProduct.isRepresentative && (
+                    <div className="pt-2.5 border-t border-dashed border-slate-200/80 flex items-center justify-between text-[11px] font-bold text-slate-600 transition-all duration-300">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-indigo-500 font-black shrink-0">•</span>
+                        <span className="truncate">
+                          نرخ کف کارخانه ({toPersianNum(currentProduct.customerMarkupPercent || 20)}٪ تخفیف عاملیت):
+                        </span>
+                      </div>
+                      <span className="font-black text-indigo-600 shrink-0 whitespace-nowrap">
+                        {toPersianNum(currentProduct.repPriceStr)}
+                      </span>
+                    </div>
+                  )}
+
+                  {currentProduct.isRepresentative && (
+                    <div className="pt-2.5 border-t border-dashed border-slate-200/80 flex items-center justify-between text-[11px] font-bold text-slate-600 transition-all duration-300">
+                      <div className="flex items-center gap-1.5 text-slate-600 min-w-0">
+                        <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                        <span className="truncate">اعمال {toPersianNum(currentProduct.customerMarkupPercent || 20)}٪ تخفیف عاملیت روی فاکتور</span>
+                      </div>
+                      <span className="font-black text-emerald-600 shrink-0 whitespace-nowrap">
+                        کف قیمت
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Integrated Live Margin Calculation Row (Instead of nested card) */}
+                  {currentProduct.unitProfit > 0 && (
+                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] sm:text-xs font-bold text-slate-700 transition-colors duration-300">
+                      <div className="flex items-center gap-1.5">
+                        <Coins size={13} className={`${modeTheme.text}`} />
+                        <span>سود خالص هر کارتن به نفع خریدار:</span>
+                      </div>
+                      <span className={`font-black text-xs sm:text-sm ${modeTheme.text} whitespace-nowrap`}>
+                        {toPersianNum((currentProduct.unitProfit * (currentProduct.carton_pack_count || 1)).toLocaleString())} تومان
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <span className="font-mono font-black text-emerald-800 text-xs">
-                  {toPersianNum((currentProduct.unitProfit * (currentProduct.carton_pack_count || 1)).toLocaleString())} تومان
-                </span>
+
+                {/* Action Buttons Row */}
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    onClick={handleQuickAdd}
+                    className={`w-full bg-gradient-to-r ${modeTheme.primary} text-white text-[11px] sm:text-sm font-black py-2.5 sm:py-3 px-2 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap`}
+                  >
+                    <SpecialPriceBagIcon size={13} showBadge={true} animated={true} />
+                    <span>{currentProduct.isAd ? "معامله امن بار" : "ثبت سفارش مستقیم"}</span>
+                  </button>
+
+                  <button
+                    onClick={onBillboardClick}
+                    className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-[11px] sm:text-sm font-bold py-2.5 sm:py-3 px-2 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1 cursor-pointer shadow-3xs whitespace-nowrap"
+                  >
+                    <TrendingDown size={13} className="text-slate-500" />
+                    <span>تالار بارهای زیر قیمت</span>
+                  </button>
+                </div>
+
               </div>
-            )}
-
-            {/* Action Buttons Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-              <button
-                onClick={handleQuickAdd}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-bold py-2 px-3 rounded-lg transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <SpecialPriceBagIcon size={14} showBadge={true} animated={true} />
-                <span>{currentProduct.isAd ? "شروع معامله امن این بار" : "ثبت سفارش مستقیم"}</span>
-              </button>
-
-              <button
-                onClick={onBillboardClick}
-                className="w-full bg-white hover:bg-slate-50 border border-slate-300/80 text-slate-800 text-xs font-bold py-2 px-3 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <TrendingDown size={13} className="text-emerald-600" />
-                <span>تالار بارهای زیر قیمت</span>
-              </button>
-            </div>
-
-          </div>
-
+            </motion.div>
+          </AnimatePresence>
         </div>
 
-        {/* Bottom: Fast Interactive Product Thumbnails Selector */}
-        <div className="border-t border-slate-100 pt-2.5 mt-2.5 text-right">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
-              <Sparkles size={11} className="text-emerald-600" />
-              <span>انتخاب سریع سایر بارهای ویژه و کارخانجات فعال:</span>
+        {/* Bottom: Fast Interactive Product Thumbnails Selector with Smooth Kinetic Horizontal Scrolling */}
+        <div className="border-t border-slate-200/60 pt-3 mt-3 text-right">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1">
+              <Sparkles size={12} className="text-amber-500 animate-spin" style={{ animationDuration: "3s" }} />
+              <span>سایر بارهای فعال:</span>
             </span>
             <button 
               onClick={onOrderClick}
-              className="text-[10px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-0.5 cursor-pointer"
+              className="text-[10px] sm:text-xs text-emerald-700 hover:text-emerald-800 font-black flex items-center gap-0.5 cursor-pointer"
             >
-              <span>مشاهده همه محصولات</span>
+              <span>مشاهده همه</span>
               <ChevronLeft size={11} />
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div 
+            ref={thumbnailsRef}
+            className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory scroll-smooth cursor-grab active:cursor-grabbing text-right"
+          >
             {currentList.map((prod: any, idx: number) => {
               const isSelected = selectedIndex === idx;
               return (
                 <button
                   key={`hero-thumb-${prod.id || 'item'}-${idx}`}
                   onClick={() => setSelectedIndex(idx)}
-                  className={`p-1.5 rounded-lg border text-right transition-all flex items-center gap-1.5 cursor-pointer relative overflow-hidden ${
+                  className={`p-1.5 rounded-xl border text-right transition-all flex items-center gap-2 cursor-pointer relative overflow-hidden shrink-0 min-w-[150px] sm:min-w-[180px] snap-center ${
                     isSelected
-                      ? 'bg-emerald-50/90 border-emerald-500 text-slate-950 ring-1 ring-emerald-400 shadow-2xs'
-                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                      ? 'bg-white border-2 text-slate-950 shadow-sm scale-[1.02]'
+                      : 'bg-white/60 hover:bg-white border-slate-200/80 text-slate-700'
                   }`}
+                  style={isSelected ? { borderColor: activeMode === 'under_market' ? '#10b981' : activeMode === 'liquid' ? '#f97316' : '#2563eb' } : {}}
                 >
-                  <div className="w-8 h-8 rounded bg-slate-50 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-2xs">
+                  <div className="w-8 h-8 rounded bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-3xs">
                     <ProductImage 
                       src={prod.image_url || prod.imageUrl} 
                       alt={prod.name}
@@ -495,11 +627,18 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                   </div>
                   
                   <div className="truncate flex-1 min-w-0">
-                    <span className="text-[11px] font-bold block truncate text-slate-900">{prod.name}</span>
-                    <span className="text-[9px] text-slate-400 font-medium block truncate">
+                    <span className="text-[11px] font-black block truncate text-slate-900">{prod.name}</span>
+                    <span className="text-[9px] text-slate-400 font-bold block truncate mt-0.5">
                       {prod.factoryName || prod.brand || 'کارخانه رسمی'}
                     </span>
                   </div>
+
+                  {/* Active Micro Dot Indicator */}
+                  {isSelected && (
+                    <span className={`absolute top-1 left-1 w-2.5 h-2.5 rounded-full ${
+                      activeMode === 'under_market' ? 'bg-emerald-500' : activeMode === 'liquid' ? 'bg-orange-500' : 'bg-blue-600'
+                    } animate-ping`} />
+                  )}
                 </button>
               );
             })}

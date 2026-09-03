@@ -154,9 +154,14 @@ export default function QuickOrderList({
               const cartonPrice = product.bulk_price * product.carton_pack_count;
 
               return (
-                <div 
+                <motion.div 
                   key={`quick-prod-${product.id || idx}-${idx}`} 
-                  className={`flex flex-col md:grid md:grid-cols-12 gap-5 md:gap-4 px-4 sm:px-6 py-7 md:py-4 items-center transition-all duration-300 w-full ${
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-20px" }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1], delay: Math.min((idx % 8) * 0.03, 0.2) }}
+                  style={{ willChange: "transform, opacity" }}
+                  className={`flex flex-col md:grid md:grid-cols-12 gap-5 md:gap-4 px-4 sm:px-6 py-7 md:py-4 items-center transition-colors duration-200 w-full transform-gpu ${
                     inCart > 0 ? 'bg-purple-50/80' : 'bg-white'
                   } hover:bg-slate-50/80 relative border-b border-slate-100 last:border-0`}
                 >
@@ -183,7 +188,7 @@ export default function QuickOrderList({
                         <div className="flex flex-wrap items-center gap-2 mt-0.5">
                           <span className="text-[9px] text-slate-400 font-bold">{product.brand}</span>
                           <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">{product.category}</span>
-                          <span className="text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded font-black border border-emerald-200/60">
+                          <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-black border border-emerald-200/60">
                             کارخانه: {product.factory_name || (product as any).factoryName || product.brand}
                           </span>
                           <span className="text-[9px] text-purple-700 font-black md:hidden">
@@ -236,7 +241,7 @@ export default function QuickOrderList({
                         افزودن
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 );
             })
           )}

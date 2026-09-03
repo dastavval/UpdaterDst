@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, TrendingUp, Building2, Eye, ShieldCheck, Zap, Percent, CheckCircle2, ShoppingCart, Lock, Award, Tag } from "lucide-react";
+import { Plus, Minus, Package, Factory, Sparkles, Bell, Check, X, TrendingDown, TrendingUp, Building2, Eye, ShieldCheck, Zap, Percent, CheckCircle2, ShoppingCart, Lock, Award, Tag, Heart } from "lucide-react";
 import { Product } from "../types";
 import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
@@ -12,6 +12,7 @@ interface ProductCardProps {
   onAddToCart: (product: Product, quantityCartons: number) => void;
   userBadge?: 'bronze' | 'silver' | 'gold' | 'vip' | 'admin';
   user?: any;
+  b2bConfig?: any;
   onRequireAuth?: () => void;
   onCompare?: (product: Product) => void;
   isComparing?: boolean;
@@ -19,7 +20,7 @@ interface ProductCardProps {
   index?: number;
 }
 
-const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth, onCompare, isComparing, onViewDetails, index = 0 }: ProductCardProps) => {
+const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, onRequireAuth, onCompare, isComparing, onViewDetails, index = 0 }: ProductCardProps) => {
   const minCartonsLimit = Math.max(5, product.min_order_cartons || 5);
   const [cartons, setCartons] = useState(minCartonsLimit);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -64,7 +65,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
   };
 
   // Compute Dynamic Multi-Tier Role Pricing
-  const pricing = getProductRolePricing(product, user, userBadge);
+  const pricing = getProductRolePricing(product, user, userBadge, b2bConfig);
   const discountedBulkPrice = pricing.unitWholesalePrice;
   const displayConsumerPrice = pricing.displayConsumerPrice;
   const pricePerCarton = pricing.pricePerCarton;
@@ -82,6 +83,48 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
       }
     } catch (e) {}
   }, [product.id]);
+
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
+  // Check if bookmarked
+  const checkBookmark = () => {
+    try {
+      const saved = localStorage.getItem("dastavval_wishlist");
+      if (saved) {
+        const list = JSON.parse(saved);
+        setIsBookmarked(list.includes(product.id));
+      } else {
+        setIsBookmarked(false);
+      }
+    } catch (e) {
+      setIsBookmarked(false);
+    }
+  };
+
+  useEffect(() => {
+    checkBookmark();
+    window.addEventListener("dastavval-wishlist-changed", checkBookmark);
+    return () => {
+      window.removeEventListener("dastavval-wishlist-changed", checkBookmark);
+    };
+  }, [product.id]);
+
+  const handleToggleBookmark = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const saved = localStorage.getItem("dastavval_wishlist");
+      let list = saved ? JSON.parse(saved) : [];
+      if (list.includes(product.id)) {
+        list = list.filter((id: string) => id !== product.id);
+        setIsBookmarked(false);
+      } else {
+        list.push(product.id);
+        setIsBookmarked(true);
+      }
+      localStorage.setItem("dastavval_wishlist", JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent("dastavval-wishlist-changed"));
+    } catch (err) {}
+  };
 
   const handleTogglePriceAlert = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,15 +190,16 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "100px" }}
+      initial={{ opacity: 0, y: 24, scale: 0.98 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-30px", amount: 0.05 }}
       transition={{ 
-        duration: 0.4, 
-        delay: (index % 4) * 0.05, 
-        ease: [0.21, 0.47, 0.32, 0.98] 
+        duration: 0.35, 
+        ease: [0.16, 1, 0.3, 1],
+        delay: Math.min((index % 4) * 0.04, 0.16)
       }}
-      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all duration-300 group flex flex-col relative h-full overflow-hidden"
+      style={{ willChange: "transform, opacity" }}
+      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-shadow duration-300 group flex flex-col relative h-full overflow-hidden transform-gpu"
     >
       {/* Top Accent Line for Featured */}
       {product.isFeatured && (
@@ -193,12 +237,25 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
         {/* Action Icons Bar */}
         <div className="absolute bottom-2.5 right-2.5 flex flex-col gap-2 transform translate-x-12 group-hover/img:translate-x-0 transition-transform duration-500">
           <button
+            onClick={handleToggleBookmark}
+            className={`w-8 h-8 rounded-lg transition-all shadow-lg cursor-pointer flex items-center justify-center ${
+              isBookmarked
+                ? "bg-rose-500 text-white"
+                : "bg-white/90 backdrop-blur-md text-slate-600 hover:bg-rose-500 hover:text-white border border-slate-100"
+            }`}
+            title={isBookmarked ? "حذف از نشان‌شده‌ها" : "نشان‌گذاری کالا"}
+          >
+            <Heart size={13} className={isBookmarked ? "fill-white" : ""} />
+          </button>
+
+          <button
             onClick={handleTogglePriceAlert}
             className={`w-8 h-8 rounded-lg transition-all shadow-lg cursor-pointer flex items-center justify-center ${
               hasPriceAlert
-                ? "bg-amber-500 text-slate-900"
+                ? "bg-emerald-600 text-white"
                 : "bg-white/90 backdrop-blur-md text-slate-600 hover:bg-emerald-600 hover:text-white border border-slate-100"
             }`}
+            title="ثبت هشدار قیمت"
           >
             <Bell size={13} className={hasPriceAlert ? "fill-slate-900" : ""} />
           </button>
@@ -208,48 +265,65 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
       {/* Info Section */}
       <div className="p-3.5 flex flex-col gap-2.5 text-right flex-1" dir="rtl">
         <div className="space-y-1">
-          <div className="flex justify-between items-center text-[9px] font-black">
-            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+          <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black gap-1 flex-wrap">
+            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 shrink-0">
               {product.category}
+            </span>
+            <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[8px] sm:text-[8.5px] font-bold flex items-center gap-1.5 truncate max-w-[120px] sm:max-w-none border border-slate-200/50" title="تولیدکننده رسمی صنایع غذایی">
+              {product.brandLogoUrl ? (
+                <div className="w-4 h-4 bg-white rounded-md border border-slate-200 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-[inset_0_1px_4px_rgba(0,0,0,0.05)]">
+                  <img src={product.brandLogoUrl} alt={product.brand} className="w-full h-full object-contain" />
+                </div>
+              ) : (
+                <Factory size={10} className="text-slate-500" />
+              )}
+              <span className="truncate">{product.brand || "تولیدکننده رسمی"}</span>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <CheckCircle2 size={8} className="text-emerald-500" />
+                <Lock size={8} className="text-amber-500" />
+              </div>
             </span>
           </div>
 
           <h3 
             onClick={() => onViewDetails?.(product)}
-            className="text-[11px] sm:text-xs font-black text-slate-800 leading-relaxed line-clamp-2 min-h-[2.4rem] group-hover:text-emerald-700 transition-colors cursor-pointer"
+            className="text-[10px] sm:text-xs font-black text-slate-800 leading-snug line-clamp-2 sm:line-clamp-2 min-h-[1.8rem] sm:min-h-[2.4rem] group-hover:text-emerald-700 transition-colors cursor-pointer"
           >
             {product.name}
           </h3>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] font-black text-emerald-600">
-              {profitPercent > 0 ? `${toPersianNum(profitPercent)}٪ حاشیه سود بنکداری` : 'عرضه مستقیم با نرخ کارخانه'}
+          <div className="flex items-center justify-between gap-1.5 mt-0.5">
+            <span className="text-[9px] sm:text-[10px] font-black text-emerald-600 truncate max-w-[120px] sm:max-w-none">
+              {profitPercent > 0 ? `${toPersianNum(profitPercent)}٪ حاشیه سود` : 'نرخ مستقیم کارخانه'}
+            </span>
+            <span className="text-[8px] text-slate-400 font-bold bg-slate-50 px-1 py-0.2 rounded border border-slate-100 shrink-0">
+              آگهی کارخانه
             </span>
           </div>
         </div>
 
         {/* Pricing Architecture - Streamlined */}
-        <div className="mt-auto space-y-2.5">
-          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100/80 space-y-2">
+        <div className="mt-auto space-y-1.5 sm:space-y-2.5">
+          <div className="bg-slate-50 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-100/80 space-y-1 sm:space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-[9px] font-black text-slate-400">نرخ عمده:</span>
-              <div className="flex items-baseline gap-1">
-                <span className="font-mono text-emerald-800 font-black text-sm">
+              <span className="text-[8px] sm:text-[9px] font-black text-slate-400">نرخ عمده:</span>
+              <div className="flex items-baseline gap-0.5">
+                <span className="font-mono text-emerald-800 font-black text-xs sm:text-sm">
                   {toPersianNum(discountedBulkPrice.toLocaleString())}
                 </span>
-                <span className="text-[8px] font-bold text-slate-400">تومان</span>
+                <span className="text-[7px] sm:text-[8px] font-bold text-slate-400">تومان</span>
               </div>
             </div>
 
             <div className="flex justify-between items-center pt-1 border-t border-slate-200/50">
               <div className="flex flex-col">
-                <span className="text-[8px] font-bold text-slate-400">بسته‌بندی</span>
-                <span className="text-[9px] font-black text-slate-600">
+                <span className="text-[7px] sm:text-[8px] font-bold text-slate-400">بسته‌بندی</span>
+                <span className="text-[8px] sm:text-[9px] font-black text-slate-600 truncate max-w-[50px] sm:max-w-none">
                   {toPersianNum(product.carton_pack_count)} {cleanUnitName(product.unit)}
                 </span>
               </div>
               <div className="text-left">
-                <span className="text-[8px] font-bold text-slate-400 block">فاکتور کارتن</span>
-                <span className="text-[10px] font-black text-indigo-900 font-mono">
+                <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 block">فاکتور کارتن</span>
+                <span className="text-[9px] sm:text-[10px] font-black text-indigo-900 font-mono">
                   {toPersianNum(pricePerCarton.toLocaleString())} <span className="text-[7px]">ت</span>
                 </span>
               </div>
@@ -257,41 +331,41 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
           </div>
 
           {/* Quantity & CTA */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center bg-white border border-slate-200 rounded-lg sm:rounded-xl p-0.5">
               <button 
                 onClick={handleDecrement} 
-                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-20" 
+                className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-20" 
                 disabled={cartons <= minCartonsLimit}
               >
-                <Minus size={12} />
+                <Minus size={10} />
               </button>
-              <span className="w-6 text-center text-[11px] font-black font-mono text-slate-700">{toPersianNum(cartons)}</span>
+              <span className="w-5 sm:w-6 text-center text-[10px] sm:text-[11px] font-black font-mono text-slate-700">{toPersianNum(cartons)}</span>
               <button 
                 onClick={handleIncrement} 
-                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
               >
-                <Plus size={12} />
+                <Plus size={10} />
               </button>
             </div>
 
             <button 
               onClick={handleAddWithFeedback}
-              className={`flex-1 h-9 rounded-xl font-black text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+              className={`flex-1 h-7 sm:h-9 rounded-full font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 transition-all duration-250 active:scale-[0.93] hover:scale-[1.01] cursor-pointer ${
                 isAddedFeedback
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-lg shadow-emerald-700/15"
+                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow-md active:shadow-xs"
               }`}
             >
               {isAddedFeedback ? (
                 <>
-                  <CheckCircle2 size={14} />
-                  <span>اضافه شد</span>
+                  <CheckCircle2 size={11} className="shrink-0 text-emerald-700" />
+                  <span className="tracking-wide">ثبت شد</span>
                 </>
               ) : (
                 <>
-                  <ShoppingCart size={14} />
-                  <span>سبد خرید</span>
+                  <ShoppingCart size={11} className="shrink-0" />
+                  <span className="tracking-wide">سبد خرید</span>
                 </>
               )}
             </button>
@@ -307,13 +381,13 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-2 left-2 right-2 z-30 bg-indigo-50 border border-indigo-100 text-indigo-900 px-3 py-2 rounded-xl text-[10px] font-black flex items-center justify-between shadow-lg"
+            className="absolute bottom-2 left-2 right-2 z-30 bg-emerald-50 border border-emerald-100 text-indigo-900 px-3 py-2 rounded-xl text-[10px] font-black flex items-center justify-between shadow-lg"
           >
             <span className="flex items-center gap-1.5">
               <Check size={12} className="text-emerald-600" />
               {alertSuccessMsg}
             </span>
-            <button onClick={() => setAlertSuccessMsg(null)} className="text-indigo-400 hover:text-indigo-600">
+            <button onClick={() => setAlertSuccessMsg(null)} className="text-indigo-400 hover:text-emerald-600">
               <X size={12} />
             </button>
           </motion.div>
@@ -332,7 +406,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2 text-slate-900">
-                  <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                  <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
                     <Bell size={18} />
                   </div>
                   <div>
@@ -369,7 +443,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
                       setTargetPriceInput(clean);
                     }}
                     placeholder="مثلاً ۲۵۰۰۰"
-                    className="w-full py-2 px-3 border border-slate-200 rounded-xl text-xs font-mono font-black outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 text-left dir-ltr"
+                    className="w-full py-2 px-3 border border-slate-200 rounded-xl text-xs font-mono font-black outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 text-left dir-ltr"
                   />
                 </div>
 
@@ -380,14 +454,14 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
                     <button
                       type="button"
                       onClick={() => setTargetPriceInput(Math.round(discountedBulkPrice * 0.95).toString())}
-                      className="py-1.5 bg-amber-50 text-amber-800 text-[10px] font-black rounded-lg border border-amber-200 hover:bg-amber-100 transition-all"
+                      className="py-1.5 bg-emerald-50 text-amber-800 text-[10px] font-black rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-all"
                     >
                       ۵٪ تخفیف بیشتر
                     </button>
                     <button
                       type="button"
                       onClick={() => setTargetPriceInput(Math.round(discountedBulkPrice * 0.90).toString())}
-                      className="py-1.5 bg-amber-50 text-amber-800 text-[10px] font-black rounded-lg border border-amber-200 hover:bg-amber-100 transition-all"
+                      className="py-1.5 bg-emerald-50 text-amber-800 text-[10px] font-black rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-all"
                     >
                       ۱۰٪ تخفیف بیشتر
                     </button>
@@ -418,7 +492,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, onRequireAuth
                       handleSavePriceAlert(num);
                     }
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Bell size={14} className="fill-slate-950" />
                   ثبت هشدار قیمت

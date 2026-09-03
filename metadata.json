@@ -2,7 +2,8 @@
   "name": "DastAvval",
   "description": "سامانه ملی خرید عمده، استعلام مستقیم قیمت کارخانجات صنایع غذایی و تالار کف بازار با ضمانت پرداخت امانی",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

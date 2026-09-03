@@ -48,6 +48,14 @@ export default function B2BNews({
     if (initialSubTab) {
       setExploreSubTab(initialSubTab);
     }
+
+    const handleSubTabChange = (e: any) => {
+      if (e?.detail?.subTab) {
+        setExploreSubTab(e.detail.subTab);
+      }
+    };
+    window.addEventListener("change-news-subtab", handleSubTabChange);
+    return () => window.removeEventListener("change-news-subtab", handleSubTabChange);
   }, [initialSubTab]);
   const [completedLessons, setCompletedLessons] = useState<number[]>([0]);
   const [selectedNews, setSelectedNews] = useState<any | null>(null);
@@ -58,7 +66,7 @@ export default function B2BNews({
   const handleGenerateAIArticles = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/articles/generate-daily-batch", {
+      const res = await fetch("/api/ai/generate-daily-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
@@ -214,7 +222,7 @@ export default function B2BNews({
       <section className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
           <div className="space-y-1">
-            <span className="text-[10px] bg-blue-500/10 text-blue-600 px-3 py-1 rounded-full font-black border border-blue-500/20">
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full font-black border border-emerald-500/20">
               🏭 وضعیت کارخانه‌ها
             </span>
             <h3 className="text-lg sm font-black text-slate-900">گزارش روزانه خطوط تولید و موجودی</h3>
@@ -305,7 +313,7 @@ export default function B2BNews({
                       <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">گواهینامه‌ها و استانداردهای معتبر صنعتی:</div>
                       <div className="flex flex-wrap gap-2">
                         {fac.specs.map((spec: string, i: number) => (
-                          <span key={`b2b-fac-spec-${spec.slice(0, 5)}-${i}`} className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-lg font-black">
+                          <span key={`b2b-fac-spec-${spec.slice(0, 5)}-${i}`} className="text-[9px] bg-emerald-600 text-white border border-emerald-100 px-3 py-1 rounded-lg font-black">
                             ✓ {spec}
                           </span>
                         ))}
@@ -361,7 +369,7 @@ export default function B2BNews({
       <section className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
           <div className="space-y-1">
-            <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-100">
+            <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-100">
               <Sparkles size={11} className="animate-spin text-emerald-500" />
               تحلیل روزانه زنجیره تامین مواد غذایی و بهداشتی
             </span>
@@ -372,33 +380,14 @@ export default function B2BNews({
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-1">
-            <button
-              onClick={handleGenerateAIArticles}
-              disabled={isGenerating}
-              className="px-3.5 py-1.5 rounded-xl text-[10px] font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm flex items-center gap-1.5 transition-all shrink-0 cursor-pointer disabled:opacity-50"
-              title="تولید خودکار ۳ الی ۴ مقاله تخصصی توسط GapGPT"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>در حال نگارش هوشمند...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={12} className="text-amber-300" />
-                  <span>تولید مقالات روزانه با AI</span>
-                </>
-              )}
-            </button>
-
             {["همه", "تنظیم بازار", "خط تولید", "توزیع", "گزارش مالی"].map((cat, idx) => (
               <button
                 key={`b2b-news-cat-${cat}-${idx}`}
                 onClick={() => setNewsFilter(cat)}
-                className={`px-3 py-1 rounded-xl text-[10px] font-black border transition-all shrink-0 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-black border transition-all shrink-0 cursor-pointer ${
                   newsFilter === cat 
-                    ? "bg-emerald-600 text-white border-emerald-600" 
-                    : "bg-slate-50 text-slate-600 border-slate-200"
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs" 
+                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                 }`}
               >
                 {cat}

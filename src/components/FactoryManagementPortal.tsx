@@ -46,6 +46,7 @@ import FactorySalesSettingsTab from "./factory/FactorySalesSettingsTab";
 import FactoryTicketsTab from "./factory/FactoryTicketsTab";
 import FactoryHistoryTab from "./factory/FactoryHistoryTab";
 import AddAdButton from "./AddAdButton";
+import MyAdsManager from "./MyAdsManager";
 
 export interface FloorMarketDeal {
   id: string;
@@ -111,7 +112,7 @@ export default function FactoryManagementPortal({
   onOpenInvoiceModal
 }: FactoryManagementPortalProps) {
   // Main tabs: 1. Products list, 2. Add product, 3. Orders, 4. Floor Market (کف بازار), 5. Sales Settings, 6. Tickets, 7. History, 8. Factory profile
-  const [activeTab, setActiveTab] = useState<'products' | 'add_product' | 'orders' | 'floor_market' | 'sales_settings' | 'tickets' | 'history' | 'profile'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'add_product' | 'orders' | 'floor_market' | 'sales_settings' | 'tickets' | 'history' | 'profile' | 'ads' | 'capacity_ads'>('products');
 
   // Helper: Convert numbers to Persian Digits
   const toPersianNum = (num: number | string | undefined | null) => {
@@ -123,6 +124,98 @@ export default function FactoryManagementPortal({
 
   const currentFactoryName = user?.company || user?.name || "کارخانه تولیدی";
   const factoryCode = user?.factoryCode || user?.id || "FAC-1001";
+
+  // Portal Capacity Ads and Cooperation Requests States with auto-sync
+  const [portalCapacityAds, setPortalCapacityAds] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("dastavval_capacity_ads");
+      if (saved) return JSON.parse(saved);
+    } catch(e){}
+    return [];
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const saved = localStorage.getItem("dastavval_capacity_ads");
+        if (saved) setPortalCapacityAds(JSON.parse(saved));
+      } catch(e){}
+    };
+    window.addEventListener("dastavval_ads_updated", handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("dastavval_ads_updated", handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  // Form states for inline registering capacity ads in Factory Portal
+  const [showPortalAddAd, setShowPortalAddAd] = useState(false);
+  const [portalNewTitle, setPortalNewTitle] = useState("");
+  const [portalNewCat, setPortalNewCat] = useState("نوشیدنی و آبمیوه");
+  const [portalNewMinQty, setPortalNewMinQty] = useState("");
+  const [portalNewLocation, setPortalNewLocation] = useState(user?.city || "");
+  const [portalNewPhone, setPortalNewPhone] = useState(user?.mobile || user?.username || "");
+  const [portalNewDetails, setPortalNewDetails] = useState("");
+  const [portalNewDesc, setPortalNewDesc] = useState("");
+  const [portalNewImage, setPortalNewImage] = useState("");
+
+  const handlePortalAddCapacityAd = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newAd = {
+      id: "cap-ad-" + Date.now(),
+      factoryId: user?.id || "FAC-GEN",
+      factoryName: currentFactoryName,
+      title: portalNewTitle,
+      category: portalNewCat,
+      location: portalNewLocation,
+      phone: portalNewPhone,
+      minOrderQty: portalNewMinQty || "توافقی",
+      machineryDetails: portalNewDetails,
+      description: portalNewDesc,
+      imageUrl: portalNewImage || "",
+      createdAt: new Date().toLocaleDateString("fa-IR"),
+      cooperationRequests: []
+    };
+
+    const updated = [newAd, ...portalCapacityAds];
+    setPortalCapacityAds(updated);
+    localStorage.setItem("dastavval_capacity_ads", JSON.stringify(updated));
+    window.dispatchEvent(new Event("dastavval_ads_updated"));
+
+    // Reset Form
+    setPortalNewTitle("");
+    setPortalNewMinQty("");
+    setPortalNewLocation(user?.city || "");
+    setPortalNewPhone(user?.mobile || user?.username || "");
+    setPortalNewDetails("");
+    setPortalNewDesc("");
+    setPortalNewImage("");
+    setShowPortalAddAd(false);
+  };
+
+  const handleUpdateCoopStatus = (adId: string, reqIndex: number, newStatus: string) => {
+    const updated = portalCapacityAds.map(ad => {
+      if (ad.id === adId && ad.cooperationRequests) {
+        const reqs = [...ad.cooperationRequests];
+        reqs[reqIndex] = { ...reqs[reqIndex], status: newStatus };
+        return { ...ad, cooperationRequests: reqs };
+      }
+      return ad;
+    });
+    setPortalCapacityAds(updated);
+    localStorage.setItem("dastavval_capacity_ads", JSON.stringify(updated));
+    window.dispatchEvent(new Event("dastavval_ads_updated"));
+  };
+
+  const handleDeleteCapacityAd = (adId: string) => {
+    if (window.confirm("آیا از حذف این آگهی ظرفیت خالی اطمینان دارید؟")) {
+      const updated = portalCapacityAds.filter(ad => ad.id !== adId);
+      setPortalCapacityAds(updated);
+      localStorage.setItem("dastavval_capacity_ads", JSON.stringify(updated));
+      window.dispatchEvent(new Event("dastavval_ads_updated"));
+    }
+  };
 
   // -------------------------------------------------------------
   // Dynamic Categories from Admin Config (b2bConfig.categories)
@@ -158,21 +251,43 @@ export default function FactoryManagementPortal({
     return Array.from(new Set(list));
   }, [b2bConfig, products]);
 
-  // Filter products belonging to this factory
+  // Filter products belonging strictly to this factory
   const myProducts = useMemo(() => {
     if (!user) return [];
     const comp = currentFactoryName.toLowerCase().trim();
-    const fCode = factoryCode.toLowerCase().trim();
+    const fCode = (factoryCode || "").toLowerCase().trim();
     const uId = (user.id || "").toLowerCase().trim();
+
+    const GENERIC_NAMES = [
+      "کارخانه تولیدی",
+      "فروشگاه پخش",
+      "دست اول",
+      "تولیدی",
+      "کارخانه",
+      "فروشگاه همکار",
+      "فروشگاه همکار (ثبت نام آنی)",
+      "مجموعه همکار",
+      "خریدار عمده",
+      "خریدار عمده (ثبت نام آنی)"
+    ];
+
+    const isGenericComp = !comp || comp.length < 3 || GENERIC_NAMES.some(g => g.toLowerCase() === comp);
 
     return products.filter(p => {
       const pFact = (p.factoryName || p.factory_name || p.brand || p.sellerName || "").toLowerCase().trim();
       const pSeller = (p.sellerId || "").toLowerCase().trim();
-      return (
-        (comp && (pFact.includes(comp) || comp.includes(pFact))) ||
-        (fCode && pSeller === fCode) ||
-        (uId && pSeller === uId)
-      );
+      const pCreatedBy = ((p as any).createdById || (p as any).userId || "").toLowerCase().trim();
+
+      // Check direct seller ID or user ID match
+      if (fCode && pSeller === fCode) return true;
+      if (uId && (pSeller === uId || pCreatedBy === uId)) return true;
+
+      // Check exact non-generic company name match
+      if (!isGenericComp && pFact && (pFact === comp || (pFact.length >= 4 && (pFact.includes(comp) || comp.includes(pFact))))) {
+        return true;
+      }
+
+      return false;
     });
   }, [products, user, currentFactoryName, factoryCode]);
 
@@ -180,14 +295,29 @@ export default function FactoryManagementPortal({
   const myOrders = useMemo(() => {
     if (!user) return [];
     const comp = currentFactoryName.toLowerCase().trim();
-    const fCode = factoryCode.toLowerCase().trim();
+    const fCode = (factoryCode || "").toLowerCase().trim();
+    const uId = (user.id || "").toLowerCase().trim();
+
+    const GENERIC_NAMES = [
+      "کارخانه تولیدی",
+      "فروشگاه پخش",
+      "دست اول",
+      "تولیدی",
+      "کارخانه",
+      "فروشگاه همکار",
+      "مجموعه همکار"
+    ];
+    const isGenericComp = !comp || comp.length < 3 || GENERIC_NAMES.some(g => g.toLowerCase() === comp);
 
     return orders.filter(order => {
       if (!order.items || !Array.isArray(order.items)) return false;
       return order.items.some((item: any) => {
         const itemFact = (item.factoryName || item.factory_name || item.brand || item.sellerName || "").toLowerCase().trim();
         const sellerId = (item.sellerId || "").toLowerCase().trim();
-        return (fCode && sellerId === fCode) || (comp && (itemFact.includes(comp) || comp.includes(itemFact)));
+        if (fCode && sellerId === fCode) return true;
+        if (uId && sellerId === uId) return true;
+        if (!isGenericComp && itemFact && (itemFact === comp || itemFact.includes(comp))) return true;
+        return false;
       });
     });
   }, [orders, user, currentFactoryName, factoryCode]);
@@ -229,6 +359,45 @@ export default function FactoryManagementPortal({
   const [prodFormSuccess, setProdFormSuccess] = useState<string | null>(null);
   const [prodFormError, setProdFormError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // -------------------------------------------------------------
+  // Factory Production Surplus State & Handlers (مازاد خط تولید)
+  // -------------------------------------------------------------
+  const [surplusProductModal, setSurplusProductModal] = useState<Product | null>(null);
+  const [surplusQuantityCartons, setSurplusQuantityCartons] = useState<number>(50);
+  const [surplusDiscountPercent, setSurplusDiscountPercent] = useState<number>(15);
+  const [surplusPrice, setSurplusPrice] = useState<number>(0);
+  const [surplusDescription, setSurplusDescription] = useState<string>("");
+  const [surplusReason, setSurplusReason] = useState<string>("تولید مازاد شیفت و تخلیه انبار");
+  const [isSubmittingSurplus, setIsSubmittingSurplus] = useState<boolean>(false);
+
+  const handleSubmitSurplus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!surplusProductModal || !onUpdateProduct) return;
+    setIsSubmittingSurplus(true);
+    try {
+      const baseBulk = surplusProductModal.bulk_price || surplusProductModal.price || 10000;
+      const calculatedPrice = surplusPrice > 0 
+        ? surplusPrice 
+        : Math.round(baseBulk * (1 - surplusDiscountPercent / 100));
+
+      await onUpdateProduct(surplusProductModal.id, {
+        isSurplus: true,
+        surplusStatus: 'pending',
+        surplusQuantityCartons: Number(surplusQuantityCartons),
+        surplusDiscountPercent: Number(surplusDiscountPercent),
+        surplusPrice: calculatedPrice,
+        surplusDescription: `${surplusReason ? `علت: ${surplusReason} | ` : ''}${surplusDescription}`.trim(),
+      });
+
+      alert(`درخواست اعلام مازاد خط کالا «${surplusProductModal.name}» ثبت شد و برای تأیید مدیر سایت ارسال گردید.`);
+      setSurplusProductModal(null);
+    } catch (err: any) {
+      alert("خطا در ثبت مازاد خط: " + (err?.message || ""));
+    } finally {
+      setIsSubmittingSurplus(false);
+    }
+  };
 
   // Set default category when available
   useEffect(() => {
@@ -475,6 +644,7 @@ export default function FactoryManagementPortal({
   const [dailyCapacity, setDailyCapacity] = useState(user?.dailyCapacity || "");
   const [productionTech, setProductionTech] = useState(user?.productionTech || "");
   const [storageConditions, setStorageConditions] = useState(user?.storageConditions || "");
+  const [emptyCapacityPercent, setEmptyCapacityPercent] = useState<number>(user?.emptyCapacityPercent !== undefined ? Number(user.emptyCapacityPercent) : 40);
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
@@ -624,9 +794,31 @@ export default function FactoryManagementPortal({
     }
   };
 
-  // Delete Product
+  // Delete Product with strict ownership verification
   const handleDeleteProduct = async (id: string) => {
     try {
+      // Security ownership check
+      const targetProd = products.find(p => p.id === id);
+      if (!targetProd) return;
+
+      const uId = (user?.id || "").toLowerCase().trim();
+      const fCode = (factoryCode || user?.factoryCode || "").toLowerCase().trim();
+      const pSeller = (targetProd.sellerId || "").toLowerCase().trim();
+      const pCreatedBy = ((targetProd as any).createdById || (targetProd as any).userId || "").toLowerCase().trim();
+      const userComp = (currentFactoryName || user?.company || "").toLowerCase().trim();
+      const pFact = (targetProd.factoryName || targetProd.factory_name || targetProd.brand || "").toLowerCase().trim();
+
+      const isAdmin = user?.role === 'admin';
+      const isOwner = (uId && (pSeller === uId || pCreatedBy === uId)) ||
+                      (fCode && pSeller === fCode) ||
+                      (userComp && userComp.length >= 4 && (pFact === userComp || pFact.includes(userComp)));
+
+      if (!isAdmin && !isOwner) {
+        alert("⛔ خطای امنیت: شما مجاز به حذف این کالا نیستید زیرا این محصول متعلق به کارخانه شما نمی‌باشد.");
+        setDeleteConfirmId(null);
+        return;
+      }
+
       if (onDeleteProduct) {
         await onDeleteProduct(id);
       }
@@ -664,6 +856,7 @@ export default function FactoryManagementPortal({
         dailyCapacity: dailyCapacity.trim(),
         productionTech: productionTech.trim(),
         storageConditions: storageConditions.trim(),
+        emptyCapacityPercent: Number(emptyCapacityPercent),
       };
 
       localStorage.setItem("dastavval_user", JSON.stringify(updatedProfile));
@@ -697,6 +890,7 @@ export default function FactoryManagementPortal({
               description: factoryDescription.trim() || f.description,
               establishedYear: establishedYear.trim() || f.establishedYear,
               capacity: dailyCapacity.trim() || f.capacity,
+              emptyCapacityPercent: Number(emptyCapacityPercent),
               specs: productionTech.trim() ? [productionTech.trim()] : (f.specs || []),
               galleryImages: [
                 ...(factoryExteriorPhoto.trim() ? [{ url: factoryExteriorPhoto.trim(), title: "عکس محوطه و نمای کارخانه", category: "exterior" }] : []),
@@ -727,13 +921,43 @@ export default function FactoryManagementPortal({
   const totalApproved = myProducts.filter(p => p.approvalStatus === 'approved' || p.isApproved === true).length;
   const totalPending = myProducts.filter(p => p.approvalStatus === 'pending' || (p.approvalStatus !== 'approved' && p.isApproved !== true)).length;
 
+  const isUserPendingApproval = user?.role === 'factory' && (
+    user?.status === 'pending_verification' || 
+    user?.isApproved === false || 
+    user?.isFactoryApproved === false
+  );
+
   return (
     <div className="space-y-6 text-right font-sans" dir="rtl">
       
+      {/* Pending Admin Verification Banner */}
+      {isUserPendingApproval && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-2 border-amber-500/30 rounded-3xl p-5 shadow-sm text-right flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+              <Clock size={24} className="animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-amber-900">
+                  ⏳ حساب کاربری در انتظار تایید مدیریت سایت
+                </h3>
+                <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-300">
+                  بررسی مدارک
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 font-bold leading-relaxed">
+                نقش انتخاب شده نیاز به احراز هویت توسط مدیر سایت دارد. مدارک شما در صف تایید مدیریت قرار دارد و به محض بررسی، قابلیت انتشار محصولات فعال می‌گردد.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner / Factory Header */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 overflow-hidden shrink-0 shadow-2xs">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 overflow-hidden shrink-0 shadow-2xs">
             {user?.logoUrl ? (
               <img src={user.logoUrl} alt="لوگوی کارخانه" className="w-full h-full object-cover" />
             ) : (
@@ -743,7 +967,7 @@ export default function FactoryManagementPortal({
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black text-slate-900">{user?.company || "کارخانه تولیدی"}</h2>
-              <span className="bg-indigo-50 text-indigo-700 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-indigo-100">
+              <span className="bg-emerald-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full border border-emerald-100">
                 پنل اختصاصی کارخانه
               </span>
             </div>
@@ -772,7 +996,7 @@ export default function FactoryManagementPortal({
           onClick={() => setActiveTab('products')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'products'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -787,7 +1011,7 @@ export default function FactoryManagementPortal({
           }}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'add_product'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -799,7 +1023,7 @@ export default function FactoryManagementPortal({
           onClick={() => setActiveTab('orders')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'orders'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -811,14 +1035,14 @@ export default function FactoryManagementPortal({
           onClick={() => setActiveTab('floor_market')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'floor_market'
-              ? "bg-amber-600 text-white shadow-xs"
-              : "text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/50"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-amber-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50"
           }`}
         >
-          <Flame size={16} className={activeTab === 'floor_market' ? "text-white" : "text-amber-600"} />
+          <Flame size={16} className={activeTab === 'floor_market' ? "text-white" : "text-emerald-600"} />
           <span>کف بازار (فروش مازاد و تقاضا)</span>
           {floorDeals.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${activeTab === 'floor_market' ? 'bg-amber-800 text-white' : 'bg-amber-200 text-amber-900'}`}>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${activeTab === 'floor_market' ? 'bg-amber-800 text-white' : 'bg-emerald-200 text-amber-900'}`}>
               {toPersianNum(floorDeals.length)}
             </span>
           )}
@@ -828,7 +1052,7 @@ export default function FactoryManagementPortal({
           onClick={() => setActiveTab('sales_settings')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'sales_settings'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -840,7 +1064,7 @@ export default function FactoryManagementPortal({
           onClick={() => setActiveTab('tickets')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'tickets'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -852,7 +1076,7 @@ export default function FactoryManagementPortal({
           onClick={() => setActiveTab('history')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'history'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -861,10 +1085,34 @@ export default function FactoryManagementPortal({
         </button>
 
         <button
+          onClick={() => setActiveTab('ads')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'ads'
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Megaphone size={16} />
+          <span>آگهی‌های من</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('capacity_ads')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'capacity_ads'
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-amber-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50"
+          }`}
+        >
+          <Megaphone size={16} className={activeTab === 'capacity_ads' ? "text-white" : "text-emerald-600"} />
+          <span>📢 ظرفیت خالی تولید (OEM)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('profile')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'profile'
-              ? "bg-indigo-600 text-white shadow-xs"
+              ? "bg-emerald-600 text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -888,7 +1136,7 @@ export default function FactoryManagementPortal({
                 placeholder="جستجوی نام کالا در لیست..."
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
-                className="w-full pr-10 pl-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-600 transition-all"
+                className="w-full pr-10 pl-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-emerald-600 transition-all"
               />
             </div>
 
@@ -919,7 +1167,7 @@ export default function FactoryManagementPortal({
                   handleResetForm();
                   setActiveTab('add_product');
                 }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
               >
                 <Plus size={15} />
                 <span>کالای جدید</span>
@@ -930,7 +1178,7 @@ export default function FactoryManagementPortal({
           {/* Products Grid */}
           {filteredProducts.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto text-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto text-2xl">
                 📦
               </div>
               <h4 className="text-sm font-black text-slate-900">محصولی در این لیست یافت نشد</h4>
@@ -942,7 +1190,7 @@ export default function FactoryManagementPortal({
                   handleResetForm();
                   setActiveTab('add_product');
                 }}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs mt-2"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs mt-2"
               >
                 <Plus size={16} />
                 <span>افزودن اولین محصول خط تولید</span>
@@ -972,17 +1220,36 @@ export default function FactoryManagementPortal({
                           <Package className="text-slate-300" size={40} />
                         )}
                         
-                        {/* Approval Badge */}
-                        <div className="absolute top-2.5 right-2.5">
+                        {/* Approval & Surplus Badges */}
+                        <div className="absolute top-2.5 right-2.5 flex flex-col gap-1 items-end">
                           {isApproved ? (
-                            <span className="bg-emerald-50 text-emerald-800 text-[10px] font-black px-2.5 py-1 rounded-xl border border-emerald-200/80 flex items-center gap-1 shadow-2xs">
-                              <CheckCircle2 size={12} className="text-emerald-600" />
+                            <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-xl border border-emerald-200/80 flex items-center gap-1 shadow-2xs">
+                              <CheckCircle2 size={12} className="text-white" />
                               <span>تایید شده در ویترین</span>
                             </span>
                           ) : (
-                            <span className="bg-amber-50 text-amber-800 text-[10px] font-black px-2.5 py-1 rounded-xl border border-amber-200/80 flex items-center gap-1 shadow-2xs">
+                            <span className="bg-emerald-50 text-amber-800 text-[10px] font-black px-2.5 py-1 rounded-xl border border-emerald-200/80 flex items-center gap-1 shadow-2xs">
                               <Clock size={12} className="text-amber-600" />
                               <span>در انتظار تایید ممیزی</span>
+                            </span>
+                          )}
+
+                          {product.isSurplus && (
+                            <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs ${
+                              product.surplusStatus === 'approved'
+                                ? "bg-emerald-500 text-white"
+                                : product.surplusStatus === 'rejected'
+                                ? "bg-rose-500 text-white"
+                                : "bg-amber-400 text-amber-950 font-black animate-pulse"
+                            }`}>
+                              <TrendingDown size={11} />
+                              <span>
+                                {product.surplusStatus === 'approved' 
+                                  ? `مازاد خط تایید شده (${toPersianNum(product.surplusQuantityCartons || 0)} کارتن)`
+                                  : product.surplusStatus === 'rejected'
+                                  ? "مازاد خط رد شده"
+                                  : `مازاد خط (در انتظار بررسی مدیر)`}
+                              </span>
                             </span>
                           )}
                         </div>
@@ -1008,7 +1275,7 @@ export default function FactoryManagementPortal({
                       <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 flex items-center justify-between">
                         <span className="text-[11px] text-slate-500 font-bold">قیمت عمده کارخانه:</span>
                         <div className="text-left">
-                          <span className="text-xs font-black text-indigo-700">
+                          <span className="text-xs font-black text-emerald-700">
                             {toPersianNum(bulkPrice.toLocaleString('fa-IR'))}
                           </span>
                           <span className="text-[10px] text-slate-500 font-bold mr-1">تومان / کارتن</span>
@@ -1017,33 +1284,62 @@ export default function FactoryManagementPortal({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
-                      <button
-                        onClick={() => handleStartEdit(product)}
-                        className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Edit3 size={13} />
-                        <span>ویرایش کالا</span>
-                      </button>
+                    <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
+                      {/* Primary Actions Row */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleStartEdit(product)}
+                          className="flex-1 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 size={13} />
+                          <span>ویرایش کالا</span>
+                        </button>
 
+                        <button
+                          onClick={() => {
+                            handleSelectProductForLot(product.id);
+                            setActiveTab('floor_market');
+                            setShowSellLotModal(true);
+                          }}
+                          title="فروش مازاد این کالا در کف بازار"
+                          className="p-2 bg-emerald-50 hover:bg-emerald-100 text-amber-700 rounded-xl transition-all cursor-pointer"
+                        >
+                          <Flame size={15} />
+                        </button>
+
+                        <button
+                          onClick={() => setDeleteConfirmId(product.id)}
+                          className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition-all cursor-pointer"
+                          title="حذف کالا"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+
+                      {/* Factory Surplus Proposal Button */}
                       <button
+                        type="button"
                         onClick={() => {
-                          handleSelectProductForLot(product.id);
-                          setActiveTab('floor_market');
-                          setShowSellLotModal(true);
+                          setSurplusProductModal(product);
+                          setSurplusQuantityCartons(product.surplusQuantityCartons || 50);
+                          setSurplusDiscountPercent(product.surplusDiscountPercent || 15);
+                          setSurplusPrice(product.surplusPrice || Math.round((product.bulk_price || product.price || 0) * 0.85));
+                          setSurplusDescription(product.surplusDescription || "");
                         }}
-                        title="فروش مازاد این کالا در کف بازار"
-                        className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl transition-all cursor-pointer"
+                        className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          product.isSurplus && product.surplusStatus === 'pending'
+                            ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                            : product.isSurplus && product.surplusStatus === 'approved'
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                            : "bg-rose-50/70 hover:bg-rose-100 text-rose-700 border-rose-200"
+                        }`}
                       >
-                        <Flame size={15} />
-                      </button>
-
-                      <button
-                        onClick={() => setDeleteConfirmId(product.id)}
-                        className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl transition-all cursor-pointer"
-                        title="حذف کالا"
-                      >
-                        <Trash2 size={15} />
+                        <TrendingDown size={13} className={product.isSurplus ? "text-amber-600" : "text-rose-600"} />
+                        <span>
+                          {product.isSurplus 
+                            ? (product.surplusStatus === 'pending' ? "⏳ ویرایش مازاد خط (در حال بررسی)" : "📉 ویرایش مازاد خط تولید")
+                            : "📉 انتخاب به عنوان مازاد خط تولید"}
+                        </span>
                       </button>
                     </div>
 
@@ -1084,15 +1380,15 @@ export default function FactoryManagementPortal({
           </div>
 
           {prodFormSuccess && (
-            <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+            <div className="bg-emerald-600 text-white p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               <span>{prodFormSuccess}</span>
             </div>
           )}
 
           {prodFormError && (
-            <div className="bg-rose-50 text-rose-700 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-rose-200">
-              <AlertCircle size={16} className="text-rose-600 shrink-0" />
+            <div className="bg-emerald-600 text-white p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+              <AlertCircle size={16} className="text-emerald-600 shrink-0" />
               <span>{prodFormError}</span>
             </div>
           )}
@@ -1123,7 +1419,7 @@ export default function FactoryManagementPortal({
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
                   placeholder="مثال: چیپس سرکه‌ای ۶۰ گرمی"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -1132,7 +1428,7 @@ export default function FactoryManagementPortal({
                 <select
                   value={prodCategory}
                   onChange={(e) => setProdCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 cursor-pointer"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 cursor-pointer"
                 >
                   {availableCategories.map((catName, cIdx) => (
                     <option key={`fact-mgmt-cat-opt-${catName}-${cIdx}`} value={catName}>
@@ -1147,7 +1443,7 @@ export default function FactoryManagementPortal({
             {/* Pricing Policy Clarification Notice */}
             <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 space-y-1.5 text-xs text-slate-700">
               <div className="flex items-center gap-2 font-black text-blue-950">
-                <Info size={16} className="text-blue-600 shrink-0" />
+                <Info size={16} className="text-emerald-600 shrink-0" />
                 <span>خط‌مشی تعیین نرخ و قیمت‌گذاری در سامانه دست‌اول:</span>
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
@@ -1166,7 +1462,7 @@ export default function FactoryManagementPortal({
                   value={prodBulkPrice}
                   onChange={(e) => setProdBulkPrice(e.target.value)}
                   placeholder="مثال: 450000"
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -1177,7 +1473,7 @@ export default function FactoryManagementPortal({
                   required
                   value={prodCartonPack}
                   onChange={(e) => setProdCartonPack(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -1188,7 +1484,7 @@ export default function FactoryManagementPortal({
                   required
                   value={prodMinOrder}
                   onChange={(e) => setProdMinOrder(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -1198,7 +1494,7 @@ export default function FactoryManagementPortal({
                   type="number"
                   value={prodStock}
                   onChange={(e) => setProdStock(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -1213,7 +1509,7 @@ export default function FactoryManagementPortal({
                   value={prodWeight}
                   onChange={(e) => setProdWeight(e.target.value)}
                   placeholder="مثال: ۶۰ گرم"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -1223,7 +1519,7 @@ export default function FactoryManagementPortal({
                   <button
                     type="button"
                     onClick={handleGenerateAiDescription}
-                    className="text-[11px] font-black text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-xl flex items-center gap-1 cursor-pointer transition-all"
+                    className="text-[11px] font-black text-emerald-600 hover:text-indigo-800 bg-emerald-50 px-2.5 py-1 rounded-xl flex items-center gap-1 cursor-pointer transition-all"
                   >
                     <Sparkles size={12} />
                     <span>تولید متن خودکار</span>
@@ -1235,13 +1531,13 @@ export default function FactoryManagementPortal({
                   value={prodDescription}
                   onChange={(e) => setProdDescription(e.target.value)}
                   placeholder="توضیحات مختصر در مورد ترکیبات و کیفیت محصول..."
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
               <div className="md:col-span-2 space-y-1">
                 <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                  <Tag size={13} className="text-indigo-600" />
+                  <Tag size={13} className="text-emerald-600" />
                   <span>تگ‌ها و کلیدواژه‌های سئو و جستجو (با کاما یا اینتر جدا کنید):</span>
                 </label>
                 <input
@@ -1249,7 +1545,7 @@ export default function FactoryManagementPortal({
                   value={prodTags}
                   onChange={(e) => setProdTags(e.target.value)}
                   placeholder="مثال: چیپس، باتو، تنقلات سیب زمینی، خرید عمده چیپس"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
                 <p className="text-[10px] text-slate-400 font-bold">
                   کلیدواژه‌های سئو به خریداران کمک می‌کنند کالای شما را آسان‌تر در موتورهای جستجو و نوار جستجوی سامانه پیدا کنند.
@@ -1273,7 +1569,7 @@ export default function FactoryManagementPortal({
               <button
                 type="submit"
                 disabled={isSubmittingProd}
-                className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                className="px-7 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
               >
                 {isSubmittingProd ? (
                   <>
@@ -1302,7 +1598,7 @@ export default function FactoryManagementPortal({
           
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Truck size={18} className="text-indigo-600" />
+              <Truck size={18} className="text-emerald-600" />
               <h3 className="text-xs font-black text-slate-900">سفارشات عمده دریافتی کارخانه</h3>
             </div>
             <span className="text-xs text-slate-500 font-bold">
@@ -1312,7 +1608,7 @@ export default function FactoryManagementPortal({
 
           {myOrders.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-2">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto text-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto text-2xl">
                 🚚
               </div>
               <h4 className="text-sm font-black text-slate-900">هنوز سفارش عمده‌ای ثبت نشده است</h4>
@@ -1378,7 +1674,7 @@ export default function FactoryManagementPortal({
                           <span className="text-xs font-black text-slate-900">
                             کد سفارش: #{String(order.id || "").slice(-6)}
                           </span>
-                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">
                             {order.status === 'completed' ? 'تکمیل شده' : 'آماده بارگیری'}
                           </span>
                         </div>
@@ -1389,7 +1685,7 @@ export default function FactoryManagementPortal({
 
                       <div className="text-left">
                         <span className="text-[11px] text-slate-500 font-bold block">مبلغ تسویه اقلام این کارخانه:</span>
-                        <span className="text-sm font-black text-indigo-700">
+                        <span className="text-sm font-black text-emerald-700">
                           {toPersianNum(factoryOrderTotal.toLocaleString('fa-IR'))} تومان
                         </span>
                       </div>
@@ -1398,13 +1694,13 @@ export default function FactoryManagementPortal({
                     {/* Confidential Buyer Badge */}
                     <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
                           <ShieldCheck size={18} />
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-black text-slate-900">خریدار: خریدار تایید شده سامانه</span>
-                            <span className="text-[11px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md font-bold">
+                            <span className="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
                               {buyerCode}
                             </span>
                           </div>
@@ -1414,7 +1710,7 @@ export default function FactoryManagementPortal({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60 self-start sm:self-auto">
+                      <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200/60 self-start sm:self-auto">
                         <span>🔒 اطلاعات تماس خریدار محرمانه است</span>
                       </div>
                     </div>
@@ -1435,7 +1731,7 @@ export default function FactoryManagementPortal({
                           return (
                             <div key={`fact-mgmt-order-item-${item.id || item.productId || idx}-${idx}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs py-1.5 border-b border-slate-200/50 last:border-0">
                               <div className="flex items-center gap-2">
-                                <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 font-bold text-[10px] flex items-center justify-center">
+                                <span className="w-5 h-5 rounded-md bg-emerald-100 text-indigo-800 font-bold text-[10px] flex items-center justify-center">
                                   {toPersianNum(idx + 1)}
                                 </span>
                                 <span className="font-bold text-slate-900">{item.name || item.title}</span>
@@ -1444,7 +1740,7 @@ export default function FactoryManagementPortal({
                                 <span className="font-black text-slate-800">
                                   {toPersianNum(itemQty)} کارتن
                                 </span>
-                                <span className="font-black text-indigo-700">
+                                <span className="font-black text-emerald-700">
                                   {toPersianNum(itemTotal.toLocaleString('fa-IR'))} تومان
                                 </span>
                               </div>
@@ -1459,7 +1755,7 @@ export default function FactoryManagementPortal({
                       {onOpenInvoiceModal && (
                         <button
                           onClick={() => onOpenInvoiceModal(factoryOrderPayload)}
-                          className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
+                          className="px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
                         >
                           <FileText size={15} />
                           <span>مشاهده و چاپ حواله خروج و بارگیری انبار</span>
@@ -1483,17 +1779,17 @@ export default function FactoryManagementPortal({
         <div className="space-y-6">
           
           {/* Header & Quick Action Card */}
-          <div className="bg-linear-to-r from-amber-500 via-amber-600 to-orange-600 rounded-3xl p-6 text-white shadow-md space-y-4">
+          <div className="bg-linear-to-r from-emerald-500 via-emerald-600 to-orange-600 rounded-3xl p-6 text-white shadow-md space-y-4">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Flame size={24} className="text-amber-200 animate-pulse" />
+                  <Flame size={24} className="text-emerald-200 animate-pulse" />
                   <h3 className="text-lg font-black">بخش کف بازار و حراج مازاد خط تولید</h3>
                   <span className="bg-amber-400/25 border border-white/20 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full">
                     مبادلات نقدی و سریع
                   </span>
                 </div>
-                <p className="text-xs text-amber-100 font-medium max-w-2xl leading-relaxed">
+                <p className="text-xs text-emerald-100 font-medium max-w-2xl leading-relaxed">
                   در این قسمت می‌توانید بارهای مازاد شیفت، خریدهای عمده نقدی با تخفیف ویژه یا محموله‌های فوری را در تالار کف بازار سراسری عرضه کنید و یا درخواست خرید مواد اولیه ثبت نمایید.
                 </p>
               </div>
@@ -1521,22 +1817,22 @@ export default function FactoryManagementPortal({
             {/* Quick stats ribbon */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-white/15 text-center">
               <div className="bg-black/10 rounded-2xl p-2.5">
-                <span className="text-[10px] text-amber-200 font-bold block">آگهی‌های عرضه کارخانه من:</span>
+                <span className="text-[10px] text-emerald-200 font-bold block">آگهی‌های عرضه کارخانه من:</span>
                 <span className="text-base font-black">{toPersianNum(floorDeals.length)} آگهی فعال</span>
               </div>
               <div className="bg-black/10 rounded-2xl p-2.5">
-                <span className="text-[10px] text-amber-200 font-bold block">استعلام‌های ثبت شده من:</span>
+                <span className="text-[10px] text-emerald-200 font-bold block">استعلام‌های ثبت شده من:</span>
                 <span className="text-base font-black">{toPersianNum(floorRequests.length)} تقاضا</span>
               </div>
               <div className="bg-black/10 rounded-2xl p-2.5 col-span-2 sm:col-span-1">
-                <span className="text-[10px] text-amber-200 font-bold block">تسویه و پرداخت:</span>
+                <span className="text-[10px] text-emerald-200 font-bold block">تسویه و پرداخت:</span>
                 <span className="text-base font-black">ضمانت امانی دست‌اول</span>
               </div>
             </div>
           </div>
 
           {floorSuccessMsg && (
-            <div className="bg-emerald-50 text-emerald-800 p-4 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+            <div className="bg-emerald-600 text-white p-4 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               <span>{floorSuccessMsg}</span>
             </div>
@@ -1548,7 +1844,7 @@ export default function FactoryManagementPortal({
               onClick={() => setFloorTab('my_deals')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                 floorTab === 'my_deals'
-                  ? "bg-amber-500 text-white shadow-2xs"
+                  ? "bg-emerald-500 text-white shadow-2xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
@@ -1559,7 +1855,7 @@ export default function FactoryManagementPortal({
               onClick={() => setFloorTab('my_requests')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                 floorTab === 'my_requests'
-                  ? "bg-amber-500 text-white shadow-2xs"
+                  ? "bg-emerald-500 text-white shadow-2xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }`}
             >
@@ -1572,7 +1868,7 @@ export default function FactoryManagementPortal({
             <div className="space-y-4">
               {floorDeals.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto text-2xl">
                     🏷️
                   </div>
                   <h4 className="text-sm font-black text-slate-900">هنوز محصولی در بخش کف بازار عرضه نکرده‌اید</h4>
@@ -1601,10 +1897,10 @@ export default function FactoryManagementPortal({
                           ) : (
                             <Boxes className="text-slate-300" size={40} />
                           )}
-                          <div className="absolute top-2.5 right-2.5 bg-amber-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs">
+                          <div className="absolute top-2.5 right-2.5 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs">
                             {deal.badgeText}
                           </div>
-                          <div className="absolute bottom-2.5 left-2.5 bg-indigo-600/80 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">
+                          <div className="absolute bottom-2.5 left-2.5 bg-emerald-600/80 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">
                             موجودی: {deal.quantity}
                           </div>
                         </div>
@@ -1615,7 +1911,7 @@ export default function FactoryManagementPortal({
                           <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{deal.description}</p>
                         </div>
 
-                        <div className="bg-amber-50/70 p-2.5 rounded-2xl border border-amber-200/60 space-y-1">
+                        <div className="bg-emerald-50/70 p-2.5 rounded-2xl border border-emerald-200/60 space-y-1">
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="text-slate-500 font-bold">قیمت عمده عادی:</span>
                             <span className="text-slate-400 line-through font-mono">
@@ -1644,7 +1940,7 @@ export default function FactoryManagementPortal({
 
                         <button
                           onClick={() => handleDeleteFloorDeal(deal.id)}
-                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                           title="حذف آگهی"
                         >
                           <Trash2 size={15} />
@@ -1662,7 +1958,7 @@ export default function FactoryManagementPortal({
             <div className="space-y-4">
               {floorRequests.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mx-auto text-2xl">
                     📢
                   </div>
                   <h4 className="text-sm font-black text-slate-900">درخواست تامینی ثبت نکرده‌اید</h4>
@@ -1671,7 +1967,7 @@ export default function FactoryManagementPortal({
                   </p>
                   <button
                     onClick={() => setShowRequestModal(true)}
-                    className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-black transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
                   >
                     <Plus size={16} />
                     <span>ثبت استعلام خرید و تقاضا</span>
@@ -1687,7 +1983,7 @@ export default function FactoryManagementPortal({
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-black text-slate-900">{req.title}</span>
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-md">
+                          <span className="bg-emerald-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-md">
                             حجم: {req.quantityNeeded}
                           </span>
                           <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
@@ -1701,12 +1997,12 @@ export default function FactoryManagementPortal({
                       <div className="flex items-center gap-3 self-end sm:self-auto">
                         <div className="text-left">
                           <span className="text-[10px] text-slate-400 block font-bold">بودجه پیشنهادی:</span>
-                          <span className="text-xs font-black text-indigo-700">{req.targetPrice}</span>
+                          <span className="text-xs font-black text-emerald-700">{req.targetPrice}</span>
                         </div>
 
                         <button
                           onClick={() => handleDeleteFloorRequest(req.id)}
-                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                           title="حذف تقاضا"
                         >
                           <Trash2 size={16} />
@@ -1736,7 +2032,7 @@ export default function FactoryManagementPortal({
           </div>
 
           {profileSuccessMsg && (
-            <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
+            <div className="bg-emerald-600 text-white p-3.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-emerald-200">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               <span>{profileSuccessMsg}</span>
             </div>
@@ -1747,7 +2043,7 @@ export default function FactoryManagementPortal({
             {/* Section 1: Basic Information & Health Licenses */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Building2 size={18} className="text-indigo-600" />
+                <Building2 size={18} className="text-emerald-600" />
                 <h4 className="text-xs font-black text-slate-900">۱. مشخصات پایه و پروانه بهداشت کارخانه</h4>
               </div>
 
@@ -1772,7 +2068,7 @@ export default function FactoryManagementPortal({
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     placeholder="مثال: شرکت صنایع غذایی مزمز"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -1783,7 +2079,7 @@ export default function FactoryManagementPortal({
                     value={factoryHealthLicense}
                     onChange={(e) => setFactoryHealthLicense(e.target.value)}
                     placeholder="مثال: ۲۱/۱۴۸۹۲"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 font-mono text-left"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 font-mono text-left"
                   />
                 </div>
 
@@ -1794,7 +2090,7 @@ export default function FactoryManagementPortal({
                     value={repName}
                     onChange={(e) => setRepName(e.target.value)}
                     placeholder="نام و نام خانوادگی"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -1805,7 +2101,7 @@ export default function FactoryManagementPortal({
                     value={repPhone}
                     onChange={(e) => setRepPhone(e.target.value)}
                     placeholder="0912..."
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 text-left font-mono"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 text-left font-mono"
                   />
                 </div>
 
@@ -1816,7 +2112,7 @@ export default function FactoryManagementPortal({
                     value={factoryCity}
                     onChange={(e) => setFactoryCity(e.target.value)}
                     placeholder="مثال: مشهد، شهرک صنعتی چناران"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -1827,7 +2123,7 @@ export default function FactoryManagementPortal({
                     value={factoryIban}
                     onChange={(e) => setFactoryIban(e.target.value)}
                     placeholder="IR..."
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 text-left font-mono"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 text-left font-mono"
                   />
                 </div>
               </div>
@@ -1839,7 +2135,7 @@ export default function FactoryManagementPortal({
                   value={factoryAddress}
                   onChange={(e) => setFactoryAddress(e.target.value)}
                   placeholder="استان، شهر، شهرک صنعتی، فاز، خیابان، پلاک انبار مرکزی..."
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
             </div>
@@ -1848,10 +2144,10 @@ export default function FactoryManagementPortal({
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <Camera size={18} className="text-indigo-600" />
+                  <Camera size={18} className="text-emerald-600" />
                   <h4 className="text-xs font-black text-slate-900">۲. تصاویر کارخانه و خط تولید (کاملاً اختیاری)</h4>
                 </div>
-                <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
                   اعتبارسنجی سازمانی
                 </span>
               </div>
@@ -1906,7 +2202,7 @@ export default function FactoryManagementPortal({
             {/* Section 3: Optional Technical Specs */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Layers size={18} className="text-indigo-600" />
+                <Layers size={18} className="text-emerald-600" />
                 <h4 className="text-xs font-black text-slate-900">۳. مشخصات فنی، ظرفیت و معرفی کارخانه (اختیاری)</h4>
               </div>
 
@@ -1918,7 +2214,7 @@ export default function FactoryManagementPortal({
                     value={establishedYear}
                     onChange={(e) => setEstablishedYear(e.target.value)}
                     placeholder="مثال: ۱۳۸۴"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900 text-left font-mono"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 text-left font-mono"
                   />
                 </div>
 
@@ -1929,8 +2225,29 @@ export default function FactoryManagementPortal({
                     value={dailyCapacity}
                     onChange={(e) => setDailyCapacity(e.target.value)}
                     placeholder="مثال: ۲,۰۰۰ کارتن در روز"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 block">درصد ظرفیت تولید خالی (جهت قراردادهای جدید):</label>
+                  <select
+                    value={emptyCapacityPercent}
+                    onChange={(e) => setEmptyCapacityPercent(Number(e.target.value))}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 cursor-pointer"
+                  >
+                    <option value={0}>۰٪ (ظرفیت خط تولید کاملاً تکمیل است)</option>
+                    <option value={10}>۱۰٪ (ظرفیت خالی محدود)</option>
+                    <option value={20}>۲۰٪ (ظرفیت خالی محدود)</option>
+                    <option value={30}>۳۰٪ (ظرفیت خالی متوسط)</option>
+                    <option value={40}>۴۰٪ (ظرفیت خالی متوسط)</option>
+                    <option value={50}>۵۰٪ (ظرفیت خالی متوسط)</option>
+                    <option value={60}>۶۰٪ (ظرفیت خالی بالا)</option>
+                    <option value={70}>۷۰٪ (ظرفیت خالی بالا)</option>
+                    <option value={80}>۸۰٪ (ظرفیت خالی بالا)</option>
+                    <option value={90}>۹۰٪ (ظرفیت خالی بالا)</option>
+                    <option value={100}>۱۰۰٪ (آماده پذیرش کامل خطوط تولید جدید)</option>
+                  </select>
                 </div>
 
                 <div className="space-y-1 sm:col-span-2 lg:col-span-1">
@@ -1940,7 +2257,7 @@ export default function FactoryManagementPortal({
                     value={productionTech}
                     onChange={(e) => setProductionTech(e.target.value)}
                     placeholder="مثال: خط تمام اتوماتیک بسته‌بندی تحت گاز ازت"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
               </div>
@@ -1952,7 +2269,7 @@ export default function FactoryManagementPortal({
                   value={factoryDescription}
                   onChange={(e) => setFactoryDescription(e.target.value)}
                   placeholder="تاریخچه، افتخارات و استانداردهای کیفی این واحد تولیدی..."
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-indigo-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
             </div>
@@ -1962,7 +2279,7 @@ export default function FactoryManagementPortal({
               <button
                 type="submit"
                 disabled={isSavingProfile}
-                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
               >
                 {isSavingProfile ? (
                   <>
@@ -1980,6 +2297,356 @@ export default function FactoryManagementPortal({
 
           </form>
 
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5.6 TAB: CAPACITY ADS & COOPERATION REQUESTS (ظرفیت خالی تولید و OEM)     */}
+      {/* ========================================================================= */}
+      {activeTab === 'capacity_ads' && (
+        <div className="space-y-6 text-right" dir="rtl">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-slate-900 to-teal-950 rounded-[2rem] p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-teal-500/20">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-500/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none" />
+            
+            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-black text-emerald-300">
+                  <Megaphone size={12} className="text-emerald-400" />
+                  <span>سامانه مدیریت تولید قراردادی و برون‌سپاری صنعتی (OEM)</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  مدیریت ظرفیت‌های خالی و پذیرش سفارش تولید
+                </h2>
+                <p className="text-xs text-slate-300 font-medium max-w-2xl leading-relaxed">
+                  در این بخش می‌توانید شیفت‌های خالی تولید، خطوط فعال مازاد و توانمندی‌های بسته‌بندی کارخانه خود را آگهی کنید تا برندهای تجاری و مالکان محصولات با شما قرارداد تولید امضا کنند.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPortalAddAd(!showPortalAddAd)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs px-5 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+              >
+                <Plus size={16} />
+                <span>{showPortalAddAd ? "انصراف و بستن فرم" : "ثبت آگهی ظرفیت خالی جدید"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Inline Add Ad Form (Collapsible) */}
+          {showPortalAddAd && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md space-y-6"
+            >
+              <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
+                <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                  <Plus size={18} />
+                </div>
+                <h3 className="text-sm font-black text-slate-900">مشخصات خط تولید و آگهی ظرفیت مازاد</h3>
+              </div>
+
+              <form onSubmit={handlePortalAddCapacityAd} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">
+                      عنوان آگهی ظرفیت خالی <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={portalNewTitle}
+                      onChange={(e) => setPortalNewTitle(e.target.value)}
+                      placeholder="مثال: ظرفیت خالی بچ تانک و پرکنی ساشه مواد آرایشی"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">
+                      حوزه فعالیت و صنعت <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={portalNewCat}
+                      onChange={(e) => setPortalNewCat(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    >
+                      <option value="نوشیدنی و آبمیوه">نوشیدنی و آبمیوه</option>
+                      <option value="کیک، کلوچه و بیسکویت">کیک، کلوچه و بیسکویت</option>
+                      <option value="شوینده و بهداشتی">شوینده و بهداشتی</option>
+                      <option value="مواد غذایی و کنسروجات">مواد غذایی و کنسروجات</option>
+                      <option value="لبنیات و فرآورده‌ها">لبنیات و فرآورده‌ها</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">
+                      حداقل حجم سفارش قابل پذیرش <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={portalNewMinQty}
+                      onChange={(e) => setPortalNewMinQty(e.target.value)}
+                      placeholder="مثال: ۵۰,۰۰۰ عدد"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">
+                      موقعیت کارخانه (شهر/استان) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={portalNewLocation}
+                      onChange={(e) => setPortalNewLocation(e.target.value)}
+                      placeholder="مثال: تبریز، شهرک صنعتی شهید سلیمی"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">
+                      تلفن مستقیم هماهنگی خط <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={portalNewPhone}
+                      onChange={(e) => setPortalNewPhone(e.target.value)}
+                      placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 text-left"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1.5">
+                    تجهیزات، ماشین‌آلات و مشخصات خط تولید <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={portalNewDetails}
+                    onChange={(e) => setPortalNewDetails(e.target.value)}
+                    placeholder="امکانات میکسرها، ظرفیت مخازن، نوع پرکن‌ها، جنس ظروف (پت، شیشه، پاکت)، شیوه درب‌بندی و..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1.5">
+                    استانداردها، مجوزهای بهداشتی و شرايط عقد قرارداد تولید <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={portalNewDesc}
+                    onChange={(e) => setPortalNewDesc(e.target.value)}
+                    placeholder="سیب سلامت، پروانه‌های ساخت موجود کارخانه، نحوه خرید فویل یا کارتن، شرایط تحویل محصول نهایی..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPortalAddAd(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-black text-slate-600 cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
+                  >
+                    ثبت و انتشار فوری آگهی ظرفیت
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {/* Main List Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* List of My Ads */}
+            <div className="lg:col-span-5 space-y-4">
+              <h3 className="text-xs font-black text-slate-500 px-1 flex items-center gap-1.5">
+                <Megaphone size={14} className="text-teal-600" />
+                <span>آگهی‌های ثبت‌شده کارخانه شما ({toPersianNum(portalCapacityAds.filter(ad => ad.factoryId === user?.id || ad.factoryName.includes(currentFactoryName)).length)})</span>
+              </h3>
+
+              {portalCapacityAds.filter(ad => ad.factoryId === user?.id || ad.factoryName.includes(currentFactoryName)).length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center space-y-4">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
+                    <Info size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-slate-900">هیچ آگهی ظرفیت خالی ثبت نکرده‌اید</h4>
+                    <p className="text-[11px] text-slate-400 font-bold leading-relaxed max-w-xs mx-auto">
+                      برای جذب پیشنهادهای تولید و برندهای متقاضی، مشخصات خط تولید خود را آگهی کنید.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowPortalAddAd(true)}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-[11px] px-4 py-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    ثبت اولین آگهی ظرفیت خالی
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {portalCapacityAds
+                    .filter(ad => ad.factoryId === user?.id || ad.factoryName.includes(currentFactoryName))
+                    .map((ad, idx) => {
+                      const reqsCount = ad.cooperationRequests?.length || 0;
+                      return (
+                        <div key={`fac-mgmt-cap-ad-${ad.id || idx}-${idx}`} className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4 transition-all relative group shadow-2xs">
+                          <div className="flex items-start justify-between">
+                            <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-[9px] font-black rounded-full text-slate-600">
+                              {ad.category}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteCapacityAd(ad.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer"
+                              title="حذف آگهی"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+
+                          <h4 className="text-xs font-black text-slate-900 mt-2 leading-snug">
+                            {ad.title}
+                          </h4>
+
+                          <div className="text-[10px] text-slate-500 space-y-1 mt-2.5 font-bold border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-1">
+                              <MapPin size={11} className="text-slate-400" />
+                              <span>موقعیت: {ad.location}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Boxes size={11} className="text-slate-400" />
+                              <span>حداقل پذیرش: {ad.minOrderQty}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Phone size={11} className="text-slate-400" />
+                              <span>شماره تماس: {ad.phone}</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 flex justify-between items-center text-[10px]">
+                            <span className="text-slate-400 font-bold">تاریخ: {ad.createdAt}</span>
+                            <span className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 font-black rounded-lg text-[9px]">
+                              {toPersianNum(reqsCount)} پیشنهاد همکاری دریافتی
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* List of Cooperation Requests received */}
+            <div className="lg:col-span-7 space-y-4">
+              <h3 className="text-xs font-black text-slate-500 px-1 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600 animate-pulse" />
+                <span>کل درخواست‌های همکاری دریافتی از برندها ({toPersianNum(portalCapacityAds.filter(ad => ad.factoryId === user?.id || ad.factoryName.includes(currentFactoryName)).reduce((acc, current) => acc + (current.cooperationRequests?.length || 0), 0))})</span>
+              </h3>
+
+              {portalCapacityAds.filter(ad => ad.factoryId === user?.id || ad.factoryName.includes(currentFactoryName)).reduce((acc, current) => acc + (current.cooperationRequests?.length || 0), 0) === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4">
+                  <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-slate-900">هیچ پیشنهاد همکاری ثبت نشده است</h4>
+                    <p className="text-[11px] text-slate-400 font-bold leading-relaxed max-w-sm mx-auto">
+                      زمانی که برندها پیشنهاد تولید روی آگهی‌های ظرفیت خالی شما را ارسال کنند، با مشخصات کامل خریدار و شرایط در این ستون نمایش داده می‌شود.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {portalCapacityAds
+                    .filter(ad => ad.factoryId === user?.id || ad.factoryName.includes(currentFactoryName))
+                    .flatMap(ad => (ad.cooperationRequests || []).map((req: any, index: number) => ({ ...req, adId: ad.id, adTitle: ad.title, index })))
+                    .map((req, i) => (
+                      <div key={`fac-mgmt-coop-req-${req.trackingCode || i}-${i}`} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 hover:border-slate-300 transition-all space-y-4 shadow-2xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-teal-600 font-black block">روی آگهی: {req.adTitle}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-black text-slate-900">{req.brandName}</span>
+                              <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-bold">کد پیگیری: {req.trackingCode}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full ${
+                              req.status === 'بررسی شده' 
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                                : req.status === 'رد پیشنهاد' 
+                                ? 'bg-red-50 text-red-800 border border-red-200' 
+                                : 'bg-amber-50 text-amber-800 border border-amber-200'
+                            }`}>
+                              {req.status || 'در انتظار بررسی'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 space-y-1">
+                            <span className="text-[10px] text-slate-400 font-bold block">رابط بازرگانی و تماس خریدار:</span>
+                            <div className="font-black text-slate-800 text-[11px]">{req.contactPerson}</div>
+                            <div className="font-bold text-teal-700 text-left text-[11px]" dir="ltr">{req.phone}</div>
+                          </div>
+
+                          <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 space-y-1">
+                            <span className="text-[10px] text-slate-400 font-bold block">محصول و حجم تولید درخواستی:</span>
+                            <div className="font-black text-slate-800 text-[11px]">محصول: {req.targetProduct || "طبق تفاهم"}</div>
+                            <div className="font-bold text-slate-600 text-[11px]">حجم ماهانه: {req.estimatedMonthlyQty || "نامشخص"}</div>
+                          </div>
+                        </div>
+
+                        {req.notes && (
+                          <div className="bg-slate-50/50 p-3 rounded-xl border border-dashed border-slate-200 text-xs text-slate-600 font-medium leading-relaxed">
+                            <span className="text-[10px] text-slate-400 font-bold block mb-1">توضیحات و شرایط پیشنهادی برند متقاضی:</span>
+                            {req.notes}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between gap-3 pt-2 text-[10px] border-t border-slate-100">
+                          <span className="text-slate-400 font-bold">تاریخ ارسال پیشنهاد: {req.createdAt}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleUpdateCoopStatus(req.adId, req.index, "بررسی شده")}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200 hover:border-emerald-200 text-slate-600 font-black rounded-lg cursor-pointer transition-colors"
+                            >
+                              تغییر به بررسی شده
+                            </button>
+                            <button
+                              onClick={() => handleUpdateCoopStatus(req.adId, req.index, "رد پیشنهاد")}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-red-50 hover:text-red-800 border border-slate-200 hover:border-red-200 text-slate-600 font-black rounded-lg cursor-pointer transition-colors"
+                            >
+                              رد پیشنهاد
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+          </div>
         </div>
       )}
 
@@ -2027,7 +2694,7 @@ export default function FactoryManagementPortal({
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <Flame size={20} className="text-amber-600" />
+                  <Flame size={20} className="text-emerald-600" />
                   <h4 className="text-sm font-black text-slate-900">عرضه کالا و بار مازاد در کف بازار</h4>
                 </div>
                 <button
@@ -2042,14 +2709,14 @@ export default function FactoryManagementPortal({
                 
                 {/* Select from existing products */}
                 {myProducts.length > 0 && (
-                  <div className="space-y-1 bg-amber-50/60 p-3 rounded-2xl border border-amber-200/50">
+                  <div className="space-y-1 bg-emerald-50/60 p-3 rounded-2xl border border-emerald-200/50">
                     <label className="text-xs font-black text-amber-900 block">
                       انتخاب از کالاهای ثبت شده شما (پر کردن خودکار):
                     </label>
                     <select
                       value={selectedLotProdId}
                       onChange={(e) => handleSelectProductForLot(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer"
+                      className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer"
                     >
                       <option value="">-- انتخاب محصول یا نوشتن دستی --</option>
                       {myProducts.map((p, pIdx) => (
@@ -2069,7 +2736,7 @@ export default function FactoryManagementPortal({
                     value={lotTitle}
                     onChange={(e) => setLotTitle(e.target.value)}
                     placeholder="مثال: بار مازاد چیپس سرکه‌ای ۶۰ گرمی (تولید شیفت شب)"
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -2110,7 +2777,7 @@ export default function FactoryManagementPortal({
                       value={lotRegularPrice}
                       onChange={(e) => setLotRegularPrice(e.target.value)}
                       placeholder="مثال: 450000"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -2122,7 +2789,7 @@ export default function FactoryManagementPortal({
                       value={lotFloorPrice}
                       onChange={(e) => setLotFloorPrice(e.target.value)}
                       placeholder="مثال: 380000"
-                      className="w-full px-4 py-2 bg-amber-50 border border-amber-300 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-black text-amber-900"
+                      className="w-full px-4 py-2 bg-emerald-50 border border-amber-300 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-black text-amber-900"
                     />
                   </div>
                 </div>
@@ -2136,7 +2803,7 @@ export default function FactoryManagementPortal({
                       value={lotQuantity}
                       onChange={(e) => setLotQuantity(e.target.value)}
                       placeholder="مثال: ۳۰۰ کارتن یا ۵ تن"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -2147,7 +2814,7 @@ export default function FactoryManagementPortal({
                       value={lotBatchDate}
                       onChange={(e) => setLotBatchDate(e.target.value)}
                       placeholder="مثال: تولید روز - انقضا ۱ سال"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
                 </div>
@@ -2159,7 +2826,7 @@ export default function FactoryManagementPortal({
                     value={lotDescription}
                     onChange={(e) => setLotDescription(e.target.value)}
                     placeholder="علت تخفیف، شرایط بارگیری فوری از انبار کارخانه..."
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -2183,7 +2850,7 @@ export default function FactoryManagementPortal({
 
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Check size={16} />
                     <span>انتشار در کف بازار</span>
@@ -2210,7 +2877,7 @@ export default function FactoryManagementPortal({
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <Megaphone size={20} className="text-amber-600" />
+                  <Megaphone size={20} className="text-emerald-600" />
                   <h4 className="text-sm font-black text-slate-900">ثبت استعلام و تقاضای کالا در کف بازار</h4>
                 </div>
                 <button
@@ -2231,7 +2898,7 @@ export default function FactoryManagementPortal({
                     value={reqTitle}
                     onChange={(e) => setReqTitle(e.target.value)}
                     placeholder="مثال: خرید کارتن ۵ لایه دایکاتی / خرید شکر فله سفید"
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -2244,7 +2911,7 @@ export default function FactoryManagementPortal({
                       value={reqQuantity}
                       onChange={(e) => setReqQuantity(e.target.value)}
                       placeholder="مثال: ۱۰ تن یا ۵,۰۰۰ کارتن"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -2255,7 +2922,7 @@ export default function FactoryManagementPortal({
                       value={reqTargetPrice}
                       onChange={(e) => setReqTargetPrice(e.target.value)}
                       placeholder="مثال: نقدی / هر کیلو ۳۵ هزار تومان"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
                 </div>
@@ -2268,7 +2935,7 @@ export default function FactoryManagementPortal({
                       value={reqDeliveryCity}
                       onChange={(e) => setReqDeliveryCity(e.target.value)}
                       placeholder="مثال: انبار کارخانه در مشهد"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
 
@@ -2279,7 +2946,7 @@ export default function FactoryManagementPortal({
                       value={reqDeadlineDays}
                       onChange={(e) => setReqDeadlineDays(e.target.value)}
                       placeholder="مثال: ۷ روز"
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                     />
                   </div>
                 </div>
@@ -2291,7 +2958,7 @@ export default function FactoryManagementPortal({
                     value={reqDescription}
                     onChange={(e) => setReqDescription(e.target.value)}
                     placeholder="مشخصات کیفی، استاندارد مورد نیاز، شرایط تسویه حساب..."
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-amber-600 text-xs font-bold text-slate-900"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
                   />
                 </div>
 
@@ -2306,13 +2973,181 @@ export default function FactoryManagementPortal({
 
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Check size={16} />
                     <span>ثبت تقاضا در کف بازار</span>
                   </button>
                 </div>
 
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: FACTORY SURPLUS PRODUCTION PROPOSAL (مازاد خط تولید جهت تایید مدیر) */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {surplusProductModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full border-2 border-rose-500 shadow-2xl space-y-5"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-rose-50 text-rose-600 rounded-xl">
+                    <TrendingDown size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900">اعلام و ثبت مازاد خط تولید کارخانه</h4>
+                    <p className="text-[11px] text-slate-400 font-bold">جهت بررسی و تأیید انتشار توسط مدیر سایت در کف بازار و آفرها</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSurplusProductModal(null)}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Product Quick Info Card */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-3">
+                {surplusProductModal.image_url ? (
+                  <img
+                    src={surplusProductModal.image_url}
+                    alt={surplusProductModal.name}
+                    className="w-14 h-14 object-contain rounded-xl bg-white p-1 border border-slate-200 shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 bg-slate-200 rounded-xl flex items-center justify-center shrink-0">
+                    <Package size={24} className="text-slate-400" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h5 className="text-xs font-black text-slate-900 truncate">{surplusProductModal.name}</h5>
+                  <div className="flex items-center gap-3 text-[11px] text-slate-500 font-bold">
+                    <span>برند: {surplusProductModal.brand || currentFactoryName}</span>
+                    <span>قیمت پایه خط: {toPersianNum((surplusProductModal.bulk_price || surplusProductModal.price || 0).toLocaleString())} ت</span>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmitSurplus} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 block">
+                      تعداد کارتن مازاد خط تولید: *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={surplusQuantityCartons}
+                      onChange={(e) => setSurplusQuantityCartons(Number(e.target.value))}
+                      placeholder="مثلاً ۱۰۰"
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 text-center"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 block">
+                      درصد تخفیف مازاد نسبت به قیمت خط: *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="1"
+                        max="80"
+                        value={surplusDiscountPercent}
+                        onChange={(e) => {
+                          const pct = Number(e.target.value);
+                          setSurplusDiscountPercent(pct);
+                          const base = surplusProductModal.bulk_price || surplusProductModal.price || 10000;
+                          setSurplusPrice(Math.round(base * (1 - pct / 100)));
+                        }}
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-rose-600 text-center"
+                      />
+                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">٪</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-emerald-900 flex items-center justify-between">
+                    <span>قیمت پیشنهادی هر عدد برای بار مازاد (تومان):</span>
+                    <span className="text-[11px] text-emerald-600 font-bold">
+                      {surplusDiscountPercent}% تخفیف اعمال شد
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    value={surplusPrice || Math.round((surplusProductModal.bulk_price || surplusProductModal.price || 0) * (1 - surplusDiscountPercent / 100))}
+                    onChange={(e) => setSurplusPrice(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-black font-mono text-emerald-800"
+                  />
+                  <span className="text-[10px] text-slate-400 block">
+                    مجموع قیمت هر کارتن: {toPersianNum(((surplusPrice || Math.round((surplusProductModal.bulk_price || surplusProductModal.price || 0) * (1 - surplusDiscountPercent / 100))) * (surplusProductModal.carton_pack_count || 24)).toLocaleString())} تومان
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 block">علت اعلام مازاد خط:</label>
+                  <select
+                    value={surplusReason}
+                    onChange={(e) => setSurplusReason(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                  >
+                    <option value="تولید مازاد شیفت و تخلیه فوری انبار">تولید مازاد شیفت و تخلیه فوری انبار</option>
+                    <option value="تغییر خط بسته‌بندی یا تاریخ انقضای ۵ ماهه">تغییر خط بسته‌بندی یا تاریخ انقضای ۵ ماهه</option>
+                    <option value="تسویه نقدی فوری کارخانه">تسویه نقدی فوری کارخانه</option>
+                    <option value="لغو سفارش عمده‌فروش پیشین و بارگیری آماده">لغو سفارش عمده‌فروش پیشین و بارگیری آماده</option>
+                    <option value="تخفیف ویژه جشنواره فصلی کارخانه">تخفیف ویژه جشنواره فصلی کارخانه</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 block">توضیحات تکمیلی و شرایط بارگیری:</label>
+                  <textarea
+                    rows={2}
+                    value={surplusDescription}
+                    onChange={(e) => setSurplusDescription(e.target.value)}
+                    placeholder="مثال: بار حاضر در پالت، امکان تحویل ۱ ساعته از درب کارخانه، بارگیری رایگان..."
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                  />
+                </div>
+
+                <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] text-amber-950 flex items-start gap-2">
+                  <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed font-bold">
+                    پس از ارسال، درخواست مازاد در کارتابل مدیریت دست اول بررسی شده و پس از تأیید در تالار «کف بازار» و بخش «آفرها و تخفیف‌های ویژه» با نشان کارخانه منتشر خواهد شد.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setSurplusProductModal(null)}
+                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-black cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSurplus}
+                    className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-rose-600/20"
+                  >
+                    {isSubmittingSurplus ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                    <span>ارسال درخواست مازاد به مدیر سایت</span>
+                  </button>
+                </div>
               </form>
             </motion.div>
           </div>
@@ -2329,7 +3164,7 @@ export default function FactoryManagementPortal({
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-3xl p-6 max-w-sm w-full border border-slate-200 shadow-xl space-y-4 text-center"
             >
-              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto text-xl">
+              <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto text-xl">
                 ⚠️
               </div>
               <div className="space-y-1">
@@ -2345,7 +3180,7 @@ export default function FactoryManagementPortal({
                 </button>
                 <button
                   onClick={() => handleDeleteProduct(deleteConfirmId)}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black cursor-pointer"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black cursor-pointer"
                 >
                   بله، حذف شود
                 </button>

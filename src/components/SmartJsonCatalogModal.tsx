@@ -183,13 +183,13 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
         {/* Header */}
         <div className="bg-slate-900 text-white p-5 sm:p-6 flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shrink-0">
               <FileJson size={24} />
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 موتور هوشمند همگام‌سازی و بارگذاری کاتالوگ JSON
-                <span className="text-[10px] font-black bg-indigo-500 text-white px-2.5 py-0.5 rounded-full">نسخه ۵ پروکسی</span>
+                <span className="text-[10px] font-black bg-emerald-500 text-white px-2.5 py-0.5 rounded-full">نسخه ۵ پروکسی</span>
               </h3>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
                 دریافت آنلاین کاتالوگ محصولات باکت یا بارگذاری آفلاین فایل
@@ -210,7 +210,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
             onClick={() => setActiveTab('url')}
             className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeTab === 'url'
-                ? 'bg-indigo-600 text-white shadow-md'
+                ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -222,7 +222,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
             onClick={() => setActiveTab('upload')}
             className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeTab === 'upload'
-                ? 'bg-indigo-600 text-white shadow-md'
+                ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -234,7 +234,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
             onClick={() => setActiveTab('paste')}
             className={`flex-1 min-w-[140px] py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeTab === 'paste'
-                ? 'bg-indigo-600 text-white shadow-md'
+                ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -259,8 +259,8 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
           {/* Messages */}
           {errorMsg && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs font-bold flex items-start gap-3">
-              <AlertCircle size={18} className="shrink-0 text-rose-600 mt-0.5" />
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-rose-800 text-xs font-bold flex items-start gap-3">
+              <AlertCircle size={18} className="shrink-0 text-emerald-600 mt-0.5" />
               <div className="leading-relaxed">{errorMsg}</div>
             </div>
           )}
@@ -286,12 +286,12 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                     onChange={(e) => setJsonUrl(e.target.value)}
                     dir="ltr"
                     placeholder="http://c102393.parspack.net/c102393/catalog.json"
-                    className="flex-1 bg-white border border-slate-300 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-800 outline-none transition-all"
+                    className="flex-1 bg-white border border-slate-300 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-800 outline-none transition-all"
                   />
                   <button
                     onClick={handleFetchFromUrl}
                     disabled={isLoading}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
                       <>
@@ -311,7 +311,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setJsonUrl("http://c102393.parspack.net/c102393/catalog.json")}
-                    className="text-indigo-600 hover:underline font-bold font-mono text-[10px]"
+                    className="text-emerald-600 hover:underline font-bold font-mono text-[10px]"
                   >
                     c102393.parspack.net (اصلی باکت)
                   </button>
@@ -333,14 +333,14 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
           {/* TAB 2: File Upload */}
           {activeTab === 'upload' && (
             <div className="space-y-4">
-              <label className="border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/50 hover:bg-indigo-50 rounded-3xl p-8 text-center flex flex-col items-center justify-center cursor-pointer transition-all space-y-3">
+              <label className="border-2 border-dashed border-indigo-300 hover:border-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 rounded-3xl p-8 text-center flex flex-col items-center justify-center cursor-pointer transition-all space-y-3">
                 <input
                   type="file"
                   accept=".json,application/json"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg">
                   <Upload size={28} />
                 </div>
                 <div>
@@ -365,14 +365,14 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                   value={pastedJson}
                   onChange={(e) => setPastedJson(e.target.value)}
                   dir="ltr"
-                  placeholder='[ { "name": "روغن سونار", "factoryPrice": 2000000, ... } ]'
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 rounded-2xl p-4 text-xs font-mono text-slate-800 outline-none transition-all"
+                  placeholder='[ { "name": "پهباد اسمارتیزی شانتیا", "factoryPrice": 16000, ... } ]'
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-emerald-500 rounded-2xl p-4 text-xs font-mono text-slate-800 outline-none transition-all"
                 />
               </div>
               <button
                 onClick={handleParsePastedText}
                 disabled={isLoading}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <FileCode size={16} />
                 استخراج محصولات از متن
@@ -406,14 +406,14 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
           {/* PREVIEW OF DETECTED PRODUCTS */}
           {previewProducts.length > 0 && (
             <div className="space-y-4 pt-4 border-t border-slate-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/80 p-4 rounded-2xl border border-indigo-150">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/80 p-4 rounded-2xl border border-indigo-150">
                 <div>
                   <div className="text-xs font-black text-indigo-950 flex items-center gap-2">
-                    <PackageCheck size={18} className="text-indigo-600" />
+                    <PackageCheck size={18} className="text-emerald-600" />
                     تعداد {toPersianNum(previewProducts.length)} محصول آماده وارد کردن به انبار
                   </div>
                   {detectedMethod && (
-                    <div className="text-[11px] text-indigo-700 font-medium mt-0.5">
+                    <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
                       روش استخراج: <span className="font-bold">{detectedMethod}</span>
                     </div>
                   )}
@@ -424,7 +424,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                   <select
                     value={importMode}
                     onChange={(e) => setImportMode(e.target.value as any)}
-                    className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-black text-slate-800 outline-none"
+                    className="bg-white border border-emerald-200 rounded-xl px-3 py-1.5 text-xs font-black text-slate-800 outline-none"
                   >
                     <option value="merge">به‌روزرسانی و ادغام (Merge)</option>
                     <option value="replace">جایگزینی کامل انبار (Replace)</option>
@@ -460,7 +460,7 @@ export const SmartJsonCatalogModal: React.FC<SmartJsonCatalogModalProps> = ({
                         <td className="p-3 text-slate-600">{p.category} • {p.brand}</td>
                         <td className="p-3 font-mono font-bold text-slate-700">{toPersianNum(p.factoryPrice)} تومان</td>
                         <td className="p-3 font-mono font-bold text-emerald-700">{toPersianNum(p.sellPrice)} تومان</td>
-                        <td className="p-3 font-mono font-bold text-indigo-700">{toPersianNum(p.stockCartons)} کارتن</td>
+                        <td className="p-3 font-mono font-bold text-emerald-700">{toPersianNum(p.stockCartons)} کارتن</td>
                       </tr>
                     ))}
                   </tbody>

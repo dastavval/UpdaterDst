@@ -282,8 +282,8 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
         const brandName = incItem.location || incItem.factoryName || incItem.factory_name || incItem.brand || incItem.manufacturer || "انبار دست اول";
 
-        // Calculate marked-up price for customers (default 10% more than bulk_price)
-        const customerMarkup = b2bConfig?.customerMarkupPercent || 10;
+        // Calculate marked-up price for customers (default 20% more than bulk_price)
+        const customerMarkup = b2bConfig?.customerMarkupPercent || 20;
         const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
 
         if (existingIdx >= 0) {
@@ -520,7 +520,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         const safetyThreshold = Number(incItem.minimumStock || incItem.min_stock_alert || 5);
         const brandName = incItem.location || incItem.factoryName || incItem.factory_name || incItem.brand || incItem.manufacturer || "انبار دست اول";
 
-        const customerMarkup = b2bConfig?.customerMarkupPercent || 10;
+        const customerMarkup = b2bConfig?.customerMarkupPercent || 20;
         const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
 
         if (existingIdx >= 0) {
@@ -606,7 +606,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
       const processedImage = getDisplayImageUrl(rawImageUrl || incItem.imageUrl);
       
       const dastAvvalSellPrice = incItem.sellPrice || incItem.bulk_price || incItem.base_price || incItem.wholesalePrice || incItem.factoryPrice || 780000;
-      const customerMarkup = b2bConfig?.customerMarkupPercent || 10;
+      const customerMarkup = b2bConfig?.customerMarkupPercent || 20;
       const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
 
       if (existingIdx >= 0) {
@@ -674,7 +674,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
     <div className="space-y-6 text-right" dir="rtl">
       
       {/* Top Banner & Quick Controls */}
-      <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-indigo-400/30">
+      <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-indigo-400/30">
         <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
@@ -703,7 +703,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
 
             <button
               onClick={() => setShowJsonModal(true)}
-              className="flex-1 lg:flex-none px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 lg:flex-none px-5 py-3 bg-emerald-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Globe size={16} />
               <span>تنظیمات و واردسازی لینک JSON</span>
@@ -732,7 +732,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
                 <h3 className="text-base font-black text-slate-900">
                   همگام‌سازی و بروزرسانی مستقیم محصولات از لینک JSON باکت
                 </h3>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md">
+                <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-md">
                   ParsPack CDN Sync
                 </span>
               </div>
@@ -781,7 +781,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
             <button
               onClick={() => runNetworkDiagnostics()}
               disabled={diagLoading}
-              className="px-3.5 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-md shadow-cyan-600/20"
+              className="px-3.5 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-md shadow-emerald-600/20"
               title="تست کامل وضعیت شبکه، هدرهای پاسخ و کد وضعیت ارتباطی سرور با پارس‌پک"
             >
               <Zap size={14} className={diagLoading ? "animate-spin" : ""} />
@@ -792,7 +792,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               href={jsonUrl}
               target="_blank"
               rel="noreferrer"
-              className="px-3.5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-md shadow-indigo-600/20"
+              className="px-3.5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-md shadow-emerald-600/20"
             >
               <ExternalLink size={14} />
               <span>مشاهده مستقیم</span>
@@ -882,9 +882,9 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
 
           {urlFetchMsg && (
             <div className={`p-3.5 rounded-2xl text-xs font-black flex items-center gap-2.5 ${
-              urlFetchMsg.type === 'success' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200' : 'bg-rose-100 text-rose-900 border border-rose-200'
+              urlFetchMsg.type === 'success' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200' : 'bg-emerald-100 text-rose-900 border border-emerald-200'
             }`}>
-              {urlFetchMsg.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 shrink-0" /> : <AlertCircle size={18} className="text-rose-600 shrink-0" />}
+              {urlFetchMsg.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 shrink-0" /> : <AlertCircle size={18} className="text-emerald-600 shrink-0" />}
               <span>{urlFetchMsg.text}</span>
             </div>
           )}
@@ -933,33 +933,33 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         </div>
 
         {/* Pending Products */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-amber-100 shadow-xs flex flex-col justify-between bg-amber-50/30">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-100 shadow-xs flex flex-col justify-between bg-emerald-50/30">
           <div className="flex justify-between items-center mb-2">
             <span className="text-[11px] font-black text-amber-800">🟡 در انتظار همگام‌سازی</span>
-            <div className="p-2 bg-amber-100 rounded-xl text-amber-700">
+            <div className="p-2 bg-emerald-100 rounded-xl text-amber-700">
               <Clock size={16} />
             </div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-xl sm:text-2xl font-black text-amber-700">{counts.pending}</span>
-            <span className="text-[10px] text-amber-600 font-bold">کالا</span>
+            <span className="text-[10px] text-emerald-600 font-bold">کالا</span>
           </div>
-          <div className="mt-2 text-[10px] text-amber-600 font-bold">نیازمند به بروزرسانی اخیر</div>
+          <div className="mt-2 text-[10px] text-emerald-600 font-bold">نیازمند به بروزرسانی اخیر</div>
         </div>
 
         {/* Failed / Error Products */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-rose-100 shadow-xs flex flex-col justify-between bg-rose-50/30">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-100 shadow-xs flex flex-col justify-between bg-emerald-50/30">
           <div className="flex justify-between items-center mb-2">
             <span className="text-[11px] font-black text-rose-800">🔴 نیازمند اصلاح</span>
-            <div className="p-2 bg-rose-100 rounded-xl text-rose-700">
+            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-700">
               <AlertCircle size={16} />
             </div>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-xl sm:text-2xl font-black text-rose-700">{counts.error}</span>
-            <span className="text-[10px] text-rose-600 font-bold">کالا</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-700">{counts.error}</span>
+            <span className="text-[10px] text-emerald-600 font-bold">کالا</span>
           </div>
-          <div className="mt-2 text-[10px] text-rose-600 font-bold">بدون قیمت یا مشخصات ناقص</div>
+          <div className="mt-2 text-[10px] text-emerald-600 font-bold">بدون قیمت یا مشخصات ناقص</div>
         </div>
 
         {/* S3 ParsPack Images */}
@@ -972,9 +972,9 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-xl sm:text-2xl font-black text-sky-700">{counts.s3ImageCount}</span>
-            <span className="text-[10px] text-sky-600 font-bold">تصویر S3</span>
+            <span className="text-[10px] text-emerald-600 font-bold">تصویر S3</span>
           </div>
-          <div className="mt-2 text-[10px] text-sky-600 font-bold">هاست‌شده در پارس‌پک c102393</div>
+          <div className="mt-2 text-[10px] text-emerald-600 font-bold">هاست‌شده در پارس‌پک c102393</div>
         </div>
 
       </div>
@@ -983,7 +983,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
       <div id="pdf-uploader-section" className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
+            <div className="p-2.5 bg-emerald-600 text-white rounded-2xl border border-emerald-100">
               <FileText size={22} />
             </div>
             <div>
@@ -998,7 +998,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
 
           <div className="flex items-center gap-2">
             <a
-              href={activeCatalogPdfUrl}
+              href={`/api/storage/proxy-download?url=${encodeURIComponent(activeCatalogPdfUrl)}&filename=dastavval-official-catalog.pdf`}
               target="_blank"
               rel="noreferrer"
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs rounded-xl transition-all inline-flex items-center gap-1.5"
@@ -1036,14 +1036,12 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
             </button>
             
             <a
-              href={activeCatalogPdfUrl}
-              download
-              target="_blank"
-              rel="noreferrer"
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5"
+              href={`/api/storage/proxy-download?url=${encodeURIComponent(activeCatalogPdfUrl)}&filename=dastavval-official-catalog.pdf`}
+              download="dastavval-official-catalog.pdf"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Download size={14} />
-              <span>دانلود مستقیم</span>
+              <span>دانلود ایمن باکت</span>
             </a>
           </div>
         </div>
@@ -1080,7 +1078,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
         )}
 
         {pdfUploadError && (
-          <div className="p-3 bg-rose-100/80 border border-rose-200 text-rose-800 text-xs font-black rounded-xl flex items-center gap-2 animate-fade-in">
+          <div className="p-3 bg-emerald-100/80 border border-emerald-200 text-rose-800 text-xs font-black rounded-xl flex items-center gap-2 animate-fade-in">
             <AlertCircle size={16} />
             <span>{pdfUploadError}</span>
           </div>
@@ -1128,7 +1126,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               <button
                 onClick={() => setStatusFilter('pending')}
                 className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 'pending' ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-500 hover:text-amber-700'
+                  statusFilter === 'pending' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-amber-700'
                 }`}
               >
                 🟡 در انتظار ({counts.pending})
@@ -1136,7 +1134,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               <button
                 onClick={() => setStatusFilter('error')}
                 className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 'error' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-500 hover:text-rose-700'
+                  statusFilter === 'error' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-emerald-700'
                 }`}
               >
                 🔴 نیازمند اصلاح ({counts.error})
@@ -1144,7 +1142,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
               <button
                 onClick={() => setStatusFilter('s3_image')}
                 className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === 's3_image' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-500 hover:text-sky-700'
+                  statusFilter === 's3_image' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-sky-700'
                 }`}
               >
                 ☁️ عکس باکت ({counts.s3ImageCount})
@@ -1250,19 +1248,19 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
                     {/* Sync Status Badge */}
                     <td className="p-3.5 text-center">
                       {item.syncStatus === 'updated' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-full border border-emerald-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-black rounded-full border border-emerald-200">
                           <CheckCircle2 size={12} />
                           <span>بروزرسانی موفق</span>
                         </span>
                       )}
                       {item.syncStatus === 'pending' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-[10px] font-black rounded-full border border-amber-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-amber-800 text-[10px] font-black rounded-full border border-emerald-200">
                           <Clock size={12} />
                           <span>در انتظار همگام‌سازی</span>
                         </span>
                       )}
                       {item.syncStatus === 'error' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-100 text-rose-800 text-[10px] font-black rounded-full border border-rose-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-rose-800 text-[10px] font-black rounded-full border border-emerald-200">
                           <AlertCircle size={12} />
                           <span>نیازمند اصلاح قیمت</span>
                         </span>

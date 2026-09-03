@@ -32,6 +32,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
   const [facCover, setFacCover] = useState("");
   const [facDescription, setFacDescription] = useState("");
   const [facGallery, setFacGallery] = useState(""); // Comma separated list of URLs
+  const [facEmptyCapacity, setFacEmptyCapacity] = useState<number>(35);
   const [facSuccess, setFacSuccess] = useState(false);
 
   const factoriesList = b2bConfig?.factories || [];
@@ -59,6 +60,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
         setFacCover(matched.coverUrl || "");
         setFacDescription(matched.description || matched.biography || "");
         setFacGallery(Array.isArray(matched.gallery) ? matched.gallery.join(", ") : (matched.gallery || ""));
+        setFacEmptyCapacity(matched.emptyCapacityPercent !== undefined ? Number(matched.emptyCapacityPercent) : 35);
       }
     }
   }, [b2bConfig, user]);
@@ -77,6 +79,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
       setFacCover(matched.coverUrl || "");
       setFacDescription(matched.description || matched.biography || "");
       setFacGallery(Array.isArray(matched.gallery) ? matched.gallery.join(", ") : (matched.gallery || ""));
+      setFacEmptyCapacity(matched.emptyCapacityPercent !== undefined ? Number(matched.emptyCapacityPercent) : 35);
     }
   };
 
@@ -102,7 +105,8 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
           coverUrl: facCover,
           description: facDescription,
           biography: facDescription,
-          gallery: galleryArray
+          gallery: galleryArray,
+          emptyCapacityPercent: Number(facEmptyCapacity)
         };
       }
       return f;
@@ -281,7 +285,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
           </h3>
           <button 
             onClick={() => setShowAddAddr(!showAddAddr)}
-            className="text-[10px] bg-emerald-50 text-emerald-600 font-black px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1 hover transition-all cursor-pointer"
+            className="text-[10px] bg-emerald-600 text-white font-black px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1 hover transition-all cursor-pointer"
           >
             <Plus size={12} />
             افزودن انبار جدید
@@ -407,12 +411,12 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
           </div>
 
           {passStatus === 'success' && (
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black text-center border border-emerald-100">
+            <div className="p-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black text-center border border-emerald-100">
               ✓ رمز عبور جدید شما با موفقیت ثبت شد. در مراجعات بعدی با این رمز وارد شوید.
             </div>
           )}
           {passStatus === 'error' && (
-            <div className="p-2 bg-rose-50 text-rose-700 rounded-xl text-[10px] font-black text-center border border-rose-100">
+            <div className="p-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black text-center border border-emerald-100">
               ⚠ {passErrorMsg}
             </div>
           )}
@@ -431,7 +435,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
           <div className="flex justify-between items-center pb-4 border-b border-slate-100">
             <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
-              <Building2 className="text-indigo-600" size={18} />
+              <Building2 className="text-emerald-600" size={18} />
               مدیریت شناسنامه، تصاویر و بیوگرافی کارخانه تولیدی
             </h3>
             {/* If admin or multiple factories, let them select which factory to edit */}
@@ -540,6 +544,27 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
                 />
               </div>
 
+              <div className="md:col-span-1 space-y-1.5">
+                <label className="text-[11px] text-slate-500 font-black">درصد ظرفیت تولید خالی (جهت قراردادهای جدید):</label>
+                <select
+                  value={facEmptyCapacity}
+                  onChange={(e) => setFacEmptyCapacity(Number(e.target.value))}
+                  className="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-800 cursor-pointer"
+                >
+                  <option value={0}>۰٪ (ظرفیت خط تولید کاملاً تکمیل است)</option>
+                  <option value={10}>۱۰٪ (ظرفیت خالی محدود)</option>
+                  <option value={20}>۲۰٪ (ظرفیت خالی محدود)</option>
+                  <option value={30}>۳۰٪ (ظرفیت خالی متوسط)</option>
+                  <option value={40}>۴۰٪ (ظرفیت خالی متوسط)</option>
+                  <option value={50}>۵۰٪ (ظرفیت خالی متوسط)</option>
+                  <option value={60}>۶۰٪ (ظرفیت خالی بالا)</option>
+                  <option value={70}>۷۰٪ (ظرفیت خالی بالا)</option>
+                  <option value={80}>۸۰٪ (ظرفیت خالی بالا)</option>
+                  <option value={90}>۹۰٪ (ظرفیت خالی بالا)</option>
+                  <option value={100}>۱۰۰٪ (آماده پذیرش کامل خطوط تولید جدید)</option>
+                </select>
+              </div>
+
               <div className="md:col-span-3 space-y-1.5">
                 <label className="text-[11px] text-slate-500 font-black">گالری تصاویر کارخانه (لینک‌ها را با کاما جدا کنید):</label>
                 <textarea 
@@ -568,7 +593,7 @@ export function ProfileManagement({ user, onUpdateUser, language, b2bConfig, onU
               )}
               <button 
                 type="submit"
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer mr-auto"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer mr-auto"
               >
                 ذخیره تغییرات کارخانه
               </button>
@@ -685,9 +710,9 @@ export function SupportTicketSystem() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'waiting': return <span className="bg-amber-50 text-amber-700 border border-amber-200/50 px-2.5 py-1 rounded-full text-[9px] font-black">در انتظار بررسی</span>;
+      case 'waiting': return <span className="bg-emerald-50 text-amber-700 border border-emerald-200/50 px-2.5 py-1 rounded-full text-[9px] font-black">در انتظار بررسی</span>;
       case 'investigating': return <span className="bg-blue-50 text-blue-700 border border-blue-200/50 px-2.5 py-1 rounded-full text-[9px] font-black animate-pulse">در حال پیگیری پشتیبانی</span>;
-      default: return <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/50 px-2.5 py-1 rounded-full text-[9px] font-black">حل شده</span>;
+      default: return <span className="bg-emerald-600 text-white border border-emerald-200/50 px-2.5 py-1 rounded-full text-[9px] font-black">حل شده</span>;
     }
   };
 
@@ -875,8 +900,8 @@ export function SystemNotifications() {
 
   const getBadgeIcon = (badge: string) => {
     switch (badge) {
-      case 'financial': return <span className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg"><Bell size={14} /></span>;
-      case 'delivery': return <span className="p-1.5 bg-blue-500/10 text-blue-500 rounded-lg"><Bell size={14} /></span>;
+      case 'financial': return <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg"><Bell size={14} /></span>;
+      case 'delivery': return <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg"><Bell size={14} /></span>;
       default: return <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg"><Bell size={14} /></span>;
     }
   };

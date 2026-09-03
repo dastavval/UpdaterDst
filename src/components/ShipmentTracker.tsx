@@ -87,7 +87,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 placeholder="شماره پیگیری سفارش عمده را وارد کنید..." 
-                className="w-full bg-slate-100/80 border border-slate-700/80 rounded-2xl pr-12 pl-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus focus font-black tracking-wider text-center"
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-2xl pr-12 pl-4 py-3 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-black tracking-wider text-center"
               />
               <Search className="absolute right-4 top-3.5 text-slate-500" size={16} />
             </div>
@@ -164,7 +164,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                       isPassed 
                         ? 'bg-emerald-500 border-white scale-110 shadow-lg shadow-emerald-500/20' 
                         : isCurrent 
-                        ? 'bg-amber-500 border-white scale-125 shadow-lg shadow-amber-500/20 ring-4 ring-amber-500/10'
+                        ? 'bg-emerald-500 border-white scale-125 shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-500/10'
                         : 'bg-slate-200 border-white'
                     }`} />
 
@@ -173,7 +173,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                       isPassed 
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
                         : isCurrent 
-                        ? 'bg-amber-50 border-amber-200 text-amber-600 font-bold'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-600 font-bold'
                         : 'bg-slate-50 border-slate-100 text-slate-400'
                     }`}>
                       {stage.icon}
@@ -189,7 +189,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                           : 'text-slate-400'
                       }`}>
                         {stage.label}
-                        {isCurrent && <span className="mr-2 text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-black animate-pulse">در حال انجام</span>}
+                        {isCurrent && <span className="mr-2 text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-black animate-pulse">در حال انجام</span>}
                         {isPassed && <span className="mr-2 text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-black">کامل شده</span>}
                       </h4>
                       <p className="text-[10px] md text-slate-500 max-w-xl leading-relaxed">
@@ -230,7 +230,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                 {/* Visual Transit Progress Bar */}
                 <div className="absolute bottom-0 right-0 left-0 h-1 bg-slate-100">
                   <div 
-                    className={`h-full bg-gradient-to-l ${route.status === 'in_transit' ? 'from-emerald-500 to-emerald-400 animate-pulse w-2/3' : 'from-amber-500 to-amber-400 w-1/5'}`}
+                    className={`h-full bg-gradient-to-l ${route.status === 'in_transit' ? 'from-emerald-500 to-emerald-400 animate-pulse w-2/3' : 'from-emerald-500 to-amber-400 w-1/5'}`}
                   />
                 </div>
 
@@ -239,8 +239,8 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${
                         route.status === 'in_transit' 
-                          ? 'bg-emerald-50 text-emerald-600' 
-                          : 'bg-amber-50 text-amber-600'
+                          ? 'bg-emerald-600 text-white' 
+                          : 'bg-emerald-600 text-white'
                       }`}>
                         {route.status === 'in_transit' ? 'در حال ترانزیت (بین راهی)' : 'در حال بارگیری در کارخانه'}
                       </span>
@@ -281,7 +281,7 @@ export default function ShipmentTracker({ theme, transitRoutes = [], lastOrderTr
           <div className={`p-6 rounded-3xl border text-center ${
             theme === 'dark' ? 'bg-white border-slate-200' : 'bg-white border-slate-100 shadow-sm'
           } space-y-4`}>
-            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
+            <div className="w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto border border-emerald-100">
               <ShieldCheck size={28} />
             </div>
             

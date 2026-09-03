@@ -82,7 +82,7 @@ export default function LoyaltyRewardsClub({
         <div className="lg:col-span-2 relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 text-white shadow-xl border border-slate-700/50 flex flex-col justify-between min-h-[240px]">
           {/* Subtle Ambient Glow */}
           <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -translate-x-12 -translate-y-12" />
-          <div className="absolute bottom-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none translate-x-12 translate-y-12" />
+          <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none translate-x-12 translate-y-12" />
           
           {/* Card Header */}
           <div className="relative z-10 flex items-start justify-between">
@@ -141,7 +141,7 @@ export default function LoyaltyRewardsClub({
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+              <span className="p-2 rounded-xl bg-emerald-600 text-white">
                 <Sparkles size={20} />
               </span>
               <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">
@@ -184,7 +184,7 @@ export default function LoyaltyRewardsClub({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-slate-900">مسیر ارتقا به سطح {nextTier.label}</span>
-                <span className="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold border border-amber-200">
+                <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-amber-800 font-bold border border-emerald-200">
                   {toPersianNum(nextTier.currentProgressPercent)}٪ تکمیل شده
                 </span>
               </div>
@@ -206,7 +206,7 @@ export default function LoyaltyRewardsClub({
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-3xl p-6 border border-purple-200 shadow-xs flex items-center justify-between">
+        <div className="bg-gradient-to-r from-purple-50 to-emerald-50 rounded-3xl p-6 border border-purple-200 shadow-xs flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center">
               <Award size={22} />
@@ -229,11 +229,11 @@ export default function LoyaltyRewardsClub({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pt-2">
-          {Object.values(LOYALTY_CONFIG.TIERS).map((t) => {
+          {Object.values(LOYALTY_CONFIG.TIERS).map((t, idx) => {
             const isCurrent = summary.tier === t.key;
             return (
               <div 
-                key={t.key}
+                key={`tier-${t.key}-${idx}`}
                 className={`relative rounded-2xl p-5 border transition-all flex flex-col justify-between ${
                   isCurrent 
                     ? "bg-slate-900 text-white border-slate-800 shadow-lg scale-[1.02]" 
@@ -283,13 +283,13 @@ export default function LoyaltyRewardsClub({
         
         {/* Mission 1: Wholesale Orders */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex items-start gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
             <ShoppingBag size={20} />
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-slate-900">خرید عمده مواد غذایی و تنقلات</h4>
-              <span className="text-[11px] font-black text-amber-600">+۱ امتیاز / ۱۰۰هزار تومان</span>
+              <span className="text-[11px] font-black text-emerald-600">+۱ امتیاز / ۱۰۰هزار تومان</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
               با هر ثبت سفارش موفق از هر کدام از برندها و کارخانجات، امتیاز مستقیماً در حساب شما شارژ می‌شود.
@@ -299,7 +299,7 @@ export default function LoyaltyRewardsClub({
 
         {/* Mission 2: Cash Settlements */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex items-start gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
             <Zap size={20} />
           </div>
           <div className="space-y-1">
@@ -315,13 +315,13 @@ export default function LoyaltyRewardsClub({
 
         {/* Mission 3: Referrals */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs flex items-start gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
             <Gift size={20} />
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-slate-900">دعوت از همکاران فروشگاهی</h4>
-              <span className="text-[11px] font-black text-indigo-600">+۱۰۰ امتیاز هدیه</span>
+              <span className="text-[11px] font-black text-emerald-600">+۱۰۰ امتیاز هدیه</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
               با اشتراک‌گذاری لینک اختصاصی خود، به ازای ثبت سفارش اولین خرید هر همکار ۱۰۰ امتیاز هدیه بگیرید.
@@ -332,9 +332,9 @@ export default function LoyaltyRewardsClub({
       </div>
 
       {/* 5. REFERRAL INVITE BOX */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-transparent rounded-3xl p-6 border border-amber-300/40 shadow-xs flex flex-col md:flex-row items-center justify-between gap-5">
+      <div className="bg-gradient-to-r from-emerald-500/10 via-amber-400/5 to-transparent rounded-3xl p-6 border border-amber-300/40 shadow-xs flex flex-col md:flex-row items-center justify-between gap-5">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
             <Gift size={24} />
           </div>
           <div className="space-y-0.5">
@@ -355,7 +355,7 @@ export default function LoyaltyRewardsClub({
           <button
             type="button"
             onClick={handleCopyReferral}
-            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs"
           >
             {copiedLink ? <Check size={16} /> : <Copy size={16} />}
             <span>{copiedLink ? "کپی شد" : "کپی لینک"}</span>
@@ -394,7 +394,7 @@ export default function LoyaltyRewardsClub({
               type="button"
               onClick={() => setFilterType('redeemed')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                filterType === 'redeemed' ? "bg-white text-rose-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                filterType === 'redeemed' ? "bg-white text-emerald-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               مصرف شده (تخفیف)
@@ -419,14 +419,14 @@ export default function LoyaltyRewardsClub({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredTransactions.map((tx) => {
+                {filteredTransactions.map((tx, idx) => {
                   const isEarn = tx.points > 0;
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={`loyalty-tx-${tx.id || idx}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 pr-2">
                         <div className="flex items-center gap-2.5">
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                            isEarn ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                            isEarn ? "bg-emerald-600 text-white" : "bg-emerald-600 text-white"
                           }`}>
                             {isEarn ? <ArrowDownRight size={15} /> : <ArrowUpRight size={15} />}
                           </div>
@@ -456,8 +456,8 @@ export default function LoyaltyRewardsClub({
                       <td className="py-3.5 text-left pl-2 font-sans font-black">
                         <span className={`inline-flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-xs ${
                           isEarn 
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                            : "bg-rose-50 text-rose-700 border border-rose-200"
+                            ? "bg-emerald-600 text-white border border-emerald-200" 
+                            : "bg-emerald-600 text-white border border-emerald-200"
                         }`}>
                           {isEarn ? `+${toPersianNum(tx.points)}` : toPersianNum(tx.points)} امتیاز
                         </span>

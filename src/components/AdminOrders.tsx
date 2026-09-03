@@ -30,7 +30,9 @@ import {
   FileText,
   DollarSign,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Handshake,
+  Percent
 } from "lucide-react";
 import { toPersianNum } from "../utils/persian-utils";
 
@@ -202,6 +204,78 @@ export default function AdminOrders({
     }
   };
 
+  // Get pre-configured platform commission rate from system config
+  const getPlatformCommissionRate = (): number => {
+    try {
+      const saved = localStorage.getItem("dastavval_b2b_config");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.commissionRate === 'number') return parsed.commissionRate;
+        if (typeof parsed.commissionPercent === 'number') return parsed.commissionPercent;
+      }
+    } catch (e) {}
+    return 5;
+  };
+
+  // Toggle approval / rejection of RFQ bids by Admin
+  const handleToggleBidApproval = (orderId: string, bidId: string, newStatus: 'approved' | 'rejected') => {
+    if (!selectedOrderDetail) return;
+
+    const updatedBids = (selectedOrderDetail.bids || []).map((bid: any) => {
+      if (String(bid.id) === String(bidId)) {
+        return {
+          ...bid,
+          status: newStatus,
+          approved: newStatus === 'approved',
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return bid;
+    });
+
+    const updatedOrder = {
+      ...selectedOrderDetail,
+      bids: updatedBids,
+      updatedAt: new Date().toISOString()
+    };
+
+    setSelectedOrderDetail(updatedOrder);
+
+    try {
+      const rawSaved = localStorage.getItem("dastavval_raw_orders");
+      if (rawSaved) {
+        const parsed = JSON.parse(rawSaved);
+        if (Array.isArray(parsed)) {
+          const nextRaw = parsed.map((o: any) => (String(o.id) === String(orderId) || String(o.trackingNumber) === String(orderId)) ? updatedOrder : o);
+          localStorage.setItem("dastavval_raw_orders", JSON.stringify(nextRaw));
+        }
+      }
+
+      const mockSaved = localStorage.getItem("mock_db_orders") || localStorage.getItem("dastavval_orders");
+      if (mockSaved) {
+        const parsed = JSON.parse(mockSaved);
+        if (Array.isArray(parsed)) {
+          const nextMock = parsed.map((o: any) => (String(o.id) === String(orderId) || String(o.trackingNumber) === String(orderId)) ? updatedOrder : o);
+          localStorage.setItem("mock_db_orders", JSON.stringify(nextMock));
+        }
+      }
+    } catch (e) {}
+
+    window.dispatchEvent(new CustomEvent("dastavval_orders_updated"));
+    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+
+    if (fetchOrders) fetchOrders();
+
+    if (setSuccessMsg) {
+      if (newStatus === 'approved') {
+        setSuccessMsg("پیشنهاد تامین با موفقیت تایید و در تالار عمومی RFQ منتشر گردید.");
+      } else {
+        setSuccessMsg("پیشنهاد تامین رد شد و از انتشار عمومی منع گردید.");
+      }
+      setTimeout(() => setSuccessMsg(null), 3000);
+    }
+  };
+
   // Copy invoice shareable link
   const handleCopyInvoiceLink = (o: any) => {
     const trackCode = o.trackingNumber || (o.id ? String(o.id || "").slice(-6).toUpperCase() : "");
@@ -217,19 +291,19 @@ export default function AdminOrders({
   const resolveStatusBadge = (statusStr: string) => {
     const s = String(statusStr || "pending").toLowerCase();
     if (s === "pending" || s === "order_received" || s === "awaiting_approval" || s === "pending_payment") {
-      return { text: "در انتظار بررسی", bg: "bg-amber-50 text-amber-800 border-amber-200", dot: "bg-amber-500" };
+      return { text: "در انتظار بررسی", bg: "bg-emerald-50 text-amber-800 border-emerald-200", dot: "bg-emerald-500" };
     }
     if (s === "processing" || s === "confirmed" || s === "paid" || s === "payment_verified") {
-      return { text: "تایید مالی / آماده‌سازی", bg: "bg-blue-50 text-blue-800 border-blue-200", dot: "bg-blue-500" };
+      return { text: "تایید مالی / آماده‌سازی", bg: "bg-blue-50 text-blue-800 border-blue-200", dot: "bg-emerald-500" };
     }
     if (s === "shipped" || s === "in_transit") {
       return { text: "تحویل به باربری", bg: "bg-purple-50 text-purple-800 border-purple-200", dot: "bg-purple-500" };
     }
     if (s === "delivered" || s === "completed") {
-      return { text: "تحویل نهایی شد", bg: "bg-emerald-50 text-emerald-800 border-emerald-200", dot: "bg-emerald-500" };
+      return { text: "تحویل نهایی شد", bg: "bg-emerald-600 text-white border-emerald-200", dot: "bg-emerald-500" };
     }
     if (s === "cancelled" || s === "rejected") {
-      return { text: "لغو شده", bg: "bg-rose-50 text-rose-800 border-rose-200", dot: "bg-rose-500" };
+      return { text: "لغو شده", bg: "bg-emerald-50 text-rose-800 border-emerald-200", dot: "bg-emerald-500" };
     }
     return { text: statusStr, bg: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" };
   };
@@ -257,7 +331,7 @@ export default function AdminOrders({
               {toPersianNum(orders.reduce((sum, o) => sum + (Number(o.totalAmount || o.finalTotal || o.total) || 0), 0).toLocaleString())} <span className="text-xs font-bold text-slate-500 font-sans">تومان</span>
             </h4>
           </div>
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center border border-emerald-100">
+          <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center border border-emerald-100">
             <CreditCard size={22} />
           </div>
         </div>
@@ -266,11 +340,11 @@ export default function AdminOrders({
         <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs text-right flex items-center justify-between hover:border-slate-300 transition-all">
           <div className="space-y-1">
             <span className="text-xs text-slate-500 font-bold">در انتظار بررسی فوری</span>
-            <h4 className="text-2xl font-black text-amber-600 font-mono">
+            <h4 className="text-2xl font-black text-emerald-600 font-mono">
               {toPersianNum(orders.filter(o => !o.status || o.status === 'pending' || o.status === 'order_received' || o.status === 'awaiting_approval').length)} <span className="text-xs font-bold text-slate-500 font-sans">سفارش</span>
             </h4>
           </div>
-          <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center border border-amber-100">
+          <div className="w-12 h-12 bg-emerald-50 text-amber-700 rounded-2xl flex items-center justify-center border border-emerald-100">
             <Clock size={22} />
           </div>
         </div>
@@ -328,9 +402,9 @@ export default function AdminOrders({
 
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar border-t border-slate-100 pt-3">
-          {statusTabs.map(tab => (
+          {statusTabs.map((tab, tIdx) => (
             <button
-              key={tab.key}
+              key={`admin-order-tab-${tab.key}-${tIdx}`}
               onClick={() => setStatusFilter(tab.key)}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
                 statusFilter === tab.key
@@ -403,10 +477,15 @@ export default function AdminOrders({
 
                         {/* Tracking Code */}
                         <td className="p-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-mono text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-100 w-fit">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="font-mono text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100 w-fit">
                               #{o.trackingNumber || (o.id ? String(o.id || "").slice(-6).toUpperCase() : "---")}
                             </span>
+                            {o.type === "equipment" && (
+                              <span className="text-[9px] font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200 w-fit">
+                                خرید تجهیزات صنعتی
+                              </span>
+                            )}
                             <span className="text-[11px] text-slate-500 font-bold">
                               {toPersianNum(orderItems.length)} ردیف کالا ({toPersianNum(totalCartons)} کارتن)
                             </span>
@@ -466,7 +545,7 @@ export default function AdminOrders({
                             {/* Detailed View Modal Trigger */}
                             <button
                               onClick={() => setSelectedOrderDetail(o)}
-                              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black transition-all flex items-center gap-1 border border-emerald-200 cursor-pointer"
+                              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1 border border-emerald-200 cursor-pointer"
                               title="مشاهده پرونده کامل سفارش"
                             >
                               <Eye size={14} />
@@ -499,7 +578,7 @@ export default function AdminOrders({
                             {/* Copy Public Link */}
                             <button 
                               onClick={() => handleCopyInvoiceLink(o)}
-                              className="p-2 text-slate-700 hover:bg-slate-100 hover:text-indigo-700 rounded-xl transition-all cursor-pointer border border-slate-200"
+                              className="p-2 text-slate-700 hover:bg-slate-100 hover:text-emerald-700 rounded-xl transition-all cursor-pointer border border-slate-200"
                               title="کپی لینک پیگیری مشتری"
                             >
                               {copiedInvoiceId === (o.id || o.trackingNumber) ? (
@@ -588,7 +667,7 @@ export default function AdminOrders({
                                 <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-4 text-xs text-slate-700 font-bold">
                                   {(o.buyerAddress || o.address) && (
                                     <div className="flex items-center gap-1.5">
-                                      <MapPin size={14} className="text-rose-500 shrink-0" />
+                                      <MapPin size={14} className="text-emerald-500 shrink-0" />
                                       <span><strong>آدرس تحویل:</strong> {o.buyerAddress || o.address}</span>
                                     </div>
                                   )}
@@ -739,7 +818,7 @@ export default function AdminOrders({
                   {/* Shipping & Delivery Address */}
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                     <h4 className="text-xs font-black text-slate-900 flex items-center gap-2 border-b border-slate-200 pb-2">
-                      <MapPin size={15} className="text-rose-600" />
+                      <MapPin size={15} className="text-emerald-600" />
                       آدرس و مشخصات ترابری
                     </h4>
                     <div className="space-y-2 text-xs">
@@ -752,7 +831,7 @@ export default function AdminOrders({
                       {selectedOrderDetail.notes && (
                         <div>
                           <span className="text-slate-500 font-bold block mb-1">توضیحات و هماهنگی باربری:</span>
-                          <p className="font-bold text-slate-700 bg-amber-50/60 p-2 rounded-xl border border-amber-200 text-[11px]">
+                          <p className="font-bold text-slate-700 bg-emerald-50/60 p-2 rounded-xl border border-emerald-200 text-[11px]">
                             {selectedOrderDetail.notes}
                           </p>
                         </div>
@@ -811,6 +890,125 @@ export default function AdminOrders({
                     </table>
                   </div>
                 </div>
+
+                {/* Pre-configured System Commission Notice */}
+                <div className="bg-emerald-50/80 border border-emerald-100 p-3.5 rounded-2xl flex items-center justify-between text-xs text-indigo-950 font-bold">
+                  <div className="flex items-center gap-2">
+                    <Percent size={16} className="text-emerald-600" />
+                    <span>نرخ کارمزد و کمیسیون پیش‌تنظیم‌شده سامانه (تنظیم‌شده در تنظیمات سیستم):</span>
+                  </div>
+                  <span className="bg-emerald-600 text-white font-mono font-black px-3 py-1 rounded-xl text-xs">
+                    ٪{toPersianNum(getPlatformCommissionRate())}
+                  </span>
+                </div>
+
+                {/* RFQ Supplier Proposals Box for Admin */}
+                {Array.isArray(selectedOrderDetail.bids) && selectedOrderDetail.bids.length > 0 && (
+                  <div className="bg-slate-50 border border-slate-200 p-4.5 rounded-2xl space-y-3.5">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                      <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
+                        <Handshake size={16} className="text-emerald-600" />
+                        <span>مدیریت پیشنهادهای تامین‌کنندگان (RFQs) جهت انتشار در سایت:</span>
+                      </h4>
+                      <span className="text-[10px] font-black bg-slate-900 text-white px-2.5 py-1 rounded-full">
+                        {toPersianNum(selectedOrderDetail.bids.length)} پیشنهاد ثبت‌شده
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {selectedOrderDetail.bids.map((bid: any, bIdx: number) => {
+                        const isApproved = bid.approved === true || bid.status === 'approved';
+                        const isRejected = bid.status === 'rejected';
+                        const isPending = !isApproved && !isRejected;
+
+                        return (
+                          <div 
+                            key={`admin-bid-${bid.id || bIdx}`} 
+                            className={`bg-white p-3.5 rounded-2xl border transition-all ${
+                              isApproved ? 'border-emerald-300 ring-1 ring-emerald-500/20' : isRejected ? 'border-emerald-200 opacity-75' : 'border-amber-300 bg-emerald-50/30'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                              <div className="space-y-1.5 text-xs">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-black text-slate-900 text-sm">{bid.supplierName}</span>
+                                  <span className="font-mono text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                                    قیمت: {bid.proposedPrice}
+                                  </span>
+
+                                  {/* Status Badge */}
+                                  {isApproved && (
+                                    <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                      <CheckCircle2 size={12} className="text-emerald-600" />
+                                      <span>تاییدشده و منتشر در تالار</span>
+                                    </span>
+                                  )}
+                                  {isRejected && (
+                                    <span className="text-[10px] font-black bg-emerald-100 text-rose-800 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                      <AlertCircle size={12} className="text-emerald-600" />
+                                      <span>رد شده</span>
+                                    </span>
+                                  )}
+                                  {isPending && (
+                                    <span className="text-[10px] font-black bg-emerald-100 text-amber-900 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                      <Clock size={12} className="text-emerald-600" />
+                                      <span>در انتظار تایید ادمین</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="text-[11px] text-slate-500 font-medium">
+                                  زمان تحویل: <strong className="text-slate-700">{bid.deliveryDays}</strong> | تاریخ ثبت: <span className="font-mono">{bid.createdAt}</span>
+                                </div>
+
+                                {bid.notes && (
+                                  <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-medium leading-relaxed">
+                                    توضیحات: {bid.notes}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Action Buttons for Admin */}
+                              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                {bid.supplierPhone && (
+                                  <a
+                                    href={`tel:${bid.supplierPhone}`}
+                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-xl flex items-center gap-1 border border-slate-200 transition-colors"
+                                    dir="ltr"
+                                    title="تماس تلفنی"
+                                  >
+                                    <Phone size={13} />
+                                    <span>{toPersianNum(bid.supplierPhone)}</span>
+                                  </a>
+                                )}
+
+                                {!isApproved && (
+                                  <button
+                                    onClick={() => handleToggleBidApproval(selectedOrderDetail.id, bid.id, 'approved')}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                                  >
+                                    <Check size={14} />
+                                    <span>تایید و انتشار</span>
+                                  </button>
+                                )}
+
+                                {!isRejected && (
+                                  <button
+                                    onClick={() => handleToggleBidApproval(selectedOrderDetail.id, bid.id, 'rejected')}
+                                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-xs rounded-xl flex items-center gap-1 border border-emerald-200 transition-colors cursor-pointer"
+                                  >
+                                    <X size={14} />
+                                    <span>رد</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Financial Summary */}
                 <div className="bg-slate-900 text-white p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -888,7 +1086,7 @@ export default function AdminOrders({
             >
               <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
                     <Edit3 size={18} />
                   </div>
                   <div>
@@ -978,7 +1176,7 @@ export default function AdminOrders({
                         const total = editOrderItems.reduce((sum, it) => sum + ((Number(it.quantityCartons) || 0) * (Number(it.pricePerCarton) || 0)), 0);
                         setEditTotalAmount(total);
                       }}
-                      className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer border border-emerald-200"
+                      className="px-3 py-1 bg-emerald-50 hover:bg-emerald-600 text-white rounded-xl text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer border border-emerald-200"
                     >
                       <RefreshCw size={12} />
                       <span>محاسبه خودکار جمع کل</span>
@@ -1051,7 +1249,7 @@ export default function AdminOrders({
                         <button 
                           type="button"
                           onClick={() => setEditOrderItems(prev => prev.filter((_, i) => i !== idx))}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                           title="حذف ردیف"
                         >
                           <Trash2 size={15} />
