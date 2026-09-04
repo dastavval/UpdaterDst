@@ -1713,6 +1713,7 @@ export default function DynamicPresentation({
                 id: f.id,
                 name: f.name,
                 logoUrl: f.logoUrl,
+                description: f.description || f.factoryDescription || "",
                 type: "واحد تولیدی فعال"
               }))
           : []).filter(b => b && b.name && !isWarehouseBrand(b.name));
@@ -1746,62 +1747,60 @@ export default function DynamicPresentation({
 
             <div className="relative">
               {/* Seamless Scrolling Marquee Effect or Grid */}
-              <div className="flex flex-nowrap overflow-x-auto gap-6 px-8 pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory" dir="rtl">
+              <div className="flex flex-nowrap overflow-x-auto gap-8 px-8 pb-10 no-scrollbar scroll-smooth snap-x snap-mandatory" dir="rtl">
                 {activeBrands.map((brand, bIdx) => (
                   <motion.button
                     key={`${brand.id || brand.name}-${bIdx}`}
-                    whileHover={{ y: -8, scale: 1.02 }}
+                    whileHover={{ y: -8 }}
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent("search-brand", { detail: { brand: brand.name } }));
                       if (setActiveTab) setActiveTab('order');
                     }}
-                    className="snap-start shrink-0 w-44 sm:w-52 h-56 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:border-emerald-300 transition-all duration-500 group flex flex-col items-center justify-center p-6 text-center space-y-4 relative"
+                    className="snap-start shrink-0 w-52 sm:w-64 h-20 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-emerald-200 transition-all duration-500 group flex items-center p-3 text-right relative overflow-hidden"
                   >
-                    {/* Glassmorphism background for logo */}
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner group-hover:bg-white transition-colors duration-500 p-4">
-                      {brand.logoUrl ? (
-                        <img 
-                          src={brand.logoUrl} 
-                          alt={brand.name} 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700" 
-                        />
-                      ) : (
-                        <Building2 size={40} className="text-slate-200" />
-                      )}
-                    </div>
-                    
-                    <div className="space-y-1 w-full">
-                      <h4 className="text-[13px] font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
-                        {brand.name}
-                      </h4>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-black text-slate-400">تامین مستقیم</span>
+                    {/* Horizontal Layout: Logo on the right, Name on the left (RTL) */}
+                    <div className="flex items-center gap-3 w-full">
+                      {/* Brand Logo - Rectangular/Square Box */}
+                      <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100/50 flex items-center justify-center p-2 group-hover:bg-white transition-colors overflow-hidden shrink-0">
+                        {brand.logoUrl ? (
+                          <img 
+                            src={brand.logoUrl} 
+                            alt={brand.name} 
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700" 
+                          />
+                        ) : (
+                          <Building2 size={20} className="text-slate-200" strokeWidth={1.5} />
+                        )}
                       </div>
-                    </div>
+                      
+                      {/* Brand Name and Small Info */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-[11px] sm:text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate leading-tight">
+                          {brand.name}
+                        </h4>
+                        <div className="flex items-center gap-1 mt-1">
+                          <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                          <span className="text-[9px] font-black text-slate-400">تامین مستقیم</span>
+                        </div>
+                      </div>
 
-                    <div className="absolute bottom-4 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 duration-300">
-                      <span className="text-[9px] font-black text-emerald-600 flex items-center gap-1">
-                        مشاهده محصولات <ArrowLeft size={12} />
-                      </span>
+                      {/* Small Arrow Indicator on Hover */}
+                      <div className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                        <ArrowLeft size={14} className="text-emerald-500" />
+                      </div>
                     </div>
                   </motion.button>
                 ))}
                 
-                {/* View All Factories Card */}
+                {/* View All Factories Card - Compact Horizontal */}
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ x: -5 }}
                   onClick={() => setActiveTab?.('factories')}
-                  className="snap-start shrink-0 w-44 sm:w-52 h-56 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center p-6 text-center space-y-4 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer"
+                  className="snap-start shrink-0 w-44 sm:w-52 h-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center p-4 text-center gap-3 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer"
                 >
-                  <div className="w-16 h-16 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400">
-                    <Layers size={28} />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-[13px] font-black text-slate-600">مشاهده تالار</h4>
-                    <p className="text-[9px] text-slate-400 font-bold">همه کارخانجات فعال</p>
-                  </div>
+                  <Layers size={18} className="text-slate-400" />
+                  <span className="text-[11px] font-black text-slate-600 whitespace-nowrap">مشاهده همه برندها</span>
                 </motion.button>
               </div>
             </div>

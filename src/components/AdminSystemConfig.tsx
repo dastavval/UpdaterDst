@@ -70,10 +70,15 @@ import {
   Megaphone,
   BellRing,
   Plus,
-  Factory
+  Factory,
+  Building2,
+  Award,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { B2BConfig, Product } from "../types";
+import { getApiUrl } from "../utils/api-utils";
+import { GalleryPickerModal } from "./GalleryPickerModal";
 import { db } from "../lib/data-layer";
 import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from "../lib/data-layer";
 import SystemConnectivity from "./SystemConnectivity";
@@ -142,6 +147,9 @@ export default function AdminSystemConfig({
   const [smsLogisticsPatternId, setSmsLogisticsPatternId] = useState(b2bConfig.smsLogisticsPatternId ? String(b2bConfig.smsLogisticsPatternId) : "");
   const [smsFactoryProductionPatternId, setSmsFactoryProductionPatternId] = useState(b2bConfig.smsFactoryProductionPatternId ? String(b2bConfig.smsFactoryProductionPatternId) : "");
   const [smsAdPatternId, setSmsAdPatternId] = useState(b2bConfig.smsAdPatternId ? String(b2bConfig.smsAdPatternId) : "");
+  const [smsAdCreatedPatternId, setSmsAdCreatedPatternId] = useState(b2bConfig.smsAdCreatedPatternId ? String(b2bConfig.smsAdCreatedPatternId) : "");
+  const [smsDealershipPatternId, setSmsDealershipPatternId] = useState(b2bConfig.smsDealershipPatternId ? String(b2bConfig.smsDealershipPatternId) : "");
+  const [smsDealershipApprovedPatternId, setSmsDealershipApprovedPatternId] = useState(b2bConfig.smsDealershipApprovedPatternId ? String(b2bConfig.smsDealershipApprovedPatternId) : "");
   const [smsCallbackPatternId, setSmsCallbackPatternId] = useState(b2bConfig.smsCallbackPatternId ? String(b2bConfig.smsCallbackPatternId) : "");
   const [smsAdminNotificationPatternId, setSmsAdminNotificationPatternId] = useState(b2bConfig.smsAdminNotificationPatternId ? String(b2bConfig.smsAdminNotificationPatternId) : "");
   const [smsInvitationPatternId, setSmsInvitationPatternId] = useState(b2bConfig.smsInvitationPatternId ? String(b2bConfig.smsInvitationPatternId) : "");
@@ -159,6 +167,24 @@ export default function AdminSystemConfig({
   const [copiedPatternKey, setCopiedPatternKey] = useState<string | null>(null);
   const [smsBalance, setSmsBalance] = useState<string | null>(null);
   const [checkingBalance, setCheckingBalance] = useState(false);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [galleryTarget, setGalleryTarget] = useState<string | null>(null);
+
+  const handleSelectFromGallery = (url: string) => {
+    if (galleryTarget === 'logo') setLogoUrl(url);
+    else if (galleryTarget === 'mascot') setMascotUrl(url);
+    else if (galleryTarget === 'enamad') setEnamadImage(url);
+    else if (galleryTarget === 'samandehi') setSamandehiImage(url);
+    else if (galleryTarget === 'tradeUnion') setTradeUnionImage(url);
+    
+    setShowGalleryPicker(false);
+    setGalleryTarget(null);
+  };
+
+  const openGallery = (target: string) => {
+    setGalleryTarget(target);
+    setShowGalleryPicker(true);
+  };
 
   const handleCopyPatternText = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -257,6 +283,18 @@ export default function AdminSystemConfig({
   }, [activeTab]);
 
   // --- 3. SITE & DATABASE CONFIG STATES ---
+  const [logoUrl, setLogoUrl] = useState((b2bConfig as any).logoUrl || "/assets/logo.png");
+  const [mascotUrl, setMascotUrl] = useState((b2bConfig as any).mascotUrl || "/assets/mascot_character.jpg");
+  const [enamadUrl, setEnamadUrl] = useState((b2bConfig as any).enamadUrl || "https://trustseal.enamad.ir");
+  const [enamadImage, setEnamadImage] = useState((b2bConfig as any).enamadImage || "/assets/enamad.svg");
+  const [hideEnamad, setHideEnamad] = useState(!!(b2bConfig as any).hideEnamad);
+  const [samandehiUrl, setSamandehiUrl] = useState((b2bConfig as any).samandehiUrl || "https://logo.samandehi.ir");
+  const [samandehiImage, setSamandehiImage] = useState((b2bConfig as any).samandehiImage || "/assets/samandehi.svg");
+  const [hideSamandehi, setHideSamandehi] = useState(!!(b2bConfig as any).hideSamandehi);
+  const [tradeUnionUrl, setTradeUnionUrl] = useState((b2bConfig as any).tradeUnionUrl || "https://dastavval.com/license");
+  const [tradeUnionImage, setTradeUnionImage] = useState((b2bConfig as any).tradeUnionImage || "/assets/trade_union.svg");
+  const [hideTradeUnion, setHideTradeUnion] = useState(!!(b2bConfig as any).hideTradeUnion);
+
   const [siteDomain, setSiteDomain] = useState((b2bConfig as any).domain || "https://dastavval.com");
   const [apiGatewayUrl, setApiGatewayUrl] = useState(
     (b2bConfig as any).apiGatewayUrl || "https://dastavval.com/api/v1"
@@ -534,6 +572,30 @@ export default function AdminSystemConfig({
       setMarketerCommissionPercent((b2bConfig as any).marketerCommissionPercent || 5);
       setRepRegionalProfitSharePercent((b2bConfig as any).repRegionalProfitSharePercent || 50);
       setRepFloorSalesThreshold((b2bConfig as any).repFloorSalesThreshold || 300000000);
+
+      // Sync site branding, trust badges, and database states
+      setLogoUrl((b2bConfig as any).logoUrl || "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png");
+      setMascotUrl((b2bConfig as any).mascotUrl || "/assets/mascot_character.jpg");
+      setEnamadUrl((b2bConfig as any).enamadUrl || "https://trustseal.enamad.ir");
+      setEnamadImage((b2bConfig as any).enamadImage || "/assets/enamad.svg");
+      setHideEnamad(!!(b2bConfig as any).hideEnamad);
+      setSamandehiUrl((b2bConfig as any).samandehiUrl || "https://logo.samandehi.ir");
+      setSamandehiImage((b2bConfig as any).samandehiImage || "/assets/samandehi.svg");
+      setHideSamandehi(!!(b2bConfig as any).hideSamandehi);
+      setTradeUnionUrl((b2bConfig as any).tradeUnionUrl || "https://dastavval.com/license");
+      setTradeUnionImage((b2bConfig as any).tradeUnionImage || "/assets/trade_union.svg");
+      setHideTradeUnion(!!(b2bConfig as any).hideTradeUnion);
+
+      setSiteDomain((b2bConfig as any).domain || "https://dastavval.com");
+      setApiGatewayUrl((b2bConfig as any).apiGatewayUrl || "https://dastavval.com/api/v1");
+      setMaintenanceMode(!!(b2bConfig as any).maintenanceMode);
+      setRateLimitReq((b2bConfig as any).rateLimitReq || 120);
+      setBaseRepsCount((b2bConfig as any).baseRepsCount || 100);
+      setBaseProductsCount((b2bConfig as any).baseProductsCount || 100);
+      setDbProvider((b2bConfig as any).dbProvider || "firestore");
+      setDbConnectionString((b2bConfig as any).dbConnectionString || "firestore://dastavval-prod.firebaseio.com");
+      setDbMaxPool((b2bConfig as any).dbMaxPool || 50);
+      setDbEncryptionEnabled((b2bConfig as any).dbEncryptionEnabled !== false);
     }
   }, [b2bConfig]);
 
@@ -979,6 +1041,9 @@ export default function AdminSystemConfig({
         smsLogisticsPatternId,
         smsFactoryProductionPatternId,
         smsAdPatternId,
+        smsAdCreatedPatternId,
+        smsDealershipPatternId,
+        smsDealershipApprovedPatternId,
         smsCallbackPatternId,
         smsAdminNotificationPatternId,
         smsInvitationPatternId,
@@ -1507,7 +1572,8 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog("ذخیره پیکربندی دامنه، دیتابیس و آمار زنده در سامانه...");
     try {
-      await onUpdateB2bConfig({
+      const updatedConfig = {
+        ...b2bConfig,
         domain: siteDomain,
         apiGatewayUrl,
         maintenanceMode,
@@ -1517,9 +1583,30 @@ export default function AdminSystemConfig({
         dbMaxPool,
         dbEncryptionEnabled,
         baseRepsCount,
-        baseProductsCount
-      } as any);
-      addLog("تنظیمات دیتابیس، دامنه و آمار زنده با موفقیت اعمال گردید.");
+        baseProductsCount,
+        logoUrl,
+        mascotUrl,
+        enamadUrl,
+        enamadImage,
+        samandehiUrl,
+        samandehiImage,
+        tradeUnionUrl,
+        tradeUnionImage,
+        hideEnamad,
+        hideSamandehi,
+        hideTradeUnion
+      };
+
+      try {
+        localStorage.setItem("dastavval_b2b_config", JSON.stringify(updatedConfig));
+        if (logoUrl) localStorage.setItem("dastavval_app_logo", logoUrl);
+        if (mascotUrl) localStorage.setItem("dastavval_app_mascot", mascotUrl);
+      } catch (err) {
+        console.warn("Failed to save branding to local storage:", err);
+      }
+
+      await onUpdateB2bConfig(updatedConfig as any);
+      addLog("تنظیمات برندینگ، دیتابیس، دامنه و آمار زنده با موفقیت اعمال گردید.");
       setSuccessMsg("تنظیمات دیتابیس، کانفیگ سایت و آمار زنده با موفقیت ذخیره شدند.");
     } catch (e: any) {
       setErrorMsg("خطا در ذخیره کانفیگ.");
@@ -3551,6 +3638,217 @@ export default function AdminSystemConfig({
                   <span className="text-[10px] text-slate-400 font-bold block">داده‌های مالی و کاربران به‌صورت رمزنگاری شده ذخیره می‌شوند.</span>
                 </div>
               </label>
+            </div>
+          </div>
+
+          {/* --- BRANDING & TRUST BADGES CONFIGURATION --- */}
+          <div className="mt-8 p-6 bg-gradient-to-br from-emerald-50/40 via-teal-50/20 to-white rounded-[2rem] border border-emerald-100 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/15">
+                <Settings size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900">🎨 تنظیمات لوگو، نمادها و برندینگ سامانه (لوکال و پویا)</h4>
+                <p className="text-[10px] text-slate-400 font-bold mt-0.5">در این بخش می‌توانید فایل‌ها، تصاویر و لینک‌های لوگو و مجوزهای قانونی سایت را به صورت لوکال تغییر دهید.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* BRANDING SECTION */}
+              <div className="space-y-4">
+                <h5 className="text-xs font-black text-emerald-700 flex items-center gap-2">
+                  <span className="w-1.5 h-3 bg-emerald-600 rounded-full" />
+                  تصاویر و لوگوی سامانه
+                </h5>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[11px] font-black text-slate-700">آدرس لوگوی اصلی وب‌سایت (لوگو هدر و فوتر):</label>
+                    <button
+                      type="button"
+                      onClick={() => openGallery('logo')}
+                      className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <ImageIcon size={12} />
+                      <span>انتخاب از گالری</span>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    dir="ltr"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                    placeholder="/assets/logo.png"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold mt-1">پیشنهاد می‌شود فایل تصویری PNG شفاف با سایز مناسب آپلود یا آدرس‌دهی کنید.</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[11px] font-black text-slate-700">آدرس کاراکتر نمادین سامانه (Mascot Image):</label>
+                    <button
+                      type="button"
+                      onClick={() => openGallery('mascot')}
+                      className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <ImageIcon size={12} />
+                      <span>انتخاب از گالری</span>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={mascotUrl}
+                    onChange={(e) => setMascotUrl(e.target.value)}
+                    dir="ltr"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                    placeholder="/assets/mascot_character.jpg"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold mt-1">تصویر گرافیکی راهنما یا کاراکتر تبلیغاتی صفحه نخست.</p>
+                </div>
+              </div>
+
+              {/* TRUST BADGES SECTION */}
+              <div className="space-y-4">
+                <h5 className="text-xs font-black text-emerald-700 flex items-center gap-2">
+                  <span className="w-1.5 h-3 bg-emerald-600 rounded-full" />
+                  نمادهای قانونی و مجوزهای اعتماد الکترونیکی
+                </h5>
+
+                {/* ENAMAD CONFIG */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-slate-800">۱. نماد اعتماد الکترونیکی (اینماد)</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hideEnamad}
+                        onChange={(e) => setHideEnamad(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-600"
+                      />
+                      <span className="text-[10px] text-slate-500 font-bold">مخفی‌سازی</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 mb-1">آدرس لینک اینماد:</label>
+                      <input
+                        type="text"
+                        value={enamadUrl}
+                        onChange={(e) => setEnamadUrl(e.target.value)}
+                        dir="ltr"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[9px] font-black text-slate-500">آدرس آیکون/تصویر اینماد:</label>
+                        <button
+                          type="button"
+                          onClick={() => openGallery('enamad')}
+                          className="text-[8px] font-bold text-emerald-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <ImageIcon size={10} />
+                          <span>گالری</span>
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={enamadImage}
+                        onChange={(e) => setEnamadImage(e.target.value)}
+                        dir="ltr"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SAMANDEHI CONFIG */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-slate-800">۲. ستاد ساماندهی پایگاه‌های اینترنتی</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hideSamandehi}
+                        onChange={(e) => setHideSamandehi(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-600"
+                      />
+                      <span className="text-[10px] text-slate-500 font-bold">مخفی‌سازی</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 mb-1">آدرس لینک ساماندهی:</label>
+                      <input
+                        type="text"
+                        value={samandehiUrl}
+                        onChange={(e) => setSamandehiUrl(e.target.value)}
+                        dir="ltr"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[9px] font-black text-slate-500">آدرس آیکون/تصویر ساماندهی:</label>
+                        <button
+                          type="button"
+                          onClick={() => openGallery('samandehi')}
+                          className="text-[8px] font-bold text-emerald-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <ImageIcon size={10} />
+                          <span>گالری</span>
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={samandehiImage}
+                        onChange={(e) => setSamandehiImage(e.target.value)}
+                        dir="ltr"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* TRADE UNION CONFIG */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-slate-800">۳. جواز کسب اتحادیه کشوری کسب‌وکارهای مجازی</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hideTradeUnion}
+                        onChange={(e) => setHideTradeUnion(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-600"
+                      />
+                      <span className="text-[10px] text-slate-500 font-bold">مخفی‌سازی</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 mb-1">آدرس لینک اتحادیه:</label>
+                      <input
+                        type="text"
+                        value={tradeUnionUrl}
+                        onChange={(e) => setTradeUnionUrl(e.target.value)}
+                        dir="ltr"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 mb-1">آدرس آیکون/تصویر اتحادیه:</label>
+                      <input
+                        type="text"
+                        value={tradeUnionImage}
+                        onChange={(e) => setTradeUnionImage(e.target.value)}
+                        dir="ltr"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -6604,6 +6902,150 @@ export default function AdminSystemConfig({
                       onChange={(e) => setSmsAdminNotificationPatternId(e.target.value)}
                       placeholder="کد الگو در پنل، مثال: 125441"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-slate-800"
+                    />
+                  </div>
+                </div>
+
+                {/* 18. Ad Created Confirmation */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <Megaphone size={16} />
+                        <span className="text-xs font-black">۱۸. ثبت اولیه آگهی (در انتظار تایید)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('adCreated', "{0} عزیز، آگهی شما با عنوان {1} در سامانه دست اول ثبت شد و پس از بررسی فعال خواهد شد.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'adCreated' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      <span className="text-emerald-600 font-bold">{"{0}"}</span> عزیز، آگهی شما با عنوان <span className="text-emerald-600 font-bold">{"{1}"}</span> در سامانه دست اول ثبت شد و پس از بررسی فعال خواهد شد.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-emerald-600 font-bold">{"{0}"}</code> = نام کاربر | <code className="text-emerald-600 font-bold">{"{1}"}</code> = عنوان آگهی</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsAdCreatedPatternId}
+                      onChange={(e) => setSmsAdCreatedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125442"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 19. Dealership Request Confirmation */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-indigo-600">
+                        <Building2 size={16} />
+                        <span className="text-xs font-black">۱۹. ثبت درخواست نمایندگی (کد پیگیری)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('dealership', "{0} عزیز، درخواست عاملیت توزیع شما با کد پیگیری {1} در سامانه دست اول ثبت شد. کارشناسان ما بررسی و تماس خواهند گرفت.\ndastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'dealership' ? (
+                          <>
+                            <Check size={12} className="text-indigo-600" />
+                            <span className="text-indigo-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      <span className="text-indigo-600 font-bold">{"{0}"}</span> عزیز، درخواست عاملیت توزیع شما با کد پیگیری <span className="text-indigo-600 font-bold">{"{1}"}</span> در سامانه دست اول ثبت شد. کارشناسان ما بررسی و تماس خواهند گرفت.<br />
+                      dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-indigo-600 font-bold">{"{0}"}</code> = نام متقاضی | <code className="text-indigo-600 font-bold">{"{1}"}</code> = کد پیگیری</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsDealershipPatternId}
+                      onChange={(e) => setSmsDealershipPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125443"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* 20. Dealership Approved Notification */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <Award size={16} />
+                        <span className="text-xs font-black">۲۰. تایید عاملیت و اعطای نمایندگی</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPatternText('dealershipApproved', "جناب {0}، عاملیت توزیع رسمی شما در سامانه دست اول تایید و مجوز نمایندگی با کد {1} فعال گردید.\nورود به پنل: dastavval.com\nلغو11")}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        {copiedPatternKey === 'dealershipApproved' ? (
+                          <>
+                            <Check size={12} className="text-emerald-600" />
+                            <span className="text-emerald-700">کپی شد!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>کپی متن پترن</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-mono text-slate-700 leading-relaxed select-all">
+                      جناب <span className="text-emerald-600 font-bold">{"{0}"}</span>، عاملیت توزیع رسمی شما در سامانه دست اول تایید و مجوز نمایندگی با کد <span className="text-emerald-600 font-bold">{"{1}"}</span> فعال گردید.<br />
+                      ورود به پنل: dastavval.com<br />
+                      لغو11
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 font-bold">متغیرها: <code className="text-emerald-600 font-bold">{"{0}"}</code> = نام نماینده | <code className="text-emerald-600 font-bold">{"{1}"}</code> = کد عاملیت</p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-slate-100">
+                    <label className="text-[10px] font-black text-slate-600 block">شناسه الگوی ثبت‌شده (bodyId):</label>
+                    <input
+                      type="text"
+                      value={smsDealershipApprovedPatternId}
+                      onChange={(e) => setSmsDealershipApprovedPatternId(e.target.value)}
+                      placeholder="کد الگو در پنل، مثال: 125444"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-left focus:border-emerald-500"
                     />
                   </div>
                 </div>

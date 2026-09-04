@@ -67,7 +67,7 @@ export default function UserPanel({
   // Role-specific Active Tab
   const [factoryTab, setFactoryTab] = useState<'products' | 'add_product' | 'orders' | 'profile' | 'ads'>('products');
   const [marketerTab, setMarketerTab] = useState<'desk' | 'payout' | 'certificate' | 'referred_orders' | 'profile' | 'ads'>('desk');
-  const [customerTab, setCustomerTab] = useState<'orders' | 'loyalty' | 'quick_order' | 'wishlist' | 'credit' | 'referrals' | 'profile' | 'ads' | 'coverage_map'>(userRole === 'ad_poster' ? 'ads' : 'orders');
+  const [customerTab, setCustomerTab] = useState<'orders' | 'loyalty' | 'quick_order' | 'wishlist' | 'credit' | 'referrals' | 'profile' | 'ads'>(userRole === 'ad_poster' ? 'ads' : 'orders');
 
 
   // Selected Order for Invoice modal
@@ -360,7 +360,7 @@ export default function UserPanel({
     });
   }, [allOrders, user, userRole]);
 
-  // Filter Customer Orders (Orders placed by this customer)
+  // Filter Customer Orders (Strictly and securely matched to this authenticated user only)
   const customerOrders = useMemo(() => {
     if (!user) return [];
     
@@ -369,69 +369,52 @@ export default function UserPanel({
       if (!num) return "";
       let cleaned = String(num)
         .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
-        .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
+        .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧۸٩".indexOf(d)])
         .replace(/\D/g, "");
       if (cleaned.length >= 10) {
         return cleaned.slice(-10);
       }
-      return cleaned;
+      return cleaned.length >= 7 ? cleaned : "";
     };
 
-    const userPhone = user.phone || user.mobile || user.username || "";
     const userPhoneSuffixes = [
       extract10DigitSuffix(user.phone),
       extract10DigitSuffix(user.mobile),
       extract10DigitSuffix(user.username),
       extract10DigitSuffix(user.phone_number),
-      extract10DigitSuffix(user.buyerPhone),
-      extract10DigitSuffix((user as any).userCode),
-      extract10DigitSuffix((user as any).customerCode)
+      extract10DigitSuffix(user.buyerPhone)
     ].filter(Boolean);
 
     const uEmail = (user.email || "").trim().toLowerCase();
-    const uName = (user.name || (user as any).fullName || (user as any).buyerName || "").trim().toLowerCase();
-    const uCompany = (user.company || "").trim().toLowerCase();
     const uId = String(user.id || "").trim();
 
     return allOrders.filter(orderItem => {
       const order = orderItem as any;
-      // 1. Match by explicit user ID or username or phone ID
-      if (order.userId && uId && String(order.userId) === uId) return true;
-      if (order.userId && userPhone && String(order.userId) === String(userPhone)) return true;
-      if (order.username && (user.username || userPhone) && (String(order.username) === String(user.username) || String(order.username) === String(userPhone))) return true;
-      if (order.autoCreatedAccount?.username && (user.username || userPhone) && (String(order.autoCreatedAccount.username) === String(user.username) || String(order.autoCreatedAccount.username) === String(userPhone))) return true;
+      if (!order) return false;
 
+      // 1. Match by explicit user ID
+      if (order.userId && uId && String(order.userId) === uId) return true;
+
+      // 2. Match by verified buyer phone suffix
       const buyerPhoneRaw = order.buyerPhone || order.customerPhone || order.phone || order.mobile || order.userPhone || order.buyerInfo?.phone || order.buyerInfo?.mobile || "";
       const buyerSuffix = extract10DigitSuffix(buyerPhoneRaw);
-      
-      // 2. Match by verified phone number (last 7+ digits comparison)
-      if (buyerSuffix && userPhoneSuffixes.some(p => p === buyerSuffix || (p.length >= 7 && buyerSuffix.endsWith(p)) || (p.length >= 7 && p.endsWith(buyerSuffix)) || (p.length >= 7 && buyerSuffix.includes(p)))) return true;
-      
-      // 3. Direct phone string inclusion fallback
-      if (userPhone && buyerPhoneRaw && (String(buyerPhoneRaw).includes(String(userPhone)) || String(userPhone).includes(String(buyerPhoneRaw)))) return true;
+      if (buyerSuffix && userPhoneSuffixes.length > 0) {
+        if (userPhoneSuffixes.some(p => p === buyerSuffix || (p.length >= 8 && buyerSuffix.endsWith(p)) || (buyerSuffix.length >= 8 && p.endsWith(buyerSuffix)))) {
+          return true;
+        }
+      }
 
-      // 4. Match by verified email address
+      // 3. Match by verified email address
       const buyerE = (order.buyerEmail || order.email || "").trim().toLowerCase();
-      if (uEmail && buyerE === uEmail) return true;
+      if (uEmail && buyerE && buyerE === uEmail) return true;
 
-      // 5. Match by buyer name or company
-      const buyerN = (order.buyerName || order.customerName || order.buyerInfo?.name || "").trim().toLowerCase();
-      const buyerC = (order.buyerCompany || "").trim().toLowerCase();
-      if (uName && uName.length >= 3 && buyerN && (buyerN.includes(uName) || uName.includes(buyerN))) return true;
-      if (uCompany && uCompany.length >= 3 && buyerC && (buyerC.includes(uCompany) || uCompany.includes(buyerC))) return true;
-
-      // 6. Match by session order tracking number or last order ID
+      // 4. Match by tracking number stored in local session for recently placed order
       try {
         const lastOrderTrack = localStorage.getItem("dastavval_last_order_tracking");
         const lastOrderId = localStorage.getItem("dastavval_last_order_id");
         if (lastOrderTrack && (order.id === lastOrderTrack || order.trackingNumber === lastOrderTrack)) return true;
         if (lastOrderId && (order.id === lastOrderId || order.trackingNumber === lastOrderId)) return true;
       } catch (e) {}
-
-      // 7. Fallback for customer role if this is a newly created order in local session
-      if (userRole === 'customer' || !userRole) {
-        if (buyerPhoneRaw && userPhoneSuffixes.length > 0) return true;
-      }
 
       return false;
     });
@@ -1366,18 +1349,6 @@ export default function UserPanel({
               <span>مدیریت آگهی‌های من</span>
             </button>
 
-
-            <button
-              onClick={() => setCustomerTab('coverage_map')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                customerTab === 'coverage_map'
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-            >
-              <Compass size={16} className={customerTab === 'coverage_map' ? 'text-white' : 'text-blue-600'} />
-              <span>🗺️ نقشه سفارشات ۳۱ استان</span>
-            </button>
 
             <button
               onClick={() => setCustomerTab('profile')}
@@ -2332,18 +2303,6 @@ export default function UserPanel({
                   <span>حذف دائم حساب کاربری</span>
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* TAB CONTENT: IRAN PROVINCE ORDERS MAP & REGIONAL COVERAGE */}
-          {customerTab === 'coverage_map' && (
-            <div className="space-y-4">
-              <IranProvinceOrdersMapWidget
-                orders={allOrders}
-                user={user}
-                onUpdateUser={onUpdateUser}
-                markupPercent={5}
-              />
             </div>
           )}
 

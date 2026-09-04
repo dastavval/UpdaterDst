@@ -156,6 +156,15 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
   const completeLogin = (userObj: any) => {
     try {
       saveUserSession(userObj);
+      if (userObj.phone || userObj.mobile) {
+        localStorage.setItem('dastavval_buyer_phone', userObj.phone || userObj.mobile);
+      }
+      if (userObj.name) {
+        localStorage.setItem('dastavval_buyer_name', userObj.name);
+      }
+      if (userObj.address) {
+        localStorage.setItem('dastavval_buyer_address', userObj.address);
+      }
     } catch (storageErr) {
       console.warn("Storage session sync failed:", storageErr);
     }
@@ -188,6 +197,10 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
       setError("وارد کردن نام و نام خانوادگی الزامی است.");
       return;
     }
+    if (!address.trim()) {
+      setError("وارد کردن استان، شهر و نشانی دقیق تحویل سفارش الزامی است.");
+      return;
+    }
     
     setOtpLoading(true);
     setError(null);
@@ -195,25 +208,42 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
     
     try {
       const targetPhone = normalizePhone(phone.trim());
-      const response = await fetch(getApiUrl("/api/sms/update-profile"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: targetPhone,
-          name: name.trim(),
-          company: company.trim() || undefined,
-          nationalCode: nationalCode.trim() || undefined,
-          address: address.trim() || undefined
-        })
-      });
-      
-      const data = await response.json();
-      if (data.success && data.user) {
-        setSuccess("پروفایل شما با موفقیت تکمیل شد.");
-        completeLogin(data.user);
-      } else {
-        setError(data.error || "خطا در بروزرسانی اطلاعات پروفایل.");
-      }
+      let updatedUserObj: any = null;
+      try {
+        const response = await fetch(getApiUrl("/api/sms/update-profile"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: targetPhone,
+            name: name.trim(),
+            company: company.trim() || undefined,
+            nationalCode: nationalCode.trim() || undefined,
+            address: address.trim()
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (data && data.user) {
+          updatedUserObj = data.user;
+        }
+      } catch (e) {}
+
+      const finalUser = {
+        ...(verifiedUser || {}),
+        ...(updatedUserObj || {}),
+        id: updatedUserObj?.id || verifiedUser?.id || "usr-" + targetPhone,
+        phone: targetPhone,
+        mobile: targetPhone,
+        name: name.trim(),
+        address: address.trim(),
+        company: company.trim() || verifiedUser?.company || "",
+        nationalCode: nationalCode.trim() || verifiedUser?.nationalCode || "",
+        role: verifiedUser?.role || 'customer',
+        badge: verifiedUser?.badge || 'bronze'
+      };
+
+      saveUserSession(finalUser);
+      setSuccess("پروفایل شما با موفقیت تکمیل شد.");
+      completeLogin(finalUser);
     } catch (err: any) {
       setError("خطا در تکمیل اطلاعات: " + err.message);
     } finally {
@@ -252,7 +282,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
       if (data.success && data.user) {
         const userObj = data.user;
         const isAdmin = userObj.role === 'admin' || targetPhone === "09914762406" || targetPhone === configuredAdminPhone;
-        const needsProfileCompletion = !isAdmin && (data.isNew || !userObj.name || userObj.name.includes("خریدار عمده"));
+        const needsProfileCompletion = !isAdmin && (data.isNew || !userObj.name || userObj.name.includes("خریدار عمده") || !userObj.address);
         
         if (needsProfileCompletion) {
           setVerifiedUser(userObj);
@@ -261,7 +291,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
           setNationalCode(userObj.nationalCode || "");
           setAddress(userObj.address || "");
           setStep('profile');
-          setSuccess("کد تأیید تأیید شد. لطفاً اطلاعات پروفایل خود را تکمیل فرمایید.");
+          setSuccess("کد تأیید تأیید شد. لطفاً نام و نشانی تحویل سفارش را وارد نمایید.");
         } else {
           setSuccess(isAdmin ? "ورود مدیریت کل با موفقیت انجام شد." : "ورود با موفقیت انجام شد.");
           completeLogin(userObj);
@@ -328,7 +358,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-md overflow-y-auto" dir="rtl">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-md overflow-y-auto" dir="rtl">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -526,7 +556,9 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
 
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-800 block text-right">نام و نام خانوادگی:</label>
+                  <label className="text-[11px] font-black text-slate-800 block text-right">
+                    نام و نام خانوادگی خریدار <span className="text-rose-500">* (الزامی)</span>:
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
@@ -536,6 +568,23 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                       onChange={(e) => setName(e.target.value)}
                       placeholder="مثال: علی احمدی"
                       className="w-full pl-9 pr-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 transition-all text-right"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-800 block text-right">
+                    استان، شهر و نشانی دقیق تحویل سفارش <span className="text-rose-500">* (الزامی)</span>:
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 text-slate-400" size={16} />
+                    <textarea
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="مثال: تهران، خیابان پیروزی، میدان شهدا، پلاک... (جهت ثبت رسمی در فاکتور و ارسال بار)"
+                      rows={2}
+                      className="w-full pl-9 pr-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 transition-all text-right resize-none"
                     />
                   </div>
                 </div>
@@ -555,37 +604,21 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-800 block text-right">کد ملی (الزامی جهت احراز هویت):</label>
+                  <label className="text-[11px] font-black text-slate-800 block text-right">کد ملی خریدار (اختیاری):</label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                       type="text"
-                      required
                       value={nationalCode}
                       onChange={(e) => setNationalCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                      placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰"
+                      placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰ (اختیاری)"
                       className="w-full pl-9 pr-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 transition-all text-right"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-800 block text-right">نشانی دقیق (جهت ارسال فاکتور و بار):</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 text-slate-400" size={16} />
-                    <textarea
-                      required
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="مثال: تهران، خیابان پیروزی، کوچه..."
-                      rows={2}
-                      className="w-full pl-9 pr-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 transition-all text-right resize-none"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <button
                   type="submit"
                   disabled={otpLoading}
@@ -595,7 +628,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                     <RotateCw size={16} className="animate-spin" />
                   ) : (
                     <>
-                      <span>تأیید نهایی و ورود به سامانه</span>
+                      <span>تأیید نهایی مشخصات و ورود</span>
                       <Check size={16} />
                     </>
                   )}

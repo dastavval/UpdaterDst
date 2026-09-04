@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { getApiUrl } from "../utils/api-utils";
 import {
   Package,
   Plus,
@@ -63,7 +64,8 @@ import {
   FolderPlus,
   CheckSquare,
   Trophy,
-  TrendingDown
+  TrendingDown,
+  Ticket
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product, B2BConfig, NewsArticle, Category } from "../types";
@@ -103,8 +105,11 @@ import AdminFactoriesManagement from "./AdminFactoriesManagement";
 import AdminUsersManagement from "./AdminUsersManagement";
 import AdminTicketManagement from "./AdminTicketManagement";
 import AdminSpecialOffersManagement from "./AdminSpecialOffersManagement";
+import AdminCoupons from "./AdminCoupons";
 import { BarterHall } from "./BarterHall";
 import { ResilientVault } from "../lib/resilient-storage";
+import { SmartJsonCatalogModal } from "./SmartJsonCatalogModal";
+import WholesaleInvoiceView from "./WholesaleInvoiceView";
 import { getGlobalDiscountConfig, saveGlobalDiscountConfig, GlobalDiscountConfig } from "../lib/discount-rules-helper";
 
 interface AdminPanelProps {
@@ -113,7 +118,7 @@ interface AdminPanelProps {
   onUpdateProduct: (id: string, product: Partial<Product>) => Promise<any> | void;
   onDeleteProduct: (id: string) => Promise<any> | void;
   onBatchDeleteProducts?: (ids: string[]) => Promise<any> | void;
-  onBulkUpdateProducts?: (ids: string[], updates: Partial<Product>) => Promise<any> | void;
+  onBulkUpdateProducts?: (ids: any[], updates?: Partial<Product>) => Promise<any> | void;
   onRefreshProducts?: () => Promise<void> | void;
   b2bConfig: B2BConfig;
   onUpdateB2bConfig: (updated: Partial<B2BConfig>) => Promise<void>;
@@ -159,6 +164,8 @@ export default function AdminPanel({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showJsonCatalogModal, setShowJsonCatalogModal] = useState(false);
+  const [selectedOrderToPrint, setSelectedOrderToPrint] = useState<any | null>(null);
 
   // Bulk Product Management State
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -977,6 +984,85 @@ export default function AdminPanel({
     setWeeklySaleQuota(200);
   };
 
+  // Handle JSON Catalog Importer Application
+  const handleApplyJsonProducts = async (newItems: any[], importMode: 'merge' | 'replace') => {
+    try {
+      setLoading(true);
+      let updatedCount = 0;
+      let addedCount = 0;
+      
+      const currentProductsCopy = importMode === 'replace' ? [] : [...products];
+      
+      newItems.forEach((incItem: any, idx: number) => {
+        const sku = incItem.sku || incItem.code || incItem.productCode || String(incItem.id) || `PRD-${idx + 1}`;
+        const existingIdx = currentProductsCopy.findIndex(p => p.sku === sku || String(p.id) === String(incItem.id) || p.sku === String(incItem.id) || p.name === incItem.name);
+        
+        const rawImageUrl = incItem.imageUrl || incItem.image_url || incItem.image || incItem.pic || incItem.photo || incItem.picture || incItem.thumb || incItem.thumbnail || incItem.src;
+        const processedImage = getDisplayImageUrl(rawImageUrl || incItem.imageUrl);
+        
+        const dastAvvalSellPrice = incItem.sellPrice || incItem.bulk_price || incItem.base_price || incItem.wholesalePrice || incItem.factoryPrice || 780000;
+        const customerMarkup = b2bConfig?.customerMarkupPercent || 20;
+        const customerPrice = Math.round(dastAvvalSellPrice * (1 + customerMarkup / 100));
+
+        if (existingIdx >= 0) {
+          currentProductsCopy[existingIdx] = {
+            ...currentProductsCopy[existingIdx],
+            name: incItem.name || incItem.title || currentProductsCopy[existingIdx].name,
+            price: customerPrice || currentProductsCopy[existingIdx].price,
+            bulk_price: dastAvvalSellPrice || currentProductsCopy[existingIdx].bulk_price,
+            consumer_price: incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || incItem.market_price || currentProductsCopy[existingIdx].consumer_price,
+            carton_pack_count: incItem.cartonPackCount || incItem.pack_count || incItem.pack_size || currentProductsCopy[existingIdx].carton_pack_count,
+            stock_quantity_cartons: incItem.stockCartons || incItem.inventory || 10,
+            min_order_cartons: incItem.minOrderCartons || incItem.moq || 1,
+            min_stock_alert: incItem.minStockAlert || 5,
+            unit: incItem.unit || incItem.measure || currentProductsCopy[existingIdx].unit || "عدد",
+            image_url: processedImage || currentProductsCopy[existingIdx].image_url,
+            category: incItem.category || incItem.group || incItem.cat || currentProductsCopy[existingIdx].category,
+            brand: incItem.brand || incItem.manufacturer || currentProductsCopy[existingIdx].brand,
+            sellerName: incItem.brand || incItem.manufacturer || currentProductsCopy[existingIdx].sellerName || "انبار دست اول",
+            description: incItem.description || incItem.info || incItem.body || currentProductsCopy[existingIdx].description,
+            updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+          } as Product;
+          updatedCount++;
+        } else {
+          const newProd: Product = {
+            id: String(sku),
+            sku: sku,
+            name: incItem.name || incItem.title || "محصول کاتالوگ",
+            brand: incItem.brand || incItem.manufacturer || "انبار دست اول",
+            category: incItem.category || incItem.group || "محصولات غذایی",
+            price: customerPrice || 1100000,
+            bulk_price: dastAvvalSellPrice || 1000000,
+            consumer_price: incItem.consumerPrice || incItem.consumer_price || incItem.retailPrice || 1300000,
+            carton_pack_count: incItem.cartonPackCount || incItem.pack_count || 1,
+            min_order_cartons: incItem.minOrderCartons || incItem.moq || 1,
+            stock_quantity_cartons: incItem.stockCartons || incItem.inventory || 10,
+            min_stock_alert: incItem.minStockAlert || 5,
+            unit: incItem.unit || incItem.measure || "عدد",
+            sellerId: "factory-json",
+            sellerName: incItem.brand || "انبار دست اول",
+            production_lead_time_days: 1,
+            image_url: processedImage,
+            description: incItem.description || incItem.info || "واردشده از موتور هوشمند کاتالوگ‌ساز",
+            updated_at: new Date().toLocaleDateString('fa-IR') + ' - ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+          } as Product;
+          currentProductsCopy.unshift(newProd);
+          addedCount++;
+        }
+      });
+
+      if (onBulkUpdateProducts) {
+        await onBulkUpdateProducts(currentProductsCopy);
+      }
+      setSuccessMsg(`بروزرسانی کاتالوگ با موفقیت انجام شد: ${addedCount} کالای جدید اضافه و ${updatedCount} کالا بروزرسانی شدند.`);
+      setShowJsonCatalogModal(false);
+    } catch (err: any) {
+      setErrorMsg("خطا در همگام‌سازی کاتالوگ جیسون: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Open Edit Product Modal
   const handleEditProductClick = (p: Product) => {
     setIsEditingProductId(p.id);
@@ -1206,6 +1292,26 @@ export default function AdminPanel({
 
       window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
 
+      // Trigger SMS to the ad owner
+      if (targetAd && (status === 'approved' || status === 'rejected')) {
+        const adPhone = targetAd.contactPhone || targetAd.creatorPhone || targetAd.phone || targetAd.mobile;
+        if (adPhone) {
+          try {
+            fetch(getApiUrl("/api/sms/send-ad-status-sms"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: adPhone,
+                userName: targetAd.contactPerson || targetAd.factoryName || targetAd.name || "کاربر گرامی",
+                adTitle: targetAd.title || targetAd.name || "آگهی شما",
+                status,
+                rejectionReason
+              })
+            }).catch(() => {});
+          } catch (e) {}
+        }
+      }
+
       if (status === 'approved' && targetAd) {
         triggerAutoChannelPost(
           `📢 آگهی جدید: ${targetAd.title || targetAd.name || 'آگهی جدید'}`,
@@ -1262,13 +1368,81 @@ export default function AdminPanel({
   // Update order status
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status } : o);
-      setOrders(updatedOrders);
-      localStorage.setItem("dastavval_wholesale_orders", JSON.stringify(updatedOrders));
+      const targetOrder = orders.find(o => o.id === orderId);
+      if (targetOrder) {
+        const updatedOrder = { ...targetOrder, status, updatedAt: new Date().toISOString() };
+        await ResilientVault.saveOrder(updatedOrder);
+        const updatedOrders = orders.map(o => o.id === orderId ? updatedOrder : o);
+        setOrders(updatedOrders);
+      } else {
+        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status } : o);
+        setOrders(updatedOrders);
+        localStorage.setItem("dastavval_wholesale_orders", JSON.stringify(updatedOrders));
+      }
       setSuccessMsg(`وضعیت سفارش ${orderId} با موفقیت به «${status}» تغییر یافت.`);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (e: any) {
       setErrorMsg("خطا در تغییر وضعیت سفارش: " + e.message);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      setLoading(true);
+      // 1. Delete from ResilientVault
+      await ResilientVault.deleteOrder(orderId);
+
+      // 2. Filter from state
+      const nextOrders = orders.filter(o => o.id !== orderId && o.trackingNumber !== orderId);
+      setOrders(nextOrders);
+
+      // 3. Update localStorage as fallback
+      localStorage.setItem("dastavval_wholesale_orders", JSON.stringify(nextOrders));
+      localStorage.setItem("dastavval_orders_cache", JSON.stringify(nextOrders));
+      localStorage.setItem("dastavval_raw_orders", JSON.stringify(nextOrders));
+
+      // 4. Sync with server if endpoint exists
+      try {
+        await fetch(getApiUrl(`/api/b2b/orders/${orderId}`), { method: 'DELETE' });
+      } catch (e) {}
+
+      setSuccessMsg(`سفارش #${orderId} با موفقیت از سیستم حذف گردید.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در حذف سفارش: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBatchDeleteOrders = async (ids: string[]) => {
+    try {
+      setLoading(true);
+      let successCount = 0;
+
+      for (const id of ids) {
+        try {
+          await ResilientVault.deleteOrder(id);
+          try {
+            await fetch(getApiUrl(`/api/b2b/orders/${id}`), { method: 'DELETE' });
+          } catch (e) {}
+          successCount++;
+        } catch (err) {}
+      }
+
+      const nextOrders = orders.filter(o => !ids.includes(o.id) && !ids.includes(o.trackingNumber));
+      setOrders(nextOrders);
+
+      localStorage.setItem("dastavval_wholesale_orders", JSON.stringify(nextOrders));
+      localStorage.setItem("dastavval_orders_cache", JSON.stringify(nextOrders));
+      localStorage.setItem("dastavval_raw_orders", JSON.stringify(nextOrders));
+
+      setSuccessMsg(`${toPersianNum(successCount)} فاکتور با موفقیت حذف گردید.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در حذف گروهی سفارشات: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1411,6 +1585,19 @@ export default function AdminPanel({
               <Percent size={15} className="text-amber-600" />
               <span>تنظیمات پیشنهادات ویژه و آفرها</span>
               <span className="bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full">سود و سقف تخفیف</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("coupons")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === "coupons"
+                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+                  : "text-amber-900 bg-amber-50/80 hover:bg-amber-100 border border-amber-300/80"
+              }`}
+            >
+              <Ticket size={15} className="text-amber-600" />
+              <span>مدیریت کوپن‌های تخفیف</span>
+              <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full">درصدی و مبلغی</span>
             </button>
 
             <button
@@ -1921,6 +2108,7 @@ export default function AdminPanel({
               }}
               onNavigateTab={(tab) => setActiveTab(tab)}
               products={products}
+              onDeleteProduct={onDeleteProduct}
             />
           </div>
         )}
@@ -1938,6 +2126,14 @@ export default function AdminPanel({
 
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setShowJsonCatalogModal(true)}
+                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-blue-600/20 cursor-pointer"
+                  >
+                    <Repeat size={16} />
+                    <span>بروز رسانی از کاتالوگ جیسون</span>
+                  </button>
+
+                  <button
                     onClick={() => {
                       handleResetProductForm();
                       setShowProductForm(true);
@@ -1949,6 +2145,13 @@ export default function AdminPanel({
                   </button>
                 </div>
               </div>
+
+              {/* Smart JSON Catalog Import Modal */}
+              <SmartJsonCatalogModal
+                isOpen={showJsonCatalogModal}
+                onClose={() => setShowJsonCatalogModal(false)}
+                onApplyProducts={handleApplyJsonProducts}
+              />
 
               {/* Search & Sub-tabs */}
               <div className="flex flex-col md:flex-row gap-3 pt-2">
@@ -3722,17 +3925,27 @@ export default function AdminPanel({
               setOrdersSearch={setOrdersSearch}
               fetchOrders={() => loadLocalData()}
               handleUpdateOrderStatus={handleUpdateOrderStatus}
+              onDeleteOrder={handleDeleteOrder}
+              onBatchDeleteOrders={handleBatchDeleteOrders}
               formatOrderDate={(d) => d || new Date().toLocaleDateString("fa-IR")}
               getStatusLabel={(s) => ({
                 text: s === 'approved' ? 'تایید شده' : s === 'pending' ? 'در انتظار' : s,
                 color: s === 'approved' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-amber-700'
               })}
               setShowPrintInvoice={(order) => {
-                if (order && typeof window !== "undefined") {
-                  window.print();
-                }
+                setSelectedOrderToPrint(order);
               }}
             />
+
+            {/* Print/Download Invoice Modal */}
+            {selectedOrderToPrint && (
+              <WholesaleInvoiceView
+                order={selectedOrderToPrint}
+                b2bConfig={b2bConfig}
+                isAdmin={true}
+                onClose={() => setSelectedOrderToPrint(null)}
+              />
+            )}
           </div>
         )}
 
@@ -3923,6 +4136,13 @@ export default function AdminPanel({
               onUpdateB2bConfig={onUpdateB2bConfig}
               onUpdateProduct={onUpdateProduct}
             />
+          </div>
+        )}
+
+        {/* DISCOUNT COUPONS TAB */}
+        {activeTab === "coupons" && (
+          <div className="animate-in fade-in duration-300">
+            <AdminCoupons />
           </div>
         )}
 

@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Product } from "../types";
 import { cleanUnitName, getDisplayImageUrl, getProductFallbackSvg } from "../lib/image-utils";
-import { Plus, Minus, Sparkles, Factory, MapPin, Package, Star, TrendingUp, ShieldCheck, Lock, Award, Percent, Tag, ShoppingCart, Heart } from "lucide-react";
-import { motion } from "motion/react";
+import { Plus, Minus, Sparkles, Factory, MapPin, Package, Star, TrendingUp, ShieldCheck, Lock, Award, Percent, Tag, ShoppingCart, Heart, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
 interface PremiumProductCardProps {
@@ -61,6 +61,8 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = React.memo(
     };
   }, [product.id, checkBookmark]);
 
+  const [flyingParticles, setFlyingParticles] = useState<{ id: number }[]>([]);
+
   const handleToggleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -76,6 +78,21 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = React.memo(
       localStorage.setItem("dastavval_wishlist", JSON.stringify(list));
       window.dispatchEvent(new CustomEvent("dastavval-wishlist-changed"));
     } catch (err) {}
+  };
+
+  const handleAddToCartWithParticles = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAddToCart(product, qty);
+    const newId = Date.now();
+    setFlyingParticles(prev => [...prev, { id: newId }]);
+
+    try {
+      window.dispatchEvent(new CustomEvent("dastavval_cart_item_added"));
+    } catch (err) {}
+
+    setTimeout(() => {
+      setFlyingParticles(prev => prev.filter(p => p.id !== newId));
+    }, 900);
   };
 
   return (
@@ -241,11 +258,35 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = React.memo(
           </div>
 
           <button 
-            onClick={() => onAddToCart(product, qty)}
-            className="flex-1 py-3 sm:py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[12px] font-black flex items-center justify-center gap-2 transition-all duration-250 active:scale-[0.94] hover:scale-[1.01] hover:shadow-lg shadow-md shadow-emerald-600/10 cursor-pointer"
+            onClick={handleAddToCartWithParticles}
+            className="relative flex-1 py-3 sm:py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[12px] font-black flex items-center justify-center gap-2 transition-all duration-250 active:scale-[0.94] hover:scale-[1.01] hover:shadow-lg shadow-md shadow-emerald-600/10 cursor-pointer"
           >
             <ShoppingCart size={18} />
             <span>ثبت در سبد سفارش</span>
+
+            {/* Fly-To-Cart Particle Animation */}
+            <AnimatePresence>
+              {flyingParticles.map((particle) => (
+                <motion.div
+                  key={`fly-prem-${particle.id}`}
+                  initial={{ opacity: 1, scale: 0.9, x: 0, y: 0 }}
+                  animate={{
+                    opacity: [1, 1, 0],
+                    scale: [1, 1.4, 0.4],
+                    x: [-10, -40, -120],
+                    y: [-10, -90, -180],
+                    rotate: [0, -20, -45]
+                  }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute inset-0 pointer-events-none flex items-center justify-center z-50"
+                >
+                  <div className="flex items-center justify-center gap-1 bg-emerald-600 text-white p-2 rounded-2xl shadow-xl border border-amber-300 ring-2 ring-emerald-400">
+                    <ShoppingCart size={16} className="fill-white animate-pulse" />
+                    <span className="text-[10px] font-black font-mono">+{qty}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </button>
         </div>
       </div>

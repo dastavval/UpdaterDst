@@ -26,6 +26,7 @@ import {
 import WholesaleInvoiceView from './WholesaleInvoiceView';
 import { OfficialUnifiedSealSignature } from './OfficialDigitalStamp';
 import SealSignatureCaptureModal from './SealSignatureCaptureModal';
+import { GalleryPickerModal } from './GalleryPickerModal';
 import { Order } from '../types';
 
 interface AdminInvoiceSettingsProps {
@@ -95,6 +96,8 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
   const [showLivePreview, setShowLivePreview] = useState(false);
   const [isCaptureModalOpen, setIsCaptureModalOpen] = useState(false);
   const [captureTarget, setCaptureTarget] = useState<'seal' | 'signature'>('seal');
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [galleryTarget, setGalleryTarget] = useState<'seal' | 'signature'>('seal');
 
   useEffect(() => {
     if (b2bConfig?.invoiceSettings) {
@@ -199,6 +202,15 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
         })).sort((a, b) => a.threshold - b.threshold),
         invoiceSettings: updatedInvoiceSettings
       };
+
+      try {
+        localStorage.setItem("dastavval_b2b_config", JSON.stringify(updatedB2bConfig));
+        if (officialSealUrl) localStorage.setItem("dastavval_official_seal", officialSealUrl);
+        if (officialSignatureUrl) localStorage.setItem("dastavval_official_signature", officialSignatureUrl);
+        if (sellerTitle) localStorage.setItem("dastavval_app_name", sellerTitle);
+      } catch (e) {
+        console.warn("Failed to write branding assets to local storage:", e);
+      }
 
       await onUpdateB2bConfig(updatedB2bConfig);
       clearInterval(progressTimer);
@@ -891,6 +903,18 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                   <button
                     type="button"
                     onClick={() => {
+                      setGalleryTarget('seal');
+                      setIsGalleryModalOpen(true);
+                    }}
+                    className="w-full sm:w-auto px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-emerald-200 transition-colors shrink-0 shadow-2xs cursor-pointer"
+                  >
+                    <ImageIcon size={14} className="text-emerald-600" />
+                    <span>گالری پارس‌پک</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
                       setCaptureTarget('seal');
                       setIsCaptureModalOpen(true);
                     }}
@@ -946,6 +970,18 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
                     )}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGalleryTarget('signature');
+                        setIsGalleryModalOpen(true);
+                      }}
+                      className="w-full sm:w-auto px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-emerald-200 transition-colors shrink-0 shadow-2xs cursor-pointer"
+                    >
+                      <ImageIcon size={14} className="text-emerald-600" />
+                      <span>گالری پارس‌پک</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -1195,6 +1231,22 @@ export default function AdminInvoiceSettings({ b2bConfig, onUpdateB2bConfig }: A
               // keep sealType or set to custom_image if both exist
             }
           }
+        }}
+      />
+
+      {/* Gallery Picker Modal */}
+      <GalleryPickerModal
+        isOpen={isGalleryModalOpen}
+        onClose={() => setIsGalleryModalOpen(false)}
+        title={galleryTarget === 'seal' ? "انتخاب تصویر مهر رسمی از گالری پارس‌پک" : "انتخاب تصویر امضا از گالری پارس‌پک"}
+        onSelect={(url) => {
+          if (galleryTarget === 'seal') {
+            setOfficialSealUrl(url);
+            setSealType('custom_image');
+          } else {
+            setOfficialSignatureUrl(url);
+          }
+          setIsGalleryModalOpen(false);
         }}
       />
     </div>

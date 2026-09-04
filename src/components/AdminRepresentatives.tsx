@@ -20,6 +20,7 @@ import {
   formatTomanCurrency, 
   CityTierData 
 } from "../utils/dealershipCityTiers";
+import { getApiUrl } from "../utils/api-utils";
 
 interface AdminRepresentativesProps {
   representativesList: any[];
@@ -112,6 +113,23 @@ export default function AdminRepresentatives({
     updateRepresentativeKycStatus(identifier, 'rejected', kycReviewerNotes, kycRejectionReason.trim());
     refreshKycs();
     setSelectedRepForKyc(null);
+
+    // Send SMS notice to applicant
+    if (rep.phone || rep.mobile) {
+      try {
+        fetch(getApiUrl("/api/sms/send-dealership-status-sms"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: rep.phone || rep.mobile,
+            fullName: rep.name,
+            agencyCode: rep.agencyCode,
+            status: "rejected"
+          })
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
     setSuccessMsg(`مدارک نماینده (${rep.name}) جهت اصلاح برگشت داده شد.`);
     setTimeout(() => setSuccessMsg(null), 5000);
   };
@@ -304,6 +322,22 @@ export default function AdminRepresentatives({
           } catch (e) {}
         }
       } catch (e) {}
+
+      // Dispatch SMS to representative
+      if (rep.phone || rep.mobile) {
+        try {
+          fetch(getApiUrl("/api/sms/send-dealership-status-sms"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: rep.phone || rep.mobile,
+              fullName: rep.name,
+              agencyCode: rep.agencyCode,
+              status: "approved"
+            })
+          }).catch(() => {});
+        } catch (e) {}
+      }
 
       setSuccessMsg("نماینده با موفقیت تایید و وضعیت دسترسی فعال شد.");
       if (onUpdateReps) await onUpdateReps();

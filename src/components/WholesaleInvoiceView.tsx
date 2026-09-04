@@ -10,8 +10,7 @@ import {
 import { generateInvoiceUrl } from "../lib/invoice-url-helper";
 import { toJpeg, toPng } from "html-to-image";
 import jsPDF from "jspdf";
-//@ts-ignore
-import html2pdf from "html2pdf.js";
+import { downloadInvoicePdfDirectly, printInvoiceViaIframe } from "../lib/invoice-pdf-generator";
 import { OfficialUnifiedSealSignature } from "./OfficialDigitalStamp";
 
 interface WholesaleInvoiceViewProps {
@@ -273,7 +272,22 @@ export default function WholesaleInvoiceView({
     return itemsDiscountsTotal;
   }, [order, itemsDiscountsTotal]);
 
-  const totalDiscounts = tierDiscountInfo.amount + cashDiscountInfo.amount + badgeDiscountAmount + sedimentDiscountAmount;
+  // Coupon discount
+  const couponDiscountAmount = useMemo(() => {
+    const breakDownAny = (order?.discountBreakdown || {}) as any;
+    const directCoupon = Number((order as any)?.couponDiscount || 0);
+    if (directCoupon > 0) return directCoupon;
+    if (breakDownAny?.coupon !== undefined) {
+      return Number(breakDownAny.coupon || 0);
+    }
+    return 0;
+  }, [order]);
+
+  const couponCode = useMemo(() => {
+    return (order as any)?.couponCode || (order?.discountBreakdown as any)?.couponCode || '';
+  }, [order]);
+
+  const totalDiscounts = tierDiscountInfo.amount + cashDiscountInfo.amount + badgeDiscountAmount + sedimentDiscountAmount + couponDiscountAmount;
 
   const grandTotal = useMemo(() => {
     if (isFactoryView) {
@@ -351,80 +365,22 @@ export default function WholesaleInvoiceView({
     setDownloadSuccessMessage(null);
 
     try {
-      if (invoiceRef.current) {
-        const element = invoiceRef.current;
-        const opt: any = {
-          margin:       5,
-          filename:     `Pishfaktor-${invoiceSerial}.pdf`,
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2, useCORS: true, letterRendering: true, logging: false },
-          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        await html2pdf().from(element).set(opt).save();
-        setDownloadSuccessMessage("فایل PDF پیش‌فاکتور با بالاترین کیفیت دانلود شد.");
+      const res = await downloadInvoicePdfDirectly(
+        'printable-invoice',
+        `Pishfaktor-${invoiceSerial}.pdf`
+      );
+      if (res.success) {
+        setDownloadSuccessMessage(res.message);
         setTimeout(() => setDownloadSuccessMessage(null), 4000);
-        return;
+      } else {
+        // Fallback to iframe printing
+        printInvoiceViaIframe('printable-invoice');
+        setDownloadSuccessMessage("پنجره چاپ و ذخیره مستقیم PDF آماده شد.");
+        setTimeout(() => setDownloadSuccessMessage(null), 4000);
       }
-    } catch (err) {
-      console.warn("html2pdf download attempt failed, trying fallback:", err);
-    }
-
-    try {
-      const imgData = await captureInvoiceDataUrl('png', 3.5);
-      if (!imgData) throw new Error("Canvas rendering failed");
-
-      // Load image to get true pixel aspect ratio
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((resolve, reject) => {
-        img.onload = () => resolve(true);
-        img.onerror = reject;
-      });
-
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-        compress: true,
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const margin = 5; // Balanced margin
-      const availableWidth = pdfWidth - (margin * 2);
-      const availableHeight = pdfHeight - (margin * 2);
-
-      const imgWidth = availableWidth;
-      const totalImgHeight = (img.naturalHeight * imgWidth) / img.naturalWidth;
-      
-      // Multi-page support: If image is taller than available page height, split it
-      let heightLeft = totalImgHeight;
-      let position = margin;
-      let page = 1;
-
-      while (heightLeft > 0) {
-        if (page > 1) {
-          pdf.addPage();
-          position = margin; // Reset position for new page
-        }
-        
-        pdf.addImage(imgData, "PNG", margin, position - (availableHeight * (page - 1)), imgWidth, totalImgHeight, undefined, 'FAST');
-        
-        heightLeft -= availableHeight;
-        page++;
-      }
-
-      pdf.save(`Pishfaktor-${invoiceSerial}.pdf`);
-
-      setDownloadSuccessMessage(`فایل PDF ${page > 1 ? `${page} صفحه‌ای` : ''} پیش‌فاکتور با بالاترین کیفیت (HD) با موفقیت دانلود شد.`);
-      setTimeout(() => setDownloadSuccessMessage(null), 4000);
     } catch (err) {
       console.error("Error generating PDF:", err);
-      try {
-        window.print();
-      } catch (e) {
-        console.error("Print fallback error", e);
-      }
+      printInvoiceViaIframe('printable-invoice');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -455,11 +411,7 @@ export default function WholesaleInvoiceView({
 
   // 3. Direct Print handler
   const handlePrint = () => {
-    try {
-      window.print();
-    } catch (e) {
-      handleDownloadPdf();
-    }
+    printInvoiceViaIframe('printable-invoice');
   };
 
   const [copiedLink, setCopiedLink] = useState(false);
@@ -561,8 +513,8 @@ export default function WholesaleInvoiceView({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-1.5 no-print">
             
             {/* Download PDF Button */}
             <button
@@ -633,13 +585,14 @@ export default function WholesaleInvoiceView({
               </button>
             )}
 
-            {/* Close Button */}
+            {/* Prominent Close Button */}
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 border border-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-              title="بستن"
+              className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs active:scale-95 shrink-0"
+              title="بستن پیش‌فاکتور و بازگشت به سفارش"
             >
               <X size={15} />
+              <span>بستن</span>
             </button>
           </div>
         </div>
@@ -705,49 +658,55 @@ export default function WholesaleInvoiceView({
           @media print {
             @page {
               size: A4 portrait;
-              margin: 8mm;
+              margin: 8mm 6mm;
             }
-            html, body {
-              background: #ffffff !important;
-              color: #000000 !important;
-              font-family: 'Vazirmatn', Tahoma, Arial, sans-serif !important;
-              font-size: 8.5pt !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+            body * {
+              visibility: hidden !important;
+            }
+            #printable-invoice, #printable-invoice * {
+              visibility: visible !important;
             }
             #printable-invoice {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
               width: 100% !important;
-              max-width: 100% !important;
+              max-width: none !important;
               margin: 0 !important;
               padding: 0 !important;
-              border: none !important;
+              background: white !important;
+              z-index: 9999 !important;
               box-shadow: none !important;
+              border: none !important;
             }
-            .a4-table {
-              border-collapse: collapse !important;
-              width: 100% !important;
-              table-layout: fixed !important;
-            }
-            .a4-table th, .a4-table td {
-              border: 1px solid #e2e8f0 !important;
-              padding: 2px 4px !important;
-              color: #000000 !important;
-              font-size: 8pt !important;
-            }
-            .a4-table th {
-              background-color: #f8fafc !important;
-              font-weight: 900 !important;
-            }
-            .a4-box {
-              border: 1px solid #e2e8f0 !important;
-            }
-            .a4-header-bg {
-              background-color: #f8fafc !important;
-              color: #000000 !important;
-            }
-            .print\\:hidden {
+            .no-print {
               display: none !important;
             }
+          }
+          .a4-table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            table-layout: fixed !important;
+          }
+          .a4-table th, .a4-table td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 4px 6px !important;
+            color: #000000 !important;
+            font-size: 8.5pt !important;
+          }
+          .a4-table th {
+            background-color: #f8fafc !important;
+            font-weight: 900 !important;
+          }
+          .a4-box {
+            border: 1px solid #cbd5e1 !important;
+          }
+          .a4-header-bg {
+            background-color: #f8fafc !important;
+            color: #000000 !important;
+          }
+          .print\\:hidden {
+            display: none !important;
           }
         `}} />
 
@@ -1226,6 +1185,13 @@ export default function WholesaleInvoiceView({
                   </div>
                 )}
 
+                {couponDiscountAmount > 0 && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-teal-700 font-bold">
+                    <span>تخفیف کوپن {couponCode ? `(کد ${couponCode})` : ''}:</span>
+                    <span className="font-mono">-{toPersianNum(couponDiscountAmount)} تومان</span>
+                  </div>
+                )}
+
                 {chequeMarkupAmount > 0 && (
                   <div className="flex justify-between items-center py-0.5 border-b border-slate-100 text-emerald-700 font-bold">
                     <span>کارمزد تسویه چکی:</span>
@@ -1260,11 +1226,11 @@ export default function WholesaleInvoiceView({
             ? invSettings.bankAccounts 
             : [
                 {
-                  bankName: "بانک صادرات ایران (حساب امانی سامانه)",
-                  ownerName: "بازرگانی دست اول",
-                  accountNumber: "۰۱۰۲۳۴۵۶۷۸۰۰۱",
-                  cardNumber: "۶۰۳۷-۹۹۷۵-۸۸۲۱-۳۳۶۰",
-                  sheba: "IR45 0190 0000 0010 2345 6780 01"
+                  bankName: "بانک ملت (حساب امانی و تسویه سامانه)",
+                  ownerName: "بازرگانی دست اول - علی پرتوی",
+                  accountNumber: "۸۳۴۹۱۸۳۱۰۵",
+                  cardNumber: "۶۱۰۴-۳۳۷۴-۲۰۶۷-۲۷۲۵",
+                  sheba: "IR47 0120 0100 0000 8349 1831 05"
                 }
               ];
           const acc = accounts[0];
@@ -1353,6 +1319,36 @@ export default function WholesaleInvoiceView({
           {isFactoryView ? "حواله رسمی خروج و بارگیری انبار کارخانه | سامانه هوشمند ترابری و بازرگانی دست‌اول | استعلام اصالت سند: Dastavval.com" : "صفحه ۱ از ۱ | پیش‌فاکتور رسمی و تجاری بازرگانی دست اول | استعلام اصالت سند: Dastavval.com"}
         </div>
 
+      </div>
+
+      {/* Return & Close Bottom Action (Hidden on Print) */}
+      <div className="w-full max-w-3xl my-4 flex flex-wrap items-center justify-center gap-3 no-print">
+        <button
+          type="button"
+          onClick={handleDownloadPdf}
+          disabled={isGeneratingPdf}
+          className="px-6 py-3 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-lg shadow-emerald-700/25 cursor-pointer transition-all active:scale-95"
+        >
+          {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <span>📥</span>}
+          <span>{isGeneratingPdf ? "در حال تولید PDF..." : "دانلود و ذخیره فایل فاکتور (PDF)"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCopyLink}
+          className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
+        >
+          {copiedLink ? <Check size={18} className="text-emerald-600" /> : <span>🔗</span>}
+          <span>{copiedLink ? "لینک فاکتور کپی شد!" : "کپی لینک آنلاین فاکتور"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-2xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-sm cursor-pointer transition-all active:scale-95"
+        >
+          <span>← بستن و بازگشت به لیست کالاها</span>
+        </button>
       </div>
     </div>
   );

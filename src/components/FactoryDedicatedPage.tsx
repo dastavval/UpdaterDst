@@ -384,131 +384,83 @@ export default function FactoryDedicatedPage({
         </div>
 
         {/* HERO COVER BANNER */}
-        <div className="relative h-64 sm:h-96 w-full bg-slate-900 overflow-hidden">
+        <div className="relative h-48 sm:h-64 md:h-80 w-full bg-slate-950 overflow-hidden">
           <img 
             src={coverImage} 
             alt={factory.name} 
-            className="w-full h-full object-cover opacity-70 scale-105 transition-transform duration-1000 hover:scale-100"
+            className="w-full h-full object-cover opacity-60 transition-transform duration-1000 hover:scale-105"
             onError={(e) => {
               e.currentTarget.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80";
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
           
-          {/* Animated decorative element */}
-          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl" />
-
           {/* Banner Badges */}
-          <div className="absolute top-6 right-6 z-20 flex flex-col items-end gap-2">
-            <span className="bg-emerald-500 text-slate-950 font-black text-[10px] sm:text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 border border-emerald-400/30 backdrop-blur-sm">
-              <ShieldCheck size={14} />
-              <span>واحد تولیدی احراز هویت شده</span>
+          <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+            <span className="bg-slate-950 text-white font-black text-[9px] sm:text-xs px-3 py-1.5 rounded-xl shadow-2xl flex items-center gap-1.5 border border-white/10 backdrop-blur-md">
+              <ShieldCheck size={14} className="text-emerald-400" />
+              <span>احراز هویت شده</span>
             </span>
-            {factory.isPremium && (
-              <span className="bg-amber-400 text-amber-950 font-black text-[10px] sm:text-xs px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 border border-amber-300 backdrop-blur-sm">
-                <Award size={14} />
-                <span>برند ممتاز و منتخب</span>
-              </span>
-            )}
-            {/* Additional Luxury Badges Chips in Header */}
-            {factory.selectedBadges && factory.selectedBadges.slice(0, 2).map((bName, bIdx) => {
-              const preset = LUXURY_PRESET_BADGES.find(p => p.label === bName);
-              return (
-                <span 
-                  key={`banner-badge-${bIdx}`}
-                  className="bg-white/10 text-white font-black text-[10px] sm:text-xs px-3 py-1.5 rounded-xl shadow-lg border border-white/20 flex items-center gap-1.5 backdrop-blur-md"
-                >
-                  <Sparkles size={12} className="text-amber-400" />
-                  <span className="truncate">{preset ? preset.badgeText : bName}</span>
-                </span>
-              );
-            })}
           </div>
         </div>
 
         {/* FACTORY PROFILE DETAILS CONTAINER */}
-        <div className="relative px-4 sm:px-6 pb-6 pt-0 -mt-16 sm:-mt-24 z-20">
-          <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-4 sm:gap-6">
-            <div className="flex flex-col md:flex-row items-center md:items-end gap-4 sm:gap-6 w-full md:w-auto">
+        <div className="relative px-5 sm:px-10 pb-6 pt-0 -mt-12 sm:-mt-20 z-20">
+          <div className="flex flex-col items-center md:items-end justify-between gap-6 md:flex-row">
+            <div className="flex flex-col items-center md:items-end gap-5 md:flex-row w-full">
               
-              {/* Logo Container - Large & Prominent */}
-              <div className="w-28 h-28 sm:w-40 sm:h-40 rounded-[2rem] sm:rounded-[2.5rem] bg-white p-1.5 sm:p-2 shadow-2xl border-4 border-white shrink-0 overflow-hidden relative flex items-center justify-center z-10 group transition-transform hover:scale-[1.02]">
-                <div className="absolute inset-0 bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* Logo Container - Simplified & Compact */}
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-[2rem] bg-white p-1.5 shadow-2xl border border-slate-100 shrink-0 overflow-hidden relative flex items-center justify-center z-10">
                 {logoImage && typeof logoImage === 'string' && (logoImage.startsWith('http') || logoImage.startsWith('data:image/') || logoImage.startsWith('/') || logoImage.startsWith('.') || logoImage.includes('.') || logoImage.includes('/') || logoImage.includes('%2F')) ? (
                   <img 
                     src={logoImage} 
                     alt={factory.name} 
-                    className="w-full h-full object-contain p-2 rounded-2xl sm:rounded-3xl relative z-10 mix-blend-multiply" 
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        const fb = parent.querySelector('.fac-hero-vector-fallback');
-                        if (fb) (fb as HTMLElement).style.display = 'flex';
-                      }
-                    }}
+                    className="w-full h-full object-contain p-2 rounded-2xl mix-blend-multiply" 
                   />
-                ) : null}
-                <div 
-                  className="fac-hero-vector-fallback absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950 text-white flex-col items-center justify-center p-4 text-center rounded-2xl sm:rounded-3xl shadow-inner"
-                  style={{ display: !logoImage || (typeof logoImage === 'string' && !(logoImage.startsWith('http') || logoImage.startsWith('data:image/') || logoImage.startsWith('/') || logoImage.startsWith('.') || logoImage.includes('.') || logoImage.includes('/') || logoImage.includes('%2F'))) ? 'flex' : 'none' }}
-                >
-                  <Building2 size={32} className="mb-2 text-emerald-400 sm:w-10 sm:h-10" />
-                  <span className="text-[9px] sm:text-[10px] font-black leading-tight text-white/80 uppercase tracking-widest">Brand Hub</span>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-300">
+                    <Building2 size={32} />
+                  </div>
+                )}
               </div>
 
-              {/* Textual Info */}
-              <div className="flex-1 space-y-2 text-center md:text-right pb-2 min-w-0">
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 sm:gap-2">
-                  <span className="bg-emerald-600 text-white text-[9px] sm:text-[11px] font-black px-2 sm:px-3 py-1 rounded-lg shadow-sm">
-                    {factory.category || "صنایع غذایی و تولیدی"}
+              {/* Textual Info - High Contrast */}
+              <div className="flex-1 space-y-2 text-center md:text-right">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                  <span className="bg-slate-950 text-white text-[9px] sm:text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm">
+                    {factory.category || "صنایع تولیدی"}
                   </span>
-                  <span className="bg-white/10 text-white backdrop-blur-md text-[9px] sm:text-[11px] font-black px-2 sm:px-3 py-1 rounded-lg border border-white/20">
+                  <span className="bg-slate-100 text-slate-500 text-[9px] sm:text-[10px] font-black px-3 py-1 rounded-full">
                     تاسیس {toPersianDigits(factory.establishedYear || "۱۳۸۰")}
                   </span>
                 </div>
                 
-                <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-white drop-shadow-lg leading-tight tracking-tight break-words">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 tracking-tighter leading-tight">
                   {factory.name}
                 </h1>
                 
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[10px] sm:text-sm font-bold">
-                  <span className="flex items-center gap-1.5 text-slate-200">
-                    <MapPin size={14} className="text-emerald-400 sm:w-4 sm:h-4" />
-                    <span>استان {factory.province || factory.location || "تهران"}، {factory.city || "قطب صنعتی"}</span>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-[10px] sm:text-xs font-bold text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} className="text-slate-400" />
+                    <span>{factory.province || factory.location || "تهران"}، {factory.city || "قطب صنعتی"}</span>
                   </span>
-                  <span className="hidden md:inline text-white/20">|</span>
-                  <div className="flex items-center gap-2 bg-black/30 backdrop-blur-md px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-white/10 shrink-0">
-                    <StarRating 
-                      rating={computedRating} 
-                      size={12} 
-                      interactive={true} 
-                      showCount={true} 
-                      count={localReviews.length}
-                      onRate={(r) => {
-                        setReviewRating(r);
-                        setActiveTab('reviews');
-                        setShowReviewForm(true);
-                      }}
-                    />
+                  <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-full border border-slate-100 shrink-0">
+                    <StarRating rating={computedRating} size={10} count={localReviews.length} showCount />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Quick Action CTA */}
-            <div className="w-full md:w-auto z-10 flex flex-col sm:flex-row gap-3 mt-2 sm:mt-0">
+            {/* Main Action */}
+            <div className="w-full md:w-auto shrink-0">
               <button
                 onClick={() => {
                   if (onDirectOrderFactory) onDirectOrderFactory(factory.name);
-                  setActiveTab('products');
                 }}
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl shadow-xl hover:shadow-emerald-500/20 flex items-center justify-center gap-2.5 transition-all active:scale-95 group text-sm sm:text-base"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black px-10 py-4 rounded-2xl shadow-xl hover:shadow-emerald-500/20 flex items-center justify-center gap-3 transition-all active:scale-95 text-sm sm:text-base"
               >
-                <ShoppingBag size={18} className="group-hover:bounce sm:w-5 sm:h-5" />
-                <span>استعلام قیمت و خرید مستقیم</span>
+                <ShoppingBag size={20} />
+                <span>استعلام قیمت و خرید</span>
               </button>
             </div>
           </div>
@@ -693,60 +645,28 @@ export default function FactoryDedicatedPage({
                   <h3 className="text-sm font-black text-slate-900">مشخصات فنی، ظرفیت تولید و مهندسی خطوط</h3>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
-                      <Zap size={20} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {[
+                    { icon: Zap, label: "ظرفیت تولید روزانه", val: factory.dailyCapacity || factory.capacity || "۵,۰۰۰ کارتن" },
+                    { icon: Users, label: "کادر فنی و پرسنل", val: factory.personnelCount ? `${toPersianDigits(factory.personnelCount)} نفر` : "۱۸۰ نفر" },
+                    { icon: Layers, label: "خطوط تولید تمام اتوماتیک", val: factory.activeProductionLines ? `${toPersianDigits(factory.activeProductionLines)} خط` : "۴ خط مکانیزه" },
+                    { icon: Building2, label: "وسعت کل مجموعه", val: factory.factoryArea ? `${toPersianDigits(factory.factoryArea)} متر` : "۱۴,۰۰۰ متر" },
+                    { icon: Clock, label: "شیفت‌های کاری", val: "۳ شیفت (۲۴ ساعته)" },
+                    { icon: Truck, label: "ارسال سراسری", val: "تریلی / جاده‌ای" }
+                  ].map((stat, i) => (
+                    <div key={i} className="group bg-slate-950 text-white rounded-3xl p-6 shadow-xl hover:bg-emerald-600 transition-all duration-500 flex flex-col gap-4 relative overflow-hidden">
+                      <div className="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <stat.icon size={120} />
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white backdrop-blur-md">
+                        <stat.icon size={20} />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
+                        <span className="text-base font-black block">{stat.val}</span>
+                      </div>
                     </div>
-                    <span className="text-[11px] text-slate-400 font-bold block">ظرفیت اسمی و روزانه:</span>
-                    <span className="text-sm font-black text-slate-900 block">{factory.dailyCapacity || factory.capacity || "۵,۰۰۰ کارتن در روز"}</span>
-                  </div>
-
-                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-black">
-                      <Users size={20} />
-                    </div>
-                    <span className="text-[11px] text-slate-400 font-bold block">کادر فنی و پرسنل فعال:</span>
-                    <span className="text-sm font-black text-slate-900 block">
-                      {factory.personnelCount ? `${toPersianDigits(factory.personnelCount)} نفر پرسنل متخصص` : "۱۸۰ نفر کادر فنی و تولید"}
-                    </span>
-                  </div>
-
-                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black">
-                      <Layers size={20} />
-                    </div>
-                    <span className="text-[11px] text-slate-400 font-bold block">خطوط تولید فعال و مکانیزه:</span>
-                    <span className="text-sm font-black text-slate-900 block">
-                      {factory.activeProductionLines ? `${toPersianDigits(factory.activeProductionLines)} خط تمام اتوماتیک` : "۴ خط مکانیزه"}
-                    </span>
-                  </div>
-
-                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center font-black">
-                      <Building2 size={20} />
-                    </div>
-                    <span className="text-[11px] text-slate-400 font-bold block">وسعت کل عرصه و سالن‌ها:</span>
-                    <span className="text-sm font-black text-slate-900 block">
-                      {factory.factoryArea ? toPersianDigits(factory.factoryArea) : "۱۴,۰۰۰ متر مربع"}
-                    </span>
-                  </div>
-
-                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-black">
-                      <Clock size={20} />
-                    </div>
-                    <span className="text-[11px] text-slate-400 font-bold block">شیفت‌های کاری فعال:</span>
-                    <span className="text-sm font-black text-slate-900 block">۳ شیفت کاری (پیوسته ۲۴ ساعته)</span>
-                  </div>
-
-                  <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-black">
-                      <Truck size={20} />
-                    </div>
-                    <span className="text-[11px] text-slate-400 font-bold block">امکان ارسال و بارگیری:</span>
-                    <span className="text-sm font-black text-slate-900 block">سراسر کشور (تریلی/کامیون/خاور)</span>
-                  </div>
+                  ))}
                 </div>
               </div>
 

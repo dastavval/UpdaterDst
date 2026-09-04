@@ -178,14 +178,28 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
     setCartons(prev => prev + 1);
   };
 
+  const [flyingParticles, setFlyingParticles] = useState<{ id: number }[]>([]);
+
   const handleDecrement = () => {
     setCartons(prev => Math.max(minCartonsLimit, prev - 1));
   };
 
-  const handleAddWithFeedback = () => {
+  const handleAddWithFeedback = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onAddToCart(product, cartons);
     setIsAddedFeedback(true);
+
+    const newId = Date.now();
+    setFlyingParticles(prev => [...prev, { id: newId }]);
+
+    try {
+      window.dispatchEvent(new CustomEvent("dastavval_cart_item_added"));
+    } catch (err) {}
+
     setTimeout(() => setIsAddedFeedback(false), 1600);
+    setTimeout(() => {
+      setFlyingParticles(prev => prev.filter(p => p.id !== newId));
+    }, 900);
   };
 
   return (
@@ -351,7 +365,7 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
 
             <button 
               onClick={handleAddWithFeedback}
-              className={`flex-1 h-7 sm:h-9 rounded-full font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 transition-all duration-250 active:scale-[0.93] hover:scale-[1.01] cursor-pointer ${
+              className={`relative flex-1 h-7 sm:h-9 rounded-full font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 transition-all duration-250 active:scale-[0.93] hover:scale-[1.01] cursor-pointer ${
                 isAddedFeedback
                   ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                   : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow-md active:shadow-xs"
@@ -368,6 +382,30 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
                   <span className="tracking-wide">سبد خرید</span>
                 </>
               )}
+
+              {/* Fly-To-Cart Particle Animation */}
+              <AnimatePresence>
+                {flyingParticles.map((particle) => (
+                  <motion.div
+                    key={`fly-${particle.id}`}
+                    initial={{ opacity: 1, scale: 0.9, x: 0, y: 0 }}
+                    animate={{
+                      opacity: [1, 1, 0],
+                      scale: [1, 1.4, 0.4],
+                      x: [-10, -40, -110],
+                      y: [-10, -90, -180],
+                      rotate: [0, -20, -45]
+                    }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute inset-0 pointer-events-none flex items-center justify-center z-50"
+                  >
+                    <div className="flex items-center justify-center gap-1 bg-emerald-600 text-white p-2 rounded-2xl shadow-xl border border-amber-300 ring-2 ring-emerald-400">
+                      <ShoppingCart size={14} className="fill-white animate-pulse" />
+                      <span className="text-[9px] font-black font-mono">+{cartons}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </button>
           </div>
         </div>

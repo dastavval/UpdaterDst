@@ -381,9 +381,9 @@ export default function AdminCategoriesManagement({
               </div>
 
               <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50 rounded-2xl border border-slate-200/60 max-h-32 overflow-y-auto custom-scrollbar">
-                {EMOJI_OPTIONS.map((eStr) => (
+                {EMOJI_OPTIONS.map((eStr, eIdx) => (
                   <button
-                    key={eStr}
+                    key={`emoji-opt-${eStr}-${eIdx}`}
                     type="button"
                     onClick={() => setEmoji(eStr)}
                     className={`w-8 h-8 rounded-lg text-base flex items-center justify-center transition-transform hover:scale-125 cursor-pointer ${

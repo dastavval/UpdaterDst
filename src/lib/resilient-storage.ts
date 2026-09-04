@@ -102,6 +102,28 @@ async function readAllFromIDB(storeName: string): Promise<any[]> {
   }
 }
 
+// Delete from IndexedDB
+async function deleteFromIDB(storeName: string, id: string): Promise<boolean> {
+  try {
+    const db = await openVaultDB();
+    if (!db) return false;
+    if (!db.objectStoreNames.contains(storeName)) return false;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        store.delete(id);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
+    });
+  } catch {
+    return false;
+  }
+}
+
 export const ResilientVault = {
   // 1. SAVE DEALERSHIP REQUEST
   async saveDealershipRequest(requestData: any): Promise<{ success: boolean; id: string }> {
@@ -391,6 +413,32 @@ export const ResilientVault = {
     });
 
     return result;
+  },
+
+  async deleteOrder(orderId: string): Promise<{ success: boolean }> {
+    // 1. IndexedDB
+    try {
+      await deleteFromIDB('orders', orderId);
+    } catch {}
+
+    // 2. LocalStorage
+    try {
+      const keys = ['dastavval_orders_cache', 'dastavval_wholesale_orders', 'dastavval_raw_orders'];
+      keys.forEach(k => {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const next = list.filter(o => String(o.id) !== String(orderId) && String(o.trackingNumber) !== String(orderId));
+              localStorage.setItem(k, JSON.stringify(next));
+            }
+          } catch {}
+        }
+      });
+    } catch {}
+
+    return { success: true };
   },
 
   // 5. Offline Queue & Background Sync

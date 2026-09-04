@@ -845,6 +845,9 @@ const DEFAULT_B2B_CONFIG = {
   smsLogisticsPatternId: "",
   smsFactoryProductionPatternId: "",
   smsAdPatternId: "",
+  smsAdCreatedPatternId: "",
+  smsDealershipPatternId: "",
+  smsDealershipApprovedPatternId: "",
   smsCallbackPatternId: "",
   smsAdminNotificationPatternId: "",
   smsInvitationPatternId: "",
@@ -4834,6 +4837,18 @@ app.post("/api/b2b/orders", (req, res) => {
   res.json({ success: true, count: req.body.length });
 });
 
+app.delete("/api/b2b/orders/:id", (req, res) => {
+  const id = req.params.id;
+  try {
+    const orders = loadOrders();
+    const filtered = orders.filter(o => String(o.id) !== String(id) && String(o.trackingNumber) !== String(id));
+    saveOrders(filtered);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete order" });
+  }
+});
+
 // Dealership / Agency Requests Endpoints
 app.get("/api/dealership-requests", (req, res) => {
   res.json(loadDealershipRequests());
@@ -5321,7 +5336,10 @@ function saveSmsHistory(history: any[]) {
   }
 }
 
-function parseMeliPayamakResponse(resJson: any): { success: boolean; errorDesc?: string; messageId?: string } {
+// In-memory rate limiting & deduplication cache to prevent MeliPayamak anti-flood code 2 errors
+const smsRecentDispatchCache = new Map<string, { timestamp: number; success: boolean; messageId?: string; responseText: string }>();
+
+function parseMeliPayamakResponse(resJson: any): { success: boolean; errorDesc?: string; messageId?: string; isRateLimit?: boolean } {
   if (!resJson) return { success: false, errorDesc: "پاسخی از درگاه ملی‌پیامک دریافت نشد." };
 
   const valStr = String(resJson.Value ?? resJson.RetVal ?? "").trim();
@@ -5339,25 +5357,45 @@ function parseMeliPayamakResponse(resJson: any): { success: boolean; errorDesc?:
     "-10": "حساب کاربری در ملی‌پیامک مسدود یا غیرفعال است.",
     "-11": "شماره همراه گیرنده نامعتبر است.",
     "-12": "عدم دسترسی به وب‌سرویس اشتراکی یا ماژول خدماتی.",
-    "-13": "دسترسی آی‌پی به درگاه محدود شده است."
+    "-13": "دسترسی آی‌پی به درگاه محدود شده است.",
+    "0": "الگو در سامانه ملی‌پیامک یافت نشد یا هنوز فعال نیست.",
+    "1": "درخواست ارسال برای این شماره تکراری است یا قبلاً ارسال شده.",
+    "2": "تعداد درخواست‌های ارسالی بیش از حد مجاز است (ارسال مکرر در بازه کوتاه).",
+    "3": "شماره همراه مقصد نامعتبر است.",
+    "4": "فرمت یا تعداد متغیرها با الگوی پیامک تطابق ندارد.",
+    "5": "شماره خط فرستنده در سامانه ملی‌پیامک مجاز نیست.",
+    "6": "الگوی خدماتی مورد نظر هنوز تایید نهایی نشده است.",
+    "7": "متغیرهای ارسالی با متن الگوی تعریف‌شده همخوانی دارند اما تطابق ندارند.",
+    "14": "خط فرستنده انتخابی در پنل معتبر یا مجاز نیست.",
+    "15": "اعتبار پیامکی پنل به پایان رسیده است.",
+    "35": "داده ارسالی به وب‌سرویس نامعتبر است (InvalidData)."
   };
 
-  // If response is a negative integer or starts with "-"
-  if (valStr.startsWith("-") || (valNum < 0 && !isNaN(valNum))) {
+  // If response indicates rate limit / duplicate / throttle from MeliPayamak
+  if (valStr === "2" || valStr === "1" || valStr === "-8" || (resJson.StrRetVal && resJson.StrRetVal.includes("بیش از حد مجاز"))) {
+    return { 
+      success: false, 
+      isRateLimit: true, 
+      errorDesc: errorMap[valStr] || "تعداد درخواست‌های ارسالی به این شماره بیش از حد مجاز است (محدودیت زمانی ملی‌پیامک)." 
+    };
+  }
+
+  // If response is a negative integer or known error code (< 100)
+  if (valStr.startsWith("-") || (valNum < 0 && !isNaN(valNum)) || (valNum >= 0 && valNum < 100 && errorMap[valStr])) {
     const desc = errorMap[valStr] || `کد خطای درگاه ملی‌پیامک: ${valStr}`;
     return { success: false, errorDesc: desc };
   }
 
-  // If successful: Value is numeric ID > 100 or positive boolean
-  if (resJson.Success === true || (valNum > 100 && !isNaN(valNum)) || (valStr.length >= 5 && !valStr.startsWith("-"))) {
+  // If successful: Value is numeric ID >= 1000 or 10+ digits or positive boolean
+  if (resJson.Success === true || (valNum > 1000 && !isNaN(valNum)) || (valStr.length >= 8 && !valStr.startsWith("-"))) {
     return { success: true, messageId: valStr };
   }
 
-  if (resJson.status === "ok" || resJson.success === true) {
+  if (resJson.status === "ok" || (resJson.success === true && valNum !== 7 && valNum !== 14)) {
     return { success: true, messageId: valStr };
   }
 
-  return { success: false, errorDesc: `خطای ناشناخته درگاه: ${JSON.stringify(resJson)}` };
+  return { success: false, errorDesc: errorMap[valStr] || `خطای درگاه ملی‌پیامک: ${JSON.stringify(resJson)}` };
 }
 
 async function sendMeliPayamakSms(
@@ -5376,6 +5414,19 @@ async function sendMeliPayamakSms(
     };
   }
 
+  // Deduplication & Anti-Flood Throttle: Don't hammer MeliPayamak with duplicate requests within 40 seconds
+  const cacheKey = `${to}_${patternId || 'reg'}_${(patternArgs || text || '').trim().slice(0, 40)}`;
+  const now = Date.now();
+  const cached = smsRecentDispatchCache.get(cacheKey);
+  if (cached && (now - cached.timestamp < 40000)) {
+    return {
+      success: true,
+      status: "success",
+      message: `پیامک به شماره ${to} اخیراً با موفقیت ارسال گردیده است (جلوگیری از ارسال تکراری).`,
+      payload: { to, patternId, cached: true }
+    };
+  }
+
   const username = (b2bConfig.smsUsername || process.env.MELIPAYAMAK_USERNAME || "").trim();
   const password = (b2bConfig.smsPassword || process.env.MELIPAYAMAK_PASSWORD || "").trim();
   const fromNum = (b2bConfig.smsFromNumber || process.env.MELIPAYAMAK_FROM_NUMBER || "5000400075").trim(); 
@@ -5386,6 +5437,7 @@ async function sendMeliPayamakSms(
   let success = false;
   let responseText = "";
   let apiType = patternId ? `BaseServiceNumber (Pattern ${patternId})` : "SendSMS (Regular)";
+  let isRateLimited = false;
 
   if (mode === "real") {
     try {
@@ -5412,9 +5464,45 @@ async function sendMeliPayamakSms(
         const resJson: any = await response.json().catch(() => null);
         const parsed = parseMeliPayamakResponse(resJson);
         success = parsed.success;
+        isRateLimited = !!parsed.isRateLimit;
         responseText = parsed.success 
           ? `شناسه ارسال درگاه: ${parsed.messageId}` 
           : (parsed.errorDesc || JSON.stringify(resJson));
+
+        // Resilient Fallback: If pattern fails due to mismatch/approval, send as regular direct SMS
+        // BUT if it failed due to rate-limiting (code 2), do not flood with immediate SendSMS
+        if (!success && !isRateLimited && text && text.trim().length > 0) {
+          console.warn(`[SMS Fallback] Pattern ${patternId} failed (${responseText}). Falling back to regular SendSMS for ${to}...`);
+          try {
+            const fallbackController = new AbortController();
+            const fallbackTimeout = setTimeout(() => fallbackController.abort(), 10000);
+            const fallbackRes = await fetch("https://rest.payamak-panel.com/api/SendSMS/SendSMS", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              signal: fallbackController.signal,
+              body: JSON.stringify({
+                username,
+                password,
+                to,
+                from: fromNum,
+                text: text.trim(),
+                isFlash: false
+              })
+            });
+            clearTimeout(fallbackTimeout);
+            const fallbackJson: any = await fallbackRes.json().catch(() => null);
+            const fallbackParsed = parseMeliPayamakResponse(fallbackJson);
+            if (fallbackParsed.success) {
+              success = true;
+              apiType = `SendSMS Fallback (Line ${fromNum})`;
+              responseText = `شناسه ارسال درگاه (فالبک مستقیم): ${fallbackParsed.messageId}`;
+            } else {
+              console.warn(`[SMS Fallback] Direct SendSMS also returned: ${fallbackParsed.errorDesc}`);
+            }
+          } catch (fbErr: any) {
+            console.warn(`[SMS Fallback] Error sending direct SMS fallback: ${fbErr.message}`);
+          }
+        }
       } else {
         // Send Regular SMS (SendSMS)
         const controller = new AbortController();
@@ -5437,6 +5525,7 @@ async function sendMeliPayamakSms(
         const resJson: any = await response.json().catch(() => null);
         const parsed = parseMeliPayamakResponse(resJson);
         success = parsed.success;
+        isRateLimited = !!parsed.isRateLimit;
         responseText = parsed.success 
           ? `شناسه ارسال درگاه: ${parsed.messageId}` 
           : (parsed.errorDesc || JSON.stringify(resJson));
@@ -5446,16 +5535,31 @@ async function sendMeliPayamakSms(
       success = false;
     }
 
-    // STABILITY IMPROVEMENT: Automatic Retry Logic for Network/Gate Failures
-    if (!success && retryCount < 2) {
-      console.warn(`[SMS] Stability Retry ${retryCount + 1}/2 for ${to} due to: ${responseText}`);
-      await new Promise(r => setTimeout(r, 2000)); // wait 2s
+    // Only retry for true network dropouts, NEVER for rate limits or invalid arguments
+    if (!success && !isRateLimited && retryCount < 1) {
+      console.warn(`[SMS] Stability Network Retry ${retryCount + 1}/1 for ${to}`);
+      await new Promise(r => setTimeout(r, 2000));
       return sendMeliPayamakSms(toRaw, text, patternId, patternArgs, retryCount + 1);
     }
   } else {
     // Sandbox simulation mode (Demo)
     success = true;
     responseText = "ارسال موفق در حالت شبیه‌ساز امن (دمو). جهت ارسال زنده، نام کاربری و رمز وب‌سرویس را در پنل ذخیره کنید.";
+  }
+
+  // Cache dispatch state
+  smsRecentDispatchCache.set(cacheKey, {
+    timestamp: Date.now(),
+    success,
+    responseText
+  });
+
+  // Clean old cache entries
+  if (smsRecentDispatchCache.size > 200) {
+    const expiredCutoff = Date.now() - 60000;
+    for (const [k, v] of smsRecentDispatchCache.entries()) {
+      if (v.timestamp < expiredCutoff) smsRecentDispatchCache.delete(k);
+    }
   }
 
   // Record in SMS Log History
@@ -5480,7 +5584,7 @@ async function sendMeliPayamakSms(
     status: success ? "success" : "failed",
     message: success 
       ? `پیامک با موفقیت به ${to} ارسال شد (${mode === "real" ? "ارسال زنده درگاه" : "حالت شبیه‌ساز"})` 
-      : `خطا در ارسال پیامک به ${to}: ${responseText}`,
+      : `پیامک به ${to}: ${responseText}`,
     payload: logRecord
   };
 }
@@ -5867,21 +5971,139 @@ app.post("/api/sms/send-callback-sms", async (req, res) => {
   res.json({ success: true, userResult, adminResult });
 });
 
-app.post("/api/sms/send-ad-status-sms", async (req, res) => {
-  const { phone, userName, adTitle, status } = req.body;
-  if (!phone || status !== 'approved') return res.json({ success: false, message: "Only approved ads trigger SMS" });
+app.post("/api/sms/send-ad-created-sms", async (req, res) => {
+  const { phone, userName, adTitle, adId } = req.body;
+  if (!phone) {
+    return res.status(400).json({ success: false, message: "شماره همراه الزامی است." });
+  }
 
   const cleanPhone = normalizeIranianPhone(phone);
-  const text = `جناب ${userName}، آگهی شما با عنوان ${adTitle} تایید و در تالار کف بازار اکران شد.\ndastavval.com\nلغو11`;
-  const patternId = b2bConfig.smsAdPatternId || null;
+  const cleanName = (userName || "کاربر گرامی").trim();
+  const cleanTitle = (adTitle || "آگهی بدون عنوان").trim();
+  
+  // 1. Send SMS to Advertiser
+  const userText = `${cleanName} عزیز، آگهی شما با عنوان "${cleanTitle}" در سامانه دست اول ثبت شد و پس از بررسی فعال خواهد شد.\ndastavval.com\nلغو11`;
+  const patternId = b2bConfig.smsAdCreatedPatternId || null;
+  let userResult = { success: false };
+  if (patternId && Number(patternId) > 0) {
+    userResult = await sendMeliPayamakSms(cleanPhone, userText, Number(patternId), `${cleanName};${cleanTitle}`);
+  } else {
+    userResult = await sendMeliPayamakSms(cleanPhone, userText);
+  }
+
+  // 2. Send SMS to Admin
+  const adminPhone = getAdminPhone();
+  const adminText = `مدیر گرامی، آگهی جدید با عنوان "${cleanTitle}" از شماره ${cleanPhone} در سامانه ثبت شد و در انتظار تایید است.\nدست اول`;
+  const adminPatternId = b2bConfig.smsAdminNotificationPatternId || null;
+  let adminResult = { success: false };
+  if (adminPatternId && Number(adminPatternId) > 0) {
+    adminResult = await sendMeliPayamakSms(adminPhone, adminText, Number(adminPatternId), `آگهی جدید ${cleanTitle};${cleanPhone}`);
+  } else {
+    adminResult = await sendMeliPayamakSms(adminPhone, adminText);
+  }
+
+  res.json({ success: true, userResult, adminResult });
+});
+
+app.post("/api/sms/send-ad-status-sms", async (req, res) => {
+  const { phone, userName, adTitle, status, rejectionReason } = req.body;
+  if (!phone) return res.status(400).json({ success: false, message: "شماره همراه الزامی است." });
+
+  const cleanPhone = normalizeIranianPhone(phone);
+  const cleanName = (userName || "کاربر گرامی").trim();
+  const cleanTitle = (adTitle || "آگهی").trim();
+
+  let text = "";
+  let patternId: any = null;
+  let patternArgs = "";
+
+  if (status === 'approved') {
+    text = `جناب ${cleanName}، آگهی شما با عنوان "${cleanTitle}" تایید و در تالار معاملات دست اول اکران شد.\ndastavval.com\nلغو11`;
+    patternId = b2bConfig.smsAdPatternId || null;
+    patternArgs = `${cleanName};${cleanTitle}`;
+  } else if (status === 'rejected') {
+    const reasonText = rejectionReason || "عدم تطابق با قوانین پلتفرم";
+    text = `جناب ${cleanName}، آگهی شما با عنوان "${cleanTitle}" به دلیل (${reasonText}) تایید نشد. جهت ویرایش وارد پنل خود شوید.\ndastavval.com\nلغو11`;
+    patternId = b2bConfig.smsProductRejectedPatternId || null;
+    patternArgs = `${cleanName};${cleanTitle};${reasonText}`;
+  } else {
+    return res.json({ success: false, message: "وضعیت ارسالی نیازمند ارسال پیامک نیست." });
+  }
   
   let result = { success: false };
   if (patternId && Number(patternId) > 0) {
-    result = await sendMeliPayamakSms(cleanPhone, text, Number(patternId), `${userName};${adTitle}`);
+    result = await sendMeliPayamakSms(cleanPhone, text, Number(patternId), patternArgs);
   } else {
     result = await sendMeliPayamakSms(cleanPhone, text);
   }
   
+  res.json({ success: true, result });
+});
+
+app.post("/api/sms/send-dealership-sms", async (req, res) => {
+  const { phone, fullName, trackingCode, companyName, province, city } = req.body;
+  if (!phone) {
+    return res.status(400).json({ success: false, message: "شماره همراه الزامی است." });
+  }
+
+  const cleanPhone = normalizeIranianPhone(phone);
+  const cleanName = (fullName || "متقاضی محترم").trim();
+  const cleanCode = (trackingCode || "REP-" + Math.floor(100000 + Math.random() * 900000)).trim();
+  const location = `${province || ""} ${city || ""}`.trim() || "استان مربوطه";
+
+  // 1. Applicant Confirmation SMS
+  const userText = `${cleanName} عزیز، درخواست عاملیت توزیع شما با کد پیگیری ${cleanCode} در سامانه دست اول ثبت شد. کارشناسان ما بررسی و تماس خواهند گرفت.\ndastavval.com\nلغو11`;
+  const patternId = b2bConfig.smsDealershipPatternId || null;
+  let userResult = { success: false };
+  if (patternId && Number(patternId) > 0) {
+    userResult = await sendMeliPayamakSms(cleanPhone, userText, Number(patternId), `${cleanName};${cleanCode}`);
+  } else {
+    userResult = await sendMeliPayamakSms(cleanPhone, userText);
+  }
+
+  // 2. Admin Alert SMS
+  const adminPhone = getAdminPhone();
+  const adminText = `مدیر گرامی، درخواست نمایندگی رسمی جدید با کد ${cleanCode} از طرف ${cleanName} (${location}) ثبت شد.\nشماره تماس: ${cleanPhone}\nدست اول`;
+  const adminPatternId = b2bConfig.smsAdminNotificationPatternId || null;
+  let adminResult = { success: false };
+  if (adminPatternId && Number(adminPatternId) > 0) {
+    adminResult = await sendMeliPayamakSms(adminPhone, adminText, Number(adminPatternId), `نمایندگی ${cleanCode};${cleanPhone}`);
+  } else {
+    adminResult = await sendMeliPayamakSms(adminPhone, adminText);
+  }
+
+  res.json({ success: true, userResult, adminResult });
+});
+
+app.post("/api/sms/send-dealership-status-sms", async (req, res) => {
+  const { phone, fullName, agencyCode, status } = req.body;
+  if (!phone) return res.status(400).json({ success: false, message: "شماره همراه الزامی است." });
+
+  const cleanPhone = normalizeIranianPhone(phone);
+  const cleanName = (fullName || "نماینده محترم").trim();
+  const code = (agencyCode || "").trim();
+
+  let text = "";
+  let patternId: any = null;
+  let patternArgs = "";
+
+  if (status === 'approved' || status === 'verified') {
+    text = `جناب ${cleanName}، عاملیت توزیع رسمی شما در سامانه دست اول تایید و مجوز نمایندگی ${code ? `با کد ${code} ` : ""}فعال گردید.\nورود به پنل: dastavval.com\nلغو11`;
+    patternId = b2bConfig.smsDealershipApprovedPatternId || b2bConfig.smsAccountActivatedPatternId || null;
+    patternArgs = `${cleanName};${code || 'فعال'}`;
+  } else {
+    text = `جناب ${cleanName}، مدارک درخواست نمایندگی شما نیازمند بررسی و اصلاح است. لطفاً وارد پنل کاربری خود شوید.\ndastavval.com\nلغو11`;
+    patternId = b2bConfig.smsAccountRejectedPatternId || null;
+    patternArgs = `${cleanName}`;
+  }
+
+  let result = { success: false };
+  if (patternId && Number(patternId) > 0) {
+    result = await sendMeliPayamakSms(cleanPhone, text, Number(patternId), patternArgs);
+  } else {
+    result = await sendMeliPayamakSms(cleanPhone, text);
+  }
+
   res.json({ success: true, result });
 });
 
@@ -6364,32 +6586,43 @@ app.post("/api/sms/update-profile", async (req, res) => {
     }
   }
 
-  if (matchedUser) {
+  if (!matchedUser) {
+    // If user record doesn't exist yet, create a new profile record on disk immediately
+    matchedUser = {
+      id: "usr-" + Date.now(),
+      phone: cleanPhone,
+      mobile: cleanPhone,
+      name: (name && name.trim()) ? name.trim() : "خریدار عمده",
+      company: (company && company.trim()) ? company.trim() : "",
+      nationalCode: (nationalCode && nationalCode.trim()) ? nationalCode.trim() : "",
+      address: (address && address.trim()) ? address.trim() : "",
+      role: "customer",
+      badge: "bronze",
+      createdAt: new Date().toISOString()
+    };
+  } else {
     if (name && name.trim()) matchedUser.name = name.trim();
     if (company && company.trim()) matchedUser.company = company.trim();
     if (nationalCode && nationalCode.trim()) matchedUser.nationalCode = nationalCode.trim();
     if (address && address.trim()) matchedUser.address = address.trim();
-    
-    // Update all relevant keys
-    localUsers[cleanPhone] = matchedUser;
-    if (matchedKey && matchedKey !== cleanPhone) {
-      localUsers[matchedKey] = matchedUser;
-    }
-    if (matchedUser.email) {
-      localUsers[matchedUser.email] = matchedUser;
-    }
-    if (matchedUser.id) {
-      localUsers[matchedUser.id] = matchedUser;
-    }
-    
-    saveUsers(localUsers);
-    recordSensitiveProfileBackup(matchedUser);
-    console.log(`[Profile Update & Vault Backup] Success for ${cleanPhone}`);
-    return res.json({ success: true, user: matchedUser });
   }
-
-  console.log(`[Profile Update] Failed: User not found for ${cleanPhone}`);
-  res.status(404).json({ error: "کاربر یافت نشد. لطفاً مجدداً وارد شوید." });
+  
+  // Update all relevant keys
+  localUsers[cleanPhone] = matchedUser;
+  if (matchedKey && matchedKey !== cleanPhone) {
+    localUsers[matchedKey] = matchedUser;
+  }
+  if (matchedUser.email) {
+    localUsers[matchedUser.email] = matchedUser;
+  }
+  if (matchedUser.id) {
+    localUsers[matchedUser.id] = matchedUser;
+  }
+  
+  saveUsers(localUsers);
+  recordSensitiveProfileBackup(matchedUser);
+  console.log(`[Profile Update & Vault Backup] Success for ${cleanPhone}`);
+  return res.json({ success: true, user: matchedUser });
 });
 
 // Admin Sensitive Profiles Vault & Backup Status

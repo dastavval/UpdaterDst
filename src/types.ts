@@ -410,9 +410,14 @@ export interface Order {
     chequeMarkup?: number;
     chequeMonths?: number;
     chequeMarkupPercent?: number;
+    coupon?: number;
+    couponCode?: string;
+    couponType?: 'percentage' | 'fixed_amount';
     totalDiscount?: number;
     loyalty?: number;
   };
+  couponCode?: string;
+  couponDiscount?: number;
   // Loyalty & Rewards Integration
   loyaltyPointsEarned?: number;
   loyaltyPointsUsed?: number;
@@ -577,6 +582,9 @@ export interface B2BConfig {
   smsLogisticsPatternId?: string | number;
   smsFactoryProductionPatternId?: string | number;
   smsAdPatternId?: string | number;
+  smsAdCreatedPatternId?: string | number;
+  smsDealershipPatternId?: string | number;
+  smsDealershipApprovedPatternId?: string | number;
   smsCallbackPatternId?: string | number;
   smsAdminNotificationPatternId?: string | number;
   smsInvitationPatternId?: string | number;
@@ -631,3 +639,20 @@ export interface Review {
   packagingRating?: number;
   createdAt: any;
 }
+
+export interface DiscountCoupon {
+  id: string;
+  code: string; // e.g. "OFF10", "DASTAVVAL20"
+  type: 'percentage' | 'fixed_amount'; // درصدی یا مبلغی (تومان)
+  value: number; // درصد تخفیف یا مبلغ به تومان
+  title: string; // عنوان / مناسبت کد تخفیف
+  minOrderAmount?: number; // حداقل مبلغ سفارش به تومان (اختیاری)
+  maxDiscountAmount?: number; // سقف تخفیف برای کدهای درصدی به تومان (اختیاری)
+  usageLimit?: number; // سقف کل دفعات استفاده (اختیاری)
+  usedCount?: number; // دفعات استفاده شده
+  expiresAt?: string; // تاریخ انقضا (اختیاری)
+  isActive: boolean; // فعال بودن
+  description?: string; // توضیحات
+  createdAt?: string;
+}
+

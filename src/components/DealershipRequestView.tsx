@@ -435,6 +435,24 @@ export default function DealershipRequestView({
       saveUserSession(userObj);
       window.dispatchEvent(new CustomEvent('dastavval_users_updated', { detail: userObj }));
 
+      // Dispatch SMS confirmation to applicant and alert to admin
+      try {
+        fetch(getApiUrl("/api/sms/send-dealership-sms"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: targetPhone,
+            fullName,
+            trackingCode: generatedCode,
+            companyName: companyName || "عاملیت توزیع",
+            province,
+            city
+          })
+        }).catch(err => console.warn("Dealership SMS dispatch warning:", err));
+      } catch (smsErr) {
+        console.warn("Dealership SMS catch:", smsErr);
+      }
+
       setTrackingCode(generatedCode);
       setSubmitSuccess(true);
       setShowToast(true); // Trigger Creative Toast Notification

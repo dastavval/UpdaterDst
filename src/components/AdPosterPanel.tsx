@@ -11,6 +11,7 @@ import { AdItem, getAdFallbackImage } from "../utils/ad-utils";
 import { db } from "../lib/data-layer";
 import { collection, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc } from "../lib/data-layer";
 import { uploadToParsPackStorage } from "../utils/storage";
+import { getApiUrl } from "../utils/api-utils";
 
 interface AdPosterPanelProps {
   user: any;
@@ -297,6 +298,23 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
         await setDoc(doc(db, "ads", newAd.id), newAd);
       } catch (dbErr) {
         console.warn("Firestore insert:", dbErr);
+      }
+
+      // Dispatch SMS confirmation to advertiser and alert to admin
+      const contactPhone = adForm.contactPhone || user?.phone;
+      if (contactPhone) {
+        try {
+          fetch(getApiUrl("/api/sms/send-ad-created-sms"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: contactPhone,
+              userName: adForm.contactPerson || user?.name || "آگهی‌دهنده محترم",
+              adTitle: newAd.title,
+              adId: newAd.id
+            })
+          }).catch(err => console.warn("Ad creation SMS notice:", err));
+        } catch (e) {}
       }
 
       showToast("آگهی جدید با موفقیت ثبت و در تالار کف بازار منتشر گردید.");

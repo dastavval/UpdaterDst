@@ -43,6 +43,8 @@ interface AdminOrdersProps {
   setOrdersSearch: (val: string) => void;
   fetchOrders: () => void;
   handleUpdateOrderStatus: (orderId: string, status: string) => Promise<void>;
+  onDeleteOrder?: (orderId: string) => Promise<void>;
+  onBatchDeleteOrders?: (ids: string[]) => Promise<void>;
   panelRole?: string;
   formatOrderDate: (dateVal: any) => string;
   getStatusLabel: (status: string) => { text: string; color: string };
@@ -60,6 +62,8 @@ export default function AdminOrders({
   setOrdersSearch,
   fetchOrders,
   handleUpdateOrderStatus,
+  onDeleteOrder,
+  onBatchDeleteOrders,
   panelRole,
   formatOrderDate,
   getStatusLabel,
@@ -73,6 +77,7 @@ export default function AdminOrders({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [copiedInvoiceId, setCopiedInvoiceId] = useState<string | null>(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   // Editing state
   const [editingOrder, setEditingOrder] = useState<any | null>(null);
@@ -287,6 +292,28 @@ export default function AdminOrders({
     });
   };
 
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.length === filteredOrders.length) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(filteredOrders.map(o => o.id || o.trackingNumber));
+    }
+  };
+
+  const toggleSelectOrder = (id: string) => {
+    setSelectedOrderIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchDelete = async () => {
+    if (!onBatchDeleteOrders || selectedOrderIds.length === 0) return;
+    if (confirm(`آیا از حذف گروهی ${selectedOrderIds.length} فاکتور مطمئن هستید؟`)) {
+      await onBatchDeleteOrders(selectedOrderIds);
+      setSelectedOrderIds([]);
+    }
+  };
+
   // Status helper mapping
   const resolveStatusBadge = (statusStr: string) => {
     const s = String(statusStr || "pending").toLowerCase();
@@ -397,6 +424,34 @@ export default function AdminOrders({
               <RefreshCw size={15} className={ordersLoading ? "animate-spin" : ""} />
               <span>بروزرسانی</span>
             </button>
+
+            {onDeleteOrder && orders.length > 0 && (
+              <button 
+                onClick={async () => {
+                  if (confirm("آیا از پاکسازی تمام فاکتورهای خالی یا ناقص (بدون نام خریدار یا اقلام) مطمئن هستید؟")) {
+                    const toDelete = orders.filter(o => !o.buyerName && (!o.items || o.items.length === 0));
+                    if (toDelete.length > 0 && onBatchDeleteOrders) {
+                      const ids = toDelete.map(o => o.id || o.trackingNumber).filter(Boolean) as string[];
+                      if (ids.length > 0) await onBatchDeleteOrders(ids);
+                    }
+                  }
+                }}
+                className="px-4 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 font-black rounded-2xl transition-all border border-rose-100 flex items-center gap-2 cursor-pointer text-xs shrink-0"
+              >
+                <Trash2 size={15} />
+                <span>پاکسازی ناقص‌ها</span>
+              </button>
+            )}
+
+            {onBatchDeleteOrders && selectedOrderIds.length > 0 && (
+              <button 
+                onClick={handleBatchDelete}
+                className="px-4 py-2.5 bg-rose-600 text-white hover:bg-rose-700 font-black rounded-2xl transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer text-xs shrink-0"
+              >
+                <Trash2 size={15} />
+                <span>حذف گروهی ({toPersianNum(selectedOrderIds.length)})</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -429,6 +484,14 @@ export default function AdminOrders({
           <table className="w-full text-right border-collapse">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs font-black">
+                <th className="p-4 w-10 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    checked={selectedOrderIds.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="p-4 text-center w-12">جزئیات</th>
                 <th className="p-4">کد پیگیری سفارش</th>
                 <th className="p-4">مشخصات خریدار و تماس</th>
@@ -447,7 +510,7 @@ export default function AdminOrders({
                 ))
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-16 text-center text-slate-400 font-bold space-y-3">
+                  <td colSpan={8} className="p-16 text-center text-slate-400 font-bold space-y-3">
                     <Activity size={40} className="mx-auto text-slate-300" />
                     <p className="text-sm text-slate-600">هیچ سفارشی مطابق با فیلترهای انتخابی یافت نشد.</p>
                     <p className="text-xs text-slate-400">می‌توانید فیلتر وضعیت را روی «همه سفارشات» قرار دهید یا جستجو را پاک کنید.</p>
@@ -455,32 +518,48 @@ export default function AdminOrders({
                 </tr>
               ) : (
                 filteredOrders.map((o, oIdx) => {
-                  const isExpanded = expandedOrderId === (o.id || o.trackingNumber);
-                  const orderItems = Array.isArray(o.items) ? o.items : [];
-                  const totalCartons = orderItems.reduce((s: number, it: any) => s + (Number(it.quantityCartons || it.quantity || 1)), 0);
-                  const badgeInfo = resolveStatusBadge(o.status);
-                  const orderAmount = Number(o.totalAmount || o.finalTotal || o.total || 0);
+                    const orderId = o.id || o.trackingNumber || `ERR-${oIdx}`;
+                    const isExpanded = expandedOrderId === orderId;
+                    const orderItems = Array.isArray(o.items) ? o.items : [];
+                    const totalCartons = orderItems.reduce((s: number, it: any) => s + (Number(it.quantityCartons || it.quantity || 1)), 0);
+                    const badgeInfo = resolveStatusBadge(o.status);
+                    const orderAmount = Number(o.totalAmount || o.finalTotal || o.total || 0);
+                    
+                    const isCorrupted = !o.buyerName && (!o.items || o.items.length === 0);
 
-                  return (
-                    <React.Fragment key={`admin-order-row-${o.id || o.trackingNumber || oIdx}-${oIdx}`}>
-                      <tr className={`hover:bg-slate-50/80 transition-colors ${isExpanded ? "bg-emerald-50/20" : ""}`}>
-                        {/* Expand Toggle Button */}
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() => setExpandedOrderId(isExpanded ? null : (o.id || o.trackingNumber))}
-                            className="p-2 hover:bg-slate-200 rounded-xl text-slate-600 transition-all cursor-pointer"
-                            title={isExpanded ? "بستن جزئیات" : "مشاهده اقلام خریداری‌شده"}
-                          >
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                          </button>
-                        </td>
+                    return (
+                      <React.Fragment key={`admin-order-row-${orderId}-${oIdx}`}>
+                        <tr className={`hover:bg-slate-50/80 transition-colors ${isExpanded ? "bg-emerald-50/20" : ""} ${selectedOrderIds.includes(orderId) ? "bg-blue-50/40" : ""} ${isCorrupted ? "bg-rose-50/10" : ""}`}>
+                          <td className="p-4 text-center">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              checked={selectedOrderIds.includes(orderId)}
+                              onChange={() => toggleSelectOrder(orderId)}
+                            />
+                          </td>
+                          {/* Expand Toggle Button */}
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => setExpandedOrderId(isExpanded ? null : orderId)}
+                              className="p-2 hover:bg-slate-200 rounded-xl text-slate-600 transition-all cursor-pointer"
+                              title={isExpanded ? "بستن جزئیات" : "مشاهده اقلام خریداری‌شده"}
+                            >
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                          </td>
 
-                        {/* Tracking Code */}
-                        <td className="p-4">
-                          <div className="flex flex-col gap-1.5">
-                            <span className="font-mono text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100 w-fit">
-                              #{o.trackingNumber || (o.id ? String(o.id || "").slice(-6).toUpperCase() : "---")}
-                            </span>
+                          {/* Tracking Code */}
+                          <td className="p-4">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="font-mono text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100 w-fit">
+                                #{o.trackingNumber || (o.id ? String(o.id || "").slice(-6).toUpperCase() : "MISSING-ID")}
+                              </span>
+                              {isCorrupted && (
+                                <span className="text-[9px] font-black bg-rose-100 text-rose-700 px-2 py-0.5 rounded-lg border border-rose-200 w-fit">
+                                  دیتای ناقص / خطا
+                                </span>
+                              )}
                             {o.type === "equipment" && (
                               <span className="text-[9px] font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200 w-fit">
                                 خرید تجهیزات صنعتی
@@ -495,7 +574,9 @@ export default function AdminOrders({
                         {/* Buyer Details */}
                         <td className="p-4">
                           <div className="flex flex-col gap-1">
-                            <span className="font-black text-slate-900 text-sm">{o.buyerName || o.customerName || o.userFullName || o.buyer || "خریدار همکار"}</span>
+                            <span className="font-black text-slate-900 text-sm">
+                              {o.buyerName || o.customerName || o.userFullName || o.buyer || (o.items && o.items.length > 0 ? "خریدار نامشخص" : "فاکتور خالی / سیستمی")}
+                            </span>
                             {o.buyerCompany && (
                               <span className="text-[11px] text-slate-600 flex items-center gap-1">
                                 <Building2 size={12} className="text-slate-400" />
@@ -596,6 +677,21 @@ export default function AdminOrders({
                             >
                               <Edit3 size={15} />
                             </button>
+
+                            {/* Delete Order */}
+                            {onDeleteOrder && (
+                              <button 
+                                onClick={() => {
+                                  if (confirm(`آیا از حذف کامل فاکتور #${o.trackingNumber || o.id} مطمئن هستید؟ این عمل غیرقابل بازگشت است.`)) {
+                                    onDeleteOrder(o.id || o.trackingNumber);
+                                  }
+                                }}
+                                className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-rose-100"
+                                title="حذف دائمی فاکتور"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -603,7 +699,7 @@ export default function AdminOrders({
                       {/* Expanded Accordion Preview */}
                       {isExpanded && (
                         <tr className="bg-slate-50/70 border-b border-slate-200">
-                          <td colSpan={7} className="p-4">
+                          <td colSpan={8} className="p-4">
                             <div className="bg-white rounded-2xl p-5 border border-slate-200 space-y-4 shadow-xs">
                               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
                                 <h5 className="font-black text-slate-900 flex items-center gap-2 text-xs">

@@ -976,12 +976,12 @@ export default function CategoryProfitMarginForecast({
 
         {/* Category Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sortedAndFiltered.map((catItem) => {
+          {sortedAndFiltered.map((catItem, catIdx) => {
             const isExpanded = selectedCategoryDetail === catItem.category;
 
             return (
               <div 
-                key={catItem.category}
+                key={`cat-card-${catItem.category || catIdx}-${catIdx}`}
                 className={`bg-slate-50/70 rounded-2xl border transition-all duration-200 overflow-hidden ${
                   isExpanded ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-white' : 'border-slate-200 hover:border-slate-300'
                 }`}

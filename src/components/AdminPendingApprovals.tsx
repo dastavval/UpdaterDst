@@ -114,6 +114,7 @@ interface AdminPendingApprovalsProps {
   onUpdateB2bConfig?: (updated: any) => Promise<void>;
   capacityAds?: any[];
   onUpdateCapacityAdStatus?: (adId: string, status: string) => Promise<void>;
+  onDeleteProduct?: (id: string) => Promise<any> | void;
 }
 
 export default function AdminPendingApprovals({
@@ -144,7 +145,8 @@ export default function AdminPendingApprovals({
   b2bConfig,
   onUpdateB2bConfig,
   capacityAds = [],
-  onUpdateCapacityAdStatus
+  onUpdateCapacityAdStatus,
+  onDeleteProduct
 }: AdminPendingApprovalsProps) {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState<{ active: boolean; current: number; total: number }>({ active: false, current: 0, total: 0 });
@@ -254,27 +256,73 @@ export default function AdminPendingApprovals({
       try { localFacs = JSON.parse(localStorage.getItem("dastavval_factories") || "[]"); } catch (e) {}
       try { pendingFacs = JSON.parse(localStorage.getItem("dastavval_pending_factories") || "[]"); } catch (e) {}
 
-      // Combine sources with priority: b2bConfig > localFacs > pendingFacs
-      const rawFacs = [...b2bFacs, ...localFacs, ...pendingFacs];
-      
+      // Combine sources with suppliersList (critical to include current server registrations)
+      const rawFacs = [...b2bFacs, ...(suppliersList || []), ...localFacs, ...pendingFacs];
+
+      // Build stable map to merge entries of the same factory
+      const factoryMap = new Map<string, any>();
+      const getFactoryKey = (f: any) => {
+        const id = (f.id || '').trim();
+        const email = (f.email || '').trim();
+        const phone = (f.phone || f.tel || '').trim();
+        const name = (f.name || f.companyName || f.company || '').trim().replace(/\s+/g, '');
+        if (id) return `id_${id}`;
+        if (email) return `email_${email}`;
+        if (phone) return `phone_${phone}`;
+        return `name_${name}`;
+      };
+
+      const mergeFactories = (existing: any, incoming: any) => {
+        const merged = { ...existing, ...incoming };
+        // Priority status: if any is approved/active, it is active
+        if (existing.status === 'active' || existing.isActive === true || incoming.status === 'active' || incoming.isActive === true) {
+          merged.status = 'active';
+          merged.isActive = true;
+        } else if (existing.status === 'rejected' || incoming.status === 'rejected') {
+          merged.status = 'rejected';
+          merged.isActive = false;
+        } else if (existing.status === 'suspended' || incoming.status === 'suspended') {
+          merged.status = 'suspended';
+          merged.isActive = false;
+        }
+        return merged;
+      };
+
       rawFacs.forEach((f: any) => {
         if (!f) return;
-        // Use a deterministic stable ID fallback
-        const fid = f.id || f.email || f.phone || `f_${(f.name || '').replace(/\s+/g, '')}_${(f.contactPerson || '').replace(/\s+/g, '')}`;
+        const key = getFactoryKey(f);
+        if (factoryMap.has(key)) {
+          factoryMap.set(key, mergeFactories(factoryMap.get(key), f));
+        } else {
+          factoryMap.set(key, { ...f });
+        }
+      });
+
+      factoryMap.forEach((f: any, key: string) => {
+        const fid = f.id || f.email || f.phone || `f_${(f.name || '').replace(/\s+/g, '')}`;
         const uniqueId = `fac_reg_${fid}`;
 
         let status: 'pending' | 'approved' | 'rejected' = 'pending';
         if (f.status === 'active' || f.isActive === true) status = 'approved';
         else if (f.status === 'suspended' || f.status === 'rejected') status = 'rejected';
 
+        // Filter out preloaded active factories to prevent clutter.
+        // Only show if pending, suspended, rejected, or if it is user-submitted/dynamic.
+        const isUserSubmitted = localFacs.some((lf: any) => getFactoryKey(lf) === key) ||
+                               pendingFacs.some((pf: any) => getFactoryKey(pf) === key) ||
+                               (suppliersList || []).some((sl: any) => getFactoryKey(sl) === key);
+
+        const isAuditable = f.status === 'pending' || f.status === 'rejected' || f.status === 'suspended' || f.isPending === true || f.isActive === false || isUserSubmitted;
+        if (!isAuditable) return;
+
         addItem({
           id: uniqueId,
           type: 'factory_registration',
           typeLabel: 'احراز هویت کارخانه',
-          title: `ممیزی واحد تولیدی: ${f.name || 'کارخانه جدید'}`,
+          title: `ممیزی واحد تولیدی: ${f.name || f.companyName || 'کارخانه جدید'}`,
           requesterName: f.managerName || f.contactPerson || 'مدیرعامل',
           requesterPhone: f.phone || f.tel || 'ثبت در پروانه',
-          requesterCompany: f.name || 'واحد تولیدی',
+          requesterCompany: f.name || f.companyName || 'واحد تولیدی',
           requesterCity: f.industrialPark || f.city || 'شهرک صنعتی',
           quantity: f.dailyCapacity ? `ظرفیت: ${f.dailyCapacity}` : (f.category || 'تولیدکننده'),
           date: new Date().toLocaleDateString('fa-IR'),
@@ -291,17 +339,52 @@ export default function AdminPendingApprovals({
     // B. OEM Capacity Ads
     try {
       let capList = capacityAds || [];
-      const localAds = JSON.parse(localStorage.getItem("dastavval_capacity_ads") || "[]");
-      const combinedAds = [...capList, ...localAds];
+      let localAds: any[] = [];
+      try { localAds = JSON.parse(localStorage.getItem("dastavval_capacity_ads") || "[]"); } catch (e) {}
 
-      combinedAds.forEach((ad: any) => {
+      const adMap = new Map<string, any>();
+      const getAdKey = (ad: any) => {
+        const id = (ad.id || '').trim();
+        const title = (ad.title || '').trim().replace(/\s+/g, '');
+        const fName = (ad.factoryName || '').trim().replace(/\s+/g, '');
+        return id ? `id_${id}` : `title_${title}_fac_${fName}`;
+      };
+
+      const mergeAds = (existing: any, incoming: any) => {
+        const merged = { ...existing, ...incoming };
+        if (existing.status === 'approved' || existing.isApproved === true || incoming.status === 'approved' || incoming.isApproved === true) {
+          merged.status = 'approved';
+          merged.isApproved = true;
+          merged.isPending = false;
+        } else if (existing.status === 'rejected' || incoming.status === 'rejected') {
+          merged.status = 'rejected';
+          merged.isApproved = false;
+          merged.isPending = false;
+        }
+        return merged;
+      };
+
+      [...capList, ...localAds].forEach((ad: any) => {
         if (!ad) return;
+        const key = getAdKey(ad);
+        if (adMap.has(key)) {
+          adMap.set(key, mergeAds(adMap.get(key), ad));
+        } else {
+          adMap.set(key, { ...ad });
+        }
+      });
+
+      adMap.forEach((ad: any, key: string) => {
         const aid = ad.id || `ad_${(ad.factoryName || '').replace(/\s+/g, '')}_${(ad.title || '').replace(/\s+/g, '')}`;
         const uniqueId = `cap_ad_${aid}`;
 
         let status: 'pending' | 'approved' | 'rejected' = 'pending';
         if (ad.status === 'approved' || ad.isApproved === true) status = 'approved';
         else if (ad.status === 'rejected') status = 'rejected';
+
+        const isUserSubmitted = localAds.some((la: any) => getAdKey(la) === key);
+        const isAuditable = ad.status === 'pending' || ad.status === 'rejected' || ad.isPending === true || isUserSubmitted;
+        if (!isAuditable) return;
 
         addItem({
           id: uniqueId,
@@ -334,6 +417,11 @@ export default function AdminPendingApprovals({
         let status: 'pending' | 'approved' | 'rejected' = 'pending';
         if (p.approvalStatus === 'approved' || p.isApproved === true) status = 'approved';
         else if (p.approvalStatus === 'rejected') status = 'rejected';
+
+        // Only aggregate products explicitly under audit/rejection/approval.
+        // Skip standard preloaded catalog items to avoid crowding.
+        const isAuditable = p.approvalStatus === 'pending' || p.approvalStatus === 'rejected' || p.approvalStatus === 'approved' || p.isPending === true;
+        if (!isAuditable) return;
 
         const rawDate = p.createdAt?.seconds ? p.createdAt.seconds * 1000 : Date.now();
         addItem({
@@ -484,23 +572,21 @@ export default function AdminPendingApprovals({
     setActionLoadingId(item.id);
     try {
       if (item.type === 'factory_registration') {
-        const facId = item.details.id || item.details.email;
-        const facName = item.details.name || item.details.company;
+        const facId = item.details.id || item.details.email || '';
+        const facName = item.details.name || item.details.company || '';
         const badgesToAward = selectedFactoryBadges.length > 0 ? selectedFactoryBadges : ["first-hand-origin", "amin-al-zarb"];
 
         // 1. Call onUpdateSupplierStatus
         if (onUpdateSupplierStatus) {
           await onUpdateSupplierStatus(facId, 'active');
-        }
-
-        // 2. Update b2bConfig factories if available
-        if (b2bConfig && onUpdateB2bConfig) {
+        } else if (b2bConfig && onUpdateB2bConfig) {
+          // 2. Fallback: Update b2bConfig factories if available
           const currentFactories = b2bConfig.factories || [];
-          const exists = currentFactories.some((f: any) => f.id === facId || f.name === facName);
+          const exists = currentFactories.some((f: any) => (facId && f.id === facId) || (facName && f.name === facName));
           let updated;
           if (exists) {
             updated = currentFactories.map((f: any) => 
-              (f.id === facId || f.name === facName)
+              ((facId && f.id === facId) || (facName && f.name === facName))
                 ? { 
                     ...f, 
                     isActive: true, 
@@ -538,7 +624,7 @@ export default function AdminPendingApprovals({
         // 3. Update localStorage factories
         try {
           const localFactories = JSON.parse(localStorage.getItem("dastavval_factories") || "[]");
-          const idx = localFactories.findIndex((f: any) => f.id === facId || f.name === facName);
+          const idx = localFactories.findIndex((f: any) => (facId && f.id === facId) || (facName && f.name === facName));
           if (idx >= 0) {
             localFactories[idx].isActive = true;
             localFactories[idx].status = 'active';
@@ -1265,6 +1351,33 @@ export default function AdminPendingApprovals({
                         <Eye size={15} className="text-slate-600" />
                         <span>ممیزی مدارک</span>
                       </button>
+
+                      {/* Hard Delete Product */}
+                      {item.type === 'factory_product' && onDeleteProduct && (
+                        <button
+                          type="button"
+                          disabled={isActionLoading}
+                          onClick={async () => {
+                            if (window.confirm(`آیا از حذف کامل محصول "${item.details.name}" مطمئن هستید؟ این عمل غیرقابل بازگشت است.`)) {
+                              setActionLoadingId(item.id);
+                              try {
+                                await onDeleteProduct(item.details.id);
+                                showToast(`محصول "${item.details.name}" با موفقیت کاملاً حذف شد.`);
+                                window.dispatchEvent(new CustomEvent("dastavval_data_refreshed"));
+                              } catch (e) {
+                                showToast('خطا در حذف محصول.');
+                              } finally {
+                                setActionLoadingId(null);
+                              }
+                            }
+                          }}
+                          className="p-2 bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                          title="حذف کامل از دیتابیس"
+                        >
+                          <Trash2 size={15} />
+                          <span className="hidden sm:inline">حذف کامل</span>
+                        </button>
+                      )}
 
                       {/* Reject */}
                       <button

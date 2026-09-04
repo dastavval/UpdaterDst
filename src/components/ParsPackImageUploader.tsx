@@ -7,9 +7,11 @@ import {
   Camera,
   FolderOpen,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  LayoutGrid
 } from "lucide-react";
 import { uploadToParsPackStorage, formatBytes, ParsPackUploadResult } from "../utils/storage";
+import { GalleryPickerModal } from "./GalleryPickerModal";
 
 interface ParsPackImageUploaderProps {
   label: string;
@@ -36,6 +38,7 @@ export default function ParsPackImageUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showGallery, setShowGallery] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFile = async (file: File) => {
@@ -181,6 +184,15 @@ export default function ParsPackImageUploader({
 
               <button
                 type="button"
+                onClick={() => setShowGallery(true)}
+                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <LayoutGrid size={13} />
+                <span>انتخاب از گالری ابری</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleRemove}
                 className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
               >
@@ -228,6 +240,19 @@ export default function ParsPackImageUploader({
                 <p className="text-xs font-black text-slate-800">
                   برای <span className="text-emerald-600 underline underline-offset-2">انتخاب عکس از گالری یا دستگاه</span> کلیک کنید
                 </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowGallery(true);
+                    }}
+                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                  >
+                    <LayoutGrid size={10} />
+                    <span>مشاهده گالری تصاویر</span>
+                  </button>
+                </div>
                 <p className="text-[10px] text-slate-400 font-medium">
                   پشتیبانی از فرمت‌های تصویری JPG، PNG و WEBP (آپلود آنی و خودکار)
                 </p>
@@ -244,6 +269,16 @@ export default function ParsPackImageUploader({
           <span>{errorMessage}</span>
         </div>
       )}
+      {/* Gallery Picker Modal */}
+      <GalleryPickerModal
+        isOpen={showGallery}
+        onClose={() => setShowGallery(false)}
+        onSelect={(url) => {
+          onChange(url);
+          setShowGallery(false);
+        }}
+        title={`انتخاب ${label} از گالری`}
+      />
     </div>
   );
 }

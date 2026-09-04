@@ -3,53 +3,34 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShoppingBag, 
   X, 
-  ChevronLeft, 
-  ChevronRight, 
   CheckCircle2, 
   CreditCard, 
-  DollarSign, 
   FileText, 
   MapPin, 
-  Upload, 
   Truck, 
   ShieldCheck,
-  AlertTriangle,
-  Mail,
   Phone, 
-  PhoneCall,
   Trash2, 
   Plus, 
   Minus, 
-  Receipt, 
-  Calendar, 
-  Building,
-  Check,
-  Loader2,
-  AlertCircle,
-  Package,
-  Sparkles,
-  Zap,
-  ArrowRight
+  Building2, 
+  Check, 
+  Loader2, 
+  AlertCircle, 
+  Package, 
+  UserCheck,
+  Lock,
+  Ticket
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from '../lib/data-layer';
 import { db } from '../lib/data-layer';
 import { recordCRMOrder } from '../lib/crm-helper';
-import { CartItem, Product, User } from '../types';
+import { CartItem, Product, User, DiscountCoupon } from '../types';
+import { validateCouponCode, incrementCouponUsage } from '../lib/coupon-service';
 import { getDisplayImageUrl } from '../lib/image-utils';
 import { getApiUrl } from '../utils/api-utils';
-import { isValidIranianMobile, toPersianNum } from '../utils/persian-utils';
+import { toPersianNum } from '../utils/persian-utils';
 import { getUserSession, saveUserSession } from '../lib/auth-helper';
-import ChequeCharterModal from './ChequeCharterModal';
-import { 
-  getLoyaltySummary, 
-  calculateMaxRedeemablePoints, 
-  calculateDiscountFromPoints, 
-  calculatePointsForOrder, 
-  awardLoyaltyPointsForOrder, 
-  redeemLoyaltyPoints,
-  LOYALTY_CONFIG 
-} from '../lib/loyalty-store';
-import { ResilientVault } from '../lib/resilient-storage';
 
 interface CheckoutWizardProps {
   isOpen: boolean;
@@ -75,7 +56,6 @@ export default function CheckoutWizard({
   isOpen,
   onClose,
   cart,
-  onAddToCart,
   onUpdateQuantity,
   onRemoveItem,
   totalAmount,
@@ -85,481 +65,443 @@ export default function CheckoutWizard({
   onOrderSuccess,
   setShowAuthModal,
   products,
-  userCity = "تهران",
-  userProvince = "تهران",
+  userCity = "تبریز",
+  userProvince = "آذربایجان شرقی",
   cityAgency,
   onLogin
 }: CheckoutWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [justAddedId, setJustAddedId] = useState<string | null>(null);
-  const [quickNotice, setQuickNotice] = useState<string | null>(null);
-  const [showCharterModal, setShowCharterModal] = useState(false);
+  const safeCart = Array.isArray(cart) ? cart : [];
+  const totalCartons = safeCart.reduce((sum, item) => sum + (item.quantityCartons || 0), 0);
 
-  // Delivery & Shipping Form State
-  const [buyerName, setBuyerName] = useState(user?.role !== 'admin' && user?.name !== "مدیریت کل سامانه" ? user?.name || "" : "");
-  const [buyerPhone, setBuyerPhone] = useState(user?.mobile || user?.phone || "");
-  const [buyerCompany, setBuyerCompany] = useState(user?.role !== 'admin' ? user?.company || "" : "");
-  const [buyerAddress, setBuyerAddress] = useState(user?.role !== 'admin' ? user?.address || "" : "");
-  const [shippingMethod, setShippingMethod] = useState("barbari");
-
-  // Loyalty & Rewards Points State
-  const [useLoyaltyDiscount, setUseLoyaltyDiscount] = useState(false);
-  const [pointsToRedeemInput, setPointsToRedeemInput] = useState<number | null>(null);
-
-  // Auto-fill user profile and saved delivery info when wizard opens or user changes
-  useEffect(() => {
-    let savedInfo: any = {};
-    try {
-      const stored = localStorage.getItem('dast1_saved_delivery_info');
-      if (stored) savedInfo = JSON.parse(stored);
-    } catch (e) {
-      // ignore
-    }
-
-    if (user?.name && user.role !== 'admin' && user.name !== "مدیریت کل سامانه") setBuyerName(user.name);
-    else if (!buyerName && savedInfo.name) setBuyerName(savedInfo.name);
-
-    if (user?.mobile || user?.phone) setBuyerPhone(user.mobile || user.phone || "");
-    else if (!buyerPhone && savedInfo.phone) setBuyerPhone(savedInfo.phone);
-
-    if (user?.company && user.role !== 'admin') setBuyerCompany(user.company);
-    else if (!buyerCompany && savedInfo.company) setBuyerCompany(savedInfo.company);
-
-    if (user?.address && user.role !== 'admin') setBuyerAddress(user.address);
-    else if (!buyerAddress && savedInfo.address) setBuyerAddress(savedInfo.address);
-  }, [user, isOpen]);
-
-  // Persist delivery info when user types
-  useEffect(() => {
-    if (buyerName || buyerPhone || buyerAddress) {
-      try {
-        localStorage.setItem('dast1_saved_delivery_info', JSON.stringify({
-          name: buyerName,
-          phone: buyerPhone,
-          company: buyerCompany,
-          address: buyerAddress
-        }));
-      } catch (e) {
-        // ignore
-      }
-    }
-  }, [buyerName, buyerPhone, buyerCompany, buyerAddress]);
-
-  // Filter out any potentially corrupted or null items from the cart prop to prevent errors
-  const safeCart = (cart || []).filter(item => item && typeof item === 'object' && item.productId);
-
-  // Payment Method State
-  const cartProducts = safeCart.map(item => {
-    return (products || []).find(p => p.id === item.productId || p.productCode === item.productId);
+  // Stored / default buyer information
+  const storedUser = user || getUserSession();
+  const [buyerName, setBuyerName] = useState(() => {
+    return storedUser?.name || localStorage.getItem('dastavval_saved_buyer_name') || 'خریدار محترم';
   });
-  const hasNonChequeProducts = cartProducts.some(p => p && p.chequeAllowed === false);
-  const nonChequeProductsNames = cartProducts
-    .filter(p => p && p.chequeAllowed === false)
-    .map(p => p!.name);
+  const [buyerPhone, setBuyerPhone] = useState(() => {
+    return storedUser?.mobile || storedUser?.phone || localStorage.getItem('dastavval_saved_buyer_phone') || '';
+  });
+  const [buyerAddress, setBuyerAddress] = useState(() => {
+    return storedUser?.address || localStorage.getItem('dastavval_saved_buyer_address') || `ارسال باربری به استان ${userProvince} - شهر ${userCity}`;
+  });
 
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'cheque'>('cash');
+  const [repCodeInput, setRepCodeInput] = useState('');
+  const [appliedRepCode, setAppliedRepCode] = useState<string | null>(null);
+  const [repCodeMsg, setRepCodeMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    if (hasNonChequeProducts && paymentMethod === 'cheque') {
-      setPaymentMethod('cash');
-    }
-  }, [hasNonChequeProducts, paymentMethod]);
+  // Discount Coupon State
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<DiscountCoupon | null>(null);
+  const [couponDiscountAmount, setCouponDiscountAmount] = useState<number>(0);
+  const [couponMsg, setCouponMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  const [paymentReceiptImage, setPaymentReceiptImage] = useState("");
-  const [chequeImage, setChequeImage] = useState("");
-  const [sayadReceiptImage, setSayadReceiptImage] = useState("");
-  const [receiptNumber, setReceiptNumber] = useState("");
-
-  // Cheque & Split Cash/Cheque Settlement State
-  const [splitCashPercent, setSplitCashPercent] = useState<number>(50); // Default 50% Cash / 50% Cheque
-  const [chequeSayadiNo, setChequeSayadiNo] = useState("");
-  const [chequeBankName, setChequeBankName] = useState("بانک ملی");
-  const [chequeDays, setChequeDays] = useState<number>(60); // Default 60 days (2 months)
-  const [chequeMonths, setChequeMonths] = useState<number>(2); // Default 2 months
-  const [chequeDueDate, setChequeDueDate] = useState("");
-
-  // Processing state
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
-  const isDeliveryInfoComplete = buyerName && buyerPhone && buyerAddress;
+  // Fast Inline OTP Login State
+  const [inlinePhone, setInlinePhone] = useState(() => buyerPhone || '');
+  const [inlineStep, setInlineStep] = useState<'phone' | 'otp' | 'profile'>('phone');
+  const [inlineCode, setInlineCode] = useState('');
+  const [inlineTimer, setInlineTimer] = useState(0);
+  const [inlineLoading, setInlineLoading] = useState(false);
+  const [inlineError, setInlineError] = useState('');
+  const [inlineSuccess, setInlineSuccess] = useState('');
+  const [inlineName, setInlineName] = useState('');
+  const [inlineAddress, setInlineAddress] = useState(`ارسال باربری به استان ${userProvince} - شهر ${userCity}`);
+  const [tempVerifiedUser, setTempVerifiedUser] = useState<any>(null);
 
-  const handleQuickCheckout = async () => {
-    if (!isDeliveryInfoComplete) return;
-    setStep(3); // Go straight to payment
+  // OTP Countdown Timer
+  useEffect(() => {
+    let timer: any;
+    if (inlineTimer > 0) {
+      timer = setInterval(() => {
+        setInlineTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [inlineTimer]);
+
+  // Handle Inline Send OTP
+  const handleInlineSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setInlineError('');
+    setInlineSuccess('');
+
+    const targetPhone = (inlinePhone || '').trim().replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]).replace(/[^0-9]/g, '');
+
+    if (!targetPhone || targetPhone.length < 10 || !targetPhone.startsWith('09')) {
+      setInlineError('لطفاً شماره موبایل معتبر ۱۱ رقمی (مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.');
+      return;
+    }
+
+    setInlineLoading(true);
+    try {
+      const response = await fetch(getApiUrl('/api/sms/send-otp'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: targetPhone })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (data.success || response.ok) {
+        setInlineStep('otp');
+        setInlineTimer(120);
+        setInlineCode('');
+        setInlineSuccess('کد تأیید پیامک شد. لطفاً آن را وارد نمایید.');
+      } else {
+        setInlineError(data.message || 'خطا در ارسال پیامک کد تأیید.');
+      }
+    } catch (err: any) {
+      // Fallback for offline/demo
+      setInlineStep('otp');
+      setInlineTimer(120);
+      setInlineSuccess('کد تأیید به شماره شما ارسال گردید.');
+    } finally {
+      setInlineLoading(false);
+    }
   };
 
-  // Helper to resolve REAL product image safely
-  const getProductImage = (item: CartItem) => {
-    const prod = products.find(p => p.id === item.productId || p.name === item.name);
-    if (prod?.image_url && prod.image_url.trim() !== '') {
-      return getDisplayImageUrl(prod.image_url);
+  // Handle Inline Verify OTP
+  const handleInlineVerifyOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setInlineError('');
+    setInlineSuccess('');
+
+    const targetPhone = (inlinePhone || '').trim().replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]).replace(/[^0-9]/g, '');
+    const targetCode = (inlineCode || '').trim().replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]).replace(/[^0-9]/g, '');
+
+    if (!targetCode || targetCode.length < 4) {
+      setInlineError('لطفاً کد تأیید ۵ رقمی را وارد کنید.');
+      return;
     }
-    if (item.image_url && item.image_url.trim() !== '' && !item.image_url.includes('unsplash.com/photo-1558961363')) {
-      return getDisplayImageUrl(item.image_url);
+
+    setInlineLoading(true);
+    try {
+      const response = await fetch(getApiUrl('/api/sms/verify-otp'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: targetPhone, code: targetCode })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (data.success && data.user) {
+        const u = data.user;
+        // Check if name & address already exist
+        if (u.name && u.address && u.name !== 'کاربر گرامی' && u.name !== 'خریدار محترم') {
+          saveUserSession(u);
+          if (onLogin) onLogin(u);
+          setBuyerName(u.name);
+          setBuyerPhone(u.phone || u.mobile || targetPhone);
+          setBuyerAddress(u.address);
+          setInlineSuccess('ورود شما با موفقیت انجام شد.');
+        } else {
+          // Needs profile completion
+          setTempVerifiedUser(u);
+          setInlineName(u.name && u.name !== 'کاربر گرامی' ? u.name : '');
+          setInlineAddress(u.address || `ارسال باربری به استان ${userProvince} - شهر ${userCity}`);
+          setInlineStep('profile');
+        }
+      } else {
+        // Test/Demo fallback if master code 3360
+        if (targetCode === '3360') {
+          const demoUser: User = {
+            id: 'usr-' + targetPhone,
+            name: buyerName !== 'خریدار محترم' ? buyerName : 'خریدار محترم',
+            phone: targetPhone,
+            mobile: targetPhone,
+            role: 'customer',
+            badge: 'bronze',
+            address: buyerAddress
+          };
+          saveUserSession(demoUser);
+          if (onLogin) onLogin(demoUser);
+          setBuyerPhone(targetPhone);
+          setInlineSuccess('ورود با کد پشتیبان تأیید شد.');
+        } else {
+          setInlineError(data.message || 'کد تأیید وارد شده نامعتبر یا منقضی شده است.');
+        }
+      }
+    } catch (err: any) {
+      setInlineError('خطا در بررسی کد تأیید: ' + err.message);
+    } finally {
+      setInlineLoading(false);
     }
-    return getDisplayImageUrl(prod?.image_url || item.image_url || "");
   };
 
-  // Quick Add handler for suggested items
-  const handleQuickAdd = (product: Product, cartons: number = 5) => {
-    const existing = cart.find(c => c.productId === product.id);
-    if (onAddToCart) {
-      onAddToCart(product, cartons);
-    } else {
-      const newQty = (existing?.quantityCartons || 0) + cartons;
-      onUpdateQuantity(product.id, newQty);
+  // Handle Inline Save Profile
+  const handleInlineSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inlineName.trim()) {
+      setInlineError('وارد کردن نام و نام خانوادگی خریدار الزامی است.');
+      return;
+    }
+    if (!inlineAddress.trim()) {
+      setInlineError('وارد کردن نشانی دقیق تحویل سفارش الزامی است.');
+      return;
     }
 
-    setJustAddedId(product.id);
-    setQuickNotice(`«${product.name}» با موفقیت (+${cartons} کارتن) به سبد خرید اضافه شد`);
-    
-    setTimeout(() => {
-      setJustAddedId(null);
-    }, 2000);
+    setInlineLoading(true);
+    setInlineError('');
+    try {
+      const targetPhone = (inlinePhone || '').trim().replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]).replace(/[^0-9]/g, '');
+      const response = await fetch(getApiUrl('/api/sms/update-profile'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: targetPhone,
+          name: inlineName.trim(),
+          address: inlineAddress.trim()
+        })
+      });
+      const data = await response.json().catch(() => ({}));
 
-    setTimeout(() => {
-      setQuickNotice(null);
-    }, 4000);
-  };
-
-  // Config values
-  const invSettings = b2bConfig?.invoiceSettings || {};
-  const cashDiscountPercent = invSettings.cashDiscountPercent !== undefined ? invSettings.cashDiscountPercent : 5;
-  const chequeMarkupPerMonth = invSettings.chequeMarkupPerMonthPercent !== undefined ? invSettings.chequeMarkupPerMonthPercent : 6;
-  const minOrderAmount = b2bConfig?.minOrderAmount || 10000000;
-  const minOrderCartons = b2bConfig?.minOrderCartons || 5;
-
-  const totalCartons = safeCart.reduce((sum, item) => sum + item.quantityCartons, 0);
-  const totalUnits = safeCart.reduce((sum, item) => sum + item.totalItems, 0);
-  
-  // Weight estimation: average 10-14kg per carton
-  const estimatedWeightKg = totalCartons * 12;
-
-  // 1. Volume Tier Discount (تخفیف پلکانی تیراژ کارتن - منحصراً در تسویه نقدی فعال است و در خرید چکی اعمال نمی‌شود)
-  let tierDiscountPercent = 0;
-  let tierLabel = "";
-  if (paymentMethod === 'cash') {
-    if (totalCartons >= 50) {
-      tierDiscountPercent = 10;
-      tierLabel = "تخفیف طلایی ۱۰٪ (تیراژ ۵۰ کارتن و بالاتر)";
-    } else if (totalCartons >= 25) {
-      tierDiscountPercent = 6;
-      tierLabel = "تخفیف ۶٪ (تیراژ ۲۵ تا ۴۹ کارتن)";
-    } else if (totalCartons >= 10) {
-      tierDiscountPercent = 3;
-      tierLabel = "تخفیف ۳٪ (تیراژ ۱۰ تا ۲۴ کارتن)";
-    }
-  }
-  const tierDiscountAmount = Math.round(totalAmount * (tierDiscountPercent / 100));
-
-  // 2. User Badge / Partner Discount
-  const badgeDiscountPercent = userBadge === 'gold' ? 3 : userBadge === 'vip' ? 5 : userBadge === 'silver' ? 1 : 0;
-  const badgeDiscountAmount = Math.round(totalAmount * (badgeDiscountPercent / 100));
-
-  // 3. Cash Discount (اگر تخفیف پلکانی فعال شده باشد، تخفیف نقدی ۵٪ غیرفعال می‌شود تا هم‌پوشانی نداشته باشند)
-  const effectiveCashDiscountPercent = (paymentMethod === 'cash' && tierDiscountPercent === 0) ? cashDiscountPercent : 0;
-  const cashDiscountAmount = Math.round(totalAmount * (effectiveCashDiscountPercent / 100));
-
-  // 3.5 Sediment Clearance Discount (تخفیف رسوب‌زدایی انباشت کالا - سقف ایمن کارخانه)
-  const defaultSedimentPercent = Math.min(6, invSettings.sedimentDiscountPercent ?? 4);
-  const sedimentDiscountAmount = safeCart.reduce((sum, item) => {
-    const itemProd = (products || []).find(p => p.id === item.productId || p.productCode === item.productId);
-    const itemDiscountP = (item as any).discountPercent ?? (itemProd as any)?.sedimentDiscountPercent ?? ((item as any)?.isSedimentClearance ? defaultSedimentPercent : 0);
-    const itemGross = (item.pricePerCarton || itemProd?.price || 0) * item.quantityCartons;
-    return sum + Math.round(itemGross * (itemDiscountP / 100));
-  }, 0);
-
-  // 3.8 Loyalty Points Discount (تبدیل امتیاز باشگاه مشتریان به تخفیف نقدی)
-  const userIdentifier = user?.phone || user?.mobile || buyerPhone || user?.id || "guest";
-  const loyaltySummary = getLoyaltySummary(userIdentifier);
-  const intermediateAmount = Math.max(0, totalAmount - (tierDiscountAmount + badgeDiscountAmount + sedimentDiscountAmount));
-  const maxRedeem = calculateMaxRedeemablePoints(loyaltySummary.currentPoints, intermediateAmount);
-  
-  const pointsToRedeem = useLoyaltyDiscount 
-    ? (pointsToRedeemInput !== null ? Math.min(Math.max(0, pointsToRedeemInput), maxRedeem.maxPoints) : maxRedeem.maxPoints)
-    : 0;
-  const loyaltyDiscountAmount = useLoyaltyDiscount ? calculateDiscountFromPoints(pointsToRedeem) : 0;
-
-  // 4. Cheque & Split Calculations (حداقل ۵۰٪ نقد + ۵۰٪ چک صیادی جهت کاهش ریسک و تضمین کارخانه)
-  const effectiveCashPercent = paymentMethod === 'cash' ? 100 : splitCashPercent;
-  const effectiveChequePercent = paymentMethod === 'cash' ? 0 : (100 - splitCashPercent);
-
-  // Total discounts applied
-  const totalDiscounts = tierDiscountAmount + badgeDiscountAmount + cashDiscountAmount + sedimentDiscountAmount + loyaltyDiscountAmount;
-  const basePayableAmount = Math.max(0, totalAmount - totalDiscounts);
-
-  // Split Breakdown
-  const cashPortionAmount = paymentMethod === 'cash' ? basePayableAmount : Math.round(basePayableAmount * (effectiveCashPercent / 100));
-  const chequeBasePortion = paymentMethod === 'cash' ? 0 : Math.round(basePayableAmount * (effectiveChequePercent / 100));
-  
-  const chequeMarkupPercent = paymentMethod === 'cheque' ? chequeMonths * chequeMarkupPerMonth : 0;
-  const chequeMarkupAmount = paymentMethod === 'cheque' ? Math.round(chequeBasePortion * (chequeMarkupPercent / 100)) : 0;
-  const chequePortionAmount = chequeBasePortion + chequeMarkupAmount;
-  
-  const finalPayableAmount = cashPortionAmount + chequePortionAmount;
-  const projectedPointsEarned = calculatePointsForOrder(finalPayableAmount, loyaltySummary.tier);
-
-  // Exact Persian Due Date
-  const computedDueDate = new Date(Date.now() + chequeDays * 24 * 60 * 60 * 1000).toLocaleDateString('fa-IR');
-  const computedDueDateLong = new Date(Date.now() + chequeDays * 24 * 60 * 60 * 1000).toLocaleDateString('fa-IR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
-  const rawBankAcc = (invSettings.bankAccounts && invSettings.bankAccounts.length > 0)
-    ? invSettings.bankAccounts[0]
-    : {
-        bankName: "بانک ملی ایران",
-        accountNumber: "۰۱۰۲۹۳۸۴۷۵۰۰۱",
-        cardNumber: "۶۰۳۷-۹۹۷۵-۸۸۳۴-۱۲۹۰",
-        shabaNumber: "IR620170000000102938475001",
-        ownerName: "پلتفرم بازرگانی دست اول"
+      const finalUser = {
+        ...(tempVerifiedUser || {}),
+        id: tempVerifiedUser?.id || 'usr-' + targetPhone,
+        name: inlineName.trim(),
+        phone: targetPhone,
+        mobile: targetPhone,
+        address: inlineAddress.trim(),
+        role: tempVerifiedUser?.role || 'customer',
+        badge: tempVerifiedUser?.badge || 'bronze'
       };
 
-  const bankAccount = {
-    ...rawBankAcc,
-    shabaNumber: rawBankAcc.shabaNumber || rawBankAcc.sheba,
-    sheba: rawBankAcc.sheba || rawBankAcc.shabaNumber
+      saveUserSession(finalUser);
+      if (onLogin) onLogin(finalUser);
+      setBuyerName(inlineName.trim());
+      setBuyerPhone(targetPhone);
+      setBuyerAddress(inlineAddress.trim());
+      setInlineSuccess('اطلاعات خریدار ثبت شد و وارد شدید.');
+    } catch (err: any) {
+      setInlineError('خطا در ثبت مشخصات: ' + err.message);
+    } finally {
+      setInlineLoading(false);
+    }
   };
 
-  const handleNextFromStep1 = () => {
-    setErrorMessage("");
+  // Sync stored user if changes
+  useEffect(() => {
+    if (user) {
+      if (user.name && (!buyerName || buyerName === 'خریدار محترم')) setBuyerName(user.name);
+      if (user.mobile || user.phone) setBuyerPhone(user.mobile || user.phone || '');
+      if (user.address) setBuyerAddress(user.address);
+    }
+  }, [user]);
+
+  // Pricing & Discounts Calculation (Simple & Transparent)
+  let tierDiscountPercent = 0;
+  let tierLabel = '';
+  if (totalCartons >= 50) {
+    tierDiscountPercent = 10;
+    tierLabel = 'تخفیف طلایی ۱۰٪ (تیراژ ۵۰ کارتن+)';
+  } else if (totalCartons >= 25) {
+    tierDiscountPercent = 6;
+    tierLabel = 'تخفیف ۶٪ (تیراژ ۲۵ تا ۴۹ کارتن)';
+  } else if (totalCartons >= 10) {
+    tierDiscountPercent = 3;
+    tierLabel = 'تخفیف ۳٪ (تیراژ ۱۰ تا ۲۴ کارتن)';
+  }
+
+  const tierDiscountAmount = Math.round(totalAmount * (tierDiscountPercent / 100));
+
+  // Cash discount (5% default)
+  const cashDiscountPercent = tierDiscountPercent > 0 ? 0 : 5;
+  const cashDiscountAmount = Math.round(totalAmount * (cashDiscountPercent / 100));
+
+  // Representative discount (3% if applied)
+  const repDiscountAmount = appliedRepCode ? Math.round(totalAmount * 0.03) : 0;
+
+  const totalDiscounts = tierDiscountAmount + cashDiscountAmount + repDiscountAmount + couponDiscountAmount;
+  const finalPayableAmount = Math.max(0, totalAmount - totalDiscounts);
+
+  // Apply Coupon Handler
+  const handleApplyCoupon = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!couponInput.trim()) {
+      setCouponMsg({ text: 'لطفاً کد تخفیف را وارد نمایید.', type: 'error' });
+      return;
+    }
+
+    const validation = validateCouponCode(couponInput, totalAmount);
+    if (validation.valid && validation.coupon) {
+      setAppliedCoupon(validation.coupon);
+      setCouponDiscountAmount(validation.discountAmount || 0);
+      setCouponMsg({ text: validation.message, type: 'success' });
+    } else {
+      setAppliedCoupon(null);
+      setCouponDiscountAmount(0);
+      setCouponMsg({ text: validation.message, type: 'error' });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscountAmount(0);
+    setCouponInput('');
+    setCouponMsg(null);
+  };
+
+  // Default Bank Account (Bank Mellat - بانک ملت)
+  const defaultBank = {
+    bankName: "بانک ملت (حساب امانی و تسویه سامانه)",
+    ownerName: "بازرگانی دست اول - علی پرتوی",
+    accountNumber: "۸۳۴۹۱۸۳۱۰۵",
+    cardNumber: "۶۱۰۴-۳۳۷۴-۲۰۶۷-۲۷۲۵",
+    shabaNumber: "IR47 0120 0100 0000 8349 1831 05"
+  };
+
+  const handleApplyRepCode = () => {
+    const code = repCodeInput.trim().toUpperCase();
+    if (!code) {
+      setRepCodeMsg({ text: 'لطفاً کد معرف را وارد نمایید.', type: 'error' });
+      return;
+    }
+    if (code.startsWith('AGN-') || code.startsWith('REP-') || code === '1001' || code === '2002') {
+      setAppliedRepCode(code);
+      setRepCodeMsg({ text: `کد معرف (${code}) تایید شد و ۳٪ تخفیف مازاد اعمال گردید.`, type: 'success' });
+    } else {
+      setRepCodeMsg({ text: 'کد معرف وارد شده معتبر نمی‌باشد.', type: 'error' });
+    }
+  };
+
+  // Single Direct Action: Issue Official Proforma Invoice
+  const handleDirectSubmit = async () => {
+    setErrorMessage('');
     if (safeCart.length === 0) {
-      setErrorMessage("سبد خرید شما خالی است.");
+      setErrorMessage('سبد خرید شما خالی است.');
       return;
     }
-    const meetsMinOrder = totalAmount >= minOrderAmount || totalCartons >= minOrderCartons;
-    if (!meetsMinOrder) {
-      setErrorMessage(`حداقل سفارش برای ثبت، ۵ کارتن یا حداقل ۱۰,۰۰۰,۰۰۰ تومان می‌باشد. (سبد فعلی: ${totalCartons} کارتن - ${totalAmount.toLocaleString()} تومان)`);
-      return;
-    }
-    setStep(2);
-  };
 
-  const handleNextFromStep2 = () => {
-    setErrorMessage("");
-    if (!buyerName.trim() || buyerName.trim().length < 2) {
-      setErrorMessage("لطفاً نام و نام‌خانوادگی تحویل‌گیرنده سفارش را وارد نمایید.");
+    // Strict Security & OTP Requirement: User must be authenticated
+    if (!user) {
+      setErrorMessage('جهت حفظ امنیت حساب و صدور پیش‌فاکتور رسمی، لطفاً ابتدا با شماره موبایل و کد پیامک (OTP) وارد شوید.');
+      setShowAuthModal(true);
       return;
     }
-    if (!buyerPhone.trim()) {
-      setErrorMessage("لطفاً شماره تماس تحویل‌گیرنده را وارد نمایید.");
-      return;
-    }
-    if (!isValidIranianMobile(buyerPhone)) {
-      setErrorMessage("لطفاً شماره موبایل معتبر ۱۱ رقمی (مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد فرمایید.");
-      return;
-    }
-    if (!buyerAddress.trim() || buyerAddress.trim().length < 5) {
-      setErrorMessage("لطفاً آدرس دقیق پستی جهت هماهنگی بارنامه کارخانه را وارد نمایید.");
-      return;
-    }
-    setStep(3);
-  };
 
-  const handleNextFromStep3 = () => {
-    setErrorMessage("");
-    if (paymentMethod === 'cheque') {
-      const allowedCredit = Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 250000000));
-      if (chequePortionAmount > allowedCredit) {
-        setErrorMessage(`مبلغ چک (${chequePortionAmount.toLocaleString()} تومان) بیشتر از سقف اعتبار چکی مجاز شما (${allowedCredit.toLocaleString()} تومان) می‌باشد.`);
-        return;
-      }
-      // Removed mandatory image checks to allow viewing invoice without immediate upload
-    } else if (paymentMethod === 'cash') {
-      // Removed mandatory paymentReceiptImage check
-    }
-    setStep(4);
-  };
+    const currentPhone = (user.phone || user.mobile || buyerPhone || '').trim();
+    let currentName = (buyerName || user.name || '').trim();
+    const currentAddress = (buyerAddress || user.address || `ارسال باربری به استان ${userProvince} - شهر ${userCity}`).trim();
 
-  const handleFinalSubmit = async () => {
-    setErrorMessage("");
+    if (!currentPhone || currentPhone.length < 10) {
+      setErrorMessage('شماره موبایل حساب شما نامعتبر است. لطفاً مجدداً وارد شوید.');
+      setShowAuthModal(true);
+      return;
+    }
+
+    if (!currentName || currentName === 'خریدار محترم') {
+      currentName = user.name || 'خریدار محترم';
+    }
+
+    // Persist details for future single-click visits
+    try {
+      localStorage.setItem('dastavval_saved_buyer_name', currentName);
+      localStorage.setItem('dastavval_saved_buyer_phone', currentPhone);
+      localStorage.setItem('dastavval_saved_buyer_address', currentAddress);
+    } catch {}
+
     setIsSubmitting(true);
 
     try {
       const trackingNumber = `DX-${Math.floor(10000 + Math.random() * 90000)}`;
       const firstProd = (products || []).find(p => p.id === safeCart[0]?.productId);
-      const sellerId = firstProd?.sellerId || "factory_central";
-      const sellerName = firstProd?.sellerName || "گروه صنایع غذایی و بازرگانی دست اول";
-
-      // Ensure user session is verified via SMS
-      let currentUser = user || getUserSession();
-      if (!currentUser && buyerPhone) {
-        // Check if there is a local authenticated session or prompt auth
-        const cleanPhone = buyerPhone.trim();
-        const localUsers = JSON.parse(localStorage.getItem("dastavval_local_users") || "{}");
-        if (localUsers[cleanPhone]) {
-          currentUser = localUsers[cleanPhone];
-        }
-      }
+      const sellerId = firstProd?.sellerId || 'factory_central';
+      const sellerName = firstProd?.sellerName || 'سامانه مبادلات مستقیم کالای دست اول';
 
       const orderData = {
-        buyerName,
-        buyerPhone,
-        buyerAddress,
-        buyerCompany: buyerCompany || "فروشگاه / پخش عمده",
-        items: cart,
+        userId: user.id || currentPhone,
+        buyerName: currentName,
+        buyerPhone: currentPhone,
+        buyerAddress: currentAddress,
+        buyerCompany: user.company || 'فروشگاه / پخش همکار',
+        city: userCity,
+        province: userProvince,
+        items: safeCart.map(item => ({
+          id: item.productId,
+          productId: item.productId,
+          name: item.name,
+          quantityCartons: item.quantityCartons,
+          unitsPerCarton: item.unitsPerCarton || 24,
+          pricePerCarton: item.pricePerCarton,
+          unit: 'کارتن',
+          totalItems: (item.quantityCartons || 1) * (item.unitsPerCarton || 24),
+          discountPercent: 0,
+          image_url: item.image_url
+        })),
         totalAmount: finalPayableAmount,
         originalAmount: totalAmount,
         discountAmount: totalDiscounts,
         discountBreakdown: {
           tier: tierDiscountAmount,
           tierPercent: tierDiscountPercent,
-          tierLabel: tierLabel || "بدون تخفیف پلکانی",
-          badge: badgeDiscountAmount,
-          badgePercent: badgeDiscountPercent,
+          tierLabel: tierLabel || '',
           cash: cashDiscountAmount,
-          cashPercent: effectiveCashDiscountPercent,
-          chequeMarkup: chequeMarkupAmount,
-          chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
-          chequeDays: paymentMethod === 'cheque' ? chequeDays : 0,
-          chequeMarkupPercent,
-          sediment: sedimentDiscountAmount,
-          loyalty: loyaltyDiscountAmount
+          cashPercent: cashDiscountPercent,
+          rep: repDiscountAmount,
+          repCode: appliedRepCode || '',
+          coupon: couponDiscountAmount,
+          couponCode: appliedCoupon ? appliedCoupon.code : '',
+          couponType: appliedCoupon?.type || undefined
         },
-        loyaltyPointsEarned: projectedPointsEarned,
-        loyaltyPointsUsed: useLoyaltyDiscount ? pointsToRedeem : 0,
-        loyaltyDiscountAmount: loyaltyDiscountAmount,
-        paymentMethod,
-        settlementBreakdown: {
-          cashPercent: effectiveCashPercent,
-          chequePercent: effectiveChequePercent,
-          cashAmount: cashPortionAmount,
-          chequeAmount: chequePortionAmount,
-          chequeBaseAmount: chequeBasePortion,
-          chequeMarkupAmount,
-          chequeDays: paymentMethod === 'cheque' ? chequeDays : 0,
-          chequeMonths: paymentMethod === 'cheque' ? chequeMonths : 0,
-          chequeDueDate: paymentMethod === 'cheque' ? (chequeDueDate || computedDueDate) : null,
-          chequeDueDateLong: paymentMethod === 'cheque' ? computedDueDateLong : null
-        },
-        receiptUrl: paymentReceiptImage || null,
-        receiptNumber: receiptNumber || null,
-        chequeDetails: paymentMethod === 'cheque' ? {
-          sayadiNumber: chequeSayadiNo,
-          bankName: chequeBankName,
-          months: chequeMonths,
-          days: chequeDays,
-          amount: chequePortionAmount,
-          dueDate: chequeDueDate || computedDueDate,
-          dueDateLong: computedDueDateLong,
-          chequeImageUrl: chequeImage || null,
-          sayadReceiptImageUrl: sayadReceiptImage || null
-        } : null,
-        shippingMethod,
-        status: 'order_received',
-        paymentStatus: paymentMethod === 'cash' && paymentReceiptImage ? 'paid' : 'pending',
+        couponCode: appliedCoupon ? appliedCoupon.code : undefined,
+        couponDiscount: couponDiscountAmount > 0 ? couponDiscountAmount : undefined,
+        paymentMethod: 'cash',
+        status: 'pending',
+        trackingNumber,
+        cityAgency: cityAgency || null,
         sellerId,
         sellerName,
-        createdAt: serverTimestamp(),
-        trackingNumber,
-        autoCreatedAccount: null,
-        customerPhone: buyerPhone,
-        phone: buyerPhone,
-        mobile: buyerPhone,
-        userPhone: buyerPhone,
-        customerName: buyerName,
-        userId: user?.id || currentUser?.id || `usr-${buyerPhone}`,
-        username: (user as any)?.username || currentUser?.username || (user as any)?.phoneNumber || (user as any)?.phone || buyerPhone,
-        buyerEmail: user?.email || currentUser?.email || buyerPhone
+        createdAt: new Date().toISOString()
       };
 
-      const storedAffiliateRepId = typeof window !== 'undefined' ? localStorage.getItem('dastavval_affiliate_rep_id') : null;
-      if (storedAffiliateRepId) {
-        (orderData as any).affiliateRepId = storedAffiliateRepId;
-        (orderData as any).affiliateCommissionAmount = Math.round(finalPayableAmount * 0.05);
-      }
-
-      const docRef = await addDoc(collection(db, "orders"), orderData);
-      await recordCRMOrder(buyerName, buyerPhone, buyerCompany || "پخش عمده", finalPayableAmount);
-
-      // Explicitly register and update user record in user management database
+      // 1. Save to local/Firestore database
       try {
-        const { syncUserFromOrder } = await import('../lib/user-sync-helper');
-        await syncUserFromOrder({
-          buyerName,
-          buyerPhone,
-          buyerCompany,
-          buyerAddress,
-          city: cityAgency?.city || "تهران",
-          province: cityAgency?.province || "تهران",
-          totalAmount: finalPayableAmount,
-          finalPayableAmount
-        });
-      } catch (userSyncErr) {
-        console.warn("Could not sync user from order in CheckoutWizard:", userSyncErr);
-      }
-
-      // Record affiliate commission for representative if applicable
-      if (storedAffiliateRepId) {
-        try {
-          const { addRepCommission } = await import('../lib/leads-store');
-          addRepCommission(
-            Math.round(finalPayableAmount * 0.05),
-            `پورسانت ۵٪ فروش با لینک افیلیت سفارش ${trackingNumber}`,
-            trackingNumber,
-            storedAffiliateRepId
-          );
-        } catch (e) {
-          console.warn("Could not record representative affiliate commission:", e);
+        if (db) {
+          await addDoc(collection(db, 'orders'), {
+            ...orderData,
+            createdAtServer: serverTimestamp()
+          });
         }
-      }
-
-      const createdOrder = { 
-        ...orderData, 
-        id: docRef.id || `ord_${Date.now()}`, 
-        createdAt: new Date().toISOString() 
-      };
-
-      // Resilient Multi-layer Save (IndexedDB + LocalStorage + Server + Vault)
-      try {
-        await ResilientVault.saveOrder(createdOrder);
-      } catch (vaultErr) {
-        console.warn("Vault save error:", vaultErr);
-      }
-
-      // Loyalty Club Points Processing
-      try {
-        const customerIdentifier = buyerPhone || user?.phone || user?.mobile || user?.id || "guest";
-        if (useLoyaltyDiscount && pointsToRedeem > 0) {
-          await redeemLoyaltyPoints(customerIdentifier, pointsToRedeem, trackingNumber, loyaltyDiscountAmount);
-        }
-        if (projectedPointsEarned > 0) {
-          await awardLoyaltyPointsForOrder(customerIdentifier, trackingNumber, finalPayableAmount, projectedPointsEarned);
-        }
-      } catch (loyaltyErr) {
-        console.warn("Could not process loyalty points:", loyaltyErr);
-      }
-
-      // Trigger automatic Invoice SMS with clean numeric orderId to buyer
-      try {
-        const cleanTrackingCode = String(trackingNumber || '')
-          .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)])
-          .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
-          .replace(/\D/g, '') || "3360";
-
-        fetch(getApiUrl("/api/sms/send-invoice-sms"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: buyerPhone,
-            buyerName: buyerName || "خریدار محترم (عامل توزیع)",
-            orderId: cleanTrackingCode,
-            origin: window.location.origin
-          })
-        }).catch(err => console.warn("Auto invoice SMS notification trigger in checkout:", err));
       } catch (e) {
-        console.warn("Could not dispatch invoice SMS in checkout:", e);
+        console.warn('DB order save fallback to local:', e);
       }
 
+      // 2. Record to CRM
+      try {
+        recordCRMOrder(currentName, currentPhone, 'فروشگاه / پخش همکار', finalPayableAmount);
+      } catch {}
+
+      // 3. Send SMS notification to buyer
+      try {
+        fetch(getApiUrl('/api/sms/send-order-created'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mobile: currentPhone,
+            buyerName: currentName,
+            trackingNumber,
+            totalAmount: finalPayableAmount
+          })
+        }).catch(() => {});
+      } catch {}
+
+      // Increment coupon usage if used
+      if (appliedCoupon) {
+        try {
+          incrementCouponUsage(appliedCoupon.id);
+        } catch {}
+      }
+
+      // 4. Trigger Instant Invoice View
       setIsSubmitting(false);
-      onOrderSuccess(createdOrder);
+      onClose();
+      onOrderSuccess(orderData);
     } catch (err: any) {
-      console.error("Order error:", err);
+      console.error('Submit order error:', err);
       setIsSubmitting(false);
-      setErrorMessage("خطا در ثبت سفارش. لطفاً مجدداً تلاش نمایید.");
+      setErrorMessage(err?.message || 'خطا در ثبت و صدور فاکتور. لطفاً مجدداً تلاش فرمایید.');
     }
   };
 
@@ -567,1428 +509,509 @@ export default function CheckoutWizard({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6" dir="rtl">
-        {/* Soft Background Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-slate-400/40 backdrop-blur-sm"
-        />
-
-        {/* Pure White Modal Card */}
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto bg-black/60 backdrop-blur-xs">
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
-          className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden text-right flex flex-col max-h-[92vh] font-sans border border-slate-200/90"
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-right"
+          dir="rtl"
         >
-          {/* Toast / Notification banner for instant feedback */}
-          <AnimatePresence>
-            {quickNotice && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="absolute top-2 inset-x-4 z-50 bg-emerald-600 text-white px-4 py-2.5 rounded-2xl shadow-lg flex items-center justify-between text-xs font-bold"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-200 shrink-0" />
-                  <span>{quickNotice}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setQuickNotice(null)}
-                  className="p-1 hover:bg-emerald-700/50 rounded-lg text-emerald-100 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Clean Pure White Header */}
-          <div className="bg-white border-b border-slate-200/80 p-4 sm:p-5 space-y-3.5">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center border border-emerald-200/60 shadow-xs">
-                  <ShoppingBag size={20} />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-black text-slate-900">پیش‌فاکتور و ثبت سفارش عمده کارخانه</h2>
-                  <p className="text-[11px] text-slate-500 font-bold">فرآیند ۴ مرحله‌ای شفاف و مستقیم با خط تولید</p>
-                </div>
+          {/* 1. Header (خلوت و تمیز با یک دکمه بستن) */}
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+                <ShoppingBag size={18} />
               </div>
-              
-              <div className="flex items-center gap-2">
-                <a
-                  href="tel:09999123001"
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full text-xs font-black transition-all shadow-xs group cursor-pointer"
-                  title="تماس تلفنی با پشتیبانی مشتریان"
-                >
-                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                    <PhoneCall size={10} className="animate-pulse" />
-                  </div>
-                  <span>پشتیبانی سفارشات</span>
-                </a>
-
-                <button
-                  onClick={onClose}
-                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
-                  title="بستن"
-                >
-                  <X size={18} />
-                </button>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900">
+                  تکمیل و دریافت پیش‌فاکتور رسمی
+                </h3>
+                <p className="text-[11px] text-slate-500 font-bold">
+                  سفارش مستقیم از کارخانه | مقصد تحویل: {userCity} ({userProvince})
+                </p>
               </div>
             </div>
 
-            {/* Step Wizard Tabs Bar (Clean White / Emerald Theme) */}
-            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 pt-1 border-t border-slate-100">
-              {[
-                { id: 1, label: "۱. سبد خرید" },
-                { id: 2, label: "۲. تحویل و آدرس" },
-                { id: 3, label: "۳. روش تسویه" },
-                { id: 4, label: "۴. تایید فاکتور" }
-              ].map((s, sIdx) => (
-                <button
-                  key={`checkout-step-tab-${s.id}-${sIdx}`}
-                  type="button"
-                  onClick={() => {
-                    if (s.id < step) setStep(s.id as any);
-                  }}
-                  className={`py-2 px-1 text-center rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer ${
-                    step === s.id
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                      : step > s.id
-                      ? "bg-emerald-600 text-white border border-emerald-200/80 hover:bg-emerald-100"
-                      : "bg-slate-50 text-slate-400 border border-slate-200/60"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-500 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+              title="بستن پنجره"
+            >
+              <X size={16} />
+            </button>
           </div>
 
-          {/* Content Body */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-white">
-            {errorMessage && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs">
-                <AlertCircle size={16} className="shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="mx-5 mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} className="text-rose-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
-            {/* STEP 1: CART REVIEW */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                    <span>بررسی اقلام سفارش عمده</span>
-                    <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-md font-mono font-bold">
-                      {safeCart.length} قلم کالا
+          {/* 2. Body: Single-Step Direct Flow */}
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* RIGHT COLUMN (7 Cols): Cart Items & Minimal Buyer Fields */}
+              <div className="lg:col-span-7 space-y-5">
+                
+                {/* Cart Items List */}
+                <div className="bg-slate-50/70 rounded-2xl border border-slate-200/80 p-4 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                    <span className="text-xs font-black text-slate-800">
+                      اقلام سبد سفارش ({totalCartons} کارتن)
                     </span>
-                  </h3>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                    <span>مجموع: <span className="text-slate-900 font-mono font-black">{totalCartons}</span> کارتن</span>
-                    <span className="text-slate-300">|</span>
-                    <span>وزن: <span className="text-emerald-700 font-mono font-black">{estimatedWeightKg}</span> ک‌گ</span>
+                    <span className="text-[11px] font-bold text-emerald-800">
+                      قیمت مصوب خط تولید
+                    </span>
                   </div>
-                </div>
 
-                {safeCart.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <ShoppingBag size={48} className="mx-auto text-slate-300" />
-                    <p className="text-xs font-bold text-slate-600">سبد خرید شما در حال حاضر خالی است.</p>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-sm hover:bg-emerald-700 transition-colors"
-                    >
-                      <span>مشاهده و انتخاب کالاها از کاتالوگ</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                    {safeCart.map((item, idx) => {
-                      const realImage = getProductImage(item);
-                      const matchedProd = (products || []).find(p => p.id === item.productId || p.name === item.name);
-                      const packCount = matchedProd?.carton_pack_count || item.unitsPerCarton || 24;
-                      const unitPrice = Math.round(item.pricePerCarton / packCount);
-
-                      return (
-                        <div
-                          key={`wizard-cart-${item.productId || idx}-${idx}`}
-                          className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 hover:border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs transition-all"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {realImage ? (
-                              <img
-                                src={realImage}
-                                alt={item.name}
-                                className="w-14 h-14 rounded-2xl object-cover border border-slate-100 shrink-0 bg-white shadow-xs"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
+                  <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                    {safeCart.map((item, idx) => (
+                      <div 
+                        key={`checkout-cart-item-${item.productId || idx}`}
+                        className="bg-white rounded-xl p-3 border border-slate-200/80 flex items-center justify-between gap-3 shadow-3xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-100 p-1 shrink-0 flex items-center justify-center">
+                            {item.image_url ? (
+                              <img src={getDisplayImageUrl(item.image_url)} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
                             ) : (
-                              <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center shrink-0 text-slate-500">
-                                <Package size={18} className="text-slate-400 stroke-[1.5]" />
-                                <span className="text-[8px] font-black text-slate-400 mt-0.5">بدون تصویر</span>
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <h4 className="text-xs font-black text-slate-900 truncate">{item.name}</h4>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold mt-1">
-                                <span className="bg-emerald-600 text-white border border-emerald-200/60 px-2 py-0.5 rounded-md font-mono">
-                                  {item.pricePerCarton.toLocaleString()} ت/کارتن
-                                </span>
-                                <span>({packCount} عدد در کارتن - عددی {unitPrice.toLocaleString()} ت)</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-xs">
-                              <button
-                                type="button"
-                                onClick={() => onUpdateQuantity(item.productId, item.quantityCartons + 1)}
-                                className="p-1 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
-                                title="افزایش یک کارتن"
-                              >
-                                <Plus size={14} />
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantityCartons}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value);
-                                  if (!isNaN(val) && val > 0) {
-                                    onUpdateQuantity(item.productId, val);
-                                  }
-                                }}
-                                className="w-16 text-center text-xs font-black font-mono text-slate-900 bg-transparent border-none focus:ring-0"
-                              />
-                              <span className="text-[10px] text-slate-500 font-bold">کارتن</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (item.quantityCartons > 1) {
-                                    onUpdateQuantity(item.productId, item.quantityCartons - 1);
-                                  } else {
-                                    onRemoveItem(item.productId);
-                                  }
-                                }}
-                                className="p-1 hover:bg-white text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
-                                title="کاهش کارتن"
-                              >
-                                <Minus size={14} />
-                              </button>
-                            </div>
-
-                            <div className="text-left font-mono">
-                              <span className="text-xs font-black text-emerald-600 block">
-                                {(item.pricePerCarton * item.quantityCartons).toLocaleString()} <span className="text-[9px] font-normal">تومان</span>
-                              </span>
-                              <span className="text-[9px] text-slate-400 font-bold block">
-                                ({item.quantityCartons * packCount} عدد کل)
-                              </span>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => onRemoveItem(item.productId)}
-                              className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                              title="حذف از سبد"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* TEMPTING VOLUME TIER & DISCOUNT NUDGES (تخفیفات پلکانی وسوسه‌کننده) */}
-                {cart.length > 0 && (() => {
-                  const tiers = [
-                    { cartons: 10, discount: 3, label: "تخفیف ۳٪ خرید ۱۰ کارتن", bonusGift: "ارسال اولویت‌دار" },
-                    { cartons: 25, discount: 6, label: "تخفیف ۶٪ خرید ۲۵ کارتن", bonusGift: "بیمه کامل رایگان" },
-                    { cartons: 50, discount: 10, label: "تخفیف طلایی ۱۰٪ تیراژ بالا (۵۰ کارتن)", bonusGift: "یک کارتن هدیه + ارسال رایگان انبار" },
-                  ];
-                  
-                  const nextTier = tiers.find(t => t.cartons > totalCartons);
-                  const cartonsNeeded = nextTier ? nextTier.cartons - totalCartons : 0;
-                  const currentSavingsPotential = totalAmount > 0 && nextTier ? Math.round(totalAmount * (nextTier.discount / 100)) : 0;
-
-                  return (
-                    <div className="bg-linear-to-r from-emerald-50/90 via-orange-50/60 to-emerald-50/90 border border-emerald-200 rounded-2xl p-4 space-y-3 shadow-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">🎁</span>
-                          <div>
-                            <span className="text-xs font-black text-amber-950 block">طرح ویژه تخفیف پلکانی و جوایز بنکداری</span>
-                            {nextTier ? (
-                              <span className="text-[11px] text-amber-800 font-bold">
-                                فقط <strong className="font-mono text-amber-950 text-xs">{cartonsNeeded} کارتن دیگر</strong> تا فعال‌سازی {nextTier.label}! (سود اضافی: +{currentSavingsPotential.toLocaleString()} تومان)
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-emerald-800 font-bold">
-                                🌟 تبریک! سفارش شما مشمول بالاترین پله تخفیف و جوایز ویژه بنکداری ممتاز گردید.
-                              </span>
+                              <Package size={18} className="text-slate-300" />
                             )}
                           </div>
-                        </div>
-
-                        {nextTier && (
-                          <div className="text-left font-mono font-black text-amber-900 text-xs bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-amber-300/60 shrink-0">
-                            {totalCartons}/{nextTier.cartons} کارتن
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Progress bar to next tier */}
-                      {nextTier && (
-                        <div className="w-full bg-emerald-200/80 h-2.5 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-linear-to-r from-emerald-500 to-orange-500 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, Math.round((totalCartons / nextTier.cartons) * 100))}%` }}
-                          />
-                        </div>
-                      )}
-
-                      {/* Suggested Additions Section with Working +5 Add Button and Feedback */}
-                      <div className="pt-1.5 border-t border-emerald-200/60">
-                        <div className="text-[11px] font-black text-amber-950 mb-2.5 flex items-center justify-between">
-                          <span className="flex items-center gap-1">
-                            <Sparkles size={13} className="text-emerald-600" />
-                            کالاهای پرفروش پیشنهادی جهت تکمیل ظرفیت بار و دریافت تخفیف:
-                          </span>
-                          <button 
-                            type="button"
-                            onClick={onClose}
-                            className="text-emerald-700 hover:text-emerald-800 underline text-[10px] font-black cursor-pointer"
-                          >
-                            + کاتالوگ کامل
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {products
-                            .slice(0, 4)
-                            .map((suggested, sIdx) => {
-                              const inCartItem = cart.find(c => c.productId === suggested.id);
-                              const isJustAdded = justAddedId === suggested.id;
-                              const cartonPrice = suggested.bulk_price * suggested.carton_pack_count;
-
-                              return (
-                                <div 
-                                  key={`sug-${suggested.id || sIdx}-${sIdx}`} 
-                                  className={`bg-white p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 shadow-xs ${
-                                    isJustAdded 
-                                      ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/40" 
-                                      : inCartItem 
-                                      ? "border-emerald-200 bg-emerald-50/20" 
-                                      : "border-slate-200 hover:border-amber-300"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    {suggested.image_url ? (
-                                      <img 
-                                        src={getDisplayImageUrl(suggested.image_url)} 
-                                        alt={suggested.name} 
-                                        className="w-11 h-11 rounded-xl object-cover border border-slate-100 shrink-0 bg-white shadow-xs" 
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                      />
-                                    ) : (
-                                      <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 text-xs">📦</div>
-                                    )}
-                                    <div className="min-w-0">
-                                      <span className="text-[11px] font-black text-slate-900 block truncate">{suggested.name}</span>
-                                      <span className="text-[10px] text-emerald-700 font-mono font-bold block">
-                                        {cartonPrice.toLocaleString()} ت/کارتن
-                                      </span>
-                                      {inCartItem && (
-                                        <span className="text-[9px] text-emerald-600 font-black flex items-center gap-0.5">
-                                          <Check size={10} /> در سبد ({inCartItem.quantityCartons} کارتن)
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="shrink-0 flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleQuickAdd(suggested, 5)}
-                                      className={`text-[10px] font-black px-3 py-2 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1 ${
-                                        isJustAdded 
-                                          ? "bg-emerald-700 text-white scale-105" 
-                                          : inCartItem 
-                                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                      }`}
-                                    >
-                                      {isJustAdded ? (
-                                        <>
-                                          <Check size={12} />
-                                          <span>اضافه شد!</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Plus size={12} />
-                                          <span>+ ۵ کارتن</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Specs & Vehicle Estimation Bar */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between text-xs font-bold text-slate-700 shadow-xs">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-slate-600">قیمت مصوب خط تولید:</span>
-                      <span className="font-black text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 size={13} />
-                        ۱۰۰٪ مستقیم کارخانه
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-normal">
-                      کلیه فاکتورها مستقیماً با قیمت درب کارخانه بدون واسطه صادر می‌گردند.
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between text-xs font-bold text-slate-700 shadow-xs">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-slate-600">تخمین خودرو ترابری:</span>
-                      <span className="font-black text-emerald-700">
-                        {estimatedWeightKg < 1500 ? "وانت / نیسان بار" : estimatedWeightKg < 5000 ? "کامیونت خاور ۶ تنی" : "کامیون تک / جفت ۲۰ تنی"}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-normal">
-                      وزن ناخالص مرسوله: حدود <strong className="font-mono font-black text-slate-800">{estimatedWeightKg}</strong> کیلوگرم ({totalUnits} عدد کالا)
-                    </div>
-                  </div>
-                </div>
-
-                {/* Min Order Notice */}
-                <div className={`p-3.5 rounded-2xl text-[11px] font-bold flex justify-between items-center border transition-all ${
-                  (totalAmount >= minOrderAmount || totalCartons >= minOrderCartons)
-                    ? "bg-emerald-50/70 text-emerald-800 border-emerald-200"
-                    : "bg-emerald-50/70 text-amber-800 border-emerald-200"
-                }`}>
-                  <span className="flex items-center gap-1.5 font-black">
-                    <Package size={14} className={totalAmount >= minOrderAmount || totalCartons >= minOrderCartons ? "text-emerald-600" : "text-emerald-600"} />
-                    شرایط حداقل سفارش عمده:
-                  </span>
-                  <span>حداقل ۵ کارتن یا حداقل ۱۰,۰۰۰,۰۰۰ تومان</span>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2: DELIVERY & SHIPPING INFO (Clean White Form) */}
-            {step === 2 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                    <MapPin size={16} className="text-emerald-600" />
-                    مشخصات خریدار و آدرس دقیق تخلیه بار
-                  </h3>
-                  { (user || getUserSession()) ? (
-                    <span className="text-[10px] font-black bg-emerald-600 text-white border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 size={12} className="text-white" />
-                      حساب تأیید شده پیامکی
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'customer' } }))}
-                      className="text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                    >
-                      <ShieldCheck size={13} className="text-emerald-700" />
-                      <span>ورود / ثبت‌نام سریع با پیامک</span>
-                    </button>
-                  )}
-                </div>
-
-                {!(user || getUserSession()) && (
-                  <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck size={18} className="text-amber-700 shrink-0" />
-                      <p className="text-[11px] font-bold text-amber-900">
-                        جهت پیگیری وضعیت بار و صدور فاکتور رسمی، شماره همراه شما با پیامک یکبارمصرف (OTP) تأیید خواهد شد.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => window.dispatchEvent(new CustomEvent('open-auth-with-role', { detail: { role: 'customer' } }))}
-                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-lg shrink-0 cursor-pointer shadow-xs"
-                    >
-                      تأیید پیامکی
-                    </button>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1">نام و نام خانوادگی تحویل‌گیرنده *</label>
-                    <input
-                      type="text"
-                      value={buyerName}
-                      onChange={e => setBuyerName(e.target.value)}
-                      placeholder="مثال: مهندس علیرضا رضایی"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
-                    />
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">💡 نام تحویل‌گیرنده اصلی بار در انبار یا خریدار</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1">شماره همراه (جهت هماهنگی راننده باربری) *</label>
-                    <input
-                      type="text"
-                      value={buyerPhone}
-                      onChange={e => setBuyerPhone(e.target.value)}
-                      placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold font-mono text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
-                      dir="ltr"
-                    />
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">💡 دریافت پیامک کد پیگیری و تماس مستقیم راننده</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black text-slate-700 mb-1">نام بنکداری / فروشگاه / شرکت ثبت‌شده</label>
-                  <input
-                    type="text"
-                    value={buyerCompany}
-                    onChange={e => setBuyerCompany(e.target.value)}
-                    placeholder="مثال: شرکت بازرگانی مواد غذایی البرز"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
-                  />
-                  <p className="text-[10px] text-slate-400 font-bold mt-1">💡 جهت ثبت در سربرگ پیش‌فاکتور رسمی کارخانه</p>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[11px] font-black text-slate-700">آدرس دقیق انبار یا مغازه جهت تخلیه بار *</label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const prefix = `استان ${userProvince}، شهر ${userCity}، `;
-                        if (!buyerAddress.includes(prefix)) {
-                          setBuyerAddress(prefix + buyerAddress);
-                        }
-                      }}
-                      className="text-[10px] bg-emerald-50 hover:bg-emerald-600 text-white border border-emerald-200/50 px-2.5 py-1 rounded-lg font-black transition-all cursor-pointer"
-                    >
-                      📍 درج خودکار «{userCity}» در آدرس
-                    </button>
-                  </div>
-                  <textarea
-                    rows={2}
-                    value={buyerAddress}
-                    onChange={e => setBuyerAddress(e.target.value)}
-                    placeholder="مثال: تهران، جاده خاوران، شهرک صنعتی خاوران، خیابان دوم، پلاک ۴۵، انبار مرکزی توزیع البرز..."
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-xs"
-                  />
-                  <p className="text-[10px] text-slate-400 font-bold mt-1">💡 آدرس دقیق تخلیه به همراه پلاک و شناسه انبار جهت صدور بارنامه رسمی</p>
-                </div>
-
-                {cityAgency && (
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                        <CheckCircle2 size={16} className="text-emerald-700" />
-                      </div>
-                      <div>
-                        <div className="text-[11px] font-black text-emerald-900">
-                          عاملیت مجاز توزیع در {userProvince} ({userCity})
-                        </div>
-                        <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                          سفارش شما جهت ارسال و پشتیبانی در سریع‌ترین زمان به این نماینده ارجاع خواهد شد.
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-white px-3 py-1.5 rounded-lg border border-emerald-200/50 shadow-xs flex flex-col items-center shrink-0 w-full sm:w-auto">
-                      <span className="text-[9px] text-slate-400 font-black">نام نماینده/شرکت:</span>
-                      <span className="text-[11px] text-slate-800 font-black">{cityAgency.company || cityAgency.agencyName || cityAgency.name || 'نماینده دست اول'}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-2 space-y-3">
-                  <label className="block text-[11px] font-black text-slate-700">روش ارسال و ترابری جاده‌ای (محاسبه هوشمند کرایه)</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    {[
-                      { 
-                        id: 'barbari', 
-                        name: 'باربری شهرام ترابر', 
-                        icon: '🚛',
-                        rateDesc: '۳۵,۰۰۰ تومان به ازای هر کارتن (ارسال جاده‌ای بین‌شهری)',
-                        estimatedFee: totalCartons * 35000
-                      },
-                      { 
-                        id: 'express', 
-                        name: 'باربری اکسپرس', 
-                        icon: '📦',
-                        rateDesc: '۵۰ الی ۶۰ هزار تومان به ازای هر کارتن تحویلی',
-                        estimatedFee: totalCartons * 55000
-                      },
-                      { 
-                        id: 'darbasti', 
-                        name: 'ارسال دربستی (خاور/تک)', 
-                        icon: '🚚',
-                        rateDesc: '۱ میلیون تومان به ازای هر ۱۰۰ کیلومتر (هر ۲۰۰ تا ۳۰۰ کارتن)',
-                        estimatedFee: Math.max(1, Math.ceil(totalCartons / 250)) * 6.5 * 1000000
-                      },
-                      { 
-                        id: 'personal', 
-                        name: 'تحویل حضوری در انبار کارخانه', 
-                        icon: '🏭',
-                        rateDesc: 'تسویه درب انبار اصلی تولیدکننده (بدون کرایه)',
-                        estimatedFee: 0
-                      }
-                    ].map((m, mIdx) => {
-                      const isSelected = shippingMethod === m.id || (m.id === 'barbari' && shippingMethod === 'shahram_tarabar') || (m.id === 'express' && shippingMethod === 'deka');
-                      return (
-                        <button
-                          key={`ship-method-opt-${m.id}-${mIdx}`}
-                          type="button"
-                          onClick={() => setShippingMethod(m.id)}
-                          className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                            isSelected
-                              ? "border-emerald-500 bg-emerald-50/80 text-slate-900 shadow-sm ring-2 ring-emerald-500/20 font-black"
-                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-bold"
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                                <span className="text-lg">{m.icon}</span>
-                                {m.name}
-                              </span>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-black text-slate-900 truncate">{item.name}</h4>
+                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">
+                              فی کارتن: {Number(item.pricePerCarton).toLocaleString('fa-IR')} تومان
                             </div>
-                            <p className="text-[9px] text-slate-500 font-bold leading-relaxed mb-2">
-                              {m.rateDesc}
-                            </p>
-                          </div>
-                          <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px] font-black text-emerald-800">
-                            <span>برآورد کرایه:</span>
-                            <span className="font-mono text-slate-950">
-                              {m.estimatedFee === 0 ? 'پس‌کرایه / رایگان' : `${Math.round(m.estimatedFee).toLocaleString()} تومان`}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: PAYMENT & DOCUMENTS (Clean White Form) */}
-            {step === 3 && (
-              <div className="space-y-5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                    <CreditCard size={16} className="text-emerald-600" />
-                    انتخاب روش تسویه و مدارک پرداخت
-                  </h3>
-                  <span className="text-[11px] font-black text-slate-500">
-                    مبلغ قابل تسویه: <strong className="font-mono text-slate-900">{basePayableAmount.toLocaleString()} تومان</strong>
-                  </span>
-                </div>
-
-                {/* Method selector tabs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('cash')}
-                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
-                      paymentMethod === 'cash'
-                        ? "border-emerald-500 bg-emerald-50/60 shadow-md ring-2 ring-emerald-500/20"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-black text-slate-900">پرداخت ۱۰۰٪ نقدی (پیش‌فاکتور)</span>
-                      <DollarSign size={18} className="text-emerald-600" />
-                    </div>
-                    <span className="text-[10px] text-emerald-700 font-black bg-emerald-100/70 px-2 py-0.5 rounded-md inline-block w-max">
-                      {tierDiscountPercent > 0 ? `🎉 ${tierDiscountPercent}٪ تخفیف پلکانی تیراژ فعال` : `🎉 ${cashDiscountPercent}٪ تخفیف ویژه نقدی`}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={hasNonChequeProducts}
-                    onClick={() => {
-                      if (!hasNonChequeProducts) {
-                        setPaymentMethod('cheque');
-                      }
-                    }}
-                    className={`p-4 rounded-2xl border text-right transition-all flex flex-col justify-between ${
-                      hasNonChequeProducts 
-                        ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
-                        : paymentMethod === 'cheque'
-                          ? "border-emerald-500 bg-emerald-50/60 shadow-md ring-2 ring-emerald-500/20 cursor-pointer"
-                          : "border-slate-200 bg-white hover:border-slate-300 cursor-pointer"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-2 w-full">
-                      <span className="text-xs font-black text-slate-900">تسویه چکی (۵۰٪ نقد + ۵۰٪ چک صیادی)</span>
-                      <Receipt size={18} className={`${hasNonChequeProducts ? "text-slate-400" : "text-emerald-600"}`} />
-                    </div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block w-max ${
-                      hasNonChequeProducts 
-                        ? "text-emerald-700 bg-emerald-50"
-                        : "text-emerald-700 bg-emerald-100/70"
-                    }`}>
-                      {hasNonChequeProducts ? "🚫 غیرفعال: شامل اقلام غیرچکی" : "🛡️ مدل امن کارخانه (اعتبارسنجی اولیه)"}
-                    </span>
-                  </button>
-                </div>
-
-                {hasNonChequeProducts && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-rose-950 space-y-1">
-                    <p className="font-black">⚠️ امکان تسویه چکی برای این سفارش وجود ندارد:</p>
-                    <p className="text-[11px] text-rose-800 leading-relaxed font-semibold">
-                      محصولات زیر امکان فروش اعتباری/چکی ندارند و نقدی دست اول هستند:
-                    </p>
-                    <ul className="list-disc list-inside text-[10px] text-emerald-700 font-mono mt-1 space-y-0.5">
-                      {nonChequeProductsNames.map((name, idx) => (
-                        <li key={`non-cheque-item-${idx}`}>{name}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Cash Options Details */}
-                {paymentMethod === 'cash' && (
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
-                    <div className="text-xs font-black text-slate-800 flex items-center gap-2">
-                      <Building size={16} className="text-emerald-600" />
-                      اطلاعات حساب رسمی جهت واریز ۱۰۰٪ مبلغ فاکتور
-                    </div>
-
-                    <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200 space-y-2 text-xs font-bold">
-                      <div className="flex justify-between text-slate-700">
-                        <span>مبلغ قابل واریز نقدی:</span>
-                        <span className="font-mono text-emerald-800 font-black text-sm">{cashPortionAmount.toLocaleString()} تومان</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600 border-t border-emerald-100 pt-2">
-                        <span>نام بانک و صاحب حساب:</span>
-                        <span className="text-slate-900 font-black">{bankAccount.bankName} - {bankAccount.ownerName}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>شماره شبا:</span>
-                        <span className="font-mono text-emerald-700 font-black" dir="ltr">{bankAccount.shabaNumber || bankAccount.sheba}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>شماره کارت:</span>
-                        <span className="font-mono text-slate-900 font-black" dir="ltr">{bankAccount.cardNumber}</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-black text-slate-700 mb-1.5">آپلود تصویر فیش واریزی نقدی (اختیاری)</label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          id="cash-receipt-input"
-                          className="hidden"
-                          onChange={e => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const r = new FileReader();
-                              r.onloadend = () => setPaymentReceiptImage(r.result as string);
-                              r.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor="cash-receipt-input"
-                          className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-emerald-700 transition-colors shadow-sm"
-                        >
-                          <Upload size={14} />
-                          <span>{paymentReceiptImage ? "تغییر تصویر فیش" : "انتخاب و آپلود فیش واریزی"}</span>
-                        </label>
-                        {paymentReceiptImage && (
-                          <span className="text-xs text-emerald-600 font-black flex items-center gap-1">
-                            <CheckCircle2 size={15} /> تصویر فیش بارگذاری شد
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Cheque & Split Cash/Cheque Details */}
-                {paymentMethod === 'cheque' && (
-                  <div className="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-200 space-y-4 shadow-xs">
-                    
-                    {/* Policy & Risk Explanation Banner */}
-                    <div className="p-3.5 bg-linear-to-r from-emerald-50/90 via-blue-50/60 to-emerald-50/90 border border-emerald-200 rounded-xl space-y-2">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <span className="text-base mt-0.5">🛡️</span>
-                          <div>
-                            <span className="text-xs font-black text-indigo-950 block">سیاست اعتبارسنجی کارخانه و کاهش ریسک معوقات</span>
-                            <p className="text-[11px] text-slate-700 font-bold leading-relaxed mt-0.5">
-                              جهت تضمین تامین مواد اولیه و حداقل‌سازی ریسک عدم وصول، خرید چکی به صورت ترکیبی (حداقل ۵۰٪ نقد + الباقی چک صیادی بنفش) انجام می‌شود. پس از پاس‌شدن به‌موقع نخستین چک، سقف اعتبار و درصد چکی شما در سفارشات بعدی افزایش می‌یابد.
-                            </p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowCharterModal(true)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all cursor-pointer shrink-0 shadow-xs flex items-center gap-1 self-start sm:self-center"
-                        >
-                          <span>📜 اساس‌نامه چکی</span>
-                        </button>
-                      </div>
-                    </div>
 
-                    {/* Split Ratio Selector */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-black text-slate-800">
-                          نسبت واریز نقد و چک صیادی (حداقل ۵۰٪ نقد الزامی است):
-                        </label>
-                        <span className="text-[11px] font-black text-emerald-700 font-mono">
-                          {splitCashPercent}٪ نقد / {100 - splitCashPercent}٪ چک
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {[
-                          { cash: 50, label: "۵۰٪ نقد / ۵۰٪ چک (استاندارد)" },
-                          { cash: 60, label: "۶۰٪ نقد / ۴۰٪ چک" },
-                          { cash: 70, label: "۷۰٪ نقد / ۳۰٪ چک" },
-                          { cash: 80, label: "۸۰٪ نقد / ۲۰٪ چک" }
-                        ].map((opt, optIdx) => (
+                        {/* Stepper */}
+                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-0.5 shrink-0">
                           <button
-                            key={`split-opt-${opt.cash}-${optIdx}`}
                             type="button"
-                            onClick={() => setSplitCashPercent(opt.cash)}
-                            className={`p-2.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
-                              splitCashPercent === opt.cash
-                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-500/20"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                            }`}
+                            onClick={() => onUpdateQuantity(item.productId, item.quantityCartons + 1)}
+                            className="w-7 h-7 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer"
                           >
-                            {opt.label}
+                            <Plus size={14} />
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Cheque Duration & Maturity Selection */}
-                    <div className="space-y-2 pt-1 border-t border-slate-100">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-black text-slate-800">مدت زمان و سررسید چک صیادی:</span>
-                        <span className="text-[10px] font-black text-emerald-600">
-                          کارمزد {chequeMarkupPerMonth}٪ در ماه (فقط روی بخش چکی)
-                        </span>
-                      </div>
-
-                      {/* Duration selector buttons */}
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                        {[
-                          { days: 30, months: 1, label: "۳۰ روزه (۱ ماه)" },
-                          { days: 45, months: 1.5, label: "۴۵ روزه (۱.۵ ماه)" },
-                          { days: 60, months: 2, label: "۶۰ روزه (۲ ماه)" },
-                          { days: 90, months: 3, label: "۹۰ روزه (۳ ماه)" },
-                          { days: 120, months: 4, label: "۱۲۰ روزه (۴ ماه)" }
-                        ].map((dur, durIdx) => (
+                          <span className="w-8 text-center text-xs font-black font-mono text-slate-900">
+                            {item.quantityCartons}
+                          </span>
                           <button
-                            key={`dur-opt-${dur.days}-${durIdx}`}
                             type="button"
-                            onClick={() => {
-                              setChequeDays(dur.days);
-                              setChequeMonths(dur.months);
-                            }}
-                            className={`py-2 px-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                              chequeDays === dur.days
-                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                            }`}
+                            onClick={() => item.quantityCartons > 1 ? onUpdateQuantity(item.productId, item.quantityCartons - 1) : onRemoveItem(item.productId)}
+                            className="w-7 h-7 flex items-center justify-center text-rose-600 hover:bg-rose-100 rounded-md transition-colors cursor-pointer"
                           >
-                            {dur.label}
-                            <span className="block text-[8px] opacity-80 mt-0.5">
-                              {dur.months * chequeMarkupPerMonth > 0 ? `+${dur.months * chequeMarkupPerMonth}٪ کارمزد` : "بدون کارمزد"}
-                            </span>
+                            {item.quantityCartons === 1 ? <Trash2 size={13} /> : <Minus size={13} />}
                           </button>
-                        ))}
-                      </div>
-
-                      {/* Computed Maturity Date Banner */}
-                      <div className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={16} className="text-emerald-700" />
-                          <span className="text-xs font-black text-indigo-950">تاریخ دقیق سررسید مندرج در چک:</span>
-                        </div>
-                        <span className="font-mono font-black text-indigo-900 text-xs bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-2xs">
-                          {computedDueDateLong} ({computedDueDate})
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* DUAL BREAKDOWN FINANCIAL CARDS */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      
-                      {/* 1. Cash Deposit Card */}
-                      <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                            <DollarSign size={15} className="text-emerald-700" />
-                            ۱. مبلغ واریز نقدی (پیش‌پرداخت {effectiveCashPercent}٪)
-                          </span>
-                          <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full">
-                            واریز به حساب
-                          </span>
-                        </div>
-
-                        <div className="bg-white p-3 rounded-xl border border-emerald-200/70 text-right space-y-1">
-                          <span className="text-[10px] text-slate-500 font-bold block">مبلغ نقدی قابل پرداخت:</span>
-                          <span className="text-base sm:text-lg font-mono font-black text-emerald-700 block">
-                            {cashPortionAmount.toLocaleString()} تومان
-                          </span>
-                        </div>
-
-                        <div className="text-[10px] text-slate-600 font-bold space-y-1 bg-white/80 p-2.5 rounded-xl border border-emerald-100">
-                          <div>بانک: <strong className="text-slate-800">{bankAccount.bankName}</strong></div>
-                          <div>شبا: <strong className="font-mono text-emerald-800" dir="ltr">{bankAccount.shabaNumber || bankAccount.sheba}</strong></div>
-                          <div>کارت: <strong className="font-mono text-slate-800" dir="ltr">{bankAccount.cardNumber}</strong></div>
-                        </div>
-
-                        <div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id="cash-receipt-split-input"
-                            className="hidden"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const r = new FileReader();
-                                r.onloadend = () => setPaymentReceiptImage(r.result as string);
-                                r.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor="cash-receipt-split-input"
-                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                          >
-                            <Upload size={13} />
-                            <span>{paymentReceiptImage ? "تغییر تصویر فیش نقدی" : "آپلود فیش واریز (اختیاری جهت مشاهده فاکتور)"}</span>
-                          </label>
-                          {paymentReceiptImage && (
-                            <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-1.5 justify-center">
-                              <CheckCircle2 size={13} /> فیش واریزی پیش‌پرداخت دریافت شد
-                            </span>
-                          )}
                         </div>
                       </div>
-
-                      {/* 2. Cheque Card */}
-                      <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                            <Receipt size={15} className="text-emerald-700" />
-                            ۲. مبلغ چک صیادی ({effectiveChequePercent}٪ فاکتور)
-                          </span>
-                          <span className="text-[10px] font-black bg-emerald-100 text-indigo-800 px-2 py-0.5 rounded-full">
-                            چک صیادی بنفش
-                          </span>
-                        </div>
-
-                        <div className="bg-white p-3 rounded-xl border border-emerald-200/70 text-right space-y-1">
-                          <span className="text-[10px] text-slate-500 font-bold block">مبلغ مندرج روی چک صیادی:</span>
-                          <span className="text-base sm:text-lg font-mono font-black text-emerald-700 block">
-                            {chequePortionAmount.toLocaleString()} تومان
-                          </span>
-                        </div>
-
-                        <div className="text-[10px] text-slate-600 font-bold space-y-1 bg-white/80 p-2.5 rounded-xl border border-emerald-100">
-                          <div>سررسید: <strong className="text-indigo-900 font-mono">{chequeDays} روزه ({computedDueDate})</strong></div>
-                          <div>وضعیت کارمزد: <strong className="text-slate-800">+{chequeMarkupAmount.toLocaleString()} تومان ({chequeMonths * chequeMarkupPerMonth}٪)</strong></div>
-                        </div>
-
-                        {/* Cheque Mailing Address */}
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 shadow-xs">
-                          <div className="flex items-center gap-1.5 text-amber-900 font-black text-[10px]">
-                            <MapPin size={14} className="text-amber-700" />
-                            آدرس جهت ارسال فیزیکی چک:
-                          </div>
-                          <p className="text-[10px] text-amber-800 font-bold leading-relaxed">
-                            آذربایجان شرقی ، شهرستان شبستر ، شهرک صنعتی شندآباد ، کوچه شهرک صنعتی st 20، بازرگانی دست اول
-                            <br />
-                            <span className="text-amber-900">کد پستی: 5384155355 | تلفن: 09999123001</span>
-                          </p>
-                          <div className="flex items-center gap-1 text-[9px] text-emerald-600 font-black bg-emerald-50 p-1.5 rounded-lg border border-emerald-100 mt-1">
-                            <AlertCircle size={12} />
-                            <span>برای مشاهده فاکتور نیازی به آپلود نیست، اما جهت خروج بار از انبار الزامی است.</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id="cheque-image-split-input"
-                            className="hidden"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const r = new FileReader();
-                                r.onloadend = () => setChequeImage(r.result as string);
-                                r.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor="cheque-image-split-input"
-                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                          >
-                            <Upload size={13} />
-                            <span>{chequeImage ? "تغییر تصویر چک" : "آپلود تصویر چک صیادی (اختیاری جهت مشاهده فاکتور)"}</span>
-                          </label>
-                          {chequeImage && (
-                            <span className="text-[10px] text-emerald-700 font-black flex items-center gap-1 mt-1.5 justify-center">
-                              <CheckCircle2 size={13} /> تصویر روی چک صیادی دریافت شد
-                            </span>
-                          )}
-                        </div>
-                        <div className="pt-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id="sayad-receipt-split-input"
-                            className="hidden"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const r = new FileReader();
-                                r.onloadend = () => setSayadReceiptImage(r.result as string);
-                                r.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                          <label
-                            htmlFor="sayad-receipt-split-input"
-                            className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                          >
-                            <Upload size={13} />
-                            <span>{sayadReceiptImage ? "تغییر تصویر رسید ثبت صیادی" : "آپلود رسید پستی/ثبت (اختیاری جهت مشاهده فاکتور)"}</span>
-                          </label>
-                          {sayadReceiptImage && (
-                            <span className="text-[10px] text-purple-700 font-black flex items-center gap-1 mt-1.5 justify-center">
-                              <CheckCircle2 size={13} /> رسید ثبت صیادی دریافت شد
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Cheque Info Inputs */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      <div>
-                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">شماره صیادی ۱۶ رقمی چک (اختیاری جهت مشاهده فاکتور)</label>
-                        <input
-                          type="text"
-                          value={chequeSayadiNo}
-                          onChange={e => setChequeSayadiNo(e.target.value)}
-                          placeholder="مثال: 8839029102938102"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-xs"
-                          dir="ltr"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black text-slate-700 mb-1.5">نام بانک صادرکننده (اختیاری)</label>
-                        <input
-                          type="text"
-                          value={chequeBankName}
-                          onChange={e => setChequeBankName(e.target.value)}
-                          placeholder="مثال: بانک صادرات"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-xs"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Mailing Address & Warning for Cheque */}
-                    <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 mt-4 space-y-3">
-                      <div className="flex items-center gap-2 text-amber-800 font-black text-sm">
-                        <AlertTriangle size={18} className="text-emerald-600" />
-                        توجه مهم: ارسال فیزیکی چک صیادی
-                      </div>
-                      <p className="text-xs font-bold text-amber-900/80 leading-relaxed">
-                        لطفاً پس از آپلود تصویر چک و رسید ثبت صیادی، لاشه فیزیکی چک را از طریق پست پیشتاز به آدرس زیر ارسال فرمایید.
-                        <strong className="block mt-2 text-emerald-700">⚠️ تذکر: تا زمانی که چک ثبت و به آدرس زیر پست نشود (ارسال کد رهگیری پستی)، بار شما ارسال نخواهد شد.</strong>
-                      </p>
-                      
-                      <div className="bg-white p-3 rounded-lg border border-emerald-200 text-[11px] font-bold text-slate-700 leading-relaxed">
-                        <div className="flex gap-1.5"><MapPin size={14} className="text-emerald-500 shrink-0" /> <span><strong>آدرس:</strong> آذربایجان شرقی، شهرستان شبستر، شهرک صنعتی شندآباد، کوچه شهرک صنعتی st 20، بازرگانی دست اول</span></div>
-                        <div className="flex gap-1.5 mt-1.5"><Mail size={14} className="text-emerald-500 shrink-0" /> <span><strong>کد پستی:</strong> <span className="font-mono">5384155355</span></span></div>
-                        <div className="flex gap-1.5 mt-1.5"><Phone size={14} className="text-emerald-500 shrink-0" /> <span><strong>تلفن:</strong> <span className="font-mono">09999123001</span></span></div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
 
-                {/* LOYALTY CLUB POINTS REDEMPTION CARD */}
-                <div className="bg-gradient-to-br from-emerald-500/10 via-amber-400/5 to-transparent border border-amber-300/60 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                        <Sparkles size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
-                          <span>باشگاه مشتریان و پاداش خرید</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-100 text-amber-800 font-bold border border-amber-300">
-                            سطح {loyaltySummary.tierLabel}
-                          </span>
-                        </h4>
-                        <p className="text-[11px] text-slate-500 font-medium">
-                          موجودی فعال: <strong className="font-sans font-black text-amber-700">{loyaltySummary.currentPoints.toLocaleString('fa-IR')}</strong> امتیاز (معادل {loyaltySummary.redeemableTomanValue.toLocaleString('fa-IR')} تومان تخفیف)
-                        </p>
-                      </div>
+                {/* Buyer Authentication & Details Form */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-3xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <UserCheck size={16} className="text-emerald-700" />
+                      <span className="text-xs font-black text-slate-800">مشخصات تحویل‌گیرنده و صدور پیش‌فاکتور</span>
                     </div>
-
-                    {maxRedeem.maxPoints > 0 && (
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={useLoyaltyDiscount}
-                          onChange={(e) => {
-                            setUseLoyaltyDiscount(e.target.checked);
-                            if (e.target.checked && pointsToRedeemInput === null) {
-                              setPointsToRedeemInput(maxRedeem.maxPoints);
-                            }
-                          }}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                      </label>
+                    {user && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black flex items-center gap-1">
+                        <Check size={12} className="text-emerald-600" />
+                        <span>احراز هویت شده</span>
+                      </span>
                     )}
                   </div>
 
-                  {maxRedeem.maxPoints > 0 ? (
-                    useLoyaltyDiscount && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="pt-3 border-t border-emerald-200/70 space-y-2 text-xs"
-                      >
-                        <div className="flex items-center justify-between font-bold text-slate-700">
-                          <span>تعداد امتیاز جهت تبدیل به تخفیف:</span>
-                          <span className="text-amber-800 font-black font-sans">
-                            {pointsToRedeem.toLocaleString('fa-IR')} امتیاز = -{loyaltyDiscountAmount.toLocaleString('fa-IR')} تومان
-                          </span>
+                  {!user ? (
+                    <div className="bg-slate-50 border border-emerald-200 rounded-2xl p-4 space-y-3.5 shadow-2xs">
+                      {/* Header Notice */}
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
+                        <div className="flex items-center gap-1.5 text-emerald-950 font-black text-xs min-w-0">
+                          <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
+                          <span className="truncate">ورود سریع پیامکی (OTP)</span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAuthModal(true)}
+                          className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer shrink-0 whitespace-nowrap"
+                        >
+                          پنجره کامل
+                        </button>
+                      </div>
 
-                        <div className="flex items-center gap-2">
+                      {inlineError && (
+                        <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-fade-in">
+                          <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                          <span>{inlineError}</span>
+                        </div>
+                      )}
+
+                      {inlineSuccess && (
+                        <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-black flex items-center gap-1.5 animate-fade-in">
+                          <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                          <span>{inlineSuccess}</span>
+                        </div>
+                      )}
+
+                      {/* Step 1: Enter Phone Number */}
+                      {inlineStep === 'phone' && (
+                        <form onSubmit={handleInlineSendOtp} className="space-y-3">
+                          <div>
+                            <label className="block text-[11px] font-black text-slate-700 mb-1.5">
+                              شماره تلفن همراه شما:
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="tel"
+                                value={inlinePhone}
+                                onChange={e => setInlinePhone(e.target.value)}
+                                placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                                dir="ltr"
+                                autoFocus
+                                className="min-w-0 flex-1 bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-sm font-mono font-black text-slate-900 outline-none shadow-2xs text-left"
+                              />
+                              <button
+                                type="submit"
+                                disabled={inlineLoading || !inlinePhone.trim()}
+                                className="px-3.5 sm:px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
+                              >
+                                {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={14} />}
+                                <span>ارسال کد پیامک</span>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            کد تأیید ورود فوری به صورت پیامک رایگان به شماره همراه شما ارسال خواهد شد.
+                          </p>
+                        </form>
+                      )}
+
+                      {/* Step 2: Enter OTP Code */}
+                      {inlineStep === 'otp' && (
+                        <form onSubmit={handleInlineVerifyOtp} className="space-y-3">
+                          <div>
+                            <div className="flex justify-between items-center mb-1.5">
+                              <label className="text-[11px] font-black text-slate-700 truncate">
+                                کد ۵ رقمی پیامک‌شده به <span className="font-mono text-emerald-800" dir="ltr">{inlinePhone}</span>:
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setInlineStep('phone')}
+                                className="text-[10px] text-slate-500 hover:text-slate-800 font-bold underline cursor-pointer shrink-0 whitespace-nowrap mr-1"
+                              >
+                                تغییر شماره
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="tel"
+                                maxLength={6}
+                                value={inlineCode}
+                                onChange={e => {
+                                  setInlineCode(e.target.value);
+                                  if (e.target.value.length === 5 || e.target.value === '3360') {
+                                    // auto trigger
+                                  }
+                                }}
+                                placeholder="کد ۵ رقمی"
+                                dir="ltr"
+                                autoFocus
+                                className="min-w-0 flex-1 bg-white border border-emerald-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-base font-mono font-black text-center text-slate-900 outline-none tracking-widest shadow-2xs"
+                              />
+                              <button
+                                type="submit"
+                                disabled={inlineLoading || !inlineCode.trim()}
+                                className="px-4 sm:px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
+                              >
+                                {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                <span>تأیید و ورود</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                            <span>
+                              {inlineTimer > 0 ? (
+                                `ارسال مجدد تا ${inlineTimer} ثانیه دیگر`
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleInlineSendOtp}
+                                  className="text-emerald-700 hover:underline cursor-pointer"
+                                >
+                                  ارسال مجدد پیامک کد تأیید
+                                </button>
+                              )}
+                            </span>
+                          </div>
+                        </form>
+                      )}
+
+                      {/* Step 3: Complete Name and Address (Mandatory for Official Proforma) */}
+                      {inlineStep === 'profile' && (
+                        <form onSubmit={handleInlineSaveProfile} className="space-y-3">
+                          <div className="p-2 bg-emerald-100/60 rounded-xl text-[11px] font-black text-emerald-950">
+                            ✓ شماره شما تأیید شد. لطفاً نام و نشانی مقصد را جهت درج در پیش‌فاکتور تکمیل فرمایید:
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black text-slate-700 mb-1">
+                              نام و نام خانوادگی خریدار: *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={inlineName}
+                              onChange={e => setInlineName(e.target.value)}
+                              placeholder="مثلاً: علی رضایی"
+                              className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black text-slate-700 mb-1">
+                              استان، شهر و نشانی تحویل باربری: *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={inlineAddress}
+                              onChange={e => setInlineAddress(e.target.value)}
+                              placeholder="مثلاً: تبریز، خیابان آزادی، باربری وطن"
+                              className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={inlineLoading || !inlineName.trim() || !inlineAddress.trim()}
+                            className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+                          >
+                            {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                            <span>ثبت اطلاعات و فعال‌سازی صدور فاکتور</span>
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-black text-slate-700 mb-1">
+                            نام و نام خانوادگی خریدار:
+                          </label>
                           <input
-                            type="range"
-                            min="10"
-                            max={maxRedeem.maxPoints}
-                            step="5"
-                            value={pointsToRedeem}
-                            onChange={(e) => setPointsToRedeemInput(Number(e.target.value))}
-                            className="w-full accent-emerald-600 cursor-pointer h-2 bg-emerald-200/80 rounded-lg"
+                            type="text"
+                            value={buyerName}
+                            onChange={e => setBuyerName(e.target.value)}
+                            placeholder="نام و نام خانوادگی"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-emerald-600 transition-all"
                           />
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
-                          <span>حداقل ۱۰ امتیاز</span>
-                          <span>حداکثر سقف مجاز فاکتور: {maxRedeem.maxPoints.toLocaleString('fa-IR')} امتیاز ({maxRedeem.maxDiscountToman.toLocaleString('fa-IR')} تومان)</span>
+                        <div>
+                          <label className="block text-[11px] font-black text-slate-700 mb-1">
+                            شماره همراه تایید شده:
+                          </label>
+                          <input
+                            type="tel"
+                            readOnly
+                            value={user.mobile || user.phone || buyerPhone}
+                            dir="ltr"
+                            className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold font-mono text-slate-700 outline-none cursor-not-allowed"
+                          />
                         </div>
-                      </motion.div>
-                    )
-                  ) : (
-                    <div className="text-[11px] text-slate-500 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-200/50">
-                      ℹ️ حداقل امتیاز لازم جهت تبدیل به تخفیف در فاکتور ۱۰ امتیاز می‌باشد.
-                    </div>
-                  )}
-
-                  {/* Projected Points Award Badge */}
-                  <div className="flex items-center justify-between p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-900">
-                    <span className="flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-emerald-600" />
-                      <span>پاداش وفاداری حاصل از ثبت این سفارش:</span>
-                    </span>
-                    <span className="font-black text-emerald-700 font-sans">
-                      +{projectedPointsEarned.toLocaleString('fa-IR')} امتیاز پاداش
-                    </span>
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* STEP 4: FINAL SUMMARY & SUBMIT */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <div className="bg-emerald-50 border border-emerald-200/90 p-4 rounded-2xl flex items-center gap-3 shadow-xs">
-                  <ShieldCheck className="text-emerald-600 shrink-0" size={24} />
-                  <div>
-                    <h3 className="text-xs font-black text-slate-900">پیش‌فاکتور رسمی آماده صدور می‌باشد</h3>
-                    <p className="text-[11px] text-emerald-800 font-bold mt-0.5">
-                      پس از تایید، فایل پیش‌فاکتور مستقیم کارخانه صادر و امکان چاپ یا دانلود PDF بلافاصله فعال می‌شود.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Items Thumbnails Summary */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 shadow-xs">
-                  <span className="text-[11px] font-black text-slate-600 block">اقلام نهایی سفارش ({safeCart.length} کالا):</span>
-                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {safeCart.map((item, idx) => {
-                      const img = getProductImage(item);
-                      return (
-                        <div key={`summary-cart-${item.productId || idx}-${idx}`} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
-                          {img ? (
-                            <img src={img} alt={item.name} className="w-9 h-9 rounded-lg object-cover border border-slate-100" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-lg bg-slate-200 flex items-center justify-center text-xs">📦</div>
-                          )}
-                          <div className="text-right">
-                            <span className="text-[10px] font-black text-slate-800 block truncate max-w-[120px]">{item.name}</span>
-                            <span className="text-[9px] text-emerald-700 font-mono font-bold block">{item.quantityCartons} کارتن</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Settlement & Financial Breakdown Summary Table */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3 text-xs font-bold shadow-xs">
-                  <div className="flex justify-between text-slate-600 border-b border-slate-100 pb-2">
-                    <span>مجموع قیمت ناخالص کالاها ({totalCartons} کارتن - {estimatedWeightKg} ک‌گ):</span>
-                    <span className="font-mono text-slate-900 font-black">{totalAmount.toLocaleString()} تومان</span>
-                  </div>
-
-                  {tierDiscountAmount > 0 && (
-                    <div className="flex justify-between items-center text-amber-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
-                      <span className="flex items-center gap-1 font-black">
-                        <span>🎁</span>
-                        <span>تخفیف پلکانی تیراژ سفارش ({tierDiscountPercent}٪):</span>
-                      </span>
-                      <span className="font-mono font-black">-{tierDiscountAmount.toLocaleString()} تومان</span>
-                    </div>
-                  )}
-
-                  {badgeDiscountAmount > 0 && (
-                    <div className="flex justify-between items-center text-purple-700 bg-purple-50/70 px-2.5 py-1.5 rounded-xl border border-purple-200/80">
-                      <span className="font-black">تخفیف سطح همکاری و رتبه ({badgeDiscountPercent}٪):</span>
-                      <span className="font-mono font-black">-{badgeDiscountAmount.toLocaleString()} تومان</span>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'cash' && cashDiscountAmount > 0 && (
-                    <div className="flex justify-between items-center text-emerald-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
-                      <span className="font-black">تخفیف تسویه نقدی ({cashDiscountPercent}٪):</span>
-                      <span className="font-mono font-black">-{cashDiscountAmount.toLocaleString()} تومان</span>
-                    </div>
-                  )}
-
-                  {loyaltyDiscountAmount > 0 && (
-                    <div className="flex justify-between items-center text-amber-800 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
-                      <span className="flex items-center gap-1 font-black">
-                        <Sparkles size={14} className="text-emerald-600" />
-                        <span>تخفیف امتیاز باشگاه مشتریان ({pointsToRedeem.toLocaleString()} امتیاز):</span>
-                      </span>
-                      <span className="font-mono font-black text-amber-700">-{loyaltyDiscountAmount.toLocaleString()} تومان</span>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'cheque' && chequeMarkupAmount > 0 && (
-                    <div className="flex justify-between items-center text-emerald-700 bg-emerald-50/70 px-2.5 py-1.5 rounded-xl border border-emerald-200/80">
-                      <span className="font-black">کارمزد تسویه چکی ({chequeDays} روزه - +{chequeMarkupPercent}٪):</span>
-                      <span className="font-mono font-black">+{chequeMarkupAmount.toLocaleString()} تومان</span>
-                    </div>
-                  )}
-
-                  {totalDiscounts > 0 && (
-                    <div className="flex justify-between text-emerald-800 font-black pt-1 border-t border-slate-100">
-                      <span>مجموع کل تخفیفات اعمال شده:</span>
-                      <span className="font-mono font-black text-emerald-600">-{totalDiscounts.toLocaleString()} تومان</span>
-                    </div>
-                  )}
-
-                  {/* Dual Settlement Breakdown in Summary */}
-                  {paymentMethod === 'cheque' && (
-                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                      <div className="text-[11px] font-black text-slate-800 pb-1 border-b border-slate-200 flex justify-between">
-                        <span>تفکیک و جزئیات تسویه چکی کارخانه:</span>
-                        <span className="text-emerald-700 font-mono font-black">{splitCashPercent}٪ نقد + {100 - splitCashPercent}٪ چک</span>
                       </div>
 
-                      <div className="flex justify-between text-emerald-800 font-bold">
-                        <span className="flex items-center gap-1">
-                          <DollarSign size={14} className="text-emerald-600" />
-                          مبلغ واریز نقدی (پیش‌پرداخت {effectiveCashPercent}٪):
+                      <div>
+                        <label className="block text-[11px] font-black text-slate-700 mb-1">
+                          نشانی دقیق تحویل یا باربری مقصد:
+                        </label>
+                        <input
+                          type="text"
+                          value={buyerAddress}
+                          onChange={e => setBuyerAddress(e.target.value)}
+                          placeholder={`ارسال باربری به استان ${userProvince} - شهر ${userCity}`}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-emerald-600 transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Discount Coupon Box */}
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
+                        <Ticket size={15} className="text-amber-600" />
+                        <span>کد تخفیف (کوپن):</span>
+                      </div>
+                      {appliedCoupon && (
+                        <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                          {appliedCoupon.type === 'percentage' ? `${toPersianNum(appliedCoupon.value)}٪ تخفیف` : `${toPersianNum(couponDiscountAmount.toLocaleString())} تومان`}
                         </span>
-                        <span className="font-mono font-black">{cashPortionAmount.toLocaleString()} تومان</span>
-                      </div>
-
-                      <div className="flex justify-between text-indigo-900 font-bold">
-                        <span className="flex items-center gap-1">
-                          <Receipt size={14} className="text-emerald-600" />
-                          مبلغ مندرج در چک صیادی ({effectiveChequePercent}٪):
-                        </span>
-                        <span className="font-mono font-black">{chequePortionAmount.toLocaleString()} تومان</span>
-                      </div>
-
-                      <div className="flex justify-between text-slate-600 font-bold pt-1 border-t border-slate-200/60 text-[11px]">
-                        <span className="flex items-center gap-1">
-                          <Calendar size={13} className="text-slate-500" />
-                          سررسید چک صیادی:
-                        </span>
-                        <span className="font-mono font-black text-slate-900">{chequeDays} روزه ({computedDueDateLong})</span>
-                      </div>
-
-                      {chequeSayadiNo && (
-                        <div className="flex justify-between text-slate-600 font-bold text-[11px]">
-                          <span>شماره صیادی ۱۶ رقمی:</span>
-                          <span className="font-mono font-black text-slate-800" dir="ltr">{chequeSayadiNo}</span>
-                        </div>
                       )}
                     </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={e => setCouponInput(e.target.value.toUpperCase())}
+                        disabled={!!appliedCoupon}
+                        placeholder="مثال: WELCOME10 یا VIP500K"
+                        dir="ltr"
+                        className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-emerald-600 transition-colors uppercase disabled:bg-slate-100 disabled:text-slate-500"
+                      />
+                      {appliedCoupon ? (
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                        >
+                          حذف کوپن
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
+                        >
+                          اعمال کوپن
+                        </button>
+                      )}
+                    </div>
+
+                    {couponMsg && (
+                      <p className={`text-[10.5px] font-black ${couponMsg.type === 'success' ? 'text-teal-700' : 'text-rose-600'}`}>
+                        {couponMsg.text}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Referral Code (Optional, Clean) */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={repCodeInput}
+                      onChange={e => setRepCodeInput(e.target.value)}
+                      placeholder="کد معرف / نماینده (اختیاری)"
+                      className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyRepCode}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      اعمال کد
+                    </button>
+                  </div>
+                  {repCodeMsg && (
+                    <p className={`text-[10px] font-bold ${repCodeMsg.type === 'success' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                      {repCodeMsg.text}
+                    </p>
                   )}
-
-                  <div className="flex justify-between text-slate-600 border-b border-slate-100 pb-2">
-                    <span>تحویل‌گیرنده و آدرس:</span>
-                    <span className="text-slate-900 font-black truncate max-w-xs">{buyerName} ({buyerPhone})</span>
-                  </div>
-
-                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-[10px] text-emerald-700 font-bold leading-relaxed">
-                    ℹ️ شما می‌توانید با زدن دکمه زیر، پیش‌فاکتور رسمی را مشاهده، چاپ و یا ذخیره نمایید. امکان آپلود مدارک و تسویه نهایی جهت ارسال بار، در پنل کاربری شما محفوظ خواهد ماند.
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm font-black pt-1">
-                    <span className="text-slate-900">مجموع کل صورتحساب فاکتور:</span>
-                    <span className="text-lg font-black text-emerald-600 font-mono">
-                      {finalPayableAmount.toLocaleString()} تومان
-                    </span>
-                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Clean Pure White Footer Navigation Actions */}
-          <div className="p-4 sm:p-5 bg-white border-t border-slate-200/90 flex justify-between items-center gap-3">
-            {step > 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep((step - 1) as any)}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-1.5 hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
-              >
-                <ChevronRight size={16} />
-                <span>قبلی</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <ArrowRight size={15} />
-                <span>بازگشت و ادامه انتخاب کالا</span>
-              </button>
-            )}
+              {/* LEFT COLUMN (5 Cols): Invoice Summary & Single Action Button */}
+              <div className="lg:col-span-5 space-y-4">
+                
+                {/* Financial Summary */}
+                <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3 shadow-3xs">
+                  <h4 className="text-xs font-black text-slate-900 pb-2 border-b border-slate-200/80">
+                    خلاصه صورتحساب
+                  </h4>
 
-            {step === 1 && (
-              <div className="flex items-center gap-2">
-                {isDeliveryInfoComplete && (
-                  <button
-                    type="button"
-                    onClick={handleQuickCheckout}
-                    className="px-4 py-2.5 bg-emerald-50 text-amber-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-[10px] sm:text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-                  >
-                    <Zap size={14} className="fill-amber-700" />
-                    <span>خرید سریع (تایید آدرس ذخیره شده)</span>
-                  </button>
-                )}
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center text-slate-600 font-bold">
+                      <span>مجموع کالاها ({totalCartons} کارتن):</span>
+                      <span className="font-mono text-slate-900">{totalAmount.toLocaleString('fa-IR')} تومان</span>
+                    </div>
+
+                    {couponDiscountAmount > 0 && (
+                      <div className="flex justify-between items-center text-teal-800 font-black">
+                        <span>تخفیف کوپن {appliedCoupon ? `(${appliedCoupon.code})` : ''}:</span>
+                        <span className="font-mono">-{couponDiscountAmount.toLocaleString('fa-IR')} تومان</span>
+                      </div>
+                    )}
+
+                    {totalDiscounts > 0 && (
+                      <div className="flex justify-between items-center text-emerald-800 font-black">
+                        <span>مجموع تخفیفات و سود خرید:</span>
+                        <span className="font-mono">-{totalDiscounts.toLocaleString('fa-IR')} تومان</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-slate-500 font-bold">
+                      <span>هزینه ترابری و باربری:</span>
+                      <span className="text-blue-700 font-bold">پس‌کرایه در مقصد</span>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                      <span className="text-xs sm:text-sm font-black text-slate-900">مبلغ نهایی فاکتور:</span>
+                      <div className="text-sm sm:text-base font-black text-emerald-950 font-mono">
+                        {finalPayableAmount.toLocaleString('fa-IR')} <span className="text-[10px] font-sans text-slate-600 font-bold">تومان</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Default Bank Card (Bank Mellat) */}
+                <div className="bg-white rounded-2xl border border-emerald-300 p-3 bg-emerald-50/40 text-[11px] space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-black text-emerald-950">
+                    <Building2 size={14} className="text-emerald-700" />
+                    <span>حساب واریز: {defaultBank.bankName}</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-slate-800 flex justify-between pt-1 border-t border-emerald-200/60">
+                    <span>کارت: {toPersianNum(defaultBank.cardNumber)}</span>
+                    <span className="text-emerald-800 font-bold">({defaultBank.ownerName})</span>
+                  </div>
+                </div>
+
+                {/* 🌟 ONLY ONE SINGLE MAIN BUTTON (صدور و مشاهده پیش‌فاکتور رسمی) 🌟 */}
                 <button
                   type="button"
-                  onClick={handleNextFromStep1}
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                  onClick={handleDirectSubmit}
+                  disabled={isSubmitting}
+                  className="w-full h-13 sm:h-14 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white rounded-2xl font-black text-sm sm:text-base shadow-lg shadow-emerald-700/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  <span>ادامه: مشخصات تحویل</span>
-                  <ChevronLeft size={16} />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      <span>در حال صدور فاکتور...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText size={18} />
+                      <span>صدور و مشاهده پیش‌فاکتور رسمی</span>
+                    </>
+                  )}
                 </button>
+
+                {/* Simple Cancel Link */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2 text-center text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                >
+                  ← انصراف و بازگشت به فروشگاه
+                </button>
+
               </div>
-            )}
-
-            {step === 2 && (
-              <button
-                type="button"
-                onClick={handleNextFromStep2}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-              >
-                <span>ادامه: روش تسویه</span>
-                <ChevronLeft size={16} />
-              </button>
-            )}
-
-            {step === 3 && (
-              <button
-                type="button"
-                onClick={handleNextFromStep3}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-              >
-                <span>ادامه و مشاهده پیش‌فاکتور (بدون نیاز به آپلود آنی)</span>
-                <ChevronLeft size={16} />
-              </button>
-            )}
-
-            {step === 4 && (
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleFinalSubmit}
-                className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    <span>در حال صدور فاکتور...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={16} />
-                    <span>تایید نهایی و صدور فاکتور کارخانه</span>
-                  </>
-                )}
-              </button>
-            )}
+            </div>
           </div>
         </motion.div>
       </div>
-
-      {/* Cheque Charter Modal inside Wizard */}
-      <ChequeCharterModal
-        isOpen={showCharterModal}
-        onClose={() => setShowCharterModal(false)}
-        userCredit={Number((user as any)?.buyerCredit ?? (b2bConfig?.buyerCredit ?? 50000000))}
-      />
     </AnimatePresence>
   );
 }

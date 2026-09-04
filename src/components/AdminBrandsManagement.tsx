@@ -18,11 +18,13 @@ import {
   RefreshCw,
   SlidersHorizontal,
   CheckCircle2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronRight
 } from "lucide-react";
 import { B2BConfig, BrandItem, Product } from "../types";
 import { toPersianDigits } from "../lib/pricing";
 import ParsPackImageUploader from "./ParsPackImageUploader";
+import { GalleryPickerModal } from "./GalleryPickerModal";
 
 interface AdminBrandsManagementProps {
   b2bConfig: B2BConfig;
@@ -89,6 +91,9 @@ export default function AdminBrandsManagement({
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const storagePublicUrl = localStorage.getItem("dastavval_storage_public_url") || "https://c102393.parspack.net/c102393";
 
   // Calculate product counts per brand
   const brandProductCounts = useMemo(() => {
@@ -660,6 +665,15 @@ export default function AdminBrandsManagement({
         </div>
 
       </div>
+      <GalleryPickerModal
+        isOpen={showGalleryPicker}
+        onClose={() => setShowGalleryPicker(false)}
+        onSelect={(url) => {
+          setLogoUrl(url);
+          setShowGalleryPicker(false);
+        }}
+        initialPublicUrl={storagePublicUrl}
+      />
     </div>
   );
 }

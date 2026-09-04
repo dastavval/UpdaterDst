@@ -13,6 +13,7 @@ import ImageLightbox from "./ImageLightbox";
 import AddAdButton from "./AddAdButton";
 import AdPosterPanel from "./AdPosterPanel";
 import { getProductRolePricing, toPersianNum } from "../lib/pricing";
+import { getApiUrl } from "../utils/api-utils";
 import {
   Sparkles, 
   Plus,
@@ -425,6 +426,20 @@ export default function AdBoard({
 
     const updated = [newAd, ...ads];
     saveAdsToStorage(updated);
+
+    // Dispatch SMS confirmation to advertiser and alert to admin
+    try {
+      fetch(getApiUrl("/api/sms/send-ad-created-sms"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: normalizedPhone,
+          userName: contactPerson || factoryName || "آگهی‌دهنده گرامی",
+          adTitle: finalTitle,
+          adId: newAd.id
+        })
+      }).catch(err => console.warn("Ad creation SMS notice:", err));
+    } catch (e) {}
     
     setSubmitSuccess(true);
     setTimeout(() => {
@@ -462,6 +477,22 @@ export default function AdBoard({
     saveAdsToStorage(updated);
 
     if (adToApprove) {
+      const adPhone = adToApprove.contactPhone || adToApprove.creatorPhone;
+      if (adPhone) {
+        try {
+          fetch(getApiUrl("/api/sms/send-ad-status-sms"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: adPhone,
+              userName: adToApprove.contactPerson || adToApprove.factoryName || "آگهی‌دهنده محترم",
+              adTitle: adToApprove.title,
+              status: "approved"
+            })
+          }).catch(() => {});
+        } catch (e) {}
+      }
+
       triggerAutoChannelPost(
         `📢 آگهی جدید همکار: ${adToApprove.title}`,
         `یک آگهی جدید با عنوان "${adToApprove.title}" با موفقیت تایید و در تالار بیلبورد دست اول قرار گرفت.\n\nتوضیحات: ${adToApprove.description || 'درخواست خرید مستقیم.'}\nقیمت اعلامی کف: ${adToApprove.wholesalePrice}`,
@@ -473,6 +504,7 @@ export default function AdBoard({
   };
 
   const handleRejectAd = (id: string, reason: string = "عدم انطباق با قوانین عدم افشای مستقیم برند") => {
+    const adToReject = ads.find(ad => ad.id === id);
     const updated = ads.map(ad => {
       if (ad.id === id) {
         return { ...ad, status: "rejected" as const, rejectionReason: reason };
@@ -480,6 +512,25 @@ export default function AdBoard({
       return ad;
     });
     saveAdsToStorage(updated);
+
+    if (adToReject) {
+      const adPhone = adToReject.contactPhone || adToReject.creatorPhone;
+      if (adPhone) {
+        try {
+          fetch(getApiUrl("/api/sms/send-ad-status-sms"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: adPhone,
+              userName: adToReject.contactPerson || adToReject.factoryName || "آگهی‌دهنده محترم",
+              adTitle: adToReject.title,
+              status: "rejected",
+              rejectionReason: reason
+            })
+          }).catch(() => {});
+        } catch (e) {}
+      }
+    }
   };
 
   // Reset demo data to default to clean slate

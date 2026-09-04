@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, deleteDoc, db, auth } from "./lib/data-layer";
+import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, setDoc, deleteDoc, db, auth } from "./lib/data-layer";
 import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts, cacheB2bConfig, getCachedB2bConfig } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
@@ -28,6 +28,8 @@ import GapGptAssistant from "./components/GapGptAssistant";
 import MultiVendorPanel from "./components/MultiVendorPanel";
 import ZarinpalPaymentModal from "./components/ZarinpalPaymentModal";
 import DastavvalLogo from "./components/DastavvalLogo";
+import SplashScreen from "./components/SplashScreen";
+import NetworkStatusWidget from "./components/NetworkStatusWidget";
 import TrustBadges from "./components/TrustBadges";
 import PublicRepresentatives from "./components/PublicRepresentatives";
 import PwaInstallModal from "./components/PwaInstallModal";
@@ -106,7 +108,7 @@ import { recordCRMOrder } from "./lib/crm-helper";
 import { registerRegionalOrderFromCheckout } from "./lib/leads-store";
 import { getProductRolePricing, toPersianDigits } from "./lib/pricing";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search, RefreshCw } from "lucide-react";
+import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, ChevronDown, Filter, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search, RefreshCw, LayoutGrid } from "lucide-react";
 import { SectionSkeleton, CatalogSkeleton, TableSkeleton, DashboardSkeleton, ModalSkeleton, CalculatorSkeleton, FadeInContainer, ProductGridSkeleton, BentoProductGridSkeleton } from "./components/Skeleton";
 import { translations, Language } from "./lib/translations";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "./lib/id-utils";
@@ -220,6 +222,7 @@ const toPersianNum = (num: number | string) => {
 };
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState<boolean>(true);
   const [paletteIndex, setPaletteIndex] = useState<number>(0);
   const [paletteToast, setPaletteToast] = useState<string | null>(null);
 
@@ -383,7 +386,8 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list' | 'high_margin'>('grid');
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list' | 'high_margin'>('list');
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'best-selling' | 'newest' | 'price-asc' | 'price-desc'>('default');
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [catalogInitialMarkup, setCatalogInitialMarkup] = useState<number | null>(null);
@@ -1123,6 +1127,19 @@ export default function App() {
     return () => window.removeEventListener('open-auth-with-role', handleOpenAuth);
   }, []);
 
+  // Helper to sync updated product list with Node.js Express server
+  const syncProductsWithServer = async (updatedList: Product[]) => {
+    try {
+      await fetch(getApiUrl("/api/b2b/products"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedList)
+      });
+    } catch (e) {
+      console.error("Failed to sync products with Express server:", e);
+    }
+  };
+
   // Firestore product mutation handlers
   const handleAddProduct = async (newProd: Omit<Product, 'id'>, skipStateUpdate = false) => {
     const isFactory = userRole === 'factory';
@@ -1137,34 +1154,56 @@ export default function App() {
         ...prodWithCode,
         createdAt: serverTimestamp()
       });
+      const finalProd = { id: docRef.id, ...prodWithCode } as Product;
+      const nextList = [...products, finalProd];
       if (!skipStateUpdate) {
-        setProducts(prev => [...prev, { id: docRef.id, ...prodWithCode } as Product]);
+        setProducts(nextList);
       }
+      await syncProductsWithServer(nextList);
     } catch (err) {
       console.error("Error adding product:", err);
+      const fallbackId = `local-new-${Date.now()}`;
+      const finalProd = { id: fallbackId, ...prodWithCode } as Product;
+      const nextList = [...products, finalProd];
       if (!skipStateUpdate) {
-        const fallbackId = `local-new-${Date.now()}`;
-        setProducts(prev => [...prev, { id: fallbackId, ...prodWithCode } as Product]);
+        setProducts(nextList);
       }
+      await syncProductsWithServer(nextList);
     }
   };
 
   const handleUpdateProduct = async (id: string, updatedFields: Partial<Product>, skipStateUpdate = false) => {
+    // Get the current product from state to have full data in case we need to write the document from scratch
+    const currentProd = products.find(p => p.id === id);
+    const mergedProd = { ...currentProd, ...updatedFields } as Product;
+
+    const nextList = products.map(p => p.id === id ? { ...p, ...updatedFields } : p);
     if (!skipStateUpdate) {
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+      setProducts(nextList);
     }
+    await syncProductsWithServer(nextList);
+
     try {
       const productRef = doc(db, "products", id);
       await updateDoc(productRef, updatedFields);
     } catch (err) {
-      console.error("Error updating product:", err);
+      console.warn("Document does not exist in Firestore. Creating full merged document...", err);
+      try {
+        const productRef = doc(db, "products", id);
+        await setDoc(productRef, mergedProd, { merge: true });
+      } catch (innerErr) {
+        console.error("Failed to fallback setDoc for product:", innerErr);
+      }
     }
   };
 
   const handleDeleteProduct = async (id: string, skipStateUpdate = false) => {
+    const nextList = products.filter(p => p.id !== id);
     if (!skipStateUpdate) {
-      setProducts(prev => prev.filter(p => p.id !== id));
+      setProducts(nextList);
     }
+    await syncProductsWithServer(nextList);
+
     try {
       const productRef = doc(db, "products", id);
       await deleteDoc(productRef);
@@ -1174,7 +1213,10 @@ export default function App() {
   };
 
   const handleBatchDeleteProducts = async (ids: string[]) => {
-    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
+    const nextList = products.filter(p => !ids.includes(p.id));
+    setProducts(nextList);
+    await syncProductsWithServer(nextList);
+
     try {
       const { batchDelete } = await import('./lib/data-layer');
       if (batchDelete) {
@@ -1204,6 +1246,8 @@ export default function App() {
     }
 
     setProducts(newList);
+    await syncProductsWithServer(newList);
+
     try {
       const { saveCollection } = await import('./lib/data-layer');
       if (saveCollection) {
@@ -2274,6 +2318,23 @@ export default function App() {
   return (
     <div className="min-h-screen transition-colors duration-300 font-sans bg-white text-slate-900" dir={language === 'en' ? 'ltr' : 'rtl'}>
       
+      {/* Branded High-Performance Creative White Splash Screen (Initial & Data Sync) */}
+      <AnimatePresence>
+        {(showSplash || isSyncingData) && (
+          <SplashScreen
+            appName={b2bConfig?.appName}
+            appSub={b2bConfig?.appSub}
+            logoUrl={b2bConfig?.logoUrl}
+            mode={isSyncingData ? 'data_sync' : 'initial_load'}
+            onFinishLoading={() => {
+              setShowSplash(false);
+              setIsSyncingData(false);
+            }}
+            isDataReady={products && products.length > 0}
+          />
+        )}
+      </AnimatePresence>
+      
       {/* Dynamic Theme Color Variables Injection */}
       <style dangerouslySetInnerHTML={{ __html: `
         :root {
@@ -2620,120 +2681,119 @@ export default function App() {
                 transition={{ duration: 0.2 }}
                 className="space-y-4"
               >
-                {/* 1. کادر معرفی نماینده و بومی‌سازی ترابری شهرستان */}
-                <div id="agent-city-banner" className="bg-gradient-to-l from-emerald-500/10 via-teal-500/5 to-white border border-emerald-500/25 rounded-2xl p-3.5 sm:p-4.5 shadow-xs text-right animate-fade-in" dir="rtl">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-600/15 text-emerald-800 flex items-center justify-center shrink-0">
-                        <MapPin size={20} className="text-emerald-700 animate-bounce" />
+                {/* 1. کادر کوتاه، تمیز و خلاقانه بالای صفحه با دکمه‌های کاملاً برجسته، تفکیک‌شده و قابل لمس */}
+                <div id="unified-agency-platform-banner" className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-2xs text-right animate-fade-in" dir="rtl">
+                  <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    {/* سمت راست: هویت مستقیم سفارش و شهر مقصد */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 text-sm shadow-3xs font-black">
+                        🏭
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="font-black text-xs sm:text-sm text-slate-900 flex flex-wrap items-center gap-2">
-                          <span>اطلاعیه و عاملیت استانی ویژه</span>
-                          <span className="text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-lg border border-emerald-200 text-[11px] font-black">
-                            {userCity} ({userProvince})
-                          </span>
-                        </h4>
-                        <p className="text-[10px] sm:text-[11px] text-slate-600 font-bold leading-relaxed">
-                          سفارشات عمده شما بر اساس ضوابط ترابری مستقیم از خطوط تولید کشور به مقصد <strong className="text-slate-850">{userCity}</strong> بارگیری و تحویل خواهند شد.
-                        </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-black text-xs sm:text-sm text-slate-900">سفارش مستقیم از کارخانجات</span>
+                        <span className="text-[10px] font-bold text-slate-400">|</span>
+                        <span className="text-[10.5px] font-black text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                          <MapPin size={11} className="text-emerald-700" />
+                          مقصد: {userCity}
+                        </span>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-between md:justify-end border-t border-slate-100 md:border-t-0 pt-2.5 md:pt-0">
-                      <div className="flex flex-col text-right">
-                        <span className="text-[9px] text-slate-400 font-black">وضعیت عاملیت {userCity}:</span>
-                        {cityAgency ? (
-                          <button
-                            onClick={() => setIsRepDetailsExpanded(!isRepDetailsExpanded)}
-                            className="group flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-300 font-black text-[10.5px] transition-all cursor-pointer shadow-3xs mt-0.5"
-                            title="مشاهده مشخصات کامل نماینده"
-                          >
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>نماینده: {cityAgency.company || cityAgency.agencyName || cityAgency.name || 'عاملیت مجاز'}</span>
-                            <span className="text-[8.5px] bg-emerald-700 text-white px-1.5 py-0.5 rounded-md font-bold group-hover:scale-105 transition-transform">
-                              {isRepDetailsExpanded ? "بستن" : "مشخصات..."}
-                            </span>
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => setActiveTab('dealership_request')}
-                            className="text-[10px] text-amber-700 hover:text-amber-800 transition-colors font-black flex items-center gap-1 mt-0.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 cursor-pointer"
-                          >
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse inline-block" />
-                            فاقد نماینده - اخذ عاملیت
-                          </button>
-                        )}
-                      </div>
+
+                    {/* سمت چپ: ۳ دکمه کاملاً متمایز، برجسته و قابل کلیک */}
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                      {/* دکمه ۱: اخذ عاملیت یا وضعیت عاملیت فعال */}
+                      {cityAgency ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsRepDetailsExpanded(!isRepDetailsExpanded)}
+                          className="h-8 sm:h-8.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1.5"
+                          title="مشاهده مشخصات و پروانه عاملیت"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                          <span>عاملیت {userCity}</span>
+                          <ChevronDown size={13} className={`transition-transform duration-200 text-emerald-700 ${isRepDetailsExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={() => setActiveTab('dealership_request')}
+                          className="h-8 sm:h-8.5 px-3 bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 text-amber-900 border border-amber-300 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1.5"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          <span>اخذ عاملیت {userCity}</span>
+                        </button>
+                      )}
+
+                      {/* دکمه ۲: تغییر شهر */}
                       <button
+                        type="button"
                         onClick={() => {
                           const customEvent = new CustomEvent("open-city-picker-modal-from-banner");
                           window.dispatchEvent(customEvent);
                         }}
-                        className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-[10px] font-black shadow-3xs cursor-pointer transition-all hover:scale-102 shrink-0"
+                        className="h-8 sm:h-8.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1"
                       >
-                        تغییر شهر
+                        <MapPin size={12} className="text-slate-500" />
+                        <span>تغییر شهر</span>
+                      </button>
+
+                      {/* دکمه ۳: معرفی پلتفرم */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('presentation')}
+                        className="h-8 sm:h-8.5 px-3 bg-slate-50 hover:bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1"
+                      >
+                        <span>ℹ️</span>
+                        <span>معرفی پلتفرم</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Expanded Representative Details Panel */}
+                  {/* پنل کشویی اطلاعات کامل نماینده و ترابری */}
                   <AnimatePresence>
                     {cityAgency && isRepDetailsExpanded && (
                       <motion.div
-                        initial={{ opacity: 0, height: 0, y: -10 }}
+                        initial={{ opacity: 0, height: 0, y: -8 }}
                         animate={{ opacity: 1, height: "auto", y: 0 }}
-                        exit={{ opacity: 0, height: 0, y: -10 }}
-                        className="bg-white border-2 border-emerald-500/25 rounded-2xl p-4 mt-3.5 shadow-md text-right overflow-hidden relative"
+                        exit={{ opacity: 0, height: 0, y: -8 }}
+                        className="bg-white border border-emerald-500/25 rounded-xl p-3.5 mt-2.5 shadow-sm text-right overflow-hidden relative"
                       >
-                        <div className="absolute left-4 top-4 bg-emerald-50 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
+                        <div className="absolute left-3 top-3 bg-emerald-50 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                           <span>عاملیت رسمی فعال</span>
                         </div>
 
-                        <h4 className="text-xs sm:text-sm font-black text-slate-900 mb-3.5 flex items-center gap-2 pb-2 border-b border-slate-100">
-                          <span>📋 مشخصات کامل و پروانه هویتی نماینده شهرستان {userCity}</span>
+                        <h4 className="text-xs sm:text-sm font-black text-slate-900 mb-3 flex items-center gap-2 pb-2 border-b border-slate-100">
+                          <span>📋 مشخصات و پروانه عاملیت توزیع شهرستان {userCity}</span>
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
                             <span className="text-[9.5px] text-slate-400 font-bold">🏢 نام شرکت / بنکداری:</span>
                             <strong className="text-slate-800 font-black">
                               {cityAgency.company || cityAgency.agencyName || 'شرکت توزیع و پخش دست اول'}
                             </strong>
                           </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
-                            <span className="text-[9.5px] text-slate-400 font-bold">👤 مدیر عاملیت / رابط:</span>
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
+                            <span className="text-[9.5px] text-slate-400 font-bold">👤 مدیر عاملیت:</span>
                             <strong className="text-slate-800 font-black">
                               {cityAgency.name || cityAgency.displayName || cityAgency.representative || 'جناب آقای رضایی'}
                             </strong>
                           </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
                             <span className="text-[9.5px] text-slate-400 font-bold">📞 تلفن همراه مستقیم:</span>
                             <strong className="text-slate-800 font-bold font-mono text-left" dir="ltr">
                               {cityAgency.phone || '۰۹۱۲۱۲۳۴۵۶۷'}
                             </strong>
                           </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
-                            <span className="text-[9.5px] text-slate-400 font-bold">☎️ تلفن ثابت دفتر:</span>
-                            <strong className="text-slate-800 font-bold font-mono text-left" dir="ltr">
-                              {cityAgency.tel || '۰۲۱-۱۲۳۴۵۶۷۸'}
-                            </strong>
-                          </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
                             <span className="text-[9.5px] text-slate-400 font-bold">🔑 کد نمایندگی رسمی:</span>
                             <strong className="text-emerald-700 font-black font-mono">
                               {cityAgency.agencyCode || cityAgency.id || 'DA-1402-88'}
                             </strong>
                           </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
-                            <span className="text-[9.5px] text-slate-400 font-bold">🎗️ رتبه اعتباری:</span>
-                            <strong className="text-amber-700 font-black flex items-center gap-1">
-                              {cityAgency.badge || 'نماینده رسمی درجه ۱ فعال'}
-                            </strong>
-                          </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-                            <span className="text-[9.5px] text-slate-400 font-bold">📍 آدرس دقیق انبار و هماهنگی:</span>
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5 sm:col-span-2">
+                            <span className="text-[9.5px] text-slate-400 font-bold">📍 آدرس انبار تحویل و بارگیری:</span>
                             <strong className="text-slate-700 font-black leading-relaxed">
                               {cityAgency.address || `دفتر مرکزی توزیع و باربری مجاز شهرستان ${userCity}`}
                             </strong>
@@ -2742,12 +2802,14 @@ export default function App() {
 
                         <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
                           <button
+                            type="button"
                             onClick={() => window.location.href = `tel:${cityAgency.phone || '09121234567'}`}
                             className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10.5px] font-black rounded-lg transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                           >
                             <span>📞 تماس با نماینده</span>
                           </button>
                           <button
+                            type="button"
                             onClick={() => setIsRepDetailsExpanded(false)}
                             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10.5px] font-black rounded-lg transition-all cursor-pointer"
                           >
@@ -2759,210 +2821,180 @@ export default function App() {
                   </AnimatePresence>
                 </div>
 
-                {/* 2. کادر معرفی پلتفرم */}
-                <div id="platform-intro-card" className="bg-white text-slate-900 rounded-2xl p-3.5 sm:p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 relative overflow-hidden text-right border border-emerald-200/80 shadow-xs bg-gradient-to-l from-emerald-50/70 via-white to-white" dir="rtl">
-                  <div className="flex items-center gap-3 text-right">
-                    <div className="w-10 h-10 bg-emerald-700 text-white rounded-xl flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
-                      🏭
-                    </div>
-                    <div>
-                      <h4 className="font-black text-slate-950 text-xs sm:text-sm flex flex-wrap items-center gap-2">
-                        <span>سفارش عمده مستقیم از خطوط تولید کارخانجات</span>
-                        <span className="text-[9.5px] px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-black border border-emerald-200">
-                          بومیسازی و تحویل استانی
-                        </span>
-                      </h4>
-                      <p className="text-[10.5px] sm:text-xs text-slate-600 font-bold mt-0.5">
-                        خرید بی‌واسطه به قیمت مصوب خروجی درب کارخانه + انبار تحویل مستقیم در استان {userCity || "شما"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end shrink-0">
-                    <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-black text-emerald-900">
-                      <MapPin size={14} className="text-emerald-700" />
-                      <span>انبار فعال: {userCity || "تبریز (مرکزی)"}</span>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('presentation')}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer shrink-0"
-                    >
-                      معرفی پلتفرم
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. پیشنهاد و چرخشی (ویترین تعاملی محصولات برتر کارخانجات) */}
-                {searchQuery === "" && (
-                  <InteractiveProductCarousel
-                    products={activeProducts}
-                    onAddToCart={addToCart}
-                    onViewDetails={(prod) => openProductPage(prod)}
-                    userBadge={userBadge}
-                    recentCategories={recentCategories}
-                  />
-                )}
-
-                {/* 4. کادر جستجو، حالت نمایش و دانلود کاتالوگ */}
-                <div id="search-and-catalog-bar" className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs text-right" dir="rtl">
-                  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1">
-                    {/* Search Input */}
-                    <div className="relative flex-1 min-w-[200px]">
-                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={15} />
+                {/* 2. کادر یکپارچه کنترل کاتالوگ: جستجو، حالت نمایش و فیلترهای کشویی (متقارن، هم‌وزن و بدون شلوغی) */}
+                <div id="unified-catalog-control-center" className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-2 text-right" dir="rtl">
+                  {/* ردیف اول: جستجوی اصلی + دکمه فیلترهای کشویی (کاملاً هم‌راستا و هم‌ارتفاع) */}
+                  <div className="flex items-center gap-2">
+                    {/* کادر جستجوی سریع */}
+                    <div className="relative flex-1">
+                      <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
                       <input
                         type="text"
-                        placeholder="جستجو در نام محصول، برند یا دسته‌بندی..."
+                        placeholder="جستجوی کالا، برند یا کارخانه..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pr-11 pl-12 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-[11px] font-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-inner-sm"
+                        className="w-full pr-10 pl-12 h-11 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-black focus:outline-none focus:border-emerald-600 focus:bg-white transition-all shadow-3xs"
                       />
-                      <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <VoiceSearchButton onResult={(text) => setSearchQuery(text)} />
                         {searchQuery && (
                           <button 
+                            type="button"
                             onClick={() => setSearchQuery("")}
-                            className="text-slate-300 hover:text-slate-600 p-1.5 transition-colors cursor-pointer"
+                            className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                            title="پاک کردن جستجو"
                           >
-                            <X size={14} />
+                            <X size={15} />
                           </button>
                         )}
                       </div>
                     </div>
 
-                    {/* View Mode Controls */}
-                    <div className="flex items-center gap-2 border-r border-slate-100 pr-3">
-                      <span className="text-[11px] font-black text-slate-400 hidden sm:inline tracking-tight">حالت نمایش:</span>
-                      <div className="bg-slate-50 p-1 rounded-2xl border border-slate-200 flex items-center gap-1">
-                        {[
-                          { id: 'table', icon: List, label: 'کاتالوگ رسمی', short: 'کاتالوگ' },
-                          { id: 'grid', icon: Grid, label: 'نمای کارتی', short: 'کارتی' },
-                          { id: 'list', icon: ShoppingBag, label: 'سفارش سریع', short: 'سریع' },
-                          { id: 'high_margin', icon: TrendingDown, label: 'حاشیه سود بالا', short: 'پرسود' }
-                        ].map((mode, idx) => (
-                          <button
-                            key={`app-view-mode-${mode.id}-${idx}`}
-                            onClick={() => setViewMode(mode.id as any)}
-                            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                              viewMode === mode.id
-                              ? "bg-white text-emerald-700 shadow-sm border border-slate-200 font-black"
-                              : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                            }`}
-                          >
-                            <mode.icon size={13} />
-                            <span className="hidden sm:inline">{mode.label}</span>
-                            <span className="sm:hidden">{mode.short}</span>
-                          </button>
-                        ))}
-                      </div>
+                    {/* دکمه باز و بسته کردن فیلترهای کشویی */}
+                    <button
+                      type="button"
+                      onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+                      className={`h-11 px-3 sm:px-4 rounded-xl border text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-3xs ${
+                        isFiltersExpanded || activeCategory !== "همه" || selectedBrand !== "همه"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 ring-2 ring-emerald-500/10"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      }`}
+                      title="فیلتر دسته‌بندی و کارخانجات"
+                    >
+                      <Filter size={15} className={isFiltersExpanded ? "text-emerald-700" : "text-slate-500"} />
+                      <span className="hidden sm:inline">فیلترها و دسته‌ها</span>
+                      <span className="sm:hidden">فیلتر</span>
+                      {(activeCategory !== "همه" || selectedBrand !== "همه") && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block animate-pulse" />
+                      )}
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${isFiltersExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+
+                  {/* ردیف دوم: سوییچر متقارن حالت نمایش + دکمه دانلود PDF */}
+                  <div className="flex items-center justify-between gap-1.5">
+                    {/* حالت‌های نمایش */}
+                    <div className="flex-1 grid grid-cols-3 sm:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+                      {[
+                        { id: 'list', icon: Zap, label: 'خرید سریع (مستقیم)', short: '⚡ خرید سریع' },
+                        { id: 'grid', icon: Grid, label: 'کارتی (سود)', short: 'کارتی (سود)' },
+                        { id: 'high_margin', icon: TrendingUp, label: 'بیشترین سود', short: 'بیشترین سود' }
+                      ].map((mode) => (
+                        <button
+                          key={`app-view-mode-${mode.id}`}
+                          type="button"
+                          onClick={() => setViewMode(mode.id as any)}
+                          className={`flex items-center justify-center gap-1 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                            viewMode === mode.id
+                              ? "bg-white text-emerald-800 shadow-xs border border-slate-200/90"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                          title={mode.label}
+                        >
+                          <mode.icon size={13} className={viewMode === mode.id ? "text-emerald-700" : "text-slate-400"} />
+                          <span className="hidden sm:inline">{mode.label}</span>
+                          <span className="sm:hidden">{mode.short}</span>
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Sort Dropdown */}
-                    <div className="flex items-center gap-2 border-r border-slate-100 pr-3">
-                      <span className="text-[11px] font-black text-slate-400 tracking-tight">ترتیب:</span>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 text-[10px] font-black text-slate-700 focus:outline-hidden focus:border-emerald-500 cursor-pointer"
-                      >
-                        <option value="default">⭐ پیش‌فرض (ویژه و چرخشی)</option>
-                        <option value="best-selling">🔥 پرفروش‌ترین و محبوب‌ترین</option>
-                        <option value="newest">✨ جدیدترین محصولات</option>
-                        <option value="price-asc">📉 ارزان‌ترین قیمت عمده</option>
-                        <option value="price-desc">📈 گران‌ترین قیمت عمده</option>
-                      </select>
+                    {/* ابزار هوشمند وضعیت شبکه + دکمه کاتالوگ PDF */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <NetworkStatusWidget
+                        currentViewMode={viewMode}
+                        onSwitchToListMode={() => setViewMode('list')}
+                      />
+
                       <button
-                        onClick={handleRotateProducts}
-                        title="برزدن و چرخاندن ویترین محصولات"
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 transition-all cursor-pointer shadow-3xs hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
+                        type="button"
+                        onClick={() => setIsCatalogOpen(true)}
+                        className="h-10 px-2.5 sm:px-3.5 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-3xs"
+                        title="دانلود کاتالوگ PDF"
                       >
-                        <RefreshCw size={14} className={isLiveCatalogRotating ? "animate-spin text-emerald-600" : ""} />
+                        <Printer size={14} />
+                        <span className="hidden sm:inline">کاتالوگ PDF</span>
+                        <span className="sm:hidden">PDF</span>
                       </button>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setIsCatalogOpen(true)}
-                    className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-2xs cursor-pointer shrink-0"
-                  >
-                    <Printer size={14} />
-                    <span>دانلود کاتالوگ (A4 PDF)</span>
-                  </button>
-                </div>
-
-                {/* 5. فیلتر بر اساس برند و کارخانه */}
-                <div id="brand-filters-container" className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5" dir="rtl">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                      <span>🏭</span>
-                      <span>فیلتر بر اساس برند و کارخانه:</span>
-                    </span>
-                    {selectedBrand !== "همه" && (
-                      <button 
-                        onClick={() => setSelectedBrand("همه")}
-                        className="text-[10.5px] font-black text-rose-600 hover:underline cursor-pointer bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100 flex items-center gap-1"
+                  {/* پنل کشویی: دسته‌بندی‌ها و کارخانجات در یک کادر فشرده */}
+                  <AnimatePresence>
+                    {isFiltersExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden pt-2 border-t border-slate-100 space-y-2.5"
                       >
-                        <span>حذف فیلتر برند ({selectedBrand})</span>
-                        <span>✕</span>
-                      </button>
+                        {/* نوار دسته‌بندی‌ها */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-right">
+                          <span className="text-[10px] font-black text-slate-400 shrink-0">دسته:</span>
+                          {[
+                            { id: "cat-all", name: "همه دسته‌ها", value: "همه" },
+                            ...Array.from(new Set([
+                              ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name),
+                              ...activeProducts.map(p => p.category).filter(Boolean)
+                            ])).filter(catName => catName !== "انبار های من" && catName !== "انبارهای من")
+                            .map((catName, idx) => ({ id: `cat-${idx}-${catName}`, name: catName, value: catName }))
+                          ].map((cat: any, idx: number) => {
+                            const isActive = activeCategory === cat.value;
+                            return (
+                              <button
+                                key={`unified-cat-chip-${cat.id || idx}-${idx}`}
+                                type="button"
+                                onClick={() => setActiveCategory(cat.value)}
+                                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all shrink-0 border cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                                  isActive 
+                                    ? "bg-emerald-700 text-white border-emerald-600 shadow-2xs" 
+                                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                <span>{cat.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* نوار فشرده کارخانجات و برندها */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-right">
+                          <span className="text-[10px] font-black text-slate-400 shrink-0">کارخانه:</span>
+                          {["همه", ...Array.from(new Set(activeProducts.map(p => p.brand).filter(Boolean)))].map((brandName, idx) => {
+                            const isSelected = selectedBrand === brandName;
+                            const brandInfo = (b2bConfig.brands || []).find((b: any) => b.name === brandName);
+                            return (
+                              <button
+                                key={`unified-brand-chip-${brandName}-${idx}`}
+                                type="button"
+                                onClick={() => setSelectedBrand(brandName)}
+                                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black transition-all shrink-0 border cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? "bg-emerald-700 text-white border-emerald-600 shadow-2xs"
+                                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                                }`}
+                              >
+                                {brandInfo?.icon && <span className="text-xs">{brandInfo.icon}</span>}
+                                <span>{brandName === "همه" ? "همه کارخانجات" : brandName}</span>
+                              </button>
+                            );
+                          })}
+
+                          {(selectedBrand !== "همه" || activeCategory !== "همه") && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedBrand("همه");
+                                setActiveCategory("همه");
+                              }}
+                              className="text-[10px] font-black text-rose-600 hover:underline bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shrink-0 cursor-pointer"
+                            >
+                              حذف فیلترها ✕
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
                     )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    {["همه", ...Array.from(new Set(activeProducts.map(p => p.brand).filter(Boolean)))].map((brand, idx) => {
-                      const isSelected = selectedBrand === brand;
-                      return (
-                        <button
-                          key={`brand-chip-bar-${brand}-${idx}`}
-                          onClick={() => setSelectedBrand(brand)}
-                          className={`px-3.5 py-2 rounded-xl text-[11px] font-black transition-all shrink-0 border cursor-pointer flex items-center gap-1.5 ${
-                            isSelected
-                              ? "bg-emerald-700 text-white border-emerald-600 shadow-sm"
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                          }`}
-                        >
-                          <span>🏷️</span>
-                          <span>{brand === "همه" ? "همه برندها و کارخانه‌ها" : brand}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 6. فیلتر دسته‌بندی‌های کالا */}
-                <div id="category-filters-container" className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5" dir="rtl">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                      <span>📦</span>
-                      <span>دسته‌بندی‌های کالا:</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scroll-smooth no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    {[
-                      { id: "cat-all", name: "همه محصولات", value: "همه" },
-                      ...Array.from(new Set([
-                        ...(b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name),
-                        ...activeProducts.map(p => p.category).filter(Boolean)
-                      ])).filter(catName => catName !== "انبار های من" && catName !== "انبارهای من")
-                      .map((catName, idx) => ({ id: `cat-${idx}-${catName}`, name: catName, value: catName }))
-                    ].map((cat: any, idx: number) => {
-                      const isActive = activeCategory === cat.value;
-                      return (
-                        <button
-                          key={`cat-chip-bar-${cat.id || idx}-${idx}`}
-                          onClick={() => setActiveCategory(cat.value)}
-                          className={`px-3.5 py-2 rounded-xl text-[11px] font-black transition-all shrink-0 border cursor-pointer flex items-center gap-1.5 ${
-                            isActive 
-                              ? "bg-emerald-700 text-white border-emerald-600 shadow-sm" 
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                          }`}
-                        >
-                          <span>📦</span>
-                          <span>{cat.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  </AnimatePresence>
                 </div>
 
                   {/* Products catalog list */}
@@ -3014,9 +3046,23 @@ export default function App() {
                     <QuickOrderList 
                       products={filteredProducts} 
                       onAddToCart={(product, qty) => addToCart(product, qty)} 
-                      onCheckout={() => setIsCartOpen(true)}
                       cart={cart.map(item => ({ productId: item.productId, quantity: item.quantityCartons }))}
+                      fullCart={cart}
+                      user={user}
+                      userBadge={userBadge}
+                      b2bConfig={b2bConfig}
+                      setShowAuthModal={setShowAuthModal}
+                      onLogin={(loggedInUser) => setUser(loggedInUser)}
+                      onOrderSuccess={(createdOrder) => {
+                        setCart([]);
+                        setLastCreatedOrder(createdOrder);
+                      }}
                       onRemoveFromCart={(id) => removeFromCart(id)}
+                      onClearCart={() => setCart([])}
+                      onBackToGrid={() => setViewMode('grid')}
+                      onClose={() => setViewMode('grid')}
+                      onOpenCheckout={() => setIsCartOpen(true)}
+                      onViewDetails={(product) => openProductPage(product)}
                     />
                   ) : (
                     <div className="space-y-6">
