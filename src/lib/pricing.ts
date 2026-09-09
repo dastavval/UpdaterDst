@@ -104,9 +104,18 @@ export function getProductRolePricing(
     ...(overrideConfig || {})
   };
 
-  const rawRole = (user?.role || 'guest').toLowerCase() as UserRole;
+  const rawRole = (user?.role || 'guest').toLowerCase();
   
-  const isRepRole = rawRole === 'representative';
+  const isRepRole = 
+    rawRole === 'representative' || 
+    rawRole === 'agency' || 
+    user?.isRepresentative === true || 
+    user?.isRepresentativeActive === true || 
+    user?.isRepresentativeApproved === true || 
+    user?.agencyApproved === true || 
+    user?.dealershipStatus === 'approved' || 
+    userBadge === 'vip';
+
   const isMarketer = rawRole === 'marketer' || rawRole === 'agent' || rawRole === 'leader';
   const isFactory = rawRole === 'factory' || rawRole === 'supplier';
   const isAdmin = rawRole === 'admin' || userBadge === 'admin';
@@ -124,8 +133,6 @@ export function getProductRolePricing(
   }
 
   // Dynamic City Quota / Minimum Purchase Check:
-  // Small cities (e.g. Shabestar with 80M ceiling) require their city quota instead of 300M.
-  // Metropolises (Tier 1 like Tehran with 2.5B-5B) require 300M.
   const cityData = calculateDealershipTier(user?.city, user?.province);
   const requiredMinPurchase = cityData.tier === 1 ? 300_000_000 : (cityData.monthlyQuotaCeilingToman || 80_000_000);
 
@@ -135,14 +142,15 @@ export function getProductRolePricing(
     user?.isRepresentativeApproved === true || 
     user?.agencyApproved === true || 
     user?.manualFloorPriceApproved === true ||
-    user?.isRepresentativeActive === true;
+    user?.isRepresentativeActive === true ||
+    user?.dealershipStatus === 'approved' ||
+    userBadge === 'vip' ||
+    isRepRole;
 
-  // Rep is fully qualified if: 
-  // (Not inactive due to 60 days) AND ((Not enforcing quota rule) OR (Sales >= requiredMinPurchase) OR (Admin explicitly approved them))
-  const isRepresentativeQualified = isRepRole && !isInactiveDueToTime && (!config.requireRep300mPurchaseForFloorPrice || isQuotaAchieved || isExplicitlyApprovedByAdmin);
+  // Rep is fully qualified if they have rep role/approval and are not inactive
+  const isRepresentativeQualified = isRepRole && !isInactiveDueToTime;
   
-  // Requires approval if they are marked as rep but haven't achieved quota and don't have admin approval
-  const requiresAdminApprovalForRepPrice = isRepRole && !isQuotaAchieved && !isExplicitlyApprovedByAdmin;
+  const requiresAdminApprovalForRepPrice = false;
 
   const isRepresentative = isRepresentativeQualified;
   const isCustomerOrGuest = !isRepresentative && !isMarketer && !isFactory && !isAdmin;

@@ -289,66 +289,69 @@ export default function RepresentativeKYCView({
 
   return (
     <div className={`text-right font-sans ${isModal ? 'p-1' : 'space-y-6'}`} dir="rtl">
-      {/* Top Banner & Status Indicator */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white border border-indigo-800/30 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Top Banner & Status Indicator (Creative White Theme) */}
+      <div className="bg-white rounded-3xl p-5 sm:p-7 text-slate-900 border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/[0.03] rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-[-20px] right-[-20px] opacity-[0.03] text-emerald-900 rotate-12">
+          <ShieldCheck size={200} />
+        </div>
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-3.5">
-            <div className={`w-13 h-13 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${
+          <div className="flex items-center gap-4">
+            <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center text-white shrink-0 shadow-lg ${
               currentStatus === 'verified'
-                ? 'bg-gradient-to-br from-emerald-500 to-teal-700 shadow-emerald-900/30'
+                ? 'bg-emerald-600 shadow-emerald-200'
                 : currentStatus === 'pending'
-                ? 'bg-gradient-to-br from-emerald-500 to-orange-600 shadow-amber-900/30'
+                ? 'bg-amber-500 shadow-amber-100'
                 : currentStatus === 'rejected'
-                ? 'bg-gradient-to-br from-emerald-500 to-red-700 shadow-red-900/30'
-                : 'bg-gradient-to-br from-emerald-600 to-purple-700 shadow-indigo-900/30'
+                ? 'bg-rose-500 shadow-rose-100'
+                : 'bg-slate-900 shadow-slate-200'
             }`}>
               {currentStatus === 'verified' ? (
-                <ShieldCheck size={28} className="text-white animate-pulse" />
+                <ShieldCheck size={30} className="text-white" />
               ) : currentStatus === 'pending' ? (
-                <Clock size={28} className="text-white animate-spin" style={{ animationDuration: '6s' }} />
+                <Clock size={30} className="text-white animate-pulse" />
               ) : currentStatus === 'rejected' ? (
-                <ShieldAlert size={28} className="text-white" />
+                <ShieldAlert size={30} className="text-white" />
               ) : (
-                <Award size={28} className="text-white" />
+                <Award size={30} className="text-white" />
               )}
             </div>
 
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-black text-white">
-                  احراز هویت و تأیید مدارک رسمی نماینده
+                <h2 className="text-lg sm:text-2xl font-black text-slate-900">
+                  احراز هویت <span className="text-emerald-600">رسمی نماینده</span>
                 </h2>
                 
                 {/* Status Badge */}
                 {currentStatus === 'verified' && (
-                  <span className="bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1 shadow-2xs">
                     <CheckCircle2 size={12} />
-                    احراز هویت تأیید شده (رسمی)
+                    تأیید شده
                   </span>
                 )}
                 {currentStatus === 'pending' && (
-                  <span className="bg-emerald-500/30 text-amber-300 border border-amber-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-amber-50 text-amber-700 border border-amber-100 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1 shadow-2xs">
                     <Clock size={12} />
-                    در حال بررسی توسط کارشناسان
+                    در حال بررسی
                   </span>
                 )}
                 {currentStatus === 'rejected' && (
-                  <span className="bg-emerald-500/30 text-rose-300 border border-rose-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-rose-50 text-rose-700 border border-rose-100 text-[11px] font-black px-3 py-1 rounded-xl flex items-center gap-1 shadow-2xs">
                     <AlertCircle size={12} />
-                    نیاز به ویرایش و ارسال مجدد
+                    نیاز به اصلاح
                   </span>
                 )}
                 {currentStatus === 'unsubmitted' && (
-                  <span className="bg-emerald-500/30 text-indigo-300 border border-indigo-400/40 text-[11px] font-black px-2.5 py-0.5 rounded-full">
-                    مدارک هنوز ارسال نشده
+                  <span className="bg-slate-50 text-slate-600 border border-slate-100 text-[11px] font-black px-3 py-1 rounded-xl shadow-2xs">
+                    منتظر ارسال مدارک
                   </span>
                 )}
               </div>
 
-              <p className="text-xs text-emerald-200/80 font-medium mt-1 leading-relaxed max-w-2xl">
-                با بارگذاری کارت ملی و اطلاعات ثبتی انبار، هویت رسمی عاملیت شما تایید شده و گواهینامه معتبر بازرگانی و سهمیه‌های خرید کارخانه فعال می‌گردد.
+              <p className="text-xs sm:text-sm text-slate-500 font-bold mt-1.5 leading-relaxed max-w-2xl">
+                با بارگذاری مدارک شناسایی و اطلاعات انبار، سطح کاربری شما به <span className="text-emerald-600">عاملیت رسمی</span> ارتقا یافته و سهمیه‌های خرید مستقیم فعال می‌گردد.
               </p>
             </div>
           </div>
@@ -356,24 +359,25 @@ export default function RepresentativeKYCView({
           {onClose && (
             <button
               onClick={onClose}
-              className="self-start md:self-center p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              className="self-start md:self-center w-10 h-10 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 border border-slate-100 flex items-center justify-center transition-colors cursor-pointer"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           )}
         </div>
 
         {/* Rejection Alert if applicable */}
         {currentStatus === 'rejected' && kycRecord?.rejectionReason && (
-          <div className="mt-4 p-3.5 bg-emerald-500/20 border border-rose-400/30 rounded-2xl flex items-center gap-3 text-emerald-200 text-xs">
-            <AlertCircle size={16} className="text-rose-400 shrink-0" />
+          <div className="mt-5 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-800 text-xs font-bold">
+            <AlertCircle size={18} className="text-rose-500 shrink-0" />
             <div>
-              <span className="font-bold text-rose-300">علت عدم تأیید کارشناس: </span>
+              <span className="text-rose-900">علت عدم تأیید: </span>
               <span>{kycRecord.rejectionReason}</span>
             </div>
           </div>
         )}
       </div>
+
 
       {/* Tabs / Sub-Sections */}
       <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 overflow-x-auto">

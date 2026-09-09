@@ -35,8 +35,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import { toPng, toJpeg } from "html-to-image";
 import { jsPDF } from "jspdf";
-import { calculateDealershipTier, formatTomanCurrency, findNearestRepresentative } from "../utils/dealershipCityTiers";
+import { calculateDealershipTier, formatTomanCurrency, findNearestRepresentative, getProvinceForCity } from "../utils/dealershipCityTiers";
 import { isWarehouseBrand } from "../utils/api-utils";
+import RepresentativeShareLicenseModal from "./RepresentativeShareLicenseModal";
 
 interface PublicRepresentativesProps {
   theme?: 'light' | 'dark' | 'classic';
@@ -64,6 +65,7 @@ export default function PublicRepresentatives({
   const [selectedRepForDetails, setSelectedRepForDetails] = useState<any | null>(null);
   const [modalTab, setModalTab] = useState<'profile' | 'certificate'>('profile');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [shareModalRep, setShareModalRep] = useState<any | null>(null);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const certificateRef = useRef<HTMLDivElement>(null);
@@ -645,7 +647,7 @@ export default function PublicRepresentatives({
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-800 text-[10.5px] font-black border border-slate-200">
                         <MapPin size={12} className="text-emerald-600" />
                         <span>{rep.city || 'شهر مرکزی'}</span>
-                        <span className="text-slate-500 font-medium">({rep.province || 'استان'})</span>
+                        <span className="text-slate-500 font-medium">({getProvinceForCity(rep.city, rep.province) || 'استان'})</span>
                       </span>
 
                       {rep.badge === "برند دست اول" ? (
@@ -993,7 +995,7 @@ export default function PublicRepresentatives({
                       <span className="text-[10px] text-slate-400 font-bold block">موقعیت دفتر</span>
                       <span className="text-xs font-black text-slate-800 flex items-center gap-1">
                         <MapPin size={13} className="text-emerald-600" />
-                        {selectedRepForDetails.city} - {selectedRepForDetails.province}
+                        {selectedRepForDetails.city} - {getProvinceForCity(selectedRepForDetails.city, selectedRepForDetails.province)}
                       </span>
                     </div>
 
@@ -1099,6 +1101,15 @@ export default function PublicRepresentatives({
                         <Printer size={13} />
                         <span>چاپ مستقیم گواهی</span>
                       </button>
+
+                      <button
+                        onClick={() => setShareModalRep(selectedRepForDetails)}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                        title="اشتراک‌گذاری پروانه عاملیت در تلگرام و واتساپ"
+                      >
+                        <Share2 size={13} />
+                        <span>اشتراک‌گذاری پروانه</span>
+                      </button>
                     </div>
                   </div>
 
@@ -1149,7 +1160,7 @@ export default function PublicRepresentatives({
                         {/* Certificate Body Text */}
                         <div className="text-xs text-slate-700 leading-relaxed space-y-2 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70">
                           <p>
-                            بدین‌وسیله تایید می‌گردد که جناب آقای / مجموعه محترم <strong className="text-slate-950 font-black">{selectedRepForDetails.name}</strong> ({selectedRepForDetails.company || 'دفتر عاملیت منطقه'})، پس از احراز صلاحیت‌های حرفه‌ای و اعتبارسنجی صنفی، به عنوان <strong className="text-emerald-800 font-black">نماینده رسمی و دفتر عاملیت مجاز پلتفرم دست اول</strong> در حوزه جغرافیایی <strong className="text-slate-950 font-black">شهرستان {selectedRepForDetails.city} (استان {selectedRepForDetails.province})</strong> منصوب گردیده‌اند.
+                            بدین‌وسیله تایید می‌گردد که جناب آقای / مجموعه محترم <strong className="text-slate-950 font-black">{selectedRepForDetails.name}</strong> ({selectedRepForDetails.company || 'دفتر عاملیت منطقه'})، پس از احراز صلاحیت‌های حرفه‌ای و اعتبارسنجی صنفی، به عنوان <strong className="text-emerald-800 font-black">نماینده رسمی و دفتر عاملیت مجاز پلتفرم دست اول</strong> در حوزه جغرافیایی <strong className="text-slate-950 font-black">شهرستان {selectedRepForDetails.city} (استان {getProvinceForCity(selectedRepForDetails.city, selectedRepForDetails.province)})</strong> منصوب گردیده‌اند.
                           </p>
                           <div className="pt-2 border-t border-slate-200/60 flex items-center gap-2 flex-wrap">
                             <span className="font-black text-slate-800 text-[11px]">برندهای تحت عاملیت رسمی:</span>
@@ -1196,7 +1207,17 @@ export default function PublicRepresentatives({
               )}
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setShareModalRep(selectedRepForDetails)}
+                  className="px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="اشتراک‌گذاری پروانه عاملیت در تلگرام و واتساپ"
+                >
+                  <Share2 size={14} className="text-teal-600" />
+                  <span>اشتراک‌گذاری پروانه عاملیت</span>
+                </button>
+
                 <button
                   onClick={() => setSelectedRepForDetails(null)}
                   className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition-all cursor-pointer"
@@ -1208,6 +1229,14 @@ export default function PublicRepresentatives({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Share License Modal */}
+      <RepresentativeShareLicenseModal
+        rep={shareModalRep}
+        isOpen={!!shareModalRep}
+        onClose={() => setShareModalRep(null)}
+        b2bConfig={b2bConfig}
+      />
 
     </section>
   );

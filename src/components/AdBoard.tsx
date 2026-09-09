@@ -12,8 +12,11 @@ import { triggerAutoChannelPost } from "../utils/channel-utils";
 import ImageLightbox from "./ImageLightbox";
 import AddAdButton from "./AddAdButton";
 import AdPosterPanel from "./AdPosterPanel";
+import SmsPhoneVerifier from "./SmsPhoneVerifier";
+import AdEditUpgradeModal from "./AdEditUpgradeModal";
 import { getProductRolePricing, toPersianNum } from "../lib/pricing";
 import { getApiUrl } from "../utils/api-utils";
+import { MASTER_CATEGORIES, getAllCategoriesMerged } from "../data/categoriesData";
 import {
   Sparkles, 
   Plus,
@@ -53,7 +56,9 @@ import {
   Flame,
   RefreshCw,
   Percent,
-  Flag
+  Flag,
+  Edit3,
+  TrendingUp
 } from "lucide-react";
 
 const initialAds: AdItem[] = [];
@@ -144,26 +149,33 @@ export default function AdBoard({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
 
-  const configCategories = useMemo(() => {
-    if (b2bConfig && Array.isArray(b2bConfig.categories) && b2bConfig.categories.length > 0) {
-      return b2bConfig.categories.map((c: any, index: number) => {
-        if (typeof c === 'string') {
-          return { id: `cat-${index + 1}`, name: c, emoji: '🏷️' };
-        }
-        return {
-          id: c.id || `cat-${index + 1}`,
-          name: c.name || '',
-          emoji: c.emoji || c.icon || '🏷️'
-        };
-      });
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [editUpgradeModalAd, setEditUpgradeModalAd] = useState<AdItem | null>(null);
+  const [editUpgradeMode, setEditUpgradeMode] = useState<"edit" | "upgrade" | "delete">("edit");
+
+  const handleAdUpdated = (updatedAd: AdItem) => {
+    setAds(prev => prev.map(a => a.id === updatedAd.id ? updatedAd : a));
+    if (selectedAdDetail && selectedAdDetail.id === updatedAd.id) {
+      setSelectedAdDetail(updatedAd);
     }
-    return [
-      { id: "cat-1", name: "تنقلات و شکلات", emoji: "🍫" },
-      { id: "cat-2", name: "کیک، کلوچه و بیسکویت", emoji: "🍪" },
-      { id: "cat-3", name: "مواد غذایی و کنسروجات", emoji: "🥫" },
-      { id: "cat-4", name: "نوشیدنی‌ها", emoji: "🥤" },
-      { id: "cat-5", name: "شوینده و بهداشتی", emoji: "🧼" }
-    ];
+  };
+
+  const handleAdDeleted = (deletedId: string) => {
+    setAds(prev => prev.filter(a => a.id !== deletedId));
+    if (selectedAdDetail && selectedAdDetail.id === deletedId) {
+      setSelectedAdDetail(null);
+    }
+  };
+
+  const configCategories = useMemo(() => {
+    const categoriesList = getAllCategoriesMerged(b2bConfig?.categories);
+    return categoriesList.map(c => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      sector: c.sector,
+      type: c.type
+    }));
   }, [b2bConfig?.categories]);
 
   const filterChips = useMemo(() => {
@@ -336,6 +348,11 @@ export default function AdBoard({
     e.preventDefault();
     if (!title || !wholesalePrice || !marketPrice || !contactPhone) return;
 
+    if (!isPhoneVerified) {
+      alert("جهت صیانت از اصالت آگهی‌ها، تأیید شماره همراه با ارسال پیامک کد اعتبارسنجی الزامی است.");
+      return;
+    }
+
     // Reject direct public display of phones and ensure rules are met
     const cleanTitle = detectAndScrubPhoneNumbers(title);
     const cleanDescription = detectAndScrubPhoneNumbers(description);
@@ -399,14 +416,22 @@ export default function AdBoard({
     else if (category === "services") finalBadge = "🛠️ خدمات صنعتی";
     else if (category === "equipment") finalBadge = "⚙️ تجهیزات";
 
+    let userSession: any = null;
+    try {
+      const cached = localStorage.getItem("dastavval_user");
+      if (cached) userSession = JSON.parse(cached);
+    } catch (e) {}
+
     const newAd: AdItem = {
       id: `ad-${Date.now()}`,
       title: finalTitle,
       description: finalDesc || "درخواست خرید کالا با شرایط توافقی و ضمانت پرداخت امن واسطه‌ای دست اول.",
-      factoryName: factoryName || "متقاضی تامین مستقیم",
-      contactPerson: contactPerson || "مدیریت مربوطه",
+      factoryName: factoryName || userSession?.company || "متقاضی تامین مستقیم",
+      contactPerson: contactPerson || userSession?.name || "مدیریت مربوطه",
       contactPhone: normalizedPhone, // Saved privately for admin use
       creatorPhone: normalizedPhone, // Link to account
+      creatorAvatar: userSession?.logoUrl || userSession?.avatar || undefined,
+      creatorName: userSession?.name || undefined,
       badgeText: finalBadge,
       category,
       quantity: quantity || "توافقی",
@@ -543,8 +568,8 @@ export default function AdBoard({
     return String(num).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[parseInt(d, 10)]);
   };
 
-  // Filtering Logic: Include ONLY products explicitly marked as isKafBazaar or liquid/fire deals
-  const rawKafProducts = (products || []).filter(p => !p.disabled && (p.isKafBazaar === true || (p as any).isLiquid === true || (p as any).isHotFireDeal === true));
+  // Filtering Logic: Include all active factory products for robust Floor Market availability
+  const rawKafProducts = (products || []).filter(p => !p.disabled);
   const effectiveKafProducts = rawKafProducts;
 
   const allOpportunities = [
@@ -1018,6 +1043,48 @@ export default function AdBoard({
                 </p>
               </div>
 
+              {/* Ad Owner Action Bar: Edit, Upgrade, Delete */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-black text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-amber-500" />
+                    <span>امکانات مدیریت و ارتقای آگهی:</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      setEditUpgradeModalAd(selectedAdDetail);
+                      setEditUpgradeMode("edit");
+                    }}
+                    className="py-2 px-2.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <Edit3 size={13} className="text-emerald-600" />
+                    <span>ویرایش</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditUpgradeModalAd(selectedAdDetail);
+                      setEditUpgradeMode("upgrade");
+                    }}
+                    className="py-2 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <TrendingUp size={13} className="text-amber-600" />
+                    <span>نردبان / ویژه</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditUpgradeModalAd(selectedAdDetail);
+                      setEditUpgradeMode("delete");
+                    }}
+                    className="py-2 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <Trash2 size={13} className="text-rose-600" />
+                    <span>حذف</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Contact Proxy & Site Mediation Block */}
               <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-2 text-emerald-900">
@@ -1170,10 +1237,10 @@ export default function AdBoard({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] text-slate-400 font-black">{ad.date}</span>
-                        {ad.isSponsored && (
-                          <span className="bg-orange-50 text-orange-900 px-2 py-0.5 rounded-lg text-[9px] font-black border border-orange-200/80 flex items-center gap-1 animate-pulse">
-                            <Flame size={11} className="text-orange-600 fill-amber-400" />
-                            پیشنهاد ویژه
+                        {(ad.isSponsored || (ad as any).isSpecial || (ad as any).plan === 'vip') && (
+                          <span className="bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[9.5px] font-black border border-emerald-500 shadow-sm flex items-center gap-1">
+                            <Sparkles size={11} className="fill-white text-white" />
+                            <span>ویژه 🌟</span>
                           </span>
                         )}
                       </div>
@@ -1224,21 +1291,21 @@ export default function AdBoard({
   // FULL PAGE / TAB MODE
   return (
     <div className="w-full mt-2 mb-12 max-w-7xl mx-auto px-4" id="ad-board-full-container" dir="rtl">
-      {/* 🏛️ CLEAN WHITE & RESPONSIVE TOP BAR */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-1.5 sm:p-2 mb-3 text-right w-full overflow-hidden">
-        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 w-full">
+      {/* 🏛️ MODERN BRIGHT & CONCISE TOP BAR */}
+      <div className="bg-slate-100 rounded-2xl p-1 mb-4 text-right w-full overflow-hidden border border-slate-200/60 shadow-3xs">
+        <div className="grid grid-cols-2 gap-1 w-full">
           <button
             onClick={() => handleTabSwitch('floor_deals')}
-            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer min-w-0 ${
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer min-w-0 ${
               activeHallTab === 'floor_deals'
-                ? "bg-slate-900 text-white shadow-xs"
-                : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-50 border border-slate-200"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "bg-transparent text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <SpecialPriceBagIcon size={15} className={`shrink-0 ${activeHallTab === 'floor_deals' ? "text-amber-400" : "text-emerald-700"}`} />
+            <SpecialPriceBagIcon size={15} className={`shrink-0 ${activeHallTab === 'floor_deals' ? "text-white" : "text-emerald-600"}`} />
             <span className="truncate">حراج‌ها و آگهی‌های کفِ بازار</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-              activeHallTab === 'floor_deals' ? "bg-amber-400 text-slate-950" : "bg-slate-100 text-slate-700 border border-slate-200"
+              activeHallTab === 'floor_deals' ? "bg-white text-emerald-700" : "bg-slate-200 text-slate-700"
             }`}>
               {allOpportunities.length}
             </span>
@@ -1246,13 +1313,13 @@ export default function AdBoard({
 
           <button
             onClick={() => handleTabSwitch('ad_poster_panel')}
-            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer min-w-0 ${
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer min-w-0 ${
               activeHallTab === 'ad_poster_panel'
-                ? "bg-teal-700 text-white shadow-xs"
-                : "bg-white text-slate-700 hover:text-slate-950 hover:bg-slate-50 border border-slate-200"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "bg-transparent text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <Megaphone size={14} className={`shrink-0 ${activeHallTab === 'ad_poster_panel' ? "text-white" : "text-teal-700"}`} />
+            <Megaphone size={14} className={`shrink-0 ${activeHallTab === 'ad_poster_panel' ? "text-white" : "text-teal-600"}`} />
             <span className="truncate">مدیریت آگهی‌های من</span>
           </button>
         </div>
@@ -1273,54 +1340,46 @@ export default function AdBoard({
 
       {activeHallTab === 'floor_deals' && (
         <>
-          {/* 🌟 KAF BAZAAR HERO HEADER BOARD (CLEAN WHITE & COMPACT THEME) */}
-          <div className="bg-white text-slate-900 rounded-2xl p-3 sm:p-3.5 border border-slate-200/90 mb-3.5 text-right relative overflow-hidden shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
-              <div className="space-y-0.5">
-                <h1 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <SpecialPriceBagIcon size={18} className="text-emerald-600 animate-pulse" animated={true} />
-                  <span>تالار معاملات فوری کفِ بازار</span>
+          {/* 🌟 SIMPLE & TIDY BORDERLESS HEADER */}
+          <div className="mb-6 space-y-4 text-right animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <SpecialPriceBagIcon size={20} className="text-emerald-600 shrink-0" animated={true} />
+                <h1 className="text-sm sm:text-base font-black text-slate-900">
+                  تالار معاملات فوری کفِ بازار
                 </h1>
-                {/* Clean, minimalist stats list on one single line */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-slate-500 font-bold">
-                  <span className="flex items-center gap-1 text-emerald-700 font-black">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
-                    {displayOpportunityCount} حراج فعال
-                  </span>
-                  <span>•</span>
-                  <span>تا ۴۰٪ تخفیف زیر قیمت بازار</span>
-                  <span>•</span>
-                  <span className="text-slate-600">تسویه امانی ۱۰۰٪</span>
-                </div>
+                <span className="hidden xs:inline-block text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-black">
+                  {displayOpportunityCount} حراج فعال
+                </span>
               </div>
 
-              {/* Action buttons on the side */}
-              <div className="flex items-center gap-1.5">
+              {/* Action buttons beautifully aligned */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => {
                     loadAds();
                     setSearchQuery("");
                     setActiveCategoryFilter("all");
                   }}
-                  className="p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-200 shadow-3xs"
-                  title="به‌روزرسانی"
+                  className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer border border-slate-200"
+                  title="به‌روزرسانی غرفه‌ها"
                 >
                   <RefreshCw size={11} className="text-emerald-600" />
-                  <span className="hidden xs:inline">به‌روزرسانی</span>
+                  <span>به‌روزرسانی</span>
                 </button>
 
                 <button
                   onClick={() => setShowRulesModal(true)}
-                  className="p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-50 hover:bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border border-emerald-200 shadow-3xs"
+                  className="px-2.5 py-1.5 bg-emerald-50/60 hover:bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-black transition-all flex items-center gap-1 cursor-pointer border border-emerald-200"
                 >
-                  <ShieldCheck size={12} className="text-emerald-600 shrink-0" />
-                  <span className="hidden xs:inline">قوانین صیانت</span>
+                  <ShieldCheck size={12} className="text-emerald-600" />
+                  <span>قوانین صیانت</span>
                 </button>
               </div>
             </div>
 
-            {/* Combined, smart search, toggle and unified filters */}
-            <div className="pt-2.5 space-y-2.5">
+            {/* Smart unified search and toggle */}
+            <div className="space-y-3">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
                 {/* Search Bar */}
                 <div className="relative flex-1">
@@ -1328,23 +1387,23 @@ export default function AdBoard({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="جستجوی کالا، برند یا کارخانه..."
-                    className="w-full bg-slate-50/70 border border-slate-200 rounded-xl pr-8 pl-7 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-emerald-500 transition-all text-right"
+                    placeholder="جستجوی سریع کالا، برند یا کارخانه..."
+                    className="w-full bg-slate-100/70 border border-slate-200 rounded-xl pr-8 pl-8 py-2 text-xs font-black text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-emerald-500 transition-all text-right"
                   />
                   <Search size={13} className="absolute right-2.5 top-2.5 text-slate-400" />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery("")}
-                      className="absolute left-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      className="absolute left-2.5 top-2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                     >
                       <X size={12} />
                     </button>
                   )}
                 </div>
 
-                {/* View Switcher & Action */}
+                {/* View Switcher */}
                 <div className="flex items-center justify-between sm:justify-start gap-1.5">
-                  <div className="flex items-center bg-slate-50 p-0.5 rounded-xl border border-slate-200 shrink-0">
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
                     <button
                       onClick={() => setViewMode("list")}
                       className={`p-1.5 rounded-lg transition-all cursor-pointer ${
@@ -1371,7 +1430,7 @@ export default function AdBoard({
                 </div>
               </div>
 
-              {/* Smart Unified Horizontal Filter Chips */}
+              {/* Horizontal Filter Chips */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {filterChips.map((filter, fIdx) => {
                   const isActive = activeCategoryFilter === filter.value;
@@ -1384,7 +1443,7 @@ export default function AdBoard({
                       }}
                       className={`px-3 py-1 rounded-xl text-[10.5px] font-black transition-all whitespace-nowrap cursor-pointer border ${
                         isActive
-                          ? "bg-emerald-700 text-white border-emerald-600 shadow-xs scale-102"
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                           : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300"
                       }`}
                     >
@@ -1414,7 +1473,7 @@ export default function AdBoard({
                   <div className="w-2.5 h-5 bg-orange-500 rounded-full"></div>
                   <h3 className="font-black text-sm sm:text-base text-slate-800">🔥 حراج‌های آتشی و پیشنهادهای طلایی کف بازار</h3>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                   {featuredAds.map((ad, idx) => {
                     const adImg = ad.imageUrl ? getDisplayImageUrl(ad.imageUrl) : getAdFallbackImage(ad.title, ad.category);
                     return (
@@ -1424,7 +1483,7 @@ export default function AdBoard({
                         className="rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 text-right cursor-pointer group flex flex-col justify-between relative bg-gradient-to-b from-white to-amber-50/15 border-2 border-orange-400 hover:border-orange-500"
                       >
                         {/* Clear Bright Image Banner */}
-                        <div className="w-full h-56 sm:h-64 overflow-hidden bg-slate-50 relative shrink-0 border-b border-slate-100">
+                        <div className="w-full h-56 xs:h-64 sm:h-72 md:h-80 overflow-hidden bg-slate-50 relative shrink-0 border-b border-slate-100">
                           <img
                             src={adImg}
                             alt={ad.title}
@@ -1492,6 +1551,45 @@ export default function AdBoard({
                             <ShieldCheck size={14} />
                             <span>خرید فوری با معامله امن دست اول</span>
                           </button>
+
+                          {/* Quick Manage Toolbar */}
+                          <div className="flex items-center gap-1.5 pt-1.5 border-t border-orange-150/60">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditUpgradeModalAd(ad);
+                                setEditUpgradeMode("edit");
+                              }}
+                              className="flex-1 py-1 px-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-colors border border-slate-200 cursor-pointer"
+                              title="ویرایش مشخصات آگهی"
+                            >
+                              <Edit3 size={11} className="text-emerald-600" />
+                              <span>ویرایش</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditUpgradeModalAd(ad);
+                                setEditUpgradeMode("upgrade");
+                              }}
+                              className="flex-1 py-1 px-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-colors border border-amber-300 cursor-pointer"
+                              title="نردبان و ویژه کردن"
+                            >
+                              <TrendingUp size={11} className="text-amber-700" />
+                              <span>ارتقا</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditUpgradeModalAd(ad);
+                                setEditUpgradeMode("delete");
+                              }}
+                              className="py-1 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black flex items-center justify-center transition-colors border border-rose-200 cursor-pointer"
+                              title="حذف آگهی"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1513,7 +1611,7 @@ export default function AdBoard({
                   مورد دیگری یافت نشد.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                   {regularAds.map((ad, idx) => {
                     const adImg = ad.imageUrl ? getDisplayImageUrl(ad.imageUrl) : getAdFallbackImage(ad.title, ad.category);
                     return (
@@ -1526,7 +1624,7 @@ export default function AdBoard({
                         className="bg-white rounded-2xl border border-slate-200/90 hover:border-emerald-300 hover:shadow-md transition-all duration-300 text-right cursor-pointer flex flex-col justify-between overflow-hidden group shadow-2xs"
                       >
                         {/* Compact Image Banner */}
-                        <div className="w-full h-52 sm:h-56 overflow-hidden bg-slate-50 relative shrink-0 border-b border-slate-100">
+                        <div className="w-full h-52 xs:h-60 sm:h-64 md:h-72 overflow-hidden bg-slate-50 relative shrink-0 border-b border-slate-100">
                           <img
                             src={adImg}
                             alt={ad.title}
@@ -1563,6 +1661,14 @@ export default function AdBoard({
                             <h4 className="font-black text-xs sm:text-sm leading-snug group-hover:text-emerald-700 transition-colors line-clamp-2 text-slate-900 pt-1 min-h-[36px]">
                               {ad.title}
                             </h4>
+
+                            {ad.category === "materials" && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {(ad as any).purity && <span className="px-2 py-0.5 bg-amber-50 text-amber-900 rounded text-[9px] font-black border border-amber-200">خلوص: {(ad as any).purity}</span>}
+                                {(ad as any).casNumber && <span className="px-2 py-0.5 bg-sky-50 text-sky-900 rounded text-[9px] font-black border border-sky-200">CAS: {(ad as any).casNumber}</span>}
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-900 rounded text-[9px] font-black border border-emerald-200">📄 برگه آنالیز COA</span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Pricing Component - Very Simple & Readable */}
@@ -1595,6 +1701,45 @@ export default function AdBoard({
                             <ShieldCheck size={14} />
                             <span>شروع معامله امن</span>
                           </button>
+
+                          {/* Quick Manage Toolbar */}
+                          <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditUpgradeModalAd(ad);
+                                setEditUpgradeMode("edit");
+                              }}
+                              className="flex-1 py-1 px-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-colors border border-slate-200 cursor-pointer"
+                              title="ویرایش مشخصات آگهی"
+                            >
+                              <Edit3 size={11} className="text-emerald-600" />
+                              <span>ویرایش</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditUpgradeModalAd(ad);
+                                setEditUpgradeMode("upgrade");
+                              }}
+                              className="flex-1 py-1 px-2 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-colors border border-amber-200 cursor-pointer"
+                              title="نردبان و ارتقا"
+                            >
+                              <TrendingUp size={11} className="text-amber-600" />
+                              <span>ارتقا</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditUpgradeModalAd(ad);
+                                setEditUpgradeMode("delete");
+                              }}
+                              className="py-1 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black flex items-center justify-center transition-colors border border-rose-200 cursor-pointer"
+                              title="حذف آگهی"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1623,10 +1768,10 @@ export default function AdBoard({
                           else setSelectedAdDetail(ad);
                         }}
                         key={`list-feat-ad-${ad.id}-${idx}`}
-                        className="rounded-xl p-2.5 text-right flex flex-row items-stretch gap-3 transition-all duration-300 cursor-pointer shadow-xs hover:shadow-md group relative bg-white border-2 border-orange-400 hover:border-orange-500"
+                        className="rounded-2xl p-3.5 text-right flex flex-row items-center gap-4 transition-all duration-300 cursor-pointer shadow-xs hover:shadow-md group relative bg-white border-2 border-orange-400 hover:border-orange-500"
                       >
                         {/* Large Clear Image Box */}
-                        <div className="w-24 h-24 xs:w-28 xs:h-28 sm:w-36 sm:h-36 rounded-lg overflow-hidden shrink-0 bg-slate-50 relative border border-slate-100 shadow-3xs">
+                        <div className="w-28 h-28 xs:w-32 xs:h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden shrink-0 bg-slate-50 relative border border-slate-100 shadow-xs">
                           <img
                             src={adImg}
                             alt={ad.title}
@@ -1727,10 +1872,10 @@ export default function AdBoard({
                           else setSelectedAdDetail(ad);
                         }}
                         key={`list-reg-ad-${ad.id}-${idx}`}
-                        className="rounded-xl p-2.5 text-right flex flex-row items-stretch gap-3 transition-all duration-300 cursor-pointer shadow-2xs hover:shadow-xs group relative bg-white border border-slate-200 hover:border-emerald-300"
+                        className="rounded-2xl p-3.5 text-right flex flex-row items-center gap-4 transition-all duration-300 cursor-pointer shadow-2xs hover:shadow-xs group relative bg-white border border-slate-200 hover:border-emerald-300"
                       >
                         {/* Large Clear Image Box */}
-                        <div className="w-24 h-24 xs:w-28 xs:h-28 sm:w-36 sm:h-36 rounded-lg overflow-hidden shrink-0 bg-slate-50 relative border border-slate-100 shadow-3xs">
+                        <div className="w-28 h-28 xs:w-32 xs:h-32 sm:w-40 sm:h-40 rounded-xl overflow-hidden shrink-0 bg-slate-50 relative border border-slate-100 shadow-xs">
                           <img
                             src={adImg}
                             alt={ad.title}
@@ -2017,6 +2162,17 @@ export default function AdBoard({
         subtitle={`تامین‌کننده: ${selectedAdDetail?.factoryName || "نامشخص"}`}
         footerRight={selectedAdDetail?.wholesalePrice}
       />
+
+      {/* Edit / Upgrade / Delete Modal */}
+      <AdEditUpgradeModal
+        isOpen={!!editUpgradeModalAd}
+        onClose={() => setEditUpgradeModalAd(null)}
+        ad={editUpgradeModalAd}
+        mode={editUpgradeMode}
+        onAdUpdated={handleAdUpdated}
+        onAdDeleted={handleAdDeleted}
+        currentUser={user}
+      />
     </div>
   );
 
@@ -2285,14 +2441,14 @@ export default function AdBoard({
                   </div>
                 </div>
 
-                {/* Secure Contact Information (Hidden publicly) */}
-                <div className="grid grid-cols-2 gap-3 bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100/20">
-                  <div className="col-span-2 flex items-center gap-1.5 text-emerald-900 text-[10px] font-black mb-1">
-                    <Lock size={12} className="text-emerald-600" />
-                    <span>اطلاعات هماهنگی کارشناسی (محفوظ نزد ادمین جهت معامله امن واسطه‌ای):</span>
+                {/* Secure Contact Information (Hidden publicly) & Mandatory SMS Verification */}
+                <div className="space-y-3 bg-emerald-50/40 p-4 rounded-2xl border border-emerald-150">
+                  <div className="flex items-center gap-1.5 text-emerald-900 text-[11px] font-black">
+                    <Lock size={13} className="text-emerald-600" />
+                    <span>اطلاعات هماهنگی کارشناسی و تایید اصالت آگهی:</span>
                   </div>
                   <div>
-                    <label className="block text-[9px] font-black text-slate-500 mb-1">نام و نام خانوادگی:</label>
+                    <label className="block text-[10px] font-black text-slate-600 mb-1">نام و نام خانوادگی مسئول پاسخگو:</label>
                     <input
                       type="text"
                       required
@@ -2302,17 +2458,15 @@ export default function AdBoard({
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[9px] font-black text-slate-500 mb-1">شماره تماس (محفوظ و مخفی):</label>
-                    <input
-                      type="tel"
-                      required
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-850 outline-none focus:border-emerald-500 font-mono text-left"
-                    />
-                  </div>
+                  <SmsPhoneVerifier
+                    phone={contactPhone}
+                    onPhoneChange={setContactPhone}
+                    isVerified={isPhoneVerified}
+                    onVerified={(verifiedPhone) => {
+                      setIsPhoneVerified(true);
+                      setContactPhone(verifiedPhone);
+                    }}
+                  />
                 </div>
 
                 {/* Multiple Image Upload Component with Drag & Drop and clear Counter */}
@@ -2502,10 +2656,15 @@ export default function AdBoard({
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/15"
+                  disabled={!isPhoneVerified}
+                  className={`w-1/2 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md ${
+                    isPhoneVerified
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/15 active:scale-95"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  }`}
                 >
                   <FileText size={14} />
-                  <span>ثبت و ارسال به صف بررسی ادمین</span>
+                  <span>{isPhoneVerified ? "ثبت و ارسال به صف بررسی ادمین" : "تایید پیامکی شماره ضروری است"}</span>
                 </button>
               </div>
             </form>

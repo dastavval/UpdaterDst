@@ -271,7 +271,7 @@ export default function DynamicPresentation({
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       if (p.disabled) return false;
       const matchesCategory = isCategoryMatch(p, selectedCategory);
       const q = searchQuery.toLowerCase();
@@ -281,6 +281,14 @@ export default function DynamicPresentation({
         (p.tags && Array.isArray(p.tags) && p.tags.some(t => typeof t === 'string' && t.toLowerCase().includes(q))) ||
         (p.category && p.category.toLowerCase().includes(q));
       return matchesCategory && matchesSearch;
+    });
+
+    // Priority Sort: Special / Featured / Floor Market items ALWAYS COME FIRST
+    return list.sort((a, b) => {
+      const aIsSpecial = (a as any).isSpecial || a.isFeatured || (a as any).isFloorMarket || (a as any).isKafBazar ? 1 : 0;
+      const bIsSpecial = (b as any).isSpecial || b.isFeatured || (b as any).isFloorMarket || (b as any).isKafBazar ? 1 : 0;
+      if (aIsSpecial !== bIsSpecial) return bIsSpecial - aIsSpecial;
+      return 0;
     });
   }, [products, selectedCategory, searchQuery]);
 
@@ -1228,7 +1236,7 @@ export default function DynamicPresentation({
                 خرید عمده مستقیم از کارخانه
               </h2>
               <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-                تامین بی‌واسطه محصولات از خطوط تولید با قیمت مصوب
+                تامین مستقیم از خطوط تولید با قیمت مصوب
               </p>
             </div>
           </div>
@@ -1242,7 +1250,7 @@ export default function DynamicPresentation({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجوی هوشمند کالا، برند یا کارخانه..."
+              placeholder="جستجوی کالا، برند یا کارخانه..."
               className="w-full py-3 pr-10 pl-14 bg-white border border-slate-200 group-hover:border-emerald-300 focus:border-emerald-500 rounded-2xl text-xs font-bold outline-none text-slate-900 text-right shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] transition-all"
             />
             <div className="absolute inset-y-0 left-0 pl-2 flex items-center gap-1">

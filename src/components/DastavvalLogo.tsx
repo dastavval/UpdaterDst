@@ -1,4 +1,5 @@
 import React from 'react';
+import { getDisplayImageUrl } from '../lib/image-utils';
 
 interface DastavvalLogoProps {
   className?: string;
@@ -30,10 +31,10 @@ export default function DastavvalLogo({
       {isCustomLogo && !imgFailed ? (
         <div className="flex items-center justify-center shrink-0">
           <img
-            src={logoUrl}
+            src={getDisplayImageUrl(logoUrl)}
             alt="دست اول"
-            style={{ height: size, width: 'auto' }}
-            className="object-contain max-w-[160px] drop-shadow-sm mix-blend-multiply"
+            style={{ height: size, width: 'auto', maxWidth: size ? `${Math.round(size * 1.6)}px` : undefined }}
+            className="object-contain drop-shadow-sm"
             referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
           />

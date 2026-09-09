@@ -560,14 +560,20 @@ export default function AdminOrders({
                                   دیتای ناقص / خطا
                                 </span>
                               )}
-                            {o.type === "equipment" && (
-                              <span className="text-[9px] font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200 w-fit">
-                                خرید تجهیزات صنعتی
+                              {o.type === "equipment" && (
+                                <span className="text-[9px] font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200 w-fit">
+                                  خرید تجهیزات صنعتی
+                                </span>
+                              )}
+                              {o.isCatalogOrder && (
+                                <span className="text-[9px] font-black bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg border border-purple-200 w-fit flex items-center gap-1">
+                                  <ExternalLink size={10} />
+                                  ثبت از کاتالوگ الکترونیک
+                                </span>
+                              )}
+                              <span className="text-[11px] text-slate-500 font-bold">
+                                {toPersianNum(orderItems.length)} ردیف کالا ({toPersianNum(totalCartons)} کارتن)
                               </span>
-                            )}
-                            <span className="text-[11px] text-slate-500 font-bold">
-                              {toPersianNum(orderItems.length)} ردیف کالا ({toPersianNum(totalCartons)} کارتن)
-                            </span>
                           </div>
                         </td>
 
@@ -903,9 +909,19 @@ export default function AdminOrders({
                         )}
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-bold">وضعیت پرداخت:</span>
-                        <span className="font-black text-emerald-700">
-                          {selectedOrderDetail.paymentStatus === 'paid' ? 'تسویه کامل' : 'در انتظار پرداخت'}
+                        <span className="text-slate-500 font-bold">وضعیت تأدیه و تسویه:</span>
+                        <span className="font-black text-xs px-2 py-0.5 rounded-md border font-sans inline-block"
+                          style={{
+                            backgroundColor: selectedOrderDetail.paymentStatus === 'paid' ? '#ecfdf5' : selectedOrderDetail.paymentStatus === 'partial_paid' ? '#eff6ff' : selectedOrderDetail.paymentStatus === 'cheque' ? '#fdf4ff' : '#fffbeb',
+                            color: selectedOrderDetail.paymentStatus === 'paid' ? '#047857' : selectedOrderDetail.paymentStatus === 'partial_paid' ? '#1d4ed8' : selectedOrderDetail.paymentStatus === 'cheque' ? '#7e22ce' : '#b45309',
+                            borderColor: selectedOrderDetail.paymentStatus === 'paid' ? '#a7f3d0' : selectedOrderDetail.paymentStatus === 'partial_paid' ? '#bfdbfe' : selectedOrderDetail.paymentStatus === 'cheque' ? '#f5d0fe' : '#fde68a',
+                          }}
+                        >
+                          {selectedOrderDetail.paymentStatus === 'paid' ? '✔ تسویه کامل (نقدی)' : 
+                           selectedOrderDetail.paymentStatus === 'partial_paid' ? '💳 تأدیه ۵۰٪ (بیعانه امانی)' :
+                           selectedOrderDetail.paymentStatus === 'cheque' ? '📜 تسویه چکی (صیادی)' :
+                           selectedOrderDetail.paymentStatus === 'unpaid' ? '❌ پرداخت‌نشده / معوق' : 
+                           '⏳ در انتظار تأدیه و واریز'}
                         </span>
                       </div>
                     </div>
@@ -1235,15 +1251,17 @@ export default function AdminOrders({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">وضعیت پرداخت</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">وضعیت تأدیه و تسویه فاکتور</label>
                       <select
                         value={editPaymentStatus}
                         onChange={e => setEditPaymentStatus(e.target.value)}
                         className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-600 font-bold"
                       >
-                        <option value="pending">در انتظار پرداخت</option>
-                        <option value="paid">تسویه کامل</option>
-                        <option value="unpaid">پرداخت نشده / چک</option>
+                        <option value="pending">⏳ در انتظار تأدیه / واریز</option>
+                        <option value="paid">✔ تسویه کامل (نقدی)</option>
+                        <option value="partial_paid">💳 تأدیه ۵۰٪ (بیعانه امانی)</option>
+                        <option value="cheque">📜 تسویه چکی (صیادی)</option>
+                        <option value="unpaid">❌ عدم تأدیه / پرداخت نشده</option>
                       </select>
                     </div>
                   </div>

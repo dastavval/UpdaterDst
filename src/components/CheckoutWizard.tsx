@@ -20,7 +20,8 @@ import {
   Package, 
   UserCheck,
   Lock,
-  Ticket
+  Ticket,
+  ChevronDown
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from '../lib/data-layer';
 import { db } from '../lib/data-layer';
@@ -94,6 +95,11 @@ export default function CheckoutWizard({
   const [appliedCoupon, setAppliedCoupon] = useState<DiscountCoupon | null>(null);
   const [couponDiscountAmount, setCouponDiscountAmount] = useState<number>(0);
   const [couponMsg, setCouponMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [isCouponAccordionOpen, setIsCouponAccordionOpen] = useState(false);
+  const [isRepCodeAccordionOpen, setIsRepCodeAccordionOpen] = useState(false);
+  const [buyerInfoTab, setBuyerInfoTab] = useState<'quick' | 'otp'>('quick');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'cheque'>('cash');
+  const [chequeTerm, setChequeTerm] = useState<'none' | '1month' | '2month'>('none');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -281,7 +287,79 @@ export default function CheckoutWizard({
     }
   };
 
-  // Sync stored user if changes
+  // Quick register buyer info without requiring SMS wait
+  const handleQuickRegisterBuyer = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setInlineError('');
+    setInlineSuccess('');
+
+    const rawName = (buyerName || '').trim();
+    if (!rawName || rawName === 'خریدار محترم') {
+      setInlineError('لطفاً نام و نام خانوادگی خریدار را وارد فرمایید.');
+      return;
+    }
+
+    const targetPhone = (inlinePhone || buyerPhone || '').trim().replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]).replace(/[^0-9]/g, '');
+    if (!targetPhone || targetPhone.length < 10) {
+      setInlineError('لطفاً شماره تلفن همراه معتبر (مثلاً ۰۹۱۲۳۴۵۶۷۸۹) وارد فرمایید.');
+      return;
+    }
+
+    const rawAddress = (buyerAddress || '').trim();
+    if (!rawAddress) {
+      setInlineError('لطفاً شهر و آدرس تحویل یا باربری مقصد را مشخص فرمایید.');
+      return;
+    }
+
+    setInlineLoading(true);
+    try {
+      const fastUser: User = {
+        id: 'usr-' + targetPhone,
+        name: rawName,
+        phone: targetPhone,
+        mobile: targetPhone,
+        address: rawAddress,
+        role: 'customer',
+        badge: 'bronze'
+      };
+
+      saveUserSession(fastUser);
+      setBuyerPhone(targetPhone);
+      setBuyerName(rawName);
+      setBuyerAddress(rawAddress);
+      setTempVerifiedUser(fastUser);
+      if (onLogin) onLogin(fastUser);
+
+      try {
+        localStorage.setItem('dastavval_saved_buyer_name', rawName);
+        localStorage.setItem('dastavval_saved_buyer_phone', targetPhone);
+        localStorage.setItem('dastavval_saved_buyer_address', rawAddress);
+      } catch (err) {
+        // ignore
+      }
+
+      setInlineSuccess('مشخصات خریدار ثبت شد. اکنون پیش‌فاکتور شما آماده صدور است.');
+    } catch (err: any) {
+      setInlineError('خطا در ثبت مشخصات: ' + (err.message || 'نامشخص'));
+    } finally {
+      setInlineLoading(false);
+    }
+  };
+
+  // Sync stored user if changes or hydrate from localStorage
+  useEffect(() => {
+    try {
+      const savedName = localStorage.getItem('dastavval_saved_buyer_name');
+      const savedPhone = localStorage.getItem('dastavval_saved_buyer_phone');
+      const savedAddr = localStorage.getItem('dastavval_saved_buyer_address');
+      if (savedName && (!buyerName || buyerName === 'خریدار محترم')) setBuyerName(savedName);
+      if (savedPhone && !inlinePhone) setInlinePhone(savedPhone);
+      if (savedAddr && (!buyerAddress || buyerAddress.includes('ارسال باربری به استان'))) setBuyerAddress(savedAddr);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       if (user.name && (!buyerName || buyerName === 'خریدار محترم')) setBuyerName(user.name);
@@ -313,8 +391,12 @@ export default function CheckoutWizard({
   // Representative discount (3% if applied)
   const repDiscountAmount = appliedRepCode ? Math.round(totalAmount * 0.03) : 0;
 
+  const chequeSurcharge = paymentMethod === 'cheque'
+    ? (chequeTerm === '1month' ? Math.round(totalAmount * 0.06) : chequeTerm === '2month' ? Math.round(totalAmount * 0.12) : 0)
+    : 0;
+
   const totalDiscounts = tierDiscountAmount + cashDiscountAmount + repDiscountAmount + couponDiscountAmount;
-  const finalPayableAmount = Math.max(0, totalAmount - totalDiscounts);
+  const finalPayableAmount = Math.max(0, totalAmount + chequeSurcharge - totalDiscounts);
 
   // Apply Coupon Handler
   const handleApplyCoupon = (e?: React.FormEvent) => {
@@ -447,7 +529,9 @@ export default function CheckoutWizard({
         },
         couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         couponDiscount: couponDiscountAmount > 0 ? couponDiscountAmount : undefined,
-        paymentMethod: 'cash',
+        paymentMethod,
+        chequeTerm: paymentMethod === 'cheque' ? chequeTerm : undefined,
+        chequeSurcharge: paymentMethod === 'cheque' ? chequeSurcharge : undefined,
         status: 'pending',
         trackingNumber,
         cityAgency: cityAgency || null,
@@ -570,46 +654,92 @@ export default function CheckoutWizard({
                     </span>
                   </div>
 
-                  <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
                     {safeCart.map((item, idx) => (
                       <div 
                         key={`checkout-cart-item-${item.productId || idx}`}
-                        className="bg-white rounded-xl p-3 border border-slate-200/80 flex items-center justify-between gap-3 shadow-3xs"
+                        className="bg-white rounded-xl p-3 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-3xs"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-100 p-1 shrink-0 flex items-center justify-center">
+                        <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-100 p-1 shrink-0 flex items-center justify-center">
                             {item.image_url ? (
                               <img src={getDisplayImageUrl(item.image_url)} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
                             ) : (
                               <Package size={18} className="text-slate-300" />
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-black text-slate-900 truncate">{item.name}</h4>
-                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">
-                              فی کارتن: {Number(item.pricePerCarton).toLocaleString('fa-IR')} تومان
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-black text-slate-900 leading-snug break-words">
+                              {item.name}
+                            </h4>
+                            {(item as any).brand && (
+                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                برند: {(item as any).brand}
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-500 font-bold mt-1">
+                              <span className="text-emerald-700 font-black">
+                                فی: {Number(item.pricePerCarton).toLocaleString('fa-IR')} تومان
+                              </span>
+                              {(item as any).carton_pack_count && (
+                                <span className="text-slate-400">
+                                  ({toPersianNum((item as any).carton_pack_count)} عدد در کارتن)
+                                </span>
+                              )}
+                              <span className="text-slate-800 font-mono font-black">
+                                جمع: {(Number(item.pricePerCarton) * (item.quantityCartons || 5)).toLocaleString('fa-IR')} تومان
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        {/* Stepper */}
-                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-0.5 shrink-0">
+                        {/* Stepper with Direct Numeric Input & Delete Button */}
+                        <div className="flex items-center justify-between sm:justify-end gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => onUpdateQuantity(item.productId, item.quantityCartons + 1)}
+                              title="افزایش یک کارتن"
+                              className="w-7 h-7 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer"
+                            >
+                              <Plus size={14} />
+                            </button>
+                            <input
+                              type="number"
+                              min={5}
+                              value={item.quantityCartons || ''}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val) && val >= 5) {
+                                  onUpdateQuantity(item.productId, val);
+                                }
+                              }}
+                              className="w-11 text-center text-xs font-black font-mono text-slate-900 bg-white border border-slate-200/80 rounded px-1 py-0.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              title="تعداد کارتن (حداقل ۵ کارتن)"
+                            />
+                            <button
+                              type="button"
+                              disabled={item.quantityCartons <= 5}
+                              onClick={() => {
+                                if (item.quantityCartons > 5) {
+                                  onUpdateQuantity(item.productId, item.quantityCartons - 1);
+                                }
+                              }}
+                              title="کاهش یک کارتن (حداقل سفارش ۵ کارتن است)"
+                              className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-200 rounded-md transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Minus size={14} />
+                            </button>
+                          </div>
+
+                          {/* Dedicated Delete Button */}
                           <button
                             type="button"
-                            onClick={() => onUpdateQuantity(item.productId, item.quantityCartons + 1)}
-                            className="w-7 h-7 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer"
+                            onClick={() => onRemoveItem(item.productId)}
+                            title="حذف کامل این کالا از سبد خرید"
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-rose-500 hover:text-white hover:bg-rose-600 bg-rose-50 border border-rose-200 rounded-lg transition-all cursor-pointer shadow-3xs"
                           >
-                            <Plus size={14} />
-                          </button>
-                          <span className="w-8 text-center text-xs font-black font-mono text-slate-900">
-                            {item.quantityCartons}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => item.quantityCartons > 1 ? onUpdateQuantity(item.productId, item.quantityCartons - 1) : onRemoveItem(item.productId)}
-                            className="w-7 h-7 flex items-center justify-center text-rose-600 hover:bg-rose-100 rounded-md transition-colors cursor-pointer"
-                          >
-                            {item.quantityCartons === 1 ? <Trash2 size={13} /> : <Minus size={13} />}
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -634,18 +764,39 @@ export default function CheckoutWizard({
 
                   {!user ? (
                     <div className="bg-slate-50 border border-emerald-200 rounded-2xl p-4 space-y-3.5 shadow-2xs">
-                      {/* Header Notice */}
-                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                        <div className="flex items-center gap-1.5 text-emerald-950 font-black text-xs min-w-0">
-                          <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
-                          <span className="truncate">ورود سریع پیامکی (OTP)</span>
+                      {/* Smart Mode Switcher Tabs */}
+                      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80">
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => setBuyerInfoTab('quick')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                              buyerInfoTab === 'quick'
+                                ? 'bg-white text-emerald-900 shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            ثبت سریع مشخصات (فوری)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBuyerInfoTab('otp')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                              buyerInfoTab === 'otp'
+                                ? 'bg-white text-emerald-900 shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            ورود پیامکی (OTP)
+                          </button>
                         </div>
+
                         <button
                           type="button"
                           onClick={() => setShowAuthModal(true)}
                           className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer shrink-0 whitespace-nowrap"
                         >
-                          پنجره کامل
+                          ورود با رمز عبور
                         </button>
                       </div>
 
@@ -663,144 +814,212 @@ export default function CheckoutWizard({
                         </div>
                       )}
 
-                      {/* Step 1: Enter Phone Number */}
-                      {inlineStep === 'phone' && (
-                        <form onSubmit={handleInlineSendOtp} className="space-y-3">
-                          <div>
-                            <label className="block text-[11px] font-black text-slate-700 mb-1.5">
-                              شماره تلفن همراه شما:
-                            </label>
-                            <div className="flex items-center gap-2">
+                      {/* Option 1: Quick 1-Step Form (Fastest, No OTP Wait Needed) */}
+                      {buyerInfoTab === 'quick' && (
+                        <form onSubmit={handleQuickRegisterBuyer} className="space-y-3">
+                          <div className="p-2 bg-emerald-50/70 border border-emerald-200/60 rounded-xl text-[11px] text-emerald-900 font-bold leading-relaxed">
+                            جهت صدور رسمی پیش‌فاکتور و هماهنگی باربری، اطلاعات تحویل‌گیرنده را وارد فرمایید:
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                              <label className="block text-[11px] font-black text-slate-700 mb-1">
+                                نام و نام خانوادگی تحویل‌گیرنده: *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={buyerName}
+                                onChange={e => setBuyerName(e.target.value)}
+                                placeholder="مثلاً: احمد رضایی"
+                                className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none shadow-2xs"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-black text-slate-700 mb-1">
+                                شماره تلفن همراه خریدار: *
+                              </label>
                               <input
                                 type="tel"
+                                required
                                 value={inlinePhone}
                                 onChange={e => setInlinePhone(e.target.value)}
                                 placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                                 dir="ltr"
-                                autoFocus
-                                className="min-w-0 flex-1 bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-sm font-mono font-black text-slate-900 outline-none shadow-2xs text-left"
+                                className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-mono font-black text-slate-900 outline-none shadow-2xs text-left"
                               />
-                              <button
-                                type="submit"
-                                disabled={inlineLoading || !inlinePhone.trim()}
-                                className="px-3.5 sm:px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
-                              >
-                                {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={14} />}
-                                <span>ارسال کد پیامک</span>
-                              </button>
                             </div>
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-medium">
-                            کد تأیید ورود فوری به صورت پیامک رایگان به شماره همراه شما ارسال خواهد شد.
-                          </p>
-                        </form>
-                      )}
-
-                      {/* Step 2: Enter OTP Code */}
-                      {inlineStep === 'otp' && (
-                        <form onSubmit={handleInlineVerifyOtp} className="space-y-3">
-                          <div>
-                            <div className="flex justify-between items-center mb-1.5">
-                              <label className="text-[11px] font-black text-slate-700 truncate">
-                                کد ۵ رقمی پیامک‌شده به <span className="font-mono text-emerald-800" dir="ltr">{inlinePhone}</span>:
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => setInlineStep('phone')}
-                                className="text-[10px] text-slate-500 hover:text-slate-800 font-bold underline cursor-pointer shrink-0 whitespace-nowrap mr-1"
-                              >
-                                تغییر شماره
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="tel"
-                                maxLength={6}
-                                value={inlineCode}
-                                onChange={e => {
-                                  setInlineCode(e.target.value);
-                                  if (e.target.value.length === 5 || e.target.value === '3360') {
-                                    // auto trigger
-                                  }
-                                }}
-                                placeholder="کد ۵ رقمی"
-                                dir="ltr"
-                                autoFocus
-                                className="min-w-0 flex-1 bg-white border border-emerald-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-base font-mono font-black text-center text-slate-900 outline-none tracking-widest shadow-2xs"
-                              />
-                              <button
-                                type="submit"
-                                disabled={inlineLoading || !inlineCode.trim()}
-                                className="px-4 sm:px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
-                              >
-                                {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                                <span>تأیید و ورود</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                            <span>
-                              {inlineTimer > 0 ? (
-                                `ارسال مجدد تا ${inlineTimer} ثانیه دیگر`
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={handleInlineSendOtp}
-                                  className="text-emerald-700 hover:underline cursor-pointer"
-                                >
-                                  ارسال مجدد پیامک کد تأیید
-                                </button>
-                              )}
-                            </span>
-                          </div>
-                        </form>
-                      )}
-
-                      {/* Step 3: Complete Name and Address (Mandatory for Official Proforma) */}
-                      {inlineStep === 'profile' && (
-                        <form onSubmit={handleInlineSaveProfile} className="space-y-3">
-                          <div className="p-2 bg-emerald-100/60 rounded-xl text-[11px] font-black text-emerald-950">
-                            ✓ شماره شما تأیید شد. لطفاً نام و نشانی مقصد را جهت درج در پیش‌فاکتور تکمیل فرمایید:
                           </div>
 
                           <div>
                             <label className="block text-[11px] font-black text-slate-700 mb-1">
-                              نام و نام خانوادگی خریدار: *
+                              استان، شهر و نشانی مقصد یا باربری: *
                             </label>
                             <input
                               type="text"
                               required
-                              value={inlineName}
-                              onChange={e => setInlineName(e.target.value)}
-                              placeholder="مثلاً: علی رضایی"
-                              className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-black text-slate-700 mb-1">
-                              استان، شهر و نشانی تحویل باربری: *
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              value={inlineAddress}
-                              onChange={e => setInlineAddress(e.target.value)}
-                              placeholder="مثلاً: تبریز، خیابان آزادی، باربری وطن"
-                              className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                              value={buyerAddress}
+                              onChange={e => setBuyerAddress(e.target.value)}
+                              placeholder="مثلاً: تبریز، میدان ساعت، باربری وطن"
+                              className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none shadow-2xs"
                             />
                           </div>
 
                           <button
                             type="submit"
-                            disabled={inlineLoading || !inlineName.trim() || !inlineAddress.trim()}
-                            className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+                            disabled={inlineLoading || !buyerName.trim() || !inlinePhone.trim()}
+                            className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
                           >
                             {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
-                            <span>ثبت اطلاعات و فعال‌سازی صدور فاکتور</span>
+                            <span>ثبت مشخصات و فعال‌سازی صدور پیش‌فاکتور</span>
                           </button>
                         </form>
+                      )}
+
+                      {/* Option 2: OTP SMS Flow */}
+                      {buyerInfoTab === 'otp' && (
+                        <div>
+                          {/* Step 1: Enter Phone Number */}
+                          {inlineStep === 'phone' && (
+                            <form onSubmit={handleInlineSendOtp} className="space-y-3">
+                              <div>
+                                <label className="block text-[11px] font-black text-slate-700 mb-1.5">
+                                  شماره تلفن همراه شما:
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="tel"
+                                    value={inlinePhone}
+                                    onChange={e => setInlinePhone(e.target.value)}
+                                    placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                                    dir="ltr"
+                                    autoFocus
+                                    className="min-w-0 flex-1 bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-sm font-mono font-black text-slate-900 outline-none shadow-2xs text-left"
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={inlineLoading || !inlinePhone.trim()}
+                                    className="px-3.5 sm:px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
+                                  >
+                                    {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <Phone size={14} />}
+                                    <span>ارسال کد پیامک</span>
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-slate-500 font-medium">
+                                کد تأیید ورود فوری به صورت پیامک رایگان به شماره همراه شما ارسال خواهد شد.
+                              </p>
+                            </form>
+                          )}
+
+                          {/* Step 2: Enter OTP Code */}
+                          {inlineStep === 'otp' && (
+                            <form onSubmit={handleInlineVerifyOtp} className="space-y-3">
+                              <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                  <label className="text-[11px] font-black text-slate-700 truncate">
+                                    کد ۵ رقمی پیامک‌شده به <span className="font-mono text-emerald-800" dir="ltr">{inlinePhone}</span>:
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => setInlineStep('phone')}
+                                    className="text-[10px] text-slate-500 hover:text-slate-800 font-bold underline cursor-pointer shrink-0 whitespace-nowrap mr-1"
+                                  >
+                                    تغییر شماره
+                                  </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="tel"
+                                    maxLength={6}
+                                    value={inlineCode}
+                                    onChange={e => {
+                                      setInlineCode(e.target.value);
+                                      if (e.target.value.length === 5 || e.target.value === '3360') {
+                                        // auto trigger
+                                      }
+                                    }}
+                                    placeholder="کد ۵ رقمی"
+                                    dir="ltr"
+                                    autoFocus
+                                    className="min-w-0 flex-1 bg-white border border-emerald-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-base font-mono font-black text-center text-slate-900 outline-none tracking-widest shadow-2xs"
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={inlineLoading || !inlineCode.trim()}
+                                    className="px-4 sm:px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
+                                  >
+                                    {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                    <span>تأیید و ورود</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                                <span>
+                                  {inlineTimer > 0 ? (
+                                    `ارسال مجدد تا ${inlineTimer} ثانیه دیگر`
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={handleInlineSendOtp}
+                                      className="text-emerald-700 hover:underline cursor-pointer"
+                                    >
+                                      ارسال مجدد پیامک کد تأیید
+                                    </button>
+                                  )}
+                                </span>
+                              </div>
+                            </form>
+                          )}
+
+                          {/* Step 3: Complete Name and Address (Mandatory for Official Proforma) */}
+                          {inlineStep === 'profile' && (
+                            <form onSubmit={handleInlineSaveProfile} className="space-y-3">
+                              <div className="p-2 bg-emerald-100/60 rounded-xl text-[11px] font-black text-emerald-950">
+                                ✓ شماره شما تأیید شد. لطفاً نام و نشانی مقصد را جهت درج در پیش‌فاکتور تکمیل فرمایید:
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-black text-slate-700 mb-1">
+                                  نام و نام خانوادگی خریدار: *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={inlineName}
+                                  onChange={e => setInlineName(e.target.value)}
+                                  placeholder="مثلاً: علی رضایی"
+                                  className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-black text-slate-700 mb-1">
+                                  استان، شهر و نشانی تحویل باربری: *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={inlineAddress}
+                                  onChange={e => setInlineAddress(e.target.value)}
+                                  placeholder="مثلاً: تبریز، خیابان آزادی، باربری وطن"
+                                  className="w-full bg-white border border-slate-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                                />
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={inlineLoading || !inlineName.trim() || !inlineAddress.trim()}
+                                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
+                              >
+                                {inlineLoading ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                                <span>ثبت اطلاعات و فعال‌سازی صدور فاکتور</span>
+                              </button>
+                            </form>
+                          )}
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -848,78 +1067,195 @@ export default function CheckoutWizard({
                     </div>
                   )}
 
-                  {/* Discount Coupon Box */}
-                  <div className="pt-2 border-t border-slate-100 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
-                        <Ticket size={15} className="text-amber-600" />
-                        <span>کد تخفیف (کوپن):</span>
+                  {/* Payment Method Selector (Cash / Cheque) */}
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <label className="text-xs font-black text-slate-800 block">انتخاب روش تسویه و پرداخت فاکتور:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod('cash');
+                          setChequeTerm('none');
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                          paymentMethod === 'cash'
+                            ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/15 text-emerald-900'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-xs font-black">💵 تسویه نقدی درب کارخانه</span>
+                        <span className="text-[9px] font-bold opacity-85">قیمت کاتالوگ پایه</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod('cheque');
+                          setChequeTerm('1month');
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                          paymentMethod === 'cheque'
+                            ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/15 text-indigo-900'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-xs font-black">💳 خرید چکی (۵۰٪ نقد + چک)</span>
+                        <span className="text-[9px] font-bold opacity-85">صیادی بنفش مدت‌دار</span>
+                      </button>
+                    </div>
+
+                    {/* Cheque Terms Sub-options */}
+                    {paymentMethod === 'cheque' && (
+                      <div className="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-150 space-y-2" dir="rtl">
+                        <span className="text-[10px] font-black text-indigo-950 block">انتخاب مدت چک:</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setChequeTerm('1month')}
+                            className={`py-1.5 px-2 rounded-lg text-[10px] font-black text-center transition-all cursor-pointer ${
+                              chequeTerm === '1month'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
+                                : 'bg-white text-indigo-900 border border-indigo-200/60 hover:bg-indigo-100/50'
+                            }`}
+                          >
+                            چک ۱ ماهه مدت‌دار
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setChequeTerm('2month')}
+                            className={`py-1.5 px-2 rounded-lg text-[10px] font-black text-center transition-all cursor-pointer ${
+                              chequeTerm === '2month'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
+                                : 'bg-white text-indigo-900 border border-indigo-200/60 hover:bg-indigo-100/50'
+                            }`}
+                          >
+                            چک ۲ ماهه مدت‌دار
+                          </button>
+                        </div>
+                        <p className="text-[9px] font-bold text-indigo-700 leading-relaxed">
+                          * توجه داشته باشید که قیمت نقدی و چکی محصولات با یکدیگر متفاوت است.
+                        </p>
                       </div>
-                      {appliedCoupon && (
-                        <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                          {appliedCoupon.type === 'percentage' ? `${toPersianNum(appliedCoupon.value)}٪ تخفیف` : `${toPersianNum(couponDiscountAmount.toLocaleString())} تومان`}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={couponInput}
-                        onChange={e => setCouponInput(e.target.value.toUpperCase())}
-                        disabled={!!appliedCoupon}
-                        placeholder="مثال: WELCOME10 یا VIP500K"
-                        dir="ltr"
-                        className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-emerald-600 transition-colors uppercase disabled:bg-slate-100 disabled:text-slate-500"
-                      />
-                      {appliedCoupon ? (
-                        <button
-                          type="button"
-                          onClick={handleRemoveCoupon}
-                          className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-                        >
-                          حذف کوپن
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleApplyCoupon}
-                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
-                        >
-                          اعمال کوپن
-                        </button>
-                      )}
-                    </div>
-
-                    {couponMsg && (
-                      <p className={`text-[10.5px] font-black ${couponMsg.type === 'success' ? 'text-teal-700' : 'text-rose-600'}`}>
-                        {couponMsg.text}
-                      </p>
                     )}
                   </div>
 
-                  {/* Referral Code (Optional, Clean) */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={repCodeInput}
-                      onChange={e => setRepCodeInput(e.target.value)}
-                      placeholder="کد معرف / نماینده (اختیاری)"
-                      className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 transition-colors"
-                    />
+                  {/* Collapsible (کشویی) Discount Coupon Accordion */}
+                  <div className="pt-2 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={handleApplyRepCode}
-                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                      onClick={() => setIsCouponAccordionOpen(prev => !prev)}
+                      className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-all cursor-pointer border border-slate-200/70"
                     >
-                      اعمال کد
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                          <Ticket size={15} />
+                        </div>
+                        <span className="text-xs font-black text-slate-800">
+                          ثبت کد تخفیف (کوپن)
+                        </span>
+                        {appliedCoupon && (
+                          <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                            {appliedCoupon.type === 'percentage' ? `${toPersianNum(appliedCoupon.value)}٪ تخفیف فعال` : `${toPersianNum(couponDiscountAmount.toLocaleString())} تومان تخفیف`}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown
+                        size={16}
+                        className={`text-slate-500 transition-transform duration-200 ${isCouponAccordionOpen ? 'rotate-180' : ''}`}
+                      />
                     </button>
+
+                    {isCouponAccordionOpen && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-amber-50/40 border border-amber-200/60 space-y-2 animate-fade-in">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={couponInput}
+                            onChange={e => setCouponInput(e.target.value.toUpperCase())}
+                            disabled={!!appliedCoupon}
+                            placeholder="مثال: WELCOME10 یا VIP500K"
+                            dir="ltr"
+                            className="min-w-0 flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-black text-slate-900 outline-none focus:border-emerald-600 transition-colors uppercase disabled:bg-slate-100 disabled:text-slate-500 shadow-2xs"
+                          />
+                          {appliedCoupon ? (
+                            <button
+                              type="button"
+                              onClick={handleRemoveCoupon}
+                              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                            >
+                              حذف کوپن
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleApplyCoupon}
+                              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs active:scale-95"
+                            >
+                              اعمال کوپن
+                            </button>
+                          )}
+                        </div>
+
+                        {couponMsg && (
+                          <p className={`text-[10.5px] font-black ${couponMsg.type === 'success' ? 'text-teal-700' : 'text-rose-600'}`}>
+                            {couponMsg.text}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {repCodeMsg && (
-                    <p className={`text-[10px] font-bold ${repCodeMsg.type === 'success' ? 'text-emerald-700' : 'text-rose-600'}`}>
-                      {repCodeMsg.text}
-                    </p>
-                  )}
+
+                  {/* Collapsible (کشویی) Representative / Referral Code Accordion */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setIsRepCodeAccordionOpen(prev => !prev)}
+                      className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-all cursor-pointer border border-slate-200/70"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                          <Building2 size={15} />
+                        </div>
+                        <span className="text-xs font-black text-slate-800">
+                          کد معرف یا نمایندگی (اختیاری)
+                        </span>
+                        {appliedRepCode && (
+                          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            کد معرف فعال: {appliedRepCode}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown
+                        size={16}
+                        className={`text-slate-500 transition-transform duration-200 ${isRepCodeAccordionOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {isRepCodeAccordionOpen && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-emerald-50/40 border border-emerald-200/60 space-y-2 animate-fade-in">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={repCodeInput}
+                            onChange={e => setRepCodeInput(e.target.value)}
+                            placeholder="کد معرف / نماینده شما"
+                            className="min-w-0 flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 transition-colors shadow-2xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyRepCode}
+                            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs active:scale-95"
+                          >
+                            اعمال کد
+                          </button>
+                        </div>
+                        {repCodeMsg && (
+                          <p className={`text-[10px] font-bold ${repCodeMsg.type === 'success' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                            {repCodeMsg.text}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -934,8 +1270,8 @@ export default function CheckoutWizard({
 
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between items-center text-slate-600 font-bold">
-                      <span>مجموع کالاها ({totalCartons} کارتن):</span>
-                      <span className="font-mono text-slate-900">{totalAmount.toLocaleString('fa-IR')} تومان</span>
+                      <span>{paymentMethod === 'cheque' ? 'مجموع کالاها (با احتساب تعدیل مدت‌دار):' : `مجموع کالاها (${totalCartons} کارتن):`}</span>
+                      <span className="font-mono text-slate-900">{(totalAmount + chequeSurcharge).toLocaleString('fa-IR')} تومان</span>
                     </div>
 
                     {couponDiscountAmount > 0 && (
@@ -967,14 +1303,22 @@ export default function CheckoutWizard({
                 </div>
 
                 {/* Default Bank Card (Bank Mellat) */}
-                <div className="bg-white rounded-2xl border border-emerald-300 p-3 bg-emerald-50/40 text-[11px] space-y-1.5">
+                <div className="bg-white rounded-2xl border border-emerald-300 p-3 bg-emerald-50/40 text-[11px] space-y-1.5" dir="rtl">
                   <div className="flex items-center gap-1.5 font-black text-emerald-950">
                     <Building2 size={14} className="text-emerald-700" />
                     <span>حساب واریز: {defaultBank.bankName}</span>
                   </div>
-                  <div className="font-mono text-[11px] text-slate-800 flex justify-between pt-1 border-t border-emerald-200/60">
-                    <span>کارت: {toPersianNum(defaultBank.cardNumber)}</span>
-                    <span className="text-emerald-800 font-bold">({defaultBank.ownerName})</span>
+                  <div className="space-y-1 pt-1.5 border-t border-emerald-200/60 font-mono text-[11px] text-slate-800">
+                    <div className="flex justify-between items-center">
+                      <span>کارت: <span className="font-bold">{toPersianNum(defaultBank.cardNumber)}</span></span>
+                      <span className="text-emerald-800 font-black text-[10px] bg-emerald-100/50 px-1.5 py-0.5 rounded-md">({defaultBank.ownerName})</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>حساب: <span className="font-bold">{toPersianNum(defaultBank.accountNumber)}</span></span>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-900 font-bold">
+                      <span>شبا: <span className="font-sans font-black">{toPersianNum(defaultBank.shabaNumber)}</span></span>
+                    </div>
                   </div>
                 </div>
 

@@ -192,6 +192,20 @@ export default function AdminBrandsManagement({
     }
   };
 
+  const handleApproveBrand = async (brandId: string) => {
+    const updated = brands.map((b) => {
+      if (b.id === brandId) {
+        return {
+          ...b,
+          badge: "تولیدکننده رسمی",
+          status: "approved"
+        };
+      }
+      return b;
+    });
+    await handleSaveBrands(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -620,7 +634,17 @@ export default function AdminBrandsManagement({
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
+                        {((b as any).status === "pending" || (b as any).badge?.includes("انتظار")) && (
+                          <button
+                            type="button"
+                            onClick={() => handleApproveBrand(b.id)}
+                            className="px-2.5 py-1 text-[10px] font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all cursor-pointer shadow-xs whitespace-nowrap ml-1 shrink-0 animate-pulse"
+                            title="تایید و فعال‌سازی فوری برند"
+                          >
+                            ✓ تایید فوری
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleEdit(b)}

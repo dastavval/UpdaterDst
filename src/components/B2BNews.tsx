@@ -81,10 +81,10 @@ export default function B2BNews({
     }
   };
 
-  // Merge dynamic articles with static NEWS_DATA, ensuring unique IDs
+  // Merge dynamic articles with static NEWS_DATA, ensuring unique IDs and filtering published articles
   const ALL_NEWS = Array.from(
     new Map([...NEWS_DATA, ...articles].map(item => [item.id, item])).values()
-  );
+  ).filter((item: any) => item.published !== false && item.status !== 'draft');
 
   const filteredNews = newsFilter === "همه" 
     ? ALL_NEWS 
@@ -408,7 +408,7 @@ export default function B2BNews({
             {filteredNews.map((news, idx) => (
               <div 
                 key={`b2b-news-card-v2-${news.id || 'no-id'}-${idx}`}
-                onClick={() => setSelectedNews(news)}
+                onClick={() => window.dispatchEvent(new CustomEvent("view-article", { detail: { articleId: news.id } }))}
                 className="group cursor-pointer bg-white hover rounded-[2rem] p-4.5 border border-slate-200/60 hover transition-all flex flex-col justify-between h-full"
               >
                 <div className="space-y-3">

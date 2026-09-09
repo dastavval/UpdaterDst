@@ -38,7 +38,7 @@ export default function B2BFloatingActionBar({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-auto max-w-[95vw] px-2">
+    <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-auto max-w-[95vw] px-2">
       <AnimatePresence>
         {!isCollapsed ? (
           <motion.div

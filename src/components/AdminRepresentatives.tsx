@@ -5,7 +5,7 @@ import {
   Award, Check, Edit3, Trash2, X, Save, AlertCircle, Search,
   UserCheck, Link as LinkIcon, Copy, ExternalLink, ShieldCheck,
   CreditCard, Eye, FileText, Camera, CheckCircle2, Clock, RotateCcw,
-  Crown
+  Crown, Share2
 } from "lucide-react";
 import { db, doc, updateDoc, addDoc, collection, deleteDoc } from "../lib/data-layer";
 import { 
@@ -18,9 +18,12 @@ import {
 import { 
   calculateDealershipTier, 
   formatTomanCurrency, 
-  CityTierData 
+  CityTierData,
+  IRAN_PROVINCES_AND_CITIES,
+  getProvinceForCity
 } from "../utils/dealershipCityTiers";
 import { getApiUrl } from "../utils/api-utils";
+import RepresentativeShareLicenseModal from "./RepresentativeShareLicenseModal";
 
 interface AdminRepresentativesProps {
   representativesList: any[];
@@ -46,9 +49,12 @@ export default function AdminRepresentatives({
   // Local State
   const [showRepModal, setShowRepModal] = useState(false);
   const [editingRep, setEditingRep] = useState<any>(null);
+  const [shareModalRep, setShareModalRep] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [kycFilter, setKycFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
   const [tierFilter, setTierFilter] = useState<'all' | 'metropolis' | 'provincial' | 'small_town'>('all');
+  const [provinceFilter, setProvinceFilter] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
 
   // KYC Review Modal State
   const [selectedRepForKyc, setSelectedRepForKyc] = useState<any | null>(null);
@@ -63,7 +69,8 @@ export default function AdminRepresentatives({
   };
   
   // Form State
-  const [repCity, setRepCity] = useState("");
+  const [repProvince, setRepProvince] = useState("تهران");
+  const [repCity, setRepCity] = useState("تهران");
   const [repName, setRepName] = useState("");
   const [repPhone, setRepPhone] = useState("");
   const [repTel, setRepTel] = useState("");
@@ -73,6 +80,23 @@ export default function AdminRepresentatives({
   const [repAgencyCode, setRepAgencyCode] = useState("");
   const [repBrands, setRepBrands] = useState<string[]>([]);
   const [newRepBrandInput, setNewRepBrandInput] = useState("");
+
+  // Available cities for filter based on selected province filter
+  const filterCitiesList = useMemo(() => {
+    if (provinceFilter === "all") {
+      const allC = new Set<string>();
+      IRAN_PROVINCES_AND_CITIES.forEach(p => p.cities.forEach(c => allC.add(c)));
+      return Array.from(allC);
+    }
+    const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === provinceFilter);
+    return match ? match.cities : [];
+  }, [provinceFilter]);
+
+  // Available cities for form based on repProvince
+  const formCitiesList = useMemo(() => {
+    const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === repProvince);
+    return match ? match.cities : [repCity || "تهران"];
+  }, [repProvince, repCity]);
 
   // Registered Site Users
   const siteUsers = useMemo<any[]>(() => {
@@ -137,7 +161,9 @@ export default function AdminRepresentatives({
   const handleOpenRepModal = (rep?: any) => {
     if (rep) {
       setEditingRep(rep);
-      setRepCity(rep.city || "");
+      const foundProv = getProvinceForCity(rep.city, rep.province) || rep.province || "تهران";
+      setRepProvince(foundProv);
+      setRepCity(rep.city || "تهران");
       setRepName(rep.name || "");
       setRepPhone(rep.phone || "");
       setRepTel(rep.tel || "");
@@ -148,7 +174,8 @@ export default function AdminRepresentatives({
       setRepBrands(Array.isArray(rep.brands) ? rep.brands : (typeof rep.brands === 'string' ? rep.brands.split(',').map((s: string) => s.trim()).filter(Boolean) : []));
     } else {
       setEditingRep(null);
-      setRepCity("");
+      setRepProvince("تهران");
+      setRepCity("تهران");
       setRepName("");
       setRepPhone("");
       setRepTel("");
@@ -163,16 +190,18 @@ export default function AdminRepresentatives({
   };
 
   const handleSaveRepresentative = async () => {
-    if (!repCity || !repName || !repPhone) {
-      setErrorMsg("لطفاً شهر، نام و موبایل نماینده را وارد کنید.");
+    if (!repProvince || !repCity || !repName || !repPhone) {
+      setErrorMsg("لطفاً استان، شهر، نام و موبایل نماینده را تکمیل کنید.");
       return;
     }
 
     setLoading(true);
     try {
       const generatedAgencyCode = repAgencyCode || (editingRep?.agencyCode) || `AGN-1405-${Math.floor(1000 + Math.random() * 9000)}`;
+      const resolvedProvince = getProvinceForCity(repCity, repProvince) || repProvince;
       const payload = {
         id: editingRep?.id || `REP-${Date.now()}`,
+        province: resolvedProvince,
         city: repCity,
         name: repName,
         phone: repPhone,
@@ -226,6 +255,7 @@ export default function AdminRepresentatives({
               agencyApproved: repIsApproved,
               agencyCode: generatedAgencyCode,
               city: repCity || u.city,
+              province: resolvedProvince || u.province,
               address: repAddress || u.address
             };
             userUpdated = true;
@@ -354,6 +384,82 @@ export default function AdminRepresentatives({
     setTimeout(() => setSuccessMsg(null), 5000);
   };
 
+  // ⚡ Refresh Single Representative (بروزرسانی نماینده)
+  const handleBumpRep = async (rep: any) => {
+    setLoading(true);
+    try {
+      const nowStr = new Date().toISOString();
+      try {
+        await updateDoc(doc(db, "representatives", rep.id), {
+          updatedAt: nowStr,
+          lastActiveAt: nowStr,
+          bumpedAt: nowStr
+        });
+      } catch (e) {}
+
+      try {
+        const savedReps = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+        const idx = savedReps.findIndex((r: any) => r.id === rep.id || r.agencyCode === rep.agencyCode || r.phone === rep.phone);
+        if (idx >= 0) {
+          savedReps[idx] = { ...savedReps[idx], updatedAt: nowStr, bumpedAt: nowStr };
+          localStorage.setItem("dastavval_representatives", JSON.stringify(savedReps));
+        }
+      } catch (e) {}
+
+      setSuccessMsg(`⚡ اطلاعات دفتر نمایندگی «${rep.name || rep.agencyCode}» با موفقیت بروزرسانی زنده شد.`);
+      if (onUpdateReps) await onUpdateReps();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در بروزرسانی نماینده: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ⚡ Refresh All Representatives (بروزرسانی همگانی نمایندگان)
+  const handleBumpAllReps = async () => {
+    setLoading(true);
+    try {
+      const nowStr = new Date().toISOString();
+      try {
+        const savedReps = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
+        const updated = savedReps.map((r: any) => ({ ...r, updatedAt: nowStr, bumpedAt: nowStr }));
+        localStorage.setItem("dastavval_representatives", JSON.stringify(updated));
+      } catch (e) {}
+
+      setSuccessMsg(`⚡ تمام نمایندگان سراسری با موفقیت بروزرسانی زنده شدند.`);
+      if (onUpdateReps) await onUpdateReps();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در بروزرسانی همگانی نمایندگان: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Bulk Approve Pending Representatives (تایید دسته جمعی نمایندگان)
+  const handleBulkApprovePendingReps = async () => {
+    const pendingList = (representativesList || []).filter(r => !r.isApproved);
+    if (pendingList.length === 0) {
+      setSuccessMsg("هیچ نماینده جدیدی در صف بررسی وجود ندارد.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      for (const rep of pendingList) {
+        await handleFastApproveRep(rep);
+      }
+      setSuccessMsg(`✅ تعداد ${pendingList.length} نماینده در انتظار با موفقیت تایید و فعال شدند.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در تایید دسته‌جمعی نمایندگان: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddRepBrand = () => {
     if (!newRepBrandInput.trim()) return;
     if (repBrands.includes(newRepBrandInput.trim())) {
@@ -381,18 +487,36 @@ export default function AdminRepresentatives({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleBumpAllReps}
+            className="px-4 py-2.5 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 active:scale-95"
+            title="بروزرسانی زنده تمام نمایندگان در لیست"
+          >
+            <RotateCcw size={15} className="text-purple-600" />
+            <span>⚡ بروزرسانی همگانی</span>
+          </button>
+
+          <button
+            onClick={handleBulkApprovePendingReps}
+            className="px-4 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 active:scale-95"
+            title="تایید یک‌باره کلیه درخواست‌های جدید نمایندگی"
+          >
+            <CheckCircle2 size={15} className="text-emerald-600" />
+            <span>✅ تایید دسته‌جمعی</span>
+          </button>
+
           <button
             onClick={handleAuditReps}
-            className="px-5 py-3 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-amber-900 text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 border border-emerald-200"
+            className="px-4 py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 border border-amber-200"
           >
-            <ShieldAlert size={16} />
-            <span>حسابرسی ۳ ماهه خریدها</span>
+            <ShieldAlert size={15} className="text-amber-600" />
+            <span>حسابرسی ۳ ماهه</span>
           </button>
 
           <button
             onClick={() => handleOpenRepModal()}
-            className="px-5 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-600/20 cursor-pointer shrink-0"
+            className="px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-600/20 cursor-pointer shrink-0 active:scale-95"
           >
             <Plus size={16} />
             <span>افزودن نماینده جدید</span>
@@ -400,92 +524,96 @@ export default function AdminRepresentatives({
         </div>
       </div>
 
-      {/* Fair Distribution Quota Banner */}
-      <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-indigo-950 text-white p-5 rounded-3xl border border-teal-800/50 shadow-md space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-400/30">
+
+
+      {/* Fair Distribution Quota Banner - Pure Glossy White */}
+      <div className="bg-white text-slate-900 p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4 relative overflow-hidden">
+        <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-2xl bg-slate-50 text-emerald-600 border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs">
               <ShieldAlert size={20} />
             </span>
             <div>
-              <h4 className="text-sm font-black text-white flex items-center gap-2">
+              <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <span>قانون توزیع عادلانه کالا بر اساس رتبه‌بندی و جمعیت شهری</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black">
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-50 text-emerald-700 font-black border border-slate-200">
                   مصوبه صیانت بازار
                 </span>
               </h4>
-              <p className="text-[11px] text-teal-200/80 font-bold mt-0.5">
+              <p className="text-[11px] text-slate-500 font-bold mt-0.5">
                 تخصیص سهمیه ماهانه خریداران متناسب با کشش بازار و جمعیت شهر جهت جلوگیری از انحصار، احتکار و انباشت غیرعادلانه.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 text-xs pt-1">
-          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-[10px] text-teal-300 font-black block">🏛️ کلان‌شهرها (سطح ۱)</span>
-            <span className="font-mono font-black text-white text-[11px] mt-0.5 block">سقف: ۲.۵ میلیارد تومان</span>
-            <span className="text-[9px] text-slate-300 font-bold block mt-0.5">۱,۰۰۰ تا ۳,۰۰۰ کارتن (پهنه‌بندی ۵ گانه)</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs pt-1">
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-1">
+            <span className="text-[11px] text-emerald-700 font-black block">🏛️ کلان‌شهرها (سطح ۱)</span>
+            <span className="font-mono font-black text-slate-900 text-xs mt-0.5 block">سقف: ۲.۵ میلیارد تومان</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-0.5">۱,۰۰۰ تا ۳,۰۰۰ کارتن (پهنه‌بندی ۵ گانه)</span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-[10px] text-teal-300 font-black block">🏢 مراکز استان (سطح ۲)</span>
-            <span className="font-mono font-black text-white text-[11px] mt-0.5 block">سقف: ۸۵۰ میلیون تومان</span>
-            <span className="text-[9px] text-slate-300 font-bold block mt-0.5">۳۰۰ تا ۸۰۰ کارتن</span>
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-1">
+            <span className="text-[11px] text-emerald-700 font-black block">🏢 مراکز استان (سطح ۲)</span>
+            <span className="font-mono font-black text-slate-900 text-xs mt-0.5 block">سقف: ۸۵۰ میلیون تومان</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-0.5">۳۰۰ تا ۸۰۰ کارتن</span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-[10px] text-teal-300 font-black block">🏙️ شهرهای متوسط (سطح ۳)</span>
-            <span className="font-mono font-black text-white text-[11px] mt-0.5 block">سقف: ۱۸۰ میلیون تومان</span>
-            <span className="text-[9px] text-slate-300 font-bold block mt-0.5">۵۰ تا ۱۵۰ کارتن</span>
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-1">
+            <span className="text-[11px] text-emerald-700 font-black block">🏙️ شهرهای متوسط (سطح ۳)</span>
+            <span className="font-mono font-black text-slate-900 text-xs mt-0.5 block">سقف: ۱۸۰ میلیون تومان</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-0.5">۵۰ تا ۱۵۰ کارتن</span>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 bg-amber-500/10 border-amber-500/20">
-            <span className="text-[10px] text-amber-300 font-black block">🏡 شهرهای کوچک (سطح ۴)</span>
-            <span className="font-mono font-black text-amber-200 text-[11px] mt-0.5 block">سقف محدود: ۸۰ میلیون تومان</span>
-            <span className="text-[9px] text-amber-100/70 font-bold block mt-0.5">۲۰ تا ۵۰ کارتن (توزیع عادلانه)</span>
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-1">
+            <span className="text-[11px] text-emerald-700 font-black block">🏡 شهرهای کوچک (سطح ۴)</span>
+            <span className="font-mono font-black text-slate-900 text-xs mt-0.5 block">سقف محدود: ۸۰ میلیون تومان</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-0.5">۲۰ تا ۵۰ کارتن (توزیع عادلانه)</span>
           </div>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* KYC Status Filter Buttons */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
             <button
               onClick={() => setKycFilter('all')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap border ${
                 kycFilter === 'all'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
               }`}
             >
               همه ({representativesList.length})
             </button>
             <button
               onClick={() => setKycFilter('pending')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 border ${
                 kycFilter === 'pending'
-                  ? 'bg-emerald-500 text-white shadow-xs'
-                  : 'bg-emerald-50 text-amber-800 hover:bg-emerald-100'
+                  ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
               }`}
             >
-              <Clock size={13} />
-              <span>در انتظار تأیید کارت ملی ({representativesList.filter(r => {
+              <Clock size={13} className="text-emerald-600" />
+              <span>در انتظار تأیید مدارک هویت ({representativesList.filter(r => {
                 const k = getRepresentativeKyc(r.phone || r.agencyCode || r.id);
                 return k?.status === 'pending';
               }).length})</span>
             </button>
             <button
               onClick={() => setKycFilter('verified')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 border ${
                 kycFilter === 'verified'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-100'
+                  ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
               }`}
             >
-              <ShieldCheck size={13} />
+              <ShieldCheck size={13} className="text-emerald-600" />
               <span>احراز هویت شده ({representativesList.filter(r => {
                 const k = getRepresentativeKyc(r.phone || r.agencyCode || r.id);
                 return k?.status === 'verified' || r.isRepresentativeApproved;
@@ -493,13 +621,13 @@ export default function AdminRepresentatives({
             </button>
             <button
               onClick={() => setKycFilter('rejected')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 border ${
                 kycFilter === 'rejected'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-emerald-50 text-rose-800 hover:bg-emerald-100'
+                  ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
               }`}
             >
-              <AlertCircle size={13} />
+              <AlertCircle size={13} className="text-rose-600" />
               <span>رد شده ({representativesList.filter(r => {
                 const k = getRepresentativeKyc(r.phone || r.agencyCode || r.id);
                 return k?.status === 'rejected';
@@ -507,15 +635,43 @@ export default function AdminRepresentatives({
             </button>
           </div>
 
+          {/* Province and City Filter Selects */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <select
+              value={provinceFilter}
+              onChange={(e) => {
+                setProvinceFilter(e.target.value);
+                setCityFilter("all");
+              }}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-emerald-500 outline-hidden cursor-pointer"
+            >
+              <option value="all">همه استان‌ها (۳۱ استان)</option>
+              {IRAN_PROVINCES_AND_CITIES.map((p, pIdx) => (
+                <option key={`rep-filter-prov-${p.province}-${pIdx}`} value={p.province}>{p.province}</option>
+              ))}
+            </select>
+
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-emerald-500 outline-hidden cursor-pointer"
+            >
+              <option value="all">{provinceFilter === "all" ? "همه شهرستان‌ها" : `همه شهرهای ${provinceFilter}`}</option>
+              {filterCitiesList.map((c, cIdx) => (
+                <option key={`rep-filter-city-${c}-${cIdx}`} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Search Input */}
-          <div className="relative min-w-[240px]">
+          <div className="relative min-w-[220px]">
             <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="جستجو در نام، تلفن، شهر، کد..."
-              className="w-full pr-10 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-teal-500 outline-none"
+              className="w-full pr-10 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-emerald-500 outline-hidden"
             />
           </div>
         </div>
@@ -525,32 +681,40 @@ export default function AdminRepresentatives({
           <span className="text-[11px] text-slate-400 font-bold shrink-0">فیلتر سقف خرید شهری:</span>
           <button
             onClick={() => setTierFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all ${
-              tierFilter === 'all' ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all border ${
+              tierFilter === 'all' 
+                ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs' 
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
             }`}
           >
             همه سطوح
           </button>
           <button
             onClick={() => setTierFilter('metropolis')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all flex items-center gap-1 ${
-              tierFilter === 'metropolis' ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all flex items-center gap-1 border ${
+              tierFilter === 'metropolis' 
+                ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs' 
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
             }`}
           >
             <span>🏛️ کلان‌شهرها (سقف ۲.۵ میلیارد تومان)</span>
           </button>
           <button
             onClick={() => setTierFilter('provincial')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all flex items-center gap-1 ${
-              tierFilter === 'provincial' ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all flex items-center gap-1 border ${
+              tierFilter === 'provincial' 
+                ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs' 
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
             }`}
           >
             <span>🏢 مراکز استان (سقف ۸۵۰ میلیون تومان)</span>
           </button>
           <button
             onClick={() => setTierFilter('small_town')}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all flex items-center gap-1 ${
-              tierFilter === 'small_town' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black cursor-pointer transition-all flex items-center gap-1 border ${
+              tierFilter === 'small_town' 
+                ? 'bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs' 
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
             }`}
           >
             <span>🏡 شهرهای کوچک و متوسط (سقف محدود)</span>
@@ -568,6 +732,14 @@ export default function AdminRepresentatives({
             if (kycFilter === 'verified' && status !== 'verified') return false;
             if (kycFilter === 'rejected' && status !== 'rejected') return false;
 
+            const matchesProvince = provinceFilter === "all" ||
+              rep.province === provinceFilter ||
+              (!rep.province && IRAN_PROVINCES_AND_CITIES.find(p => p.province === provinceFilter)?.cities.includes(rep.city || ""));
+            if (!matchesProvince) return false;
+
+            const matchesCity = cityFilter === "all" || rep.city === cityFilter;
+            if (!matchesCity) return false;
+
             const tierData = calculateDealershipTier(rep.city || "", rep.province);
             if (tierFilter === 'metropolis' && tierData.tier !== 1) return false;
             if (tierFilter === 'provincial' && tierData.tier !== 2) return false;
@@ -578,8 +750,9 @@ export default function AdminRepresentatives({
               const nameMatch = (rep.name || "").toLowerCase().includes(q);
               const phoneMatch = (rep.phone || "").toLowerCase().includes(q);
               const cityMatch = (rep.city || "").toLowerCase().includes(q);
+              const provMatch = (rep.province || "").toLowerCase().includes(q);
               const codeMatch = (rep.agencyCode || "").toLowerCase().includes(q);
-              return nameMatch || phoneMatch || cityMatch || codeMatch;
+              return nameMatch || phoneMatch || cityMatch || provMatch || codeMatch;
             }
             return true;
           })
@@ -779,15 +952,36 @@ export default function AdminRepresentatives({
                 </div>
 
                 <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 gap-2">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* ⚡ Refresh Representative Button */}
+                    <button
+                      onClick={() => handleBumpRep(rep)}
+                      className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                      title="بروزرسانی زنده اطلاعات این نماینده"
+                    >
+                      <RotateCcw size={12} className="text-purple-600" />
+                      <span>بروزرسانی</span>
+                    </button>
+
                     {rep.isApproved !== false ? (
-                      <button
-                        onClick={() => setSelectedRepForCertificate(rep)}
-                        className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
-                      >
-                        <Award size={13} />
-                        <span>برگه نمایندگی</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setSelectedRepForCertificate(rep)}
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <Award size={13} />
+                          <span>برگه نمایندگی</span>
+                        </button>
+
+                        <button
+                          onClick={() => setShareModalRep(rep)}
+                          className="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                          title="اشتراک‌گذاری پروانه عاملیت در تلگرام و واتساپ"
+                        >
+                          <Share2 size={12} className="text-teal-600" />
+                          <span>اشتراک‌گذاری پروانه</span>
+                        </button>
+                      </>
                     ) : (
                       <button
                         onClick={() => handleFastApproveRep(rep)}
@@ -895,7 +1089,7 @@ export default function AdminRepresentatives({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="block text-[11px] font-black text-slate-500 mr-2 uppercase tracking-wider">نام کامل نماینده / شرکت</label>
                     <div className="relative">
@@ -905,31 +1099,56 @@ export default function AdminRepresentatives({
                         value={repName}
                         onChange={(e) => setRepName(e.target.value)}
                         placeholder="مثال: بازرگانی محمدی"
-                        className="w-full pr-11 pl-4 py-3.5 bg-slate-50 border-none rounded-2xl text-xs font-black focus:ring-2 focus:ring-teal-500/20 transition-all outline-none"
+                        className="w-full pr-11 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-black focus:ring-2 focus:ring-teal-500/20 transition-all outline-none"
                       />
                     </div>
                   </div>
 
+                  {/* Province Select */}
                   <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black text-slate-500 mr-2 uppercase tracking-wider">شهر محل فعالیت</label>
+                    <label className="block text-[11px] font-black text-slate-500 mr-2 uppercase tracking-wider">استان محل فعالیت</label>
                     <div className="relative">
-                      <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input
-                        type="text"
-                        value={repCity}
+                      <select
+                        value={repProvince}
+                        onChange={(e) => {
+                          const newProv = e.target.value;
+                          setRepProvince(newProv);
+                          const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === newProv);
+                          if (match && match.cities.length > 0) {
+                            setRepCity(match.capital || match.cities[0]);
+                          }
+                        }}
+                        className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-black focus:ring-2 focus:ring-teal-500/20 transition-all outline-none cursor-pointer"
+                      >
+                        {IRAN_PROVINCES_AND_CITIES.map((p, pIdx) => (
+                          <option key={`rep-modal-prov-${p.province}-${pIdx}`} value={p.province}>{p.province}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* City Select */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-black text-slate-500 mr-2 uppercase tracking-wider">شهرستان / مرکز توزیع</label>
+                    <div className="relative">
+                      <select
+                        value={formCitiesList.includes(repCity) ? repCity : (formCitiesList[0] || repCity)}
                         onChange={(e) => setRepCity(e.target.value)}
-                        placeholder="مثال: تهران / اصفهان"
-                        className="w-full pr-11 pl-4 py-3.5 bg-slate-50 border-none rounded-2xl text-xs font-black focus:ring-2 focus:ring-teal-500/20 transition-all outline-none"
-                      />
+                        className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-black focus:ring-2 focus:ring-teal-500/20 transition-all outline-none cursor-pointer"
+                      >
+                        {formCitiesList.map((c, cIdx) => (
+                          <option key={`rep-modal-city-${c}-${cIdx}`} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
                   {/* Dynamic Fair Distribution Quota Calculator Card for Modal */}
                   {repCity && (
                     (() => {
-                      const modalTier = calculateDealershipTier(repCity);
+                      const modalTier = calculateDealershipTier(repCity, repProvince);
                       return (
-                        <div className={`col-span-1 md:col-span-2 p-4 rounded-2xl border space-y-2 text-xs transition-all ${
+                        <div className={`col-span-1 md:col-span-3 p-4 rounded-2xl border space-y-2 text-xs transition-all ${
                           modalTier.tier === 1 
                             ? 'bg-teal-50/80 border-teal-200 text-teal-950' 
                             : modalTier.tier === 2
@@ -1131,13 +1350,28 @@ export default function AdminRepresentatives({
               </div>
 
               {/* Footer */}
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  onClick={() => setShowRepModal(false)}
-                  className="px-6 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-slate-100 transition-all cursor-pointer"
-                >
-                  انصراف
-                </button>
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowRepModal(false)}
+                    className="px-6 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-black hover:bg-slate-100 transition-all cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+
+                  {editingRep && (
+                    <button
+                      type="button"
+                      onClick={() => setShareModalRep(editingRep)}
+                      className="px-4 py-3 rounded-2xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-black flex items-center gap-2 transition-all cursor-pointer"
+                      title="اشتراک‌گذاری پروانه عاملیت در تلگرام و واتساپ"
+                    >
+                      <Share2 size={16} className="text-teal-600" />
+                      <span>اشتراک‌گذاری پروانه عاملیت</span>
+                    </button>
+                  )}
+                </div>
+
                 <button
                   onClick={handleSaveRepresentative}
                   className="px-8 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black flex items-center gap-2 transition-all shadow-lg shadow-teal-600/20 cursor-pointer active:scale-95"
@@ -1441,6 +1675,13 @@ export default function AdminRepresentatives({
           </div>
         </div>
       )}
+
+      {/* Representative Share License / Agency Certificate Modal */}
+      <RepresentativeShareLicenseModal
+        rep={shareModalRep}
+        isOpen={!!shareModalRep}
+        onClose={() => setShareModalRep(null)}
+      />
     </div>
   );
 }

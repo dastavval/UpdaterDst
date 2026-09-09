@@ -1,5 +1,5 @@
-import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft, RefreshCw, Flame, ArrowLeftRight, Repeat, ExternalLink } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ShoppingCart, User, Search, Package, Menu, Presentation, Building2, LogOut, ShieldAlert, Sun, Moon, Globe, Award, Sparkles, X, ShoppingBag, Wand2, Compass, BookOpen, Truck, FileText, Download, Factory, ShieldCheck, MessageSquare, Home, Newspaper, GraduationCap, Headphones, Info, PhoneCall, Megaphone, TrendingDown, Lightbulb, Pin, MapPin, CheckCircle2, ChevronLeft, ChevronDown, RefreshCw, Flame, ArrowLeftRight, Repeat, ExternalLink } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { translations, Language } from "../lib/translations";
 import DastavvalLogo from "./DastavvalLogo";
@@ -13,7 +13,7 @@ interface NavbarProps {
   onSearchChange: (query: string) => void;
   appMode: 'presentation' | 'portal';
   onModeChange: (mode: 'presentation' | 'portal') => void;
-  user: { name: string; email: string; role: 'customer' | 'agent' | 'marketer' | 'factory' | 'importer' | 'supplier' | 'representative' | 'leader' | 'admin' | 'user' | 'ad_poster'; company?: string; phone?: string; mobile?: string } | null;
+  user: { name: string; email: string; role: 'customer' | 'agent' | 'marketer' | 'factory' | 'importer' | 'supplier' | 'representative' | 'leader' | 'admin' | 'user' | 'ad_poster'; company?: string; phone?: string; mobile?: string; city?: string; province?: string } | null;
   onAuthClick: () => void;
   onLogout: () => void;
   language: Language;
@@ -108,10 +108,27 @@ export default function Navbar({
   const t = translations[language] || translations.fa;
   const isRtl = language === "fa" || language === "ar";
 
-  const [localCity, setLocalCity] = useState(() => localStorage.getItem("dastavval_user_city") || "تبریز");
+  const [localCity, setLocalCity] = useState(() => localStorage.getItem("dastavval_user_city") || "تهران");
   const selectedCity = propSelectedCity || localCity;
-  const [activeProvince, setActiveProvince] = useState(() => localStorage.getItem("dastavval_user_province") || "آذربایجان شرقی");
+  const [activeProvince, setActiveProvince] = useState(() => localStorage.getItem("dastavval_user_province") || "تهران");
   const [showCityModal, setShowCityModal] = useState(false);
+
+  // Sync city/province with user profile if logged in
+  useEffect(() => {
+    if (user && user.city) {
+      setLocalCity(user.city);
+      if (user.province) {
+        setActiveProvince(user.province);
+      }
+    }
+  }, [user]);
+
+  // Sync with prop changes
+  useEffect(() => {
+    if (propSelectedCity) {
+      setLocalCity(propSelectedCity);
+    }
+  }, [propSelectedCity]);
 
   const PROVINCE_CITIES_MAP = [
     { province: "تهران", cities: ["تهران", "شهریار", "اسلامشهر", "ملارد", "قدس", "پاکدشت", "ری", "ورامین", "قرچک", "اندیشه", "رباط‌کریم", "بومهن", "پردیس", "دماوند", "فیروزکوه"] },
@@ -247,6 +264,19 @@ export default function Navbar({
   };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [mascotFailed, setMascotFailed] = useState(false);
@@ -478,17 +508,17 @@ export default function Navbar({
               </button>
             </div>
 
-            {/* Desktop Center Navigation Links - Sophisticated Dock */}
-            <div className="hidden lg:flex items-center justify-center gap-1.5 flex-1 max-w-2xl mx-4 bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100/50">
+            {/* Desktop Center Navigation Links - Refined & 100% Responsive Single-Row Dock */}
+            <div className="hidden lg:flex items-center justify-center gap-1.5 flex-1 max-w-2xl mx-3 bg-slate-50/80 p-1 rounded-2xl border border-slate-200/60 shadow-2xs">
               <button
                 onClick={() => {
                   onModeChange('presentation');
                   setActiveTab?.('presentation');
                 }}
-                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'presentation'
-                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    ? "bg-white text-emerald-700 shadow-sm border border-slate-200 scale-[1.02]"
+                    : "text-slate-600 hover:text-slate-950 hover:bg-white/60"
                 }`}
               >
                 <Home size={15} />
@@ -500,10 +530,10 @@ export default function Navbar({
                   onModeChange('portal');
                   setActiveTab?.('order');
                 }}
-                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'order'
-                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    ? "bg-white text-emerald-700 shadow-sm border border-slate-200 scale-[1.02]"
+                    : "text-slate-600 hover:text-slate-950 hover:bg-white/60"
                 }`}
               >
                 <ShoppingBag size={15} />
@@ -514,55 +544,16 @@ export default function Navbar({
                 onClick={() => {
                   setActiveTab?.('billboard');
                 }}
-                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-200 cursor-pointer flex items-center gap-2 group overflow-hidden border whitespace-nowrap ${
+                className={`relative px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 whitespace-nowrap border ${
                   activeTab === 'billboard'
-                    ? "bg-amber-400 text-slate-950 shadow-md shadow-emerald-500/20 border-emerald-500 ring-1 ring-emerald-500/30"
-                    : "bg-emerald-50/70 text-amber-950 border-emerald-200/80 hover:bg-emerald-100 hover:border-amber-300"
+                    ? "bg-amber-400 text-slate-950 shadow-sm border-amber-500 ring-1 ring-amber-400/40"
+                    : "bg-emerald-50/70 text-emerald-950 border-emerald-200/70 hover:bg-emerald-100/80"
                 }`}
               >
-                {/* Micro pulsating light to make it look extra alive & special */}
-                <span className="absolute top-1 right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-                </span>
-
-                <SpecialPriceBagIcon 
-                  size={18} 
-                  animated={true} 
-                  className="text-slate-950 drop-shadow-xs" 
-                />
-                <span className="relative z-10 flex items-center gap-1.5">
-                  <span className="tracking-tight">کفِ بازار</span>
-                  <span className="hidden xl:inline-block bg-slate-950/10 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                    حراج ویژه 🔥
-                  </span>
-                </span>
-              </button>
-
-              {/* Weekly Sales Program Nav Button */}
-              <button
-                id="nav-btn-weekly-schedule"
-                onClick={() => {
-                  setActiveTab?.('weekly-schedule');
-                }}
-                className={`relative px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-200 cursor-pointer flex items-center gap-2 group overflow-hidden border whitespace-nowrap ${
-                  activeTab === 'weekly-schedule'
-                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 border-emerald-600 ring-1 ring-emerald-500/30"
-                    : "bg-emerald-50/70 text-rose-950 border-emerald-200/80 hover:bg-emerald-100 hover:border-rose-300"
-                }`}
-              >
-                <span className="absolute top-1 right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <Flame size={16} className={activeTab === 'weekly-schedule' ? 'text-white fill-rose-300 animate-pulse' : 'text-rose-500 fill-rose-100 animate-pulse'} />
-                <span className="relative z-10 flex items-center gap-1.5">
-                  <span className="tracking-tight">برنامه فروش هفتگی</span>
-                  <span className={`hidden xl:inline-block text-[8px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap ${
-                    activeTab === 'weekly-schedule' ? 'bg-white/20 text-white' : 'bg-emerald-600 text-white'
-                  }`}>
-                    تخفیف ویژه
-                  </span>
+                <SpecialPriceBagIcon size={16} animated={true} className="text-slate-950 drop-shadow-xs" />
+                <span className="tracking-tight">کفِ بازار</span>
+                <span className="bg-slate-950/10 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                  حراج 🔥
                 </span>
               </button>
 
@@ -570,180 +561,231 @@ export default function Navbar({
                 onClick={() => {
                   setActiveTab?.('factories');
                 }}
-                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'factories'
-                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    ? "bg-white text-emerald-700 shadow-sm border border-slate-200 scale-[1.02]"
+                    : "text-slate-600 hover:text-slate-950 hover:bg-white/60"
                 }`}
               >
                 <Building2 size={15} />
                 <span>کارخانجات</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setActiveTab?.('competition');
-                }}
-                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all duration-300 cursor-pointer flex items-center gap-2 ${
-                  activeTab === 'competition'
-                    ? "bg-white text-emerald-700 shadow-material-sm border border-slate-200/50 scale-[1.02]"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
-                }`}
-              >
-                <Award size={15} className={activeTab === 'competition' ? "text-emerald-600" : "text-slate-400"} />
-                <span>رقابت و رتبه‌بندی</span>
-              </button>
+              {/* More / Additional Features Dropdown */}
+              <div className="relative" ref={moreMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 border ${
+                    isMoreMenuOpen || ['competition', 'weekly-schedule', 'news'].includes(activeTab || '')
+                      ? "bg-emerald-600 text-white shadow-sm border-emerald-600"
+                      : "bg-white/80 text-slate-700 border-slate-200 hover:bg-white hover:text-slate-900"
+                  }`}
+                >
+                  <Sparkles size={14} className={isMoreMenuOpen ? "text-amber-300" : "text-emerald-600"} />
+                  <span>سایر امکانات</span>
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${isMoreMenuOpen ? "rotate-180" : ""}`} />
+                </button>
 
-              {/* Health Apple & Natural Badge Nav Button */}
-              <button
-                onClick={() => {
-                  onModeChange('presentation');
-                  setActiveTab?.('presentation');
-                  setTimeout(() => {
-                    const showcaseEl = document.querySelector('.health-showcase');
-                    if (showcaseEl) {
-                      showcaseEl.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }, 100);
-                }}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md hover:scale-105 active:scale-95 border border-emerald-400/40"
-                title="مشاهده تالار اختصاصی محصولات طبیعی، ارگانیک و دارای سیب سلامت"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
-                <span>🍏 سیب سلامت و طبیعی</span>
-              </button>
+                <AnimatePresence>
+                  {isMoreMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 text-right overflow-hidden"
+                    >
+                      <div className="px-3 py-1.5 text-[10px] font-black text-slate-400 border-b border-slate-100">
+                        تالارها و سرویس‌های تخصصی
+                      </div>
 
-              {/* Barter Hall Nav Button */}
-              <button
-                onClick={() => {
-                  setActiveTab?.('factories' as any);
-                  setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent("change-factories-subtab", { detail: { subTab: 'barter' } }));
-                  }, 50);
-                }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
-                  activeTab === 'factories'
-                    ? "bg-amber-500 text-slate-950 shadow-md border-amber-400 ring-2 ring-amber-300/40"
-                    : "bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100"
-                }`}
-                title="تالار ملی تهاتر و معاوضه کالا و تجهیزات کارخانجات"
-              >
-                <ArrowLeftRight size={14} className="text-amber-700" />
-                <span>🔄 تالار تهاتر کارخانجات</span>
-              </button>
+                      {/* Health Apple Showcase */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          onModeChange('presentation');
+                          setActiveTab?.('presentation');
+                          setTimeout(() => {
+                            const showcaseEl = document.querySelector('.health-showcase');
+                            if (showcaseEl) showcaseEl.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }}
+                        className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm shrink-0">🍏</span>
+                        <div className="flex flex-col">
+                          <span>محصولات سیب سلامت</span>
+                          <span className="text-[10px] text-slate-400 font-medium">طبیعی، ارگانیک و سلامت‌محور</span>
+                        </div>
+                      </button>
 
-              {/* Ad Poster Panel Nav Button */}
-              <button
-                onClick={() => {
-                  setActiveTab?.('billboard' as any);
-                  onNavigateToBillboardSubTab?.('ad_poster_panel');
-                }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
-                  activeTab === 'billboard'
-                    ? "bg-emerald-600 text-white shadow-md border-emerald-500 ring-2 ring-emerald-400/40"
-                    : "bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100"
-                }`}
-                title="ثبت آگهی جدید و پنل مدیریت آگهی‌دهندگان"
-              >
-                <Megaphone size={14} className="text-emerald-700" />
-                <span>📢 ثبت و پنل آگهی</span>
-              </button>
+                      {/* Group Buying Basket */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          setActiveTab?.('weekly-schedule');
+                        }}
+                        className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <Flame size={16} className="text-rose-500 shrink-0" />
+                        <div className="flex flex-col">
+                          <span>سبد خرید گروهی (مهر)</span>
+                          <span className="text-[10px] text-slate-400 font-medium">تخفیف ویژه سفارش تجمیعی</span>
+                        </div>
+                      </button>
 
-              {/* Public Educational Resources Nav Button */}
-              <button
-                onClick={() => {
-                  setActiveTab?.('news');
-                  setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent("change-news-subtab", { detail: { subTab: 'education' } }));
-                  }, 50);
-                }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border ${
-                  activeTab === 'news'
-                    ? "bg-emerald-600 text-white shadow-md border-emerald-500 ring-2 ring-emerald-400/40"
-                    : "bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 hover:text-emerald-700"
-                }`}
-                title="منابع آموزشی و راهنمای جامع استفاده از سیستم و نحوه خرید عمده"
-              >
-                <GraduationCap size={15} className={activeTab === 'news' ? "text-white" : "text-emerald-600"} />
-                <span>📚 منابع آموزشی و راهنما</span>
-              </button>
+                      {/* Barter */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          setActiveTab?.('factories');
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent("change-factories-subtab", { detail: { subTab: 'barter' } }));
+                          }, 50);
+                        }}
+                        className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-amber-50 hover:text-amber-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <ArrowLeftRight size={16} className="text-amber-600 shrink-0" />
+                        <div className="flex flex-col">
+                          <span>تالار تهاتر و معاوضه</span>
+                          <span className="text-[10px] text-slate-400 font-medium">تبادل کالا، بار و تجهیزات</span>
+                        </div>
+                      </button>
 
+                      {/* Ad Poster */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          setActiveTab?.('billboard');
+                          onNavigateToBillboardSubTab?.('ad_poster_panel');
+                        }}
+                        className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <Megaphone size={16} className="text-emerald-600 shrink-0" />
+                        <div className="flex flex-col">
+                          <span>ثبت آگهی جدید</span>
+                          <span className="text-[10px] text-slate-400 font-medium">پنل آگهی‌دهندگان و بنکداران</span>
+                        </div>
+                      </button>
+
+                      {/* Competition */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          setActiveTab?.('competition');
+                        }}
+                        className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <Award size={16} className="text-amber-500 shrink-0" />
+                        <div className="flex flex-col">
+                          <span>رقابت و رتبه‌بندی</span>
+                          <span className="text-[10px] text-slate-400 font-medium">امتیاز فعالان و نمایندگان برتر</span>
+                        </div>
+                      </button>
+
+                      {/* Education / Guide */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          setActiveTab?.('news');
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent("change-news-subtab", { detail: { subTab: 'education' } }));
+                          }, 50);
+                        }}
+                        className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      >
+                        <GraduationCap size={16} className="text-emerald-600 shrink-0" />
+                        <div className="flex flex-col">
+                          <span>راهنمای خرید و آموزش</span>
+                          <span className="text-[10px] text-slate-400 font-medium">نحوه ثبت سفارش و شرایط تسویه</span>
+                        </div>
+                      </button>
+
+                      <div className="my-1 border-t border-slate-100" />
+
+                      {/* GapGPT Assistant */}
+                      {onOpenGapGpt && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreMenuOpen(false);
+                            onOpenGapGpt();
+                          }}
+                          className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                        >
+                          <Sparkles size={16} className="text-amber-500 shrink-0" />
+                          <span>دستیار هوشمند GapGPT</span>
+                        </button>
+                      )}
+
+                      {/* PDF Catalog */}
+                      {onOpenCatalog && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreMenuOpen(false);
+                            onOpenCatalog();
+                          }}
+                          className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                        >
+                          <FileText size={16} className="text-emerald-600 shrink-0" />
+                          <span>دانلود کاتالوگ جامع (PDF)</span>
+                        </button>
+                      )}
+
+                      {/* PWA Install */}
+                      {onOpenPwaModal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreMenuOpen(false);
+                            onOpenPwaModal();
+                          }}
+                          className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                        >
+                          <Download size={16} className="text-emerald-600 shrink-0" />
+                          <span>نصب وب‌اپلیکیشن PWA</span>
+                        </button>
+                      )}
+
+                      {/* cPanel Wizard */}
+                      {onOpenCPanelWizard && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreMenuOpen(false);
+                            onOpenCPanelWizard();
+                          }}
+                          className="w-full px-3.5 py-2 text-right text-xs font-black text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center gap-2.5 cursor-pointer"
+                        >
+                          <Sparkles size={16} className="text-emerald-500 shrink-0" />
+                          <span>راه‌اندازی cPanel و SQL</span>
+                        </button>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Admin Button (Visible only to admin) */}
               {user?.role === 'admin' && (
                 <button
-                  onClick={() => {
-                    setActiveTab?.('admin');
-                  }}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  onClick={() => setActiveTab?.('admin')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 border ${
                     activeTab === 'admin'
-                      ? "bg-emerald-600 text-white shadow-md font-black ring-2 ring-indigo-400/50"
-                      : "bg-emerald-100 text-amber-900 hover:bg-emerald-200"
-                  }`}
-                  title="ورود به پنل مدیریت سرور و بروزرسانی گیت‌هاب"
-                >
-                  <ShieldAlert size={15} className="text-emerald-500" />
-                  <span>پنل مدیریت و گیت‌هاب</span>
-                </button>
-              )}
-                <button
-                  onClick={() => {
-                    if (user) {
-                      setActiveTab?.('user');
-                    } else {
-                      onAuthClick();
-                    }
-                  }}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'user'
-                      ? "bg-emerald-600 text-white shadow-sm font-black"
-                      : "text-slate-700 hover"
+                      ? "bg-rose-600 text-white shadow-sm border-rose-600"
+                      : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
                   }`}
                 >
-                  <User size={15} />
-                  <span>حساب کاربری</span>
-                </button>
-
-              {onOpenGapGpt && (
-                <button
-                  onClick={onOpenGapGpt}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 text-white hover:brightness-110 border border-emerald-400/40 transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
-                  title="گفتگو و مشاوره تخصصی با دستیار هوشمند GapGPT"
-                >
-                  <Sparkles size={14} className="text-amber-300 animate-pulse" />
-                  <span>دستیار GapGPT</span>
-                </button>
-              )}
-
-
-              {onOpenCatalog && (
-                <button
-                  onClick={onOpenCatalog}
-                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                  title="دانلود کاتالوگ جامع محصولات و قیمت خط تولید (PDF)"
-                >
-                  <FileText size={15} className="text-emerald-600" />
-                  <span>کاتالوگ PDF</span>
-                </button>
-              )}
-
-              {onOpenPwaModal && (
-                <button
-                  onClick={onOpenPwaModal}
-                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-                  title="نصب وب‌اپلیکیشن PWA روی گوشی یا دسکتاپ"
-                >
-                  <Download size={15} className="text-emerald-600 animate-bounce" />
-                  <span>نصب اپلیکیشن PWA</span>
-                </button>
-              )}
-
-              {onOpenCPanelWizard && (
-                <button
-                  onClick={onOpenCPanelWizard}
-                  className="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-emerald-600 text-slate-950 hover:from-amber-400 hover:to-emerald-500 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm font-black border border-amber-300/60"
-                  title="راه اندازی روی cPanel و phpMyAdmin (دانلود دیتابیس)"
-                >
-                  <Sparkles size={14} className="text-slate-950 animate-pulse" />
-                  <span>راه اندازی cPanel و SQL</span>
+                  <ShieldAlert size={14} />
+                  <span>مدیریت</span>
                 </button>
               )}
             </div>
@@ -842,7 +884,7 @@ export default function Navbar({
       </nav>
 
       {/* Floating Bottom App Navigation Bar for Mobile Viewports (Ultra-Creative, Clean White, Frosted Glass, Animated Pill) */}
-      <div className="lg:hidden fixed bottom-2 left-3 right-3 z-50 bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-[0_15px_35px_rgba(0,0,0,0.08)] rounded-3xl px-2 py-1.5 transition-all duration-300">
+      <div className="lg:hidden fixed bottom-2 left-2.5 right-2.5 z-50 bg-white/95 backdrop-blur-2xl border border-slate-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.1)] rounded-3xl p-1.5 transition-all duration-300">
         <div className="flex justify-around items-center h-14 relative">
           {navItems.map((item, idx) => {
             const isActive = activeTab === item.id;
@@ -856,7 +898,7 @@ export default function Navbar({
                   {isActive && (
                     <motion.div
                       layoutId="activeMobileIndicator"
-                      className="absolute inset-y-1 inset-x-1.5 bg-rose-50 border border-rose-200/60 rounded-2xl z-0 shadow-xs"
+                      className="absolute inset-y-0 inset-x-0.5 sm:inset-x-1 bg-gradient-to-r from-rose-500/15 via-rose-400/20 to-rose-500/15 border border-rose-300/60 rounded-2xl z-0 shadow-md shadow-rose-500/10 ring-2 ring-rose-400/20 backdrop-blur-xs"
                       transition={{ type: "spring", stiffness: 350, damping: 25 }}
                     />
                   )}
@@ -868,7 +910,7 @@ export default function Navbar({
                     <span className="relative flex items-center justify-center">
                       <SpecialPriceBagIcon size={18} animated={true} plain={true} />
                     </span>
-                    <span className="text-[9px] font-black tracking-tighter">
+                    <span className="text-[9.5px] font-black tracking-tighter">
                       کف بازار
                     </span>
                   </div>
@@ -885,15 +927,15 @@ export default function Navbar({
                   {isActive && (
                     <motion.div
                       layoutId="activeMobileIndicator"
-                      className="absolute inset-y-1 inset-x-1.5 bg-emerald-50 border border-emerald-200/60 rounded-2xl z-0 shadow-xs"
+                      className="absolute inset-y-0 inset-x-0.5 sm:inset-x-1 bg-gradient-to-r from-emerald-500/15 via-teal-500/20 to-emerald-500/15 border border-emerald-400/50 rounded-2xl z-0 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-400/20 backdrop-blur-xs"
                       transition={{ type: "spring", stiffness: 350, damping: 25 }}
                     />
                   )}
-                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-emerald-700 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-emerald-800 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
                     <span className="p-1">
                       <Compass size={20} />
                     </span>
-                    <span className="text-[9px] font-bold tracking-tight">
+                    <span className="text-[9.5px] font-bold tracking-tight">
                       {item.label}
                     </span>
                   </div>
@@ -910,15 +952,15 @@ export default function Navbar({
                   {isActive && (
                     <motion.div
                       layoutId="activeMobileIndicator"
-                      className="absolute inset-y-1 inset-x-1.5 bg-amber-50 border border-amber-200/60 rounded-2xl z-0 shadow-xs"
+                      className="absolute inset-y-0 inset-x-0.5 sm:inset-x-1 bg-gradient-to-r from-amber-500/15 via-orange-400/20 to-amber-500/15 border border-amber-400/50 rounded-2xl z-0 shadow-md shadow-amber-500/10 ring-2 ring-amber-400/20 backdrop-blur-xs"
                       transition={{ type: "spring", stiffness: 350, damping: 25 }}
                     />
                   )}
-                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-amber-600 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
+                  <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-amber-700 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
                     <span className="p-1">
                       <Wand2 size={20} />
                     </span>
-                    <span className="text-[9px] font-bold tracking-tight">
+                    <span className="text-[9.5px] font-bold tracking-tight">
                       {item.label}
                     </span>
                   </div>
@@ -934,15 +976,15 @@ export default function Navbar({
                 {isActive && (
                   <motion.div
                     layoutId="activeMobileIndicator"
-                    className="absolute inset-y-1 inset-x-1.5 bg-emerald-50 border border-emerald-200/60 rounded-2xl z-0 shadow-xs"
+                    className="absolute inset-y-0 inset-x-0.5 sm:inset-x-1 bg-gradient-to-r from-emerald-500/15 via-teal-500/20 to-emerald-500/15 border border-emerald-400/50 rounded-2xl z-0 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-400/20 backdrop-blur-xs"
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
                   />
                 )}
-                <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-emerald-700 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
+                <div className={`relative z-10 flex flex-col items-center justify-center gap-0.5 ${isActive ? "text-emerald-800 font-black scale-105" : "text-slate-600 hover:text-slate-900"}`}>
                   <span className="p-1">
                     {item.icon}
                   </span>
-                  <span className="text-[9px] font-bold tracking-tight">
+                  <span className="text-[9.5px] font-bold tracking-tight">
                     {item.label}
                   </span>
                 </div>

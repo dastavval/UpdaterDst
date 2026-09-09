@@ -61,8 +61,16 @@ import {
   Plus,
   ShoppingCart,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  Flame,
+  TrendingDown,
+  BadgePercent,
+  Tag,
+  AlertCircle,
+  Archive,
+  FileSpreadsheet
 } from "lucide-react";
+import SmsPhoneVerifier from "./SmsPhoneVerifier";
 import { 
   INITIAL_RAW_MATERIALS, 
   INITIAL_RAW_SUPPLIERS, 
@@ -81,6 +89,20 @@ const toPersianNum = (num: number | string) => {
   return num
     .toString()
     .replace(/\d/g, x => farsiDigits[parseInt(x)]);
+};
+
+const renderStars = (rating: number = 5) => {
+  return (
+    <div className="flex items-center gap-0.5 text-amber-400">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          size={12}
+          className={star <= rating ? "fill-amber-400 text-amber-400" : "text-slate-300"}
+        />
+      ))}
+    </div>
+  );
 };
 
 export interface FactoryItem {
@@ -158,7 +180,7 @@ interface FactoriesViewProps {
   onSelectFactoryForOrder?: (factoryName: string) => void;
   onSelectProductForOrder?: (product: Product) => void;
   initialFactoryId?: string | null;
-  initialSubTab?: 'factories' | 'raw_materials' | 'services' | 'equipment' | 'barter' | 'rfqs' | 'capacity_ads';
+  initialSubTab?: 'factories' | 'raw_materials' | 'sediment' | 'surplus' | 'barter' | 'rfqs' | string;
   theme?: 'light' | 'dark';
   userBadge?: string;
   user?: any;
@@ -175,186 +197,159 @@ const DEFAULT_CATEGORIES = [
   "لبنیات و فرآورده‌ها"
 ];
 
-const RAW_MATERIAL_CATEGORIES = [
+export const RAW_MATERIAL_CATEGORIES = [
   "همه مواد اولیه",
-  "مواد اولیه شیرینی و شکلات",
+  "شیرین‌کننده‌ها و نشاسته صنعتی",
   "آرد و غلات صنعتی",
   "روغن و چربی‌های تخصصی",
-  "بسته‌بندی و ملزومات چاپ",
-  "کنسروجات و عصاره‌های صنعتی",
-  "پودرهای لبنی و افزودنی"
+  "پودر کاکائو، شیرخشک و پودرهای لبنی",
+  "اسانس، طعم‌دهنده و رنگ‌های خوراکی",
+  "افزودنی‌ها، استابیلایزر و نگهدارنده‌ها",
+  "کنسروجات، رب اسپتیک و عصاره صنعتی",
+  "سلفون، لفاف و فیلم‌های بسته‌بندی",
+  "پریفرم، بطری پت و ملزومات پلاستیک",
+  "کارتن، جعبه و ملزومات چاپ",
+  "گوشت، خمیر مرغ و مواد اولیه پروتئینی",
+  "ادویه‌جات، نمک صنعتی و سبزیجات خشک"
 ];
 
-export interface IndustrialServiceItem {
-  id: string;
-  title: string;
-  category: string;
-  providerName: string;
-  location: string;
-  rating: number;
-  deliveryDays: string;
-  rate: string;
-  description: string;
-  capabilities: string[];
-  imageUrl: string;
-  isPendingApproval?: boolean;
-  status?: string;
-  rejectionReason?: string;
-}
+// Compatibility stubs
+export interface IndustrialServiceItem { [key: string]: any; }
+export interface IndustrialEquipmentItem { [key: string]: any; }
 
-export interface IndustrialEquipmentItem {
+// SEDIMENT GOODS (کالاهای رسوب‌کرده و انباشته انبار با تخفیف نقد شوندگی)
+export interface SedimentItem {
   id: string;
   title: string;
-  category: string;
   factoryName: string;
-  contactPerson: string;
-  contactPhone: string;
+  brand: string;
+  category: string;
   location: string;
-  quantity: string;
-  wholesalePrice: string;
-  marketPrice: string;
-  buyerProfit: string;
-  description: string;
+  stockCartons: number;
+  minOrderCartons: number;
+  originalPrice: number; // قیمت معمول کارخانه (تومان)
+  sedimentPrice: number; // قیمت ویژه رسوب‌زدایی (تومان)
+  discountPercent: number; // درصد تخفیف رسوب‌زدایی
+  sedimentDuration: string; // مدت دپو در انبار
+  shelfLifeRemaining: string; // تاریخ انقضا / اعتبار
+  description?: string;
   imageUrl?: string;
-  isPendingApproval?: boolean;
+  phone?: string;
+  unitsPerCarton?: number;
   status?: string;
-  rejectionReason?: string;
+  isPendingApproval?: boolean;
 }
 
-const EQUIPMENT_CATEGORIES = [
-  "همه تجهیزات",
-  "ماشین‌آلات بسته‌بندی",
-  "میکسر و بلندر صنعتی",
-  "خطوط تولید و مخازن استیل",
-  "پرکن و لیبل‌زن",
-  "تجهیزات حرارتی و برودتی",
-  "سایر قطعات و ملزومات خط"
+export const SEDIMENT_CATEGORIES = [
+  "همه کالاهای رسوب‌کرده",
+  "کیک، کلوچه و بیسکویت",
+  "شکلات و تنقلات",
+  "کنسروجات و رب",
+  "نوشیدنی و آبمیوه",
+  "مواد شوینده و بهداشتی",
+  "لبنیات و فرآورده‌ها"
 ];
 
-const INITIAL_EQUIPMENT: IndustrialEquipmentItem[] = [
-  {
-    id: "eq-1",
-    title: "دستگاه پیلوپک افقی فول اتوماتیک بسته‌بندی کیک، کلوچه و شکلات",
-    category: "ماشین‌آلات بسته‌بندی",
-    factoryName: "ماشین‌سازی تکنوپک تبریز",
-    contactPerson: "مهندس صادقی",
-    contactPhone: "۰۹۱۲۱۱۱۴۴۵۵",
-    location: "تبریز - شهرک صنعتی سلیمی",
-    quantity: "۲ دستگاه آماده تحویل",
-    wholesalePrice: "۲۸۰,۰۰۰,۰۰۰ تومان",
-    marketPrice: "۳۴۰,۰۰۰,۰۰۰ تومان",
-    buyerProfit: "۶۰,۰۰۰,۰۰۰ تومان",
-    description: "مجهز به سیستم هوشمند PLC دلتا، سروو موتور سه‌محوره، چشم الکترونیک تشخیص فتوسل و بدنه تمام استیل ۳۰۴ ضدزنگ با سرعت بسته‌بندی ۱۲۰ بسته در دقیقه.",
-    imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
-  },
-  {
-    id: "eq-2",
-    title: "میکسر هموژنایزر تحت خلاء ۵۰۰ لیتری صنایع غذایی و سس",
-    category: "میکسر و بلندر صنعتی",
-    factoryName: "استیل‌سازان پیشرو پارس",
-    contactPerson: "مهندس مرادی",
-    contactPhone: "۰۹۱۲۳۳۳۷۷۸۸",
-    location: "اصفهان - شهرک صنعتی جی",
-    quantity: "۱ دستگاه نو",
-    wholesalePrice: "۴۲۰,۰۰۰,۰۰۰ تومان",
-    marketPrice: "۵۱۰,۰۰۰,۰۰۰ تومان",
-    buyerProfit: "۹۰,۰۰۰,۰۰۰ تومان",
-    description: "مخزن سه‌جداره استیل ۳۱۶ با سیستم خلاء و هیدرولیک، مناسب فرآوری انواع سس، امولسیون، شکلات صبحانه و ژل خوراکی با گارانتی ۱۸ ماهه.",
-    imageUrl: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
-  },
-  {
-    id: "eq-3",
-    title: "خط کامل پرکن و درب‌بند مایعات رقیق و غلیظ ۴ نازله اتوماتیک",
-    category: "پرکن و لیبل‌زن",
-    factoryName: "صنایع ماشین‌سازی پارس فیلر",
-    contactPerson: "مهندس موسوی",
-    contactPhone: "۰۹۱۲۴۴۴۹۹۰۰",
-    location: "تهران - شهرک صنعتی شمس‌آباد",
-    quantity: "۱ خط کامل",
-    wholesalePrice: "۳۶۰,۰۰۰,۰۰۰ تومان",
-    marketPrice: "۴۴۰,۰۰۰,۰۰۰ تومان",
-    buyerProfit: "۸۰,۰۰۰,۰۰۰ تومان",
-    description: "دارای سیستم سیلندر پیستونی فوق دقیق بدون چکه، مناسب انواع آبمیوه، روغن خوراکی، شربت، سرکه و گلاب با نوار نقاله استیل ۶ متری.",
-    imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
-  }
+export const INITIAL_SEDIMENT_GOODS: SedimentItem[] = [];
+
+// SURPLUS PRODUCTION (مازاد خط تولید کارخانجات، شیفت مازاد و لغو سفارشات صادراتی)
+export interface SurplusItem {
+  id: string;
+  title: string;
+  factoryName: string;
+  brand: string;
+  category: string;
+  location: string;
+  readyCartons: number;
+  minOrderCartons: number;
+  originalPrice: number; // قیمت پایه خط (تومان)
+  surplusPrice: number; // قیمت کف خط مازاد (تومان)
+  discountPercent: number; // درصد تخفیف مازاد
+  productionDate: string; // تاریخ تولید / شیفت
+  cause: string; // علت مازاد تولید
+  deliveryCondition: string; // شرایط بارگیری و تحویل
+  deliveryMethod?: string;
+  description?: string;
+  imageUrl?: string;
+  phone?: string;
+  unitsPerCarton?: number;
+  status?: string;
+  isPendingApproval?: boolean;
+}
+
+export const SURPLUS_CATEGORIES = [
+  "همه مازادهای تولید",
+  "تولید شیفت شب",
+  "مازاد سهمیه صادراتی",
+  "مازاد خط تنقلات و شکلات",
+  "مازاد خط نوشیدنی و آبمیوه",
+  "مازاد کیک و بیسکویت",
+  "مازاد شوینده و بهداشتی"
 ];
 
-const SERVICE_CATEGORIES = [
-  "همه خدمات صنعتی",
-  "طراحی صنعتی و بسته‌بندی",
-  "ترخیص کالا و امور گمرکی",
-  "تبلیغات، برندینگ و مارکتینگ",
-  "حسابداری، حسابرسی و مالیات",
-  "آزمایشگاه و کنترل کیفیت",
-  "حمل‌ونقل، لجستیک و ترانزیت"
-];
-
-const INITIAL_INDUSTRIAL_SERVICES: IndustrialServiceItem[] = [
+export const INITIAL_SURPLUS_GOODS: SurplusItem[] = [
   {
-    id: "srv-1",
-    title: "طراحی و مهندسی قالب‌های بادی و تزریقی ظروف و پریفرم مواد غذایی",
-    category: "طراحی صنعتی و بسته‌بندی",
-    providerName: "قالب‌سازی پیشرو صنعت البرز",
-    location: "کرج - شهرک بهارستان",
-    rating: 5,
-    deliveryDays: "۷ روز کاری",
-    rate: "پروژه‌ای / تعرفه رسمی کارشناسی",
-    description: "طراحی سه‌بعدی CAD/CAM، ساخت و ماشین‌کاری CNC فوق دقیق ۵ محوره انواع قالب‌های بطری، جار، درب آسان‌بازشو و ظروف IML.",
-    capabilities: ["طراحی سه‌بعدی پیشرفته CAD/CAM", "ماشین‌کاری CNC ۵ محوره", "ارائه نمونه اولیه ۳D Print قبل از ساخت"],
-    imageUrl: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
+    id: "surp-4",
+    title: "نوشابه قوطی ۳۳۰ میل کوکاکولا و زیرو خوشگوار (بسته ۲۴ عددی)",
+    factoryName: "شرکت خوشگوار مشهد",
+    brand: "کوکاکولا",
+    category: "مازاد خط نوشیدنی و آبمیوه",
+    location: "خراسان رضوی، مشهد",
+    readyCartons: 600,
+    minOrderCartons: 25,
+    originalPrice: 420000,
+    surplusPrice: 348000,
+    discountPercent: 17,
+    productionDate: "تولید روز گذشته خط کن قوطی",
+    cause: "تولید بیش از تعهد قرارداد نمایندگی استان",
+    deliveryCondition: "بارگیری از انبار کارخانه خوشگوار مشهد با بارنامه دولتی",
+    description: "قوطی ۳۳۰ سی‌سی با تاریخ انقضای ۱۲ ماهه کامل، تخفیف استثنایی مازاد خط جهت توزیع استانی و پخش عمده.",
+    imageUrl: "https://c102393.parspack.net/c102393/products/prd_12.webp",
+    phone: "۰۹۱۵۹۹۹۸۸۷۷",
+    unitsPerCarton: 24,
+    status: "approved"
   },
   {
-    id: "srv-2",
-    title: "ترخیص تخصصی مواد اولیه و اسانس از گمرک بازرگان، رجایی و فرودگاه امام",
-    category: "ترخیص کالا و امور گمرکی",
-    providerName: "شرکت ترخیص و بازرگانی آریا ترانزیت",
-    location: "تهران / هرمزگان",
-    rating: 4.9,
-    deliveryDays: "۳ تا ۵ روز کاری",
-    rate: "کارمزد ۲٪ ارزش CIF",
-    description: "اخذ فوری ثبت سفارش، دریافت سریع تاییدیه سازمان غذا و دارو (سیب سلامت وارداتی) و بارگیری مستقیم به انبار کارخانه با کد ترخیص اختصاصی.",
-    capabilities: ["کارت بازرگانی حقوقی معتبر", "اخذ مجوز بهداشت و استاندارد فوری", "حمل اختصاصی ترانزیت جاده‌ای با پلمپ گمرکی"],
-    imageUrl: "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
+    id: "surp-5",
+    title: "کنسرو ماهی تن در روغن زیتون شیلانه ۱۸۰ گرمی (باکس ۲۴ عددی)",
+    factoryName: "صنایع صید و کنسرو شیلانه",
+    brand: "شیلانه",
+    category: "مازاد سهمیه صادراتی",
+    location: "قزوین، شهرک صنعتی البرز",
+    readyCartons: 350,
+    minOrderCartons: 10,
+    originalPrice: 1850000,
+    surplusPrice: 1424000,
+    discountPercent: 23,
+    productionDate: "تولید هفته جاری با برگه آنالیز آزمایشگاهی",
+    cause: "مازاد سهمیه تولید شیفت دوخت قوطی آسان‌بازشو",
+    deliveryCondition: "بارگیری مستقیم از درب کارخانه قزوین با ۲۳٪ تخفیف مازاد",
+    description: "کنسرو فیله ماهی هوور ممتاز در روغن زیتون طبیعی با برگه آزمایشگاه COA و ضمانت کیفیت ۱۰۰ درصد کارخانه.",
+    imageUrl: "https://c102393.parspack.net/c102393/products/prd_10.webp",
+    phone: "۰۹۱۲۵۵۵۶۶۷۷",
+    unitsPerCarton: 24,
+    status: "approved"
   },
   {
-    id: "srv-3",
-    title: "آزمایشگاه همکار استاندارد، کنترل کیفیت و آزمون‌های تخصصی COA",
-    category: "آزمایشگاه و کنترل کیفیت",
-    providerName: "آزمایشگاه جامع کنترل کیفیت رازی",
-    location: "تهران - پژوهشگاه صنایع غذایی",
-    rating: 5,
-    deliveryDays: "۲۴ تا ۴۸ ساعت",
-    rate: "بر اساس تعرفه مصوب آزمون‌ها",
-    description: "انجام کلیه آزمون‌های میکروبیولوژی، شیمیایی، سنجش فلزات سنگین، باقیمانده سموم و آفلاتوکسین و صدور برگه COA رسمی جهت صادرات و اخذ مجوز.",
-    capabilities: ["دارای گواهینامه ISO 17025", "سیستم نمونه‌برداری از درب کارخانه", "صدور نتایج الکترونیکی معتبر بین‌المللی"],
-    imageUrl: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
-  },
-  {
-    id: "srv-4",
-    title: "خدمات چاپ تخصصی هلیوگراور و فلکسو لمینت ۳ لایه ساشه و پاکت زیپ‌دار",
-    category: "طراحی صنعتی و بسته‌بندی",
-    providerName: "مجتمع چاپ و بسته‌بندی آرین‌پک",
-    location: "اصفهان - شهرک صنعتی جی",
-    rating: 4.8,
-    deliveryDays: "۵ روز کاری",
-    rate: "محاسبه بر اساس مترمربع / تناژ سفارش",
-    description: "چاپ هلیو تا ۱۰ رنگ با کیفیت فتوگرافیک، لمینت سالونت‌لس غذایی Food Grade و تولید پاکت‌های سه‌طرف دوخت، ایستاده زیپ‌دار و وکیوم.",
-    capabilities: ["چاپ هلیو ۱۰ رنگ HD", "لمینت سالونت‌لس فودگرید بدون حلال", "تولید پاکت گاست‌دار و ایستاده زیپ‌کیپ"],
-    imageUrl: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&q=80&w=600",
-    status: "approved",
-    isPendingApproval: false
+    id: "surp-6",
+    title: "مایع ظرفشویی ۴ لیتری گلیسیرینه پریل (کارتن ۴ عددی)",
+    factoryName: "شرکت هنکل پاک‌وش",
+    brand: "پریل",
+    category: "مازاد شوینده و بهداشتی",
+    location: "قزوین، شهر صنعتی البرز",
+    readyCartons: 400,
+    minOrderCartons: 15,
+    originalPrice: 490000,
+    surplusPrice: 392000,
+    discountPercent: 20,
+    productionDate: "تولید شیفت عصر روز گذشته",
+    cause: "مازاد تولید خط گالن‌پرکنی اتوماتیک",
+    deliveryCondition: "تحویل درب کارخانه با تسویه نقدی و بارنامه رسمی",
+    description: "مایع ظرفشویی غلیظ پریل گالن ۴ لیتری کارتن ۴ تایی، تخفیف ۲۰٪ ویژه مازاد خط جهت تسویه نقدی.",
+    imageUrl: "https://c102393.parspack.net/c102393/products/prd_20.webp",
+    phone: "۰۹۱۲۳۳۳۴۴۸۸",
+    unitsPerCarton: 4,
+    status: "approved"
   }
 ];
 
@@ -454,15 +449,23 @@ const FactoryCard = React.memo(({ factory, idx, onSelect, onOrder, b2bConfig, on
             </div>
           )}
 
-          {/* First-Hand / Verified Tag */}
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-black backdrop-blur-md border ${
-            isFirstHand 
-              ? "bg-emerald-950/70 text-emerald-200 border-emerald-400/30" 
-              : "bg-black/50 text-slate-200 border-white/10"
-          }`}>
-            {isFirstHand ? <Sparkles size={11} className="text-amber-400" /> : <Factory size={11} />}
-            <span>{isFirstHand ? "تولیدکننده مستقیم" : "تامین‌کننده تایید شده"}</span>
-          </span>
+          {/* First-Hand / Verified Tag & Special Badge */}
+          <div className="flex items-center gap-1.5">
+            {isFeatured && (
+              <span className="bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-black flex items-center gap-1 shadow-md border border-emerald-500">
+                <Sparkles size={11} className="fill-white text-white" />
+                <span>ویژه 🌟</span>
+              </span>
+            )}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-black backdrop-blur-md border ${
+              isFirstHand 
+                ? "bg-emerald-950/70 text-emerald-200 border-emerald-400/30" 
+                : "bg-black/50 text-slate-200 border-white/10"
+            }`}>
+              {isFirstHand ? <Sparkles size={11} className="text-amber-400" /> : <Factory size={11} />}
+              <span>{isFirstHand ? "تولیدکننده مستقیم" : "تامین‌کننده تایید شده"}</span>
+            </span>
+          </div>
         </div>
 
         {/* Industrial Park / Location Badge at Cover Bottom-Left */}
@@ -672,8 +675,9 @@ const FactoryListRow = React.memo(({ factory, idx, onSelect, onOrder, onQuickVie
               {factory.name}
             </h3>
             {isFeatured && (
-              <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[10px] font-black border border-amber-200 shrink-0">
-                برند ملی
+              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black border border-emerald-500 shadow-2xs shrink-0 flex items-center gap-1">
+                <Sparkles size={11} className="fill-white text-white" />
+                <span>ویژه 🌟</span>
               </span>
             )}
           </div>
@@ -744,8 +748,8 @@ export default function FactoriesView({
   user,
   onUpdateB2bConfig
 }: FactoriesViewProps) {
-  // Main Sub-Tab State: 'factories' | 'raw_materials' | 'services' | 'equipment' | 'barter' | 'rfqs' | 'capacity_ads'
-  const [activeSubTab, setActiveSubTab] = useState<'factories' | 'raw_materials' | 'services' | 'equipment' | 'barter' | 'rfqs' | 'capacity_ads'>(initialSubTab);
+  // Main Sub-Tab State: 'factories' | 'sediment' | 'surplus' | 'raw_materials' | 'barter' | 'rfqs'
+  const [activeSubTab, setActiveSubTab] = useState<'factories' | 'sediment' | 'surplus' | 'raw_materials' | 'barter' | 'rfqs' | string>(initialSubTab || 'factories');
 
   useEffect(() => {
     if (initialSubTab) {
@@ -789,56 +793,115 @@ export default function FactoriesView({
   const [selectedFactoryModal, setSelectedFactoryModal] = useState<FactoryItem | null>(null);
   const [quickViewFactory, setQuickViewFactory] = useState<any | null>(null);
 
-  // EMPTY CAPACITY ADS STATES
-  const [capacityAdsList, setCapacityAdsList] = useState<any[]>(() => {
-    if (b2bConfig?.capacityAds && Array.isArray(b2bConfig.capacityAds)) {
-      return b2bConfig.capacityAds;
-    }
+  // ==========================================
+  // 1. SEDIMENT GOODS STATES (کالاهای رسوب‌کرده)
+  // ==========================================
+  const [sedimentList, setSedimentList] = useState<SedimentItem[]>(() => {
     try {
-      const saved = localStorage.getItem("dastavval_capacity_ads");
+      const saved = localStorage.getItem("dastavval_sediment_goods");
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(item => item && !item.id?.startsWith("sed-1") && !item.id?.startsWith("sed-2") && !item.id?.startsWith("sed-3") && !item.id?.startsWith("sed-4") && !item.id?.startsWith("sed-5") && !item.id?.startsWith("sed-6"));
+        }
       }
     } catch (e) {}
     return [];
   });
 
-  const [selectedCapCategory, setSelectedCapCategory] = useState("همه صنایع");
-  const [searchCapQuery, setSearchCapQuery] = useState("");
-  const [showAddCapacityModal, setShowAddCapacityModal] = useState(false);
-  const [showSubmitCooperationModal, setShowSubmitCooperationModal] = useState(false);
-  const [selectedCapacityAd, setSelectedCapacityAd] = useState<any | null>(null);
+  const [selectedSedimentCategory, setSelectedSedimentCategory] = useState("همه کالاهای رسوب‌کرده");
+  const [searchSedimentQuery, setSearchSedimentQuery] = useState("");
+  const [sortSedimentBy, setSortSedimentBy] = useState<'discount' | 'price_asc' | 'stock_desc'>('discount');
+  const [selectedSedimentForOrder, setSelectedSedimentForOrder] = useState<SedimentItem | null>(null);
+  const [showOrderSedimentModal, setShowOrderSedimentModal] = useState(false);
+  const [showAddSedimentModal, setShowAddSedimentModal] = useState(false);
 
-  // New Capacity Ad form
-  const [newCapTitle, setNewCapTitle] = useState("");
-  const [newCapFactoryName, setNewCapFactoryName] = useState("");
-  const [newCapCat, setNewCapCat] = useState("نوشیدنی و آبمیوه");
-  const [newCapLocation, setNewCapLocation] = useState("");
-  const [newCapPhone, setNewCapPhone] = useState("");
-  const [newCapMinQty, setNewCapMinQty] = useState("");
-  const [newCapDetails, setNewCapDetails] = useState("");
-  const [newCapDesc, setNewCapDesc] = useState("");
-  const [uploadedCapImageBase64, setUploadedCapImageBase64] = useState<string | null>(null);
-  const [capAdSuccessMsg, setCapAdSuccessMsg] = useState("");
+  // New Sediment Item Form
+  const [newSedTitle, setNewSedTitle] = useState("");
+  const [newSedFactory, setNewSedFactory] = useState("");
+  const [newSedBrand, setNewSedBrand] = useState("");
+  const [newSedCat, setNewSedCat] = useState("کیک، کلوچه و بیسکویت");
+  const [newSedLocation, setNewSedLocation] = useState("");
+  const [newSedStock, setNewSedStock] = useState("");
+  const [newSedMinOrder, setNewSedMinOrder] = useState("۱۰");
+  const [newSedOriginalPrice, setNewSedOriginalPrice] = useState("");
+  const [newSedPrice, setNewSedPrice] = useState("");
+  const [newSedDuration, setNewSedDuration] = useState("۲ ماه دپو در انبار");
+  const [newSedShelfLife, setNewSedShelfLife] = useState("۶ ماه تا انقضا");
+  const [newSedPhone, setNewSedPhone] = useState("");
+  const [newSedDesc, setNewSedDesc] = useState("");
+  const [uploadedSedImageBase64, setUploadedSedImageBase64] = useState<string | null>(null);
+  const [isSedPhoneVerified, setIsSedPhoneVerified] = useState(false);
+  const [sedSuccessMsg, setSedSuccessMsg] = useState("");
 
-  // New Cooperation Request form
-  const [reqCoopBrand, setReqCoopBrand] = useState("");
-  const [reqCoopContact, setReqCoopContact] = useState("");
-  const [reqCoopPhone, setReqCoopPhone] = useState("");
-  const [reqCoopProduct, setReqCoopProduct] = useState("");
-  const [reqCoopQty, setReqCoopQty] = useState("");
-  const [reqCoopNotes, setReqCoopNotes] = useState("");
-  const [coopSubmittedCode, setCoopSubmittedCode] = useState<string | null>(null);
+  // Sediment Order Form
+  const [orderSedBuyerName, setOrderSedBuyerName] = useState("");
+  const [orderSedBuyerPhone, setOrderSedBuyerPhone] = useState("");
+  const [orderSedBuyerCity, setOrderSedBuyerCity] = useState("");
+  const [orderSedQty, setOrderSedQty] = useState("");
+  const [orderSedNotes, setOrderSedNotes] = useState("");
+  const [orderSedSubmittedCode, setOrderSedSubmittedCode] = useState<string | null>(null);
 
-  // Raw Materials States with persistence
+  // ==========================================
+  // 2. SURPLUS PRODUCTION STATES (مازاد تولید)
+  // ==========================================
+  const [surplusList, setSurplusList] = useState<SurplusItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("dastavval_surplus_goods");
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(item => item && !item.id?.startsWith("surp-1") && !item.id?.startsWith("surp-2") && !item.id?.startsWith("surp-3"));
+        }
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const [selectedSurplusCategory, setSelectedSurplusCategory] = useState("همه مازادهای تولید");
+  const [searchSurplusQuery, setSearchSurplusQuery] = useState("");
+  const [sortSurplusBy, setSortSurplusBy] = useState<'discount' | 'newest' | 'price_asc'>('discount');
+  const [selectedSurplusForOrder, setSelectedSurplusForOrder] = useState<SurplusItem | null>(null);
+  const [showOrderSurplusModal, setShowOrderSurplusModal] = useState(false);
+  const [showAddSurplusModal, setShowAddSurplusModal] = useState(false);
+
+  // New Surplus Item Form
+  const [newSurpTitle, setNewSurpTitle] = useState("");
+  const [newSurpFactory, setNewSurpFactory] = useState("");
+  const [newSurpBrand, setNewSurpBrand] = useState("");
+  const [newSurpCat, setNewSurpCat] = useState("مازاد خط تنقلات و شکلات");
+  const [newSurpLocation, setNewSurpLocation] = useState("");
+  const [newSurpReadyCartons, setNewSurpReadyCartons] = useState("");
+  const [newSurpMinOrder, setNewSurpMinOrder] = useState("۱۰");
+  const [newSurpOriginalPrice, setNewSurpOriginalPrice] = useState("");
+  const [newSurpPrice, setNewSurpPrice] = useState("");
+  const [newSurpDate, setNewSurpDate] = useState("تولید شیفت روز گذشته");
+  const [newSurpCause, setNewSurpCause] = useState("مازاد شیفت تولید روزانه خط");
+  const [newSurpDelivery, setNewSurpDelivery] = useState("تحویل فوری درب کارخانه با بارنامه رسمی");
+  const [newSurpPhone, setNewSurpPhone] = useState("");
+  const [newSurpDesc, setNewSurpDesc] = useState("");
+  const [uploadedSurpImageBase64, setUploadedSurpImageBase64] = useState<string | null>(null);
+  const [isSurpPhoneVerified, setIsSurpPhoneVerified] = useState(false);
+  const [surpSuccessMsg, setSurpSuccessMsg] = useState("");
+
+  // Surplus Order Form
+  const [orderSurpBuyerName, setOrderSurpBuyerName] = useState("");
+  const [orderSurpBuyerPhone, setOrderSurpBuyerPhone] = useState("");
+  const [orderSurpBuyerCity, setOrderSurpBuyerCity] = useState("");
+  const [orderSurpQty, setOrderSurpQty] = useState("");
+  const [orderSurpNotes, setOrderSurpNotes] = useState("");
+  const [orderSurpSubmittedCode, setOrderSurpSubmittedCode] = useState<string | null>(null);
+
+  // ==========================================
+  // 3. RAW MATERIALS STATES (مواد اولیه کارخانجات)
+  // ==========================================
   const [rawMaterialsList, setRawMaterialsList] = useState<RawMaterial[]>(() => {
-    if (b2bConfig?.rawMaterialAds && Array.isArray(b2bConfig.rawMaterialAds)) {
-      return b2bConfig.rawMaterialAds;
-    }
     try {
       const saved = localStorage.getItem("dastavval_raw_materials");
-      if (saved !== null) return JSON.parse(saved);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {}
     return INITIAL_RAW_MATERIALS;
   });
@@ -846,108 +909,33 @@ export default function FactoriesView({
   const [suppliersList, setSuppliersList] = useState<RawMaterialSupplier[]>(() => {
     try {
       const saved = localStorage.getItem("dastavval_raw_suppliers");
-      if (saved !== null) return JSON.parse(saved);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {}
     return INITIAL_RAW_SUPPLIERS;
   });
 
   const [selectedRawCategory, setSelectedRawCategory] = useState("همه مواد اولیه");
   const [searchRawQuery, setSearchRawQuery] = useState("");
-
-  // Industrial & Commercial Services States with persistence
-  const [servicesList, setServicesList] = useState<IndustrialServiceItem[]>(() => {
-    if (b2bConfig?.serviceAds && Array.isArray(b2bConfig.serviceAds)) {
-      return b2bConfig.serviceAds;
-    }
-    try {
-      const saved = localStorage.getItem("dastavval_industrial_services");
-      if (saved !== null) return JSON.parse(saved);
-    } catch (e) {}
-    return INITIAL_INDUSTRIAL_SERVICES;
-  });
-
-  const [selectedServiceCategory, setSelectedServiceCategory] = useState("همه خدمات صنعتی");
-  const [searchServiceQuery, setSearchServiceQuery] = useState("");
-  const [targetService, setTargetService] = useState<IndustrialServiceItem | null>(null);
-  const [showOrderServiceModal, setShowOrderServiceModal] = useState(false);
-  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
-
-  // New Service Form State
-  const [newSrvTitle, setNewSrvTitle] = useState("");
-  const [newSrvCat, setNewSrvCat] = useState("طراحی صنعتی و بسته‌بندی");
-  const [newSrvProvider, setNewSrvProvider] = useState("");
-  const [newSrvLocation, setNewSrvLocation] = useState("");
-  const [newSrvPhone, setNewSrvPhone] = useState("");
-  const [newSrvRate, setNewSrvRate] = useState("");
-  const [newSrvDays, setNewSrvDays] = useState("۳ تا ۷ روز کاری");
-  const [newSrvCapabilities, setNewSrvCapabilities] = useState("");
-  const [newSrvDesc, setNewSrvDesc] = useState("");
-  const [srvSuccessMsg, setSrvSuccessMsg] = useState("");
-  const [uploadedSrvImageBase64, setUploadedSrvImageBase64] = useState<string | null>(null);
-  const [isDraggingSrvImage, setIsDraggingSrvImage] = useState(false);
-
-  // Service Order Request State
-  const [reqFactoryName, setReqFactoryName] = useState("");
-  const [reqContactPhone, setReqContactPhone] = useState("");
-  const [reqCity, setReqCity] = useState("");
-  const [reqDetails, setReqDetails] = useState("");
-  const [serviceOrderSubmittedCode, setServiceOrderSubmittedCode] = useState<string | null>(null);
-
-  // New Raw Material Form States (Selling Panel)
   const [showAddRawMaterialModal, setShowAddRawMaterialModal] = useState(false);
   const [newMatName, setNewMatName] = useState("");
-  const [newMatCat, setNewMatCat] = useState("مواد اولیه شیرینی و شکلات");
+  const [newMatCat, setNewMatCat] = useState("مواد اولیه صنایع غذایی");
   const [newMatPrice, setNewMatPrice] = useState("");
   const [newMatMinOrder, setNewMatMinOrder] = useState("");
   const [newMatDeliveryDays, setNewMatDeliveryDays] = useState("۳ روز کاری");
-  const [newMatSpecs, setNewMatSpecs] = useState("");
-  const [newMatDesc, setNewMatDesc] = useState("");
   const [newMatSupName, setNewMatSupName] = useState("");
   const [newMatSupLocation, setNewMatSupLocation] = useState("");
   const [newMatPhone, setNewMatPhone] = useState("");
+  const [newMatSpecs, setNewMatSpecs] = useState("");
+  const [newMatDesc, setNewMatDesc] = useState("");
   const [newMatImageUrl, setNewMatImageUrl] = useState("");
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isRawMatPhoneVerified, setIsRawMatPhoneVerified] = useState(false);
   const [matSuccessMsg, setMatSuccessMsg] = useState("");
-
-  // Industrial Equipment States with persistence
-  const [equipmentList, setEquipmentList] = useState<IndustrialEquipmentItem[]>(() => {
-    if (b2bConfig?.equipmentAds && Array.isArray(b2bConfig.equipmentAds)) {
-      return b2bConfig.equipmentAds;
-    }
-    try {
-      const saved = localStorage.getItem("dastavval_industrial_equipment");
-      if (saved !== null) return JSON.parse(saved);
-    } catch (e) {}
-    return INITIAL_EQUIPMENT;
-  });
-
-  const [selectedEquipmentCategory, setSelectedEquipmentCategory] = useState("همه تجهیزات");
-  const [searchEquipmentQuery, setSearchEquipmentQuery] = useState("");
-  const [targetEquipment, setTargetEquipment] = useState<IndustrialEquipmentItem | null>(null);
-  const [showOrderEquipmentModal, setShowOrderEquipmentModal] = useState(false);
-  const [showAddEquipmentModal, setShowAddEquipmentModal] = useState(false);
-
-  // New Equipment Form State
-  const [newEqTitle, setNewEqTitle] = useState("");
-  const [newEqCat, setNewEqCat] = useState("ماشین‌آلات بسته‌بندی");
-  const [newEqFactory, setNewEqFactory] = useState("");
-  const [newEqContactPerson, setNewEqContactPerson] = useState("");
-  const [newEqContactPhone, setNewEqContactPhone] = useState("");
-  const [newEqLocation, setNewEqLocation] = useState("");
-  const [newEqQuantity, setNewEqQuantity] = useState("۱ دستگاه");
-  const [newEqWholesalePrice, setNewEqWholesalePrice] = useState("");
-  const [newEqMarketPrice, setNewEqMarketPrice] = useState("");
-  const [newEqBuyerProfit, setNewEqBuyerProfit] = useState("");
-  const [newEqDesc, setNewEqDesc] = useState("");
-  const [eqSuccessMsg, setEqSuccessMsg] = useState("");
-  const [uploadedEqImageBase64, setUploadedEqImageBase64] = useState<string | null>(null);
-
-  // Equipment Order Request State
-  const [reqEqFactoryName, setReqEqFactoryName] = useState("");
-  const [reqEqContactPhone, setReqEqContactPhone] = useState("");
-  const [reqEqCity, setReqEqCity] = useState("");
-  const [reqEqDetails, setReqEqDetails] = useState("");
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
 
   // RFQ (Request For Quote) & Supplier Bids State
   const [rfqOrders, setRfqOrders] = useState<any[]>(() => {
@@ -985,27 +973,6 @@ export default function FactoriesView({
           if (savedMat !== null) setRawMaterialsList(JSON.parse(savedMat));
         }
 
-        if (b2bConfig?.serviceAds && Array.isArray(b2bConfig.serviceAds)) {
-          setServicesList(b2bConfig.serviceAds);
-        } else {
-          const savedSrv = localStorage.getItem("dastavval_industrial_services");
-          if (savedSrv !== null) setServicesList(JSON.parse(savedSrv));
-        }
-
-        if (b2bConfig?.equipmentAds && Array.isArray(b2bConfig.equipmentAds)) {
-          setEquipmentList(b2bConfig.equipmentAds);
-        } else {
-          const savedEq = localStorage.getItem("dastavval_industrial_equipment");
-          if (savedEq !== null) setEquipmentList(JSON.parse(savedEq));
-        }
-
-        if (b2bConfig?.capacityAds && Array.isArray(b2bConfig.capacityAds)) {
-          setCapacityAdsList(b2bConfig.capacityAds);
-        } else {
-          const savedCap = localStorage.getItem("dastavval_capacity_ads");
-          if (savedCap !== null) setCapacityAdsList(JSON.parse(savedCap));
-        }
-
         const savedRfqs = localStorage.getItem("dastavval_raw_orders");
         if (savedRfqs) {
           const parsed = JSON.parse(savedRfqs);
@@ -1037,32 +1004,14 @@ export default function FactoriesView({
       const userComp = user.company || user.name || "";
       const userPh = user.phone || user.mobile || "";
       const userCt = user.city || "";
-      const userName = user.name || user.company || "";
 
       setBuyerFactoryName(prev => prev || userComp);
       setBuyerPhone(prev => prev || userPh);
       setBuyerCity(prev => prev || userCt);
 
-      setReqFactoryName(prev => prev || userComp);
-      setReqContactPhone(prev => prev || userPh);
-      setReqCity(prev => prev || userCt);
-
-      setReqEqFactoryName(prev => prev || userComp);
-      setReqEqContactPhone(prev => prev || userPh);
-      setReqEqCity(prev => prev || userCt);
-
       setNewMatSupName(prev => prev || userComp);
       setNewMatPhone(prev => prev || userPh);
       setNewMatSupLocation(prev => prev || userCt);
-
-      setNewSrvProvider(prev => prev || userComp);
-      setNewSrvPhone(prev => prev || userPh);
-      setNewSrvLocation(prev => prev || userCt);
-
-      setNewEqFactory(prev => prev || userComp);
-      setNewEqContactPerson(prev => prev || userName);
-      setNewEqContactPhone(prev => prev || userPh);
-      setNewEqLocation(prev => prev || userCt);
 
       setBidSupplierName(prev => prev || userComp);
       setBidSupplierPhone(prev => prev || userPh);
@@ -1168,37 +1117,28 @@ export default function FactoriesView({
     }
   };
 
-  const handleSrvImageFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("لطفاً فقط فایل تصویر معتبر انتخاب کنید.");
-      return;
-    }
-    const result = await uploadToParsPackStorage(file, "services");
-    if (result.success && result.url) {
-      setUploadedSrvImageBase64(result.url);
-    } else {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result && typeof e.target.result === "string") {
-          setUploadedSrvImageBase64(e.target.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   // Handle Submit Raw Material For Sale
   const handleRegisterRawMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMatName.trim() || !newMatSupName.trim() || !newMatPrice.trim()) return;
+    if (!isRawMatPhoneVerified) {
+      alert("جهت حفظ امنیت و اصالت، تأیید پیامکی شماره همراه الزامی است.");
+      return;
+    }
 
     const sampleImages: Record<string, string> = {
-      "مواد اولیه شیرینی و شکلات": "https://images.unsplash.com/photo-1622484211148-716598e09141?auto=format&fit=crop&w=400&q=80",
+      "شیرین‌کننده‌ها و نشاسته صنعتی": "https://c102393.parspack.net/c102393/products/prd_100.webp",
       "آرد و غلات صنعتی": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80",
-      "روغن و چربی‌های تخصصی": "https://images.unsplash.com/photo-1548907040-4d42b52125ca?auto=format&fit=crop&w=400&q=80",
-      "بسته‌بندی و ملزومات چاپ": "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80",
-      "کنسروجات و عصاره‌های صنعتی": "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=400&q=80",
-      "پودرهای لبنی و افزودنی": "https://images.unsplash.com/photo-1553456558-aff63285bdd1?auto=format&fit=crop&w=400&q=80"
+      "روغن و چربی‌های تخصصی": "https://c102393.parspack.net/c102393/products/prd_120.webp",
+      "پودر کاکائو، شیرخشک و پودرهای لبنی": "https://c102393.parspack.net/c102393/products/prd_110.webp",
+      "اسانس، طعم‌دهنده و رنگ‌های خوراکی": "https://c102393.parspack.net/c102393/products/prd_105.webp",
+      "افزودنی‌ها، استابیلایزر و نگهدارنده‌ها": "https://c102393.parspack.net/c102393/products/prd_115.webp",
+      "کنسروجات، رب اسپتیک و عصاره صنعتی": "https://c102393.parspack.net/c102393/products/prd_105.webp",
+      "سلفون، لفاف و فیلم‌های بسته‌بندی": "https://c102393.parspack.net/c102393/products/prd_130.webp",
+      "پریفرم، بطری پت و ملزومات پلاستیک": "https://c102393.parspack.net/c102393/products/prd_125.webp",
+      "کارتن، جعبه و ملزومات چاپ": "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80",
+      "گوشت، خمیر مرغ و مواد اولیه پروتئینی": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80",
+      "ادویه‌جات، نمک صنعتی و سبزیجات خشک": "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=400&q=80"
     };
 
     const newMat: RawMaterial = {
@@ -1216,6 +1156,10 @@ export default function FactoriesView({
       imageUrl: uploadedImageBase64 || newMatImageUrl.trim() || sampleImages[newMatCat] || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800",
       isVerified: false,
       isPendingApproval: true,
+      status: "pending",
+      contactPhone: newMatPhone.trim() || "۰۲۱",
+      phone: newMatPhone.trim() || "۰۲۱",
+      createdAt: new Date().toISOString(),
       escrowGuaranteed: true
     };
 
@@ -1223,7 +1167,18 @@ export default function FactoriesView({
     setRawMaterialsList(updated);
     try {
       localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
+      const pendingRaw = JSON.parse(localStorage.getItem("dastavval_pending_raw_materials") || "[]");
+      localStorage.setItem("dastavval_pending_raw_materials", JSON.stringify([newMat, ...pendingRaw]));
     } catch (err) {}
+
+    // Post to server backend API
+    try {
+      fetch("/api/v1/dev/raw-materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMat)
+      }).catch(e => console.error("Failed to post raw material to API:", e));
+    } catch (e) {}
 
     if (onUpdateB2bConfig && b2bConfig) {
       const existingRawAds = Array.isArray(b2bConfig.rawMaterialAds) ? b2bConfig.rawMaterialAds : [];
@@ -1234,6 +1189,7 @@ export default function FactoriesView({
     }
 
     window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+    window.dispatchEvent(new CustomEvent("dastavval_data_refreshed"));
 
     const exists = suppliersList.some(s => s.companyName.toLowerCase() === newMatSupName.trim().toLowerCase());
     if (!exists) {
@@ -1696,360 +1652,367 @@ export default function FactoriesView({
     return isApproved && matchesCategory && matchesSearch;
   });
 
-  // Filter Industrial Services (ONLY APPROVED items appear publicly)
-  const filteredServices = servicesList.filter(srv => {
-    const isApproved = srv.status === 'approved' || (!srv.isPendingApproval && srv.status !== 'pending' && srv.status !== 'در حال بررسی' && srv.status !== 'rejected');
-    const matchesCategory = selectedServiceCategory === "همه خدمات صنعتی" || srv.category === selectedServiceCategory;
-    const q = searchServiceQuery.trim().toLowerCase();
-    const matchesSearch = !q || (
-      srv.title.toLowerCase().includes(q) ||
-      srv.providerName.toLowerCase().includes(q) ||
-      srv.description.toLowerCase().includes(q) ||
-      srv.location.toLowerCase().includes(q)
-    );
-    return isApproved && matchesCategory && matchesSearch;
-  });
+  // Filter Sediment Goods (کالاهای رسوب‌کرده)
+  const allSedimentList = useMemo(() => {
+    // Dynamic products from catalog marked as sediment
+    const dynamicFromProducts: SedimentItem[] = (products || [])
+      .filter((p: any) => p.isSediment || p.sedimentStatus === 'approved')
+      .map((p: any) => {
+        const orgPrice = p.bulk_price || p.price || 100000;
+        const discount = p.sedimentDiscountPercent || 20;
+        const sedPrice = p.sedimentPrice || Math.round(orgPrice * (1 - discount / 100));
+        return {
+          id: p.id,
+          title: p.name,
+          factoryName: p.factory_name || p.supplier || p.brand || "کارخانه تولیدی",
+          brand: p.brand || p.name.split(' ')[0] || "تولیدکننده برتر",
+          category: p.category || "کیک، کلوچه و بیسکویت",
+          location: p.location || "ایران",
+          stockCartons: p.sedimentQuantityCartons || p.stock_quantity_cartons || p.stock || 50,
+          minOrderCartons: p.min_order_cartons || 5,
+          originalPrice: orgPrice,
+          sedimentPrice: sedPrice,
+          discountPercent: discount,
+          sedimentDuration: p.sedimentDuration || "۲ ماه دپو در انبار",
+          shelfLifeRemaining: p.shelfLifeRemaining || "۶ ماه تا انقضا",
+          description: p.sedimentDescription || p.description || "کالای رسوب‌کرده انبار کارخانه با تخفیف نقدشوندگی و تحویل فوری.",
+          imageUrl: p.image_url || p.imageUrl || "https://c102393.parspack.net/c102393/products/prd_84.webp",
+          phone: p.phone || "۰۹۰۴۴۵۰۲۹۰۰",
+          unitsPerCarton: p.carton_pack_count || 24,
+          status: "approved" as const
+        };
+      });
 
-  // Filter Industrial Equipment (ONLY APPROVED items appear publicly)
-  const filteredEquipment = equipmentList.filter(eq => {
-    const isApproved = eq.status === 'approved' || (!eq.isPendingApproval && eq.status !== 'pending' && eq.status !== 'در حال بررسی' && eq.status !== 'rejected');
-    const matchesCategory = selectedEquipmentCategory === "همه تجهیزات" || eq.category === selectedEquipmentCategory;
-    const q = searchEquipmentQuery.trim().toLowerCase();
-    const matchesSearch = !q || (
-      eq.title.toLowerCase().includes(q) ||
-      eq.factoryName.toLowerCase().includes(q) ||
-      eq.description.toLowerCase().includes(q) ||
-      eq.location.toLowerCase().includes(q)
-    );
-    return isApproved && matchesCategory && matchesSearch;
-  });
+    // Combine avoiding duplicate IDs
+    const seen = new Set<string>();
+    const combined: SedimentItem[] = [];
+    
+    [...dynamicFromProducts, ...sedimentList].forEach(item => {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        combined.push(item);
+      }
+    });
 
-  // Handle Register Industrial Equipment
-  const handleRegisterEquipment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEqTitle.trim() || !newEqFactory.trim() || !newEqWholesalePrice.trim()) return;
+    return combined;
+  }, [products, sedimentList]);
 
-    const sampleEqImages: Record<string, string> = {
-      "ماشین‌آلات بسته‌بندی": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
-      "میکسر و بلندر صنعتی": "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=600",
-      "پرکن و لیبل‌زن": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600",
-      "خطوط تولید و مخازن استیل": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600",
-      "تجهیزات حرارتی و برودتی": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
-      "سایر قطعات و ملزومات خط": "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&q=80&w=600"
-    };
+  const filteredSedimentGoods = useMemo(() => {
+    let list = allSedimentList.filter(item => {
+      const isApproved = item.status === 'approved' || (!item.isPendingApproval && item.status !== 'pending' && item.status !== 'rejected');
+      const matchesCat = selectedSedimentCategory === "همه کالاهای رسوب‌کرده" || item.category === selectedSedimentCategory;
+      const q = searchSedimentQuery.trim().toLowerCase();
+      const matchesSearch = !q || (
+        item.title.toLowerCase().includes(q) ||
+        item.factoryName.toLowerCase().includes(q) ||
+        item.brand.toLowerCase().includes(q) ||
+        (item.description && item.description.toLowerCase().includes(q))
+      );
+      return isApproved && matchesCat && matchesSearch;
+    });
 
-    const newEq: IndustrialEquipmentItem = {
-      id: `eq-${Date.now()}`,
-      title: newEqTitle.trim(),
-      category: newEqCat,
-      factoryName: newEqFactory.trim(),
-      contactPerson: newEqContactPerson.trim() || "مدیر فروش",
-      contactPhone: newEqContactPhone.trim(),
-      location: newEqLocation.trim() || "ایران",
-      quantity: newEqQuantity.trim() || "۱ دستگاه",
-      wholesalePrice: newEqWholesalePrice.trim(),
-      marketPrice: newEqMarketPrice.trim() || "توافقی",
-      buyerProfit: newEqBuyerProfit.trim() || "تخفیف عالی خرید مستقیم و بدون واسطه",
-      description: newEqDesc.trim() || "فروش تجهیزات صنعتی کارکرده یا نو کارخانه به شرط سلامت فنی کامل.",
-      imageUrl: uploadedEqImageBase64 || sampleEqImages[newEqCat] || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600",
-      isPendingApproval: true
-    };
-
-    const updated = [newEq, ...equipmentList];
-    setEquipmentList(updated);
-    try {
-      localStorage.setItem("dastavval_industrial_equipment", JSON.stringify(updated));
-    } catch (err) {}
-
-    if (onUpdateB2bConfig && b2bConfig) {
-      const existingEqAds = Array.isArray(b2bConfig.equipmentAds) ? b2bConfig.equipmentAds : [];
-      onUpdateB2bConfig({
-        ...b2bConfig,
-        equipmentAds: [newEq, ...existingEqAds]
-      }).catch(e => console.error("Failed to sync equipment ad with server:", e));
+    if (sortSedimentBy === 'discount') {
+      list = [...list].sort((a, b) => b.discountPercent - a.discountPercent);
+    } else if (sortSedimentBy === 'price_asc') {
+      list = [...list].sort((a, b) => a.sedimentPrice - b.sedimentPrice);
+    } else if (sortSedimentBy === 'stock_desc') {
+      list = [...list].sort((a, b) => b.stockCartons - a.stockCartons);
     }
+    return list;
+  }, [allSedimentList, selectedSedimentCategory, searchSedimentQuery, sortSedimentBy]);
+
+  // Upload Helpers for Sediment and Surplus
+  const handleSedImageUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) setUploadedSedImageBase64(e.target.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSurpImageUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) setUploadedSurpImageBase64(e.target.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle Register Sediment Item
+  const handleRegisterSediment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSedTitle.trim() || !newSedFactory.trim() || !newSedPrice.trim()) return;
+    if (!isSedPhoneVerified) {
+      alert("جهت حفظ امنیت معاملات و اصالت کارخانه، تأیید پیامکی شماره همراه الزامی است.");
+      return;
+    }
+
+    const orgPrice = Number(newSedOriginalPrice) || Math.round(Number(newSedPrice) * 1.25);
+    const sedPrice = Number(newSedPrice);
+    const discount = Math.max(5, Math.round(((orgPrice - sedPrice) / orgPrice) * 100));
+
+    const newItem: SedimentItem = {
+      id: `sed-${Date.now()}`,
+      title: newSedTitle.trim(),
+      factoryName: newSedFactory.trim(),
+      brand: newSedBrand.trim() || newSedFactory.trim(),
+      category: newSedCat,
+      location: newSedLocation.trim() || "ایران",
+      stockCartons: Number(newSedStock) || 100,
+      minOrderCartons: Number(newSedMinOrder) || 10,
+      originalPrice: orgPrice,
+      sedimentPrice: sedPrice,
+      discountPercent: discount,
+      sedimentDuration: newSedDuration.trim() || "دپو در انبار کارخانه",
+      shelfLifeRemaining: newSedShelfLife.trim() || "دارای تاریخ انقضای معتبر",
+      description: newSedDesc.trim() || "کالای رسوب‌کرده انبار کارخانه جهت آزادسازی فضا و نقدشوندگی سرمایه.",
+      imageUrl: uploadedSedImageBase64 || "https://c102393.parspack.net/c102393/products/prd_84.webp",
+      phone: newSedPhone.trim(),
+      status: "approved"
+    };
+
+    const updated = [newItem, ...sedimentList];
+    setSedimentList(updated);
+    try {
+      localStorage.setItem("dastavval_sediment_goods", JSON.stringify(updated));
+    } catch (err) {}
 
     window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
 
-    setEqSuccessMsg("تجهیز صنعتی شما با موفقیت ثبت شد و پس از بررسی مدارک مالکیت و تایید فنی توسط کارشناسان دست‌اول در تالار تجهیزات صنعتی منتشر خواهد شد.");
+    setSedSuccessMsg("کالای رسوب‌کرده کارخانه با موفقیت ثبت شد و در تالار ویژه جهت خرید بنکداران و عمده‌فروشان نمایش داده می‌شود.");
     setTimeout(() => {
-      setShowAddEquipmentModal(false);
-      setEqSuccessMsg("");
-      setNewEqTitle("");
-      setNewEqFactory("");
-      setNewEqContactPerson("");
-      setNewEqContactPhone("");
-      setNewEqLocation("");
-      setNewEqQuantity("۱ دستگاه");
-      setNewEqWholesalePrice("");
-      setNewEqMarketPrice("");
-      setNewEqBuyerProfit("");
-      setNewEqDesc("");
-      setUploadedEqImageBase64(null);
-    }, 3500);
+      setShowAddSedimentModal(false);
+      setSedSuccessMsg("");
+      setNewSedTitle("");
+      setNewSedFactory("");
+      setNewSedBrand("");
+      setNewSedLocation("");
+      setNewSedStock("");
+      setNewSedOriginalPrice("");
+      setNewSedPrice("");
+      setNewSedPhone("");
+      setNewSedDesc("");
+      setUploadedSedImageBase64(null);
+    }, 2500);
   };
 
-  // Handle Order / Purchase Request for Industrial Equipment
-  const handleOrderEquipmentSubmit = (e: React.FormEvent) => {
+  // Handle Order Sediment Submit
+  const handleOrderSedimentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reqEqFactoryName.trim() || !reqEqContactPhone.trim()) return;
+    if (!orderSedBuyerName.trim() || !orderSedBuyerPhone.trim()) return;
 
-    const trackingCode = `EQ-REQ-${Math.floor(100000 + Math.random() * 900000)}`;
+    const trackingCode = `SED-REQ-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const newRfq: any = {
       id: trackingCode,
       trackingNumber: trackingCode,
-      type: "equipment",
-      materialName: `درخواست خرید و کارشناسی تجهیز: ${reqEqFactoryName.trim()}`,
-      title: `درخواست خرید و کارشناسی تجهیز: ${reqEqFactoryName.trim()}`,
-      buyerFactoryName: reqEqFactoryName.trim(),
-      requester: reqEqFactoryName.trim(),
-      buyerPhone: reqEqContactPhone.trim(),
-      buyerCity: reqEqCity.trim() || "تعیین نشده",
-      buyerNotes: reqEqDetails.trim(),
+      type: "sediment",
+      materialName: `استعلام خرید کالای رسوب‌کرده: ${selectedSedimentForOrder?.title || "کالای انبار"}`,
+      title: `استعلام خرید کالای رسوب‌کرده: ${selectedSedimentForOrder?.title || "کالای انبار"}`,
+      buyerFactoryName: orderSedBuyerName.trim(),
+      requester: orderSedBuyerName.trim(),
+      buyerPhone: orderSedBuyerPhone.trim(),
+      buyerCity: orderSedBuyerCity.trim() || "سراسر کشور",
+      buyerNotes: orderSedNotes.trim(),
       createdAt: new Date().toLocaleDateString('fa-IR'),
-      status: "در حال بررسی و قیمت‌دهی تامین‌کننده",
+      status: "در حال بررسی و تایید تسویه کارخانه",
       bids: [],
       items: [
         {
-          productId: "eq-rfq-item",
-          name: `درخواست خرید تجهیز صنعتی: ${reqEqFactoryName.trim()}`,
-          quantityCartons: 1,
-          pricePerCarton: 0,
-          totalItems: 1,
-          notes: reqEqDetails.trim()
+          productId: selectedSedimentForOrder?.id || "sed-item",
+          name: selectedSedimentForOrder?.title || "کالای رسوب کرده",
+          quantityCartons: Number(orderSedQty) || selectedSedimentForOrder?.minOrderCartons || 10,
+          pricePerCarton: selectedSedimentForOrder?.sedimentPrice || 0,
+          totalItems: Number(orderSedQty) || 10,
+          notes: orderSedNotes.trim()
         }
       ]
     };
 
-    // Update state & localStorage
     const updatedRfqs = [newRfq, ...rfqOrders];
     setRfqOrders(updatedRfqs);
     try {
       localStorage.setItem("dastavval_raw_orders", JSON.stringify(updatedRfqs));
     } catch (err) {}
 
-    // Dispatch events to notify other views (Admin, etc.)
     window.dispatchEvent(new CustomEvent("dastavval_orders_updated"));
-    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-
-    setEqOrderSubmittedCode(trackingCode);
+    setOrderSedSubmittedCode(trackingCode);
   };
 
-  // Handle Register Industrial Service
-  const handleRegisterService = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSrvTitle.trim() || !newSrvProvider.trim()) return;
-
-    const sampleSrvImages: Record<string, string> = {
-      "طراحی صنعتی و بسته‌بندی": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80",
-      "ترخیص کالا و امور گمرکی": "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=500&q=80",
-      "تبلیغات، برندینگ و مارکتینگ": "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=500&q=80",
-      "حسابداری، حسابرسی و مالیات": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=500&q=80",
-      "آزمایشگاه و کنترل کیفیت": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=500&q=80",
-      "حمل‌ونقل، لجستیک و ترانزیت": "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=500&q=80"
-    };
-
-    const newSrv: IndustrialServiceItem = {
-      id: `srv-${Date.now()}`,
-      title: newSrvTitle.trim(),
-      category: newSrvCat,
-      providerName: newSrvProvider.trim(),
-      location: newSrvLocation.trim() || "ایران",
-      rating: 5.0,
-      deliveryDays: newSrvDays.trim(),
-      rate: newSrvRate.trim() || "توافقی با فاکتور رسمی",
-      description: newSrvDesc.trim() || "ارائه خدمات تخصصی خطوط تولید و کارخانجات با تضمین کیفیت و واسطه‌گری امن دست‌اول.",
-      capabilities: newSrvCapabilities ? newSrvCapabilities.split("،").map(c => c.trim()) : ["تضمین کیفیت خدمات", "نظارت مستقیم کارشناس پلتفرم"],
-      imageUrl: uploadedSrvImageBase64 || sampleSrvImages[newSrvCat] || "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80",
-      isPendingApproval: true
-    };
-
-    const updated = [newSrv, ...servicesList];
-    setServicesList(updated);
-    try {
-      localStorage.setItem("dastavval_industrial_services", JSON.stringify(updated));
-    } catch (err) {}
-
-    if (onUpdateB2bConfig && b2bConfig) {
-      const existingSrvAds = Array.isArray(b2bConfig.serviceAds) ? b2bConfig.serviceAds : [];
-      onUpdateB2bConfig({
-        ...b2bConfig,
-        serviceAds: [newSrv, ...existingSrvAds]
-      }).catch(e => console.error("Failed to sync service ad with server:", e));
-    }
-
-    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-
-    setSrvSuccessMsg("خدمت شما با موفقیت ثبت شد و پس از بررسی مدارک و تایید کارشناس ناظر دست‌اول در تالار خدمات صنعتی منتشر خواهد شد.");
-    setTimeout(() => {
-      setShowAddServiceModal(false);
-      setSrvSuccessMsg("");
-      setNewSrvTitle("");
-      setNewSrvProvider("");
-      setNewSrvLocation("");
-      setNewSrvPhone("");
-      setNewSrvRate("");
-      setNewSrvCapabilities("");
-      setNewSrvDesc("");
-      setUploadedSrvImageBase64(null);
-    }, 3500);
-  };
-
-  // Handle Order / RFQ for Industrial Service
-  const handleOrderServiceSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reqFactoryName.trim() || !reqContactPhone.trim()) return;
-
-    const trackingCode = `SRV-REQ-${Math.floor(100000 + Math.random() * 900000)}`;
-    setServiceOrderSubmittedCode(trackingCode);
-  };
-
-  // Helper for rendering 5 stars
-  const renderStars = (rating: number = 5) => {
-    return <StarRating rating={rating} size={14} interactive={true} showScore={true} />;
-  };
-
-  const filteredCapacityAds = useMemo(() => {
-    return capacityAdsList.filter(ad => {
-      if (selectedCapCategory !== "همه صنایع" && ad.category !== selectedCapCategory) return false;
-      if (!searchCapQuery.trim()) return true;
-      const q = searchCapQuery.toLowerCase();
-      return (
-        (ad.title || "").toLowerCase().includes(q) ||
-        (ad.factoryName || "").toLowerCase().includes(q) ||
-        (ad.location || "").toLowerCase().includes(q) ||
-        (ad.capacityDetails || "").toLowerCase().includes(q) ||
-        (ad.description || "").toLowerCase().includes(q)
-      );
-    });
-  }, [capacityAdsList, selectedCapCategory, searchCapQuery]);
-
-  const handleRegisterCapacityAd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCapTitle.trim() || !newCapFactoryName.trim() || !newCapPhone.trim()) return;
-
-    const sampleImages: Record<string, string> = {
-      "نوشیدنی و آبمیوه": "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80",
-      "کیک، کلوچه و بیسکویت": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80",
-      "شوینده و بهداشتی": "https://images.unsplash.com/photo-1553456558-aff63285bdd1?auto=format&fit=crop&w=400&q=80",
-      "مواد غذایی و کنسروجات": "https://images.unsplash.com/photo-1548907040-4d42b52125ca?auto=format&fit=crop&w=400&q=80",
-      "لبنیات و فرآورده‌ها": "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=400&q=80"
-    };
-
-    const newAd = {
-      id: `cap-${Date.now()}`,
-      title: newCapTitle.trim(),
-      factoryName: newCapFactoryName.trim(),
-      factoryId: user?.id || `fac-custom-${Date.now()}`,
-      category: newCapCat,
-      location: newCapLocation.trim() || "ایران، خط تولید",
-      contactPhone: newCapPhone.trim(),
-      minOrderQty: newCapMinQty.trim() || "توافقی",
-      capacityDetails: newCapDetails.trim() || "خطوط مجهز و مدرن با اخذ مجوزهای لازم بهداشتی.",
-      description: newCapDesc.trim() || "توضیحات تکمیلی ثبت نشده است.",
-      imageUrl: uploadedCapImageBase64 || sampleImages[newCapCat] || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800",
-      createdAt: new Date().toLocaleDateString('fa-IR'),
-      status: "approved",
-      isPendingApproval: false,
-      cooperationRequests: []
-    };
-
-    const updated = [newAd, ...capacityAdsList];
-    setCapacityAdsList(updated);
-    try {
-      localStorage.setItem("dastavval_capacity_ads", JSON.stringify(updated));
-    } catch (err) {}
-
-    if (onUpdateB2bConfig && b2bConfig) {
-      const existingCapAds = Array.isArray(b2bConfig.capacityAds) ? b2bConfig.capacityAds : [];
-      onUpdateB2bConfig({
-        ...b2bConfig,
-        capacityAds: [newAd, ...existingCapAds]
-      }).catch(e => console.error("Failed to sync capacity ad with server:", e));
-    }
-
-    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-
-    setCapAdSuccessMsg("آگهی ظرفیت خالی خط تولید شما با موفقیت ثبت و با تایید کارشناسان پلتفرم در تالار عمومی منتشر گردید.");
-    setTimeout(() => {
-      setShowAddCapacityModal(false);
-      setCapAdSuccessMsg("");
-      setNewCapTitle("");
-      setNewCapFactoryName("");
-      setNewCapLocation("");
-      setNewCapPhone("");
-      setNewCapMinQty("");
-      setNewCapDetails("");
-      setNewCapDesc("");
-      setUploadedCapImageBase64(null);
-    }, 3000);
-  };
-
-  const handleRegisterCooperationRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCapacityAd || !reqCoopBrand.trim() || !reqCoopPhone.trim()) return;
-
-    const trackingCode = `OPR-${Math.floor(100000 + Math.random() * 900000)}`;
-
-    const newRequest = {
-      id: `coop-${Date.now()}`,
-      adId: selectedCapacityAd.id,
-      buyerName: reqCoopBrand.trim(),
-      buyerPhone: reqCoopPhone.trim(),
-      contactPerson: reqCoopContact.trim() || "مدیر بازرگانی",
-      productRequested: reqCoopProduct.trim() || selectedCapacityAd.title,
-      estimatedQty: reqCoopQty.trim() || "توافقی",
-      notes: reqCoopNotes.trim() || "متقاضی عقد قرارداد تولید کارمزدی ظرفیت خالی کارخانه.",
-      createdAt: new Date().toLocaleDateString('fa-IR'),
-      status: "pending"
-    };
-
-    const updatedAds = capacityAdsList.map(ad => {
-      if (ad.id === selectedCapacityAd.id) {
-        const reqs = Array.isArray(ad.cooperationRequests) ? ad.cooperationRequests : [];
+  // Filter Surplus Production Goods (مازاد خط تولید)
+  const allSurplusList = useMemo(() => {
+    // Dynamic products from catalog marked as surplus
+    const dynamicFromProducts: SurplusItem[] = (products || [])
+      .filter((p: any) => p.isSurplus || p.surplusStatus === 'approved')
+      .map((p: any) => {
+        const orgPrice = p.bulk_price || p.price || 100000;
+        const discount = p.surplusDiscountPercent || 22;
+        const surpPrice = p.surplusPrice || Math.round(orgPrice * (1 - discount / 100));
         return {
-          ...ad,
-          cooperationRequests: [newRequest, ...reqs]
+          id: p.id,
+          title: p.name,
+          factoryName: p.factory_name || p.supplier || p.brand || "کارخانه تولیدی",
+          brand: p.brand || p.name.split(' ')[0] || "تولیدکننده برتر",
+          category: p.category ? `مازاد خط ${p.category}` : "مازاد خط تنقلات و شکلات",
+          location: p.location || "ایران",
+          readyCartons: p.surplusQuantityCartons || p.stock_quantity_cartons || p.stock || 80,
+          minOrderCartons: p.min_order_cartons || 5,
+          originalPrice: orgPrice,
+          surplusPrice: surpPrice,
+          discountPercent: discount,
+          productionDate: "تولید شیفت روز گذشته",
+          cause: "مازاد شیفت تولید و افزایش راندمان خط",
+          deliveryCondition: "تحویل فوری درب کارخانه با بارنامه رسمی",
+          deliveryMethod: "تحویل فوری درب کارخانه با بارنامه رسمی",
+          description: p.surplusDescription || p.description || "مازاد خط تولید با بارگیری فوری و کیفیت تضمین‌شده استاندارد.",
+          imageUrl: p.image_url || p.imageUrl || "https://c102393.parspack.net/c102393/products/prd_84.webp",
+          phone: p.phone || "۰۹۰۴۴۵۰۲۹۰۰",
+          unitsPerCarton: p.carton_pack_count || 24,
+          status: "approved" as const
         };
+      });
+
+    // Combine avoiding duplicate IDs
+    const seen = new Set<string>();
+    const combined: SurplusItem[] = [];
+    
+    [...dynamicFromProducts, ...surplusList].forEach(item => {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        combined.push(item);
       }
-      return ad;
     });
 
-    setCapacityAdsList(updatedAds);
-    try {
-      localStorage.setItem("dastavval_capacity_ads", JSON.stringify(updatedAds));
-    } catch (err) {}
+    return combined;
+  }, [products, surplusList]);
 
-    if (onUpdateB2bConfig && b2bConfig) {
-      onUpdateB2bConfig({
-        ...b2bConfig,
-        capacityAds: updatedAds
-      }).catch(e => console.error("Failed to sync cooperation request with server:", e));
+  const filteredSurplusGoods = useMemo(() => {
+    let list = allSurplusList.filter(item => {
+      const isApproved = item.status === 'approved' || (!item.isPendingApproval && item.status !== 'pending' && item.status !== 'rejected');
+      const matchesCat = selectedSurplusCategory === "همه مازادهای تولید" || item.category === selectedSurplusCategory;
+      const q = searchSurplusQuery.trim().toLowerCase();
+      const matchesSearch = !q || (
+        item.title.toLowerCase().includes(q) ||
+        item.factoryName.toLowerCase().includes(q) ||
+        item.brand.toLowerCase().includes(q) ||
+        (item.cause && item.cause.toLowerCase().includes(q)) ||
+        (item.description && item.description.toLowerCase().includes(q))
+      );
+      return isApproved && matchesCat && matchesSearch;
+    });
+
+    if (sortSurplusBy === 'discount') {
+      list = [...list].sort((a, b) => b.discountPercent - a.discountPercent);
+    } else if (sortSurplusBy === 'price_asc') {
+      list = [...list].sort((a, b) => a.surplusPrice - b.surplusPrice);
+    } else if (sortSurplusBy === 'newest') {
+      list = [...list].reverse();
     }
+    return list;
+  }, [allSurplusList, selectedSurplusCategory, searchSurplusQuery, sortSurplusBy]);
 
-    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
-
-    setCoopSubmittedCode(trackingCode);
-  };
-
-  const handleCapImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("لطفاً فقط فایل تصویر معتبر انتخاب کنید.");
+  // Handle Register Surplus Item
+  const handleRegisterSurplus = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSurpTitle.trim() || !newSurpFactory.trim() || !newSurpPrice.trim()) return;
+    if (!isSurpPhoneVerified) {
+      alert("جهت حفظ امنیت و اصالت کارخانه، تأیید پیامکی شماره همراه الزامی است.");
       return;
     }
-    const result = await uploadToParsPackStorage(file, "capacity_ads");
-    if (result.success && result.url) {
-      setUploadedCapImageBase64(result.url);
-    } else {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result && typeof e.target.result === "string") {
-          setUploadedCapImageBase64(e.target.result);
+
+    const orgPrice = Number(newSurpOriginalPrice) || Math.round(Number(newSurpPrice) * 1.25);
+    const surpPrice = Number(newSurpPrice);
+    const discount = Math.max(5, Math.round(((orgPrice - surpPrice) / orgPrice) * 100));
+
+    const newItem: SurplusItem = {
+      id: `surp-${Date.now()}`,
+      title: newSurpTitle.trim(),
+      factoryName: newSurpFactory.trim(),
+      brand: newSurpBrand.trim() || newSurpFactory.trim(),
+      category: newSurpCat,
+      location: newSurpLocation.trim() || "ایران",
+      readyCartons: Number(newSurpReadyCartons) || 100,
+      minOrderCartons: Number(newSurpMinOrder) || 10,
+      originalPrice: orgPrice,
+      surplusPrice: surpPrice,
+      discountPercent: discount,
+      productionDate: newSurpDate.trim() || "تولید روز جاری",
+      cause: newSurpCause.trim() || "مازاد خط تولید و تکمیل سهمیه شیفت",
+      deliveryCondition: newSurpDelivery.trim() || "تحویل فوری درب کارخانه",
+      description: newSurpDesc.trim() || "بار تازه و اعلا مستقیماً از انتهای خط بسته‌بندی کارخانه با تخفیف ویژه نقدی.",
+      imageUrl: uploadedSurpImageBase64 || "https://c102393.parspack.net/c102393/products/prd_5.webp",
+      phone: newSurpPhone.trim(),
+      status: "approved"
+    };
+
+    const updated = [newItem, ...surplusList];
+    setSurplusList(updated);
+    try {
+      localStorage.setItem("dastavval_surplus_goods", JSON.stringify(updated));
+    } catch (err) {}
+
+    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+
+    setSurpSuccessMsg("مازاد خط تولید کارخانه با موفقیت اعلام شد و در تالار مازاد تولید برای خریداران عمده فعال گردید.");
+    setTimeout(() => {
+      setShowAddSurplusModal(false);
+      setSurpSuccessMsg("");
+      setNewSurpTitle("");
+      setNewSurpFactory("");
+      setNewSurpBrand("");
+      setNewSurpLocation("");
+      setNewSurpReadyCartons("");
+      setNewSurpOriginalPrice("");
+      setNewSurpPrice("");
+      setNewSurpPhone("");
+      setNewSurpDesc("");
+      setUploadedSurpImageBase64(null);
+    }, 2500);
+  };
+
+  // Handle Order Surplus Submit
+  const handleOrderSurplusSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderSurpBuyerName.trim() || !orderSurpBuyerPhone.trim()) return;
+
+    const trackingCode = `SURP-REQ-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newRfq: any = {
+      id: trackingCode,
+      trackingNumber: trackingCode,
+      type: "surplus",
+      materialName: `استعلام خرید مازاد خط تولید: ${selectedSurplusForOrder?.title || "مازاد خط"}`,
+      title: `استعلام خرید مازاد خط تولید: ${selectedSurplusForOrder?.title || "مازاد خط"}`,
+      buyerFactoryName: orderSurpBuyerName.trim(),
+      requester: orderSurpBuyerName.trim(),
+      buyerPhone: orderSurpBuyerPhone.trim(),
+      buyerCity: orderSurpBuyerCity.trim() || "سراسر کشور",
+      buyerNotes: orderSurpNotes.trim(),
+      createdAt: new Date().toLocaleDateString('fa-IR'),
+      status: "در حال بررسی و بارگیری کارخانه",
+      bids: [],
+      items: [
+        {
+          productId: selectedSurplusForOrder?.id || "surp-item",
+          name: selectedSurplusForOrder?.title || "مازاد خط تولید",
+          quantityCartons: Number(orderSurpQty) || selectedSurplusForOrder?.minOrderCartons || 10,
+          pricePerCarton: selectedSurplusForOrder?.surplusPrice || 0,
+          totalItems: Number(orderSurpQty) || 10,
+          notes: orderSurpNotes.trim()
         }
-      };
-      reader.readAsDataURL(file);
-    }
+      ]
+    };
+
+    const updatedRfqs = [newRfq, ...rfqOrders];
+    setRfqOrders(updatedRfqs);
+    try {
+      localStorage.setItem("dastavval_raw_orders", JSON.stringify(updatedRfqs));
+    } catch (err) {}
+
+    window.dispatchEvent(new CustomEvent("dastavval_orders_updated"));
+    setOrderSurpSubmittedCode(trackingCode);
   };
 
   return (
@@ -2097,15 +2060,27 @@ export default function FactoriesView({
             </button>
 
             <button
-              onClick={() => setActiveSubTab('capacity_ads')}
+              onClick={() => setActiveSubTab('sediment')}
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-                activeSubTab === 'capacity_ads'
-                  ? "bg-emerald-600 text-white font-black"
+                activeSubTab === 'sediment'
+                  ? "bg-rose-600 text-white font-black"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
-              <Megaphone size={13} />
-              <span>ظرفیت خالی ({toPersianNum(capacityAdsList.filter(a => a.status === "approved" || (!a.isPendingApproval && a.status !== "pending" && a.status !== "rejected")).length)})</span>
+              <Archive size={13} />
+              <span>کالاهای رسوب‌کرده ({toPersianNum(allSedimentList.length)})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('surplus')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+                activeSubTab === 'surplus'
+                  ? "bg-amber-600 text-white font-black"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
+            >
+              <Flame size={13} />
+              <span>مازاد تولید ({toPersianNum(allSurplusList.length)})</span>
             </button>
 
             <button
@@ -2121,27 +2096,27 @@ export default function FactoriesView({
             </button>
 
             <button
-              onClick={() => setActiveSubTab('services')}
+              onClick={() => setActiveSubTab('barter')}
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-                activeSubTab === 'services'
+                activeSubTab === 'barter'
                   ? "bg-emerald-600 text-white font-black"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
-              <Briefcase size={13} />
-              <span>خدمات صنعتی ({toPersianNum(servicesList.filter(s => s.status === "approved" || (!s.isPendingApproval && s.status !== "pending" && s.status !== "در حال بررسی" && s.status !== "rejected")).length)})</span>
+              <ArrowLeftRight size={13} />
+              <span>تهاتر صنعتی</span>
             </button>
 
             <button
-              onClick={() => setActiveSubTab('equipment')}
+              onClick={() => setActiveSubTab('rfqs')}
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-                activeSubTab === 'equipment'
+                activeSubTab === 'rfqs'
                   ? "bg-emerald-600 text-white font-black"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
-              <Wrench size={13} />
-              <span>تجهیزات ({toPersianNum(equipmentList.filter(e => e.status === "approved" || (!e.isPendingApproval && e.status !== "pending" && e.status !== "در حال بررسی" && e.status !== "rejected")).length)})</span>
+              <FileSpreadsheet size={13} />
+              <span>استعلام خرید</span>
             </button>
           </div>
         </div>
@@ -2179,10 +2154,9 @@ export default function FactoriesView({
       {/* SUB-TAB 1: FACTORIES DIRECTORY */}
       {activeSubTab === 'factories' && (
         <div className="space-y-4">
-          {/* Category Filter Tabs & Search Bar */}
           {/* Category Filter Tabs, Industrial Park & Province Selectors, Search & Special Flags */}
-          <div className="bg-white border-2 border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-sm space-y-4 text-right" dir="rtl">
-            {/* Row 1: Search & Primary Filters */}
+          <div className="bg-white border-2 border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3 text-right" dir="rtl">
+            {/* Always-visible Header Bar: Search + Collapsible Filter Toggle */}
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
               <div className="relative flex-1">
                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600" size={16} />
@@ -2203,104 +2177,24 @@ export default function FactoriesView({
                 )}
               </div>
 
-              {/* Geographical & Industrial Park Selectors */}
-              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                {/* Industrial Park Dropdown */}
-                <div className="relative min-w-[170px] flex-1 sm:flex-initial">
-                  <select
-                    value={selectedIndustrialPark}
-                    onChange={(e) => setSelectedIndustrialPark(e.target.value)}
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl pr-3.5 pl-8 py-2.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                  >
-                    <option value="همه شهرک‌ها">🏭 همه شهرک‌های صنعتی</option>
-                    {Array.from(new Set([...DEFAULT_INDUSTRIAL_PARKS, ...(allFactories || []).map((f: any) => f.industrialPark).filter(Boolean)])).map((park) => (
-                      <option key={`opt-park-${park}`} value={park}>
-                        {park}
-                      </option>
-                    ))}
-                  </select>
-                  <Filter size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-
-                {/* Province Dropdown */}
-                <div className="relative min-w-[130px] flex-1 sm:flex-initial">
-                  <select
-                    value={selectedProvince}
-                    onChange={(e) => setSelectedProvince(e.target.value)}
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl pr-3.5 pl-8 py-2.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                  >
-                    <option value="همه استان‌ها">📍 همه استان‌ها</option>
-                    {Array.from(new Set([...DEFAULT_PROVINCES, ...(allFactories || []).map((f: any) => f.province).filter(Boolean)])).map((prov) => (
-                      <option key={`opt-prov-${prov}`} value={prov}>
-                        استان {prov}
-                      </option>
-                    ))}
-                  </select>
-                  <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-
-                {/* Sort By Dropdown */}
-                <div className="relative min-w-[140px] flex-1 sm:flex-initial">
-                  <select
-                    value={sortBy}
-                    onChange={(e: any) => setSortBy(e.target.value)}
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl pr-3.5 pl-8 py-2.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                  >
-                    <option value="featured">⭐ برگزیدگان و ممتازین</option>
-                    <option value="capacity">⚡ بیشترین ظرفیت خالی</option>
-                    <option value="rating">🏆 بالاترین امتیاز کیفی</option>
-                    <option value="personnel">👥 مقیاس و پرسنل کارخانه</option>
-                  </select>
-                  <SlidersHorizontal size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* Row 2: Special Filtering Quick-Chips */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* First Hand Toggle */}
+              {/* Action Buttons: Toggle Collapsible Drawer & Layout */}
+              <div className="flex items-center gap-2 justify-between lg:justify-end">
                 <button
-                  onClick={() => setOnlyFirstHand(!onlyFirstHand)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
-                    onlyFirstHand 
-                      ? "bg-amber-500 text-slate-950 border-amber-400 ring-2 ring-amber-300/40" 
+                  onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer border shadow-2xs ${
+                    !isFiltersCollapsed 
+                      ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/20" 
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  <span className="text-[13px]">👑</span>
-                  <span>فقط تولیدکنندگان دست اول</span>
+                  <Filter size={15} className={!isFiltersCollapsed ? "text-white animate-spin" : "text-emerald-600"} />
+                  <span>{isFiltersCollapsed ? "🎛️ فیلترهای پیشرفته و شهرک‌ها" : "بستن پنل فیلترها"}</span>
+                  {(selectedCategory !== "همه صنایع" || selectedIndustrialPark !== "همه شهرک‌ها" || selectedProvince !== "همه استان‌ها" || onlyFirstHand || onlyLuxuryBadges || onlyWithEmptyCapacity) && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  )}
+                  <ChevronDown size={14} className={`transition-transform duration-300 ${!isFiltersCollapsed ? "rotate-180" : ""}`} />
                 </button>
 
-                {/* Luxury / Honor Badges Toggle */}
-                <button
-                  onClick={() => setOnlyLuxuryBadges(!onlyLuxuryBadges)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
-                    onlyLuxuryBadges 
-                      ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white border-amber-600 ring-2 ring-amber-400/30" 
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  <Award size={13} className={onlyLuxuryBadges ? "text-amber-200" : "text-amber-600"} />
-                  <span>دارای نشان امین‌الضرب / نمادهای رسمی</span>
-                </button>
-
-                {/* Empty Capacity Toggle */}
-                <button
-                  onClick={() => setOnlyWithEmptyCapacity(!onlyWithEmptyCapacity)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
-                    onlyWithEmptyCapacity 
-                      ? "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30" 
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className={`w-2 h-2 rounded-full ${onlyWithEmptyCapacity ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
-                  <span>دارای ظرفیت خالی خط (OEM)</span>
-                </button>
-              </div>
-
-              {/* Layout Toggle & Status counter */}
-              <div className="flex items-center justify-between w-full lg:w-auto gap-4">
                 <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
                   <button
                     onClick={() => setViewLayout('grid')}
@@ -2317,36 +2211,143 @@ export default function FactoriesView({
                     <List size={16} />
                   </button>
                 </div>
-
-                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
-                <span>
-                  نمایش <span className="text-emerald-700 font-black">{toPersianNum(sortedFactories.length)}</span> کارخانه از <span className="font-black">{toPersianNum(allFactories.length)}</span>
-                </span>
-                {(selectedCategory !== "همه صنایع" || selectedIndustrialPark !== "همه شهرک‌ها" || selectedProvince !== "همه استان‌ها" || onlyFirstHand || onlyLuxuryBadges || onlyWithEmptyCapacity || searchQuery) && (
-                  <button
-                    onClick={() => {
-                      setSelectedCategory("همه صنایع");
-                      setSelectedIndustrialPark("همه شهرک‌ها");
-                      setSelectedProvince("همه استان‌ها");
-                      setOnlyFirstHand(false);
-                      setOnlyLuxuryBadges(false);
-                      setOnlyWithEmptyCapacity(false);
-                      setSearchQuery("");
-                    }}
-                    className="text-rose-600 hover:text-rose-700 font-black flex items-center gap-0.5 underline cursor-pointer"
-                  >
-                    <RotateCcw size={11} />
-                    <span>حذف فیلترها</span>
-                  </button>
-                )}
               </div>
             </div>
+
+            {/* Collapsible Filter Panel (Drawer) */}
+            <AnimatePresence>
+              {!isFiltersCollapsed && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4 pt-3 border-t border-slate-100 overflow-hidden"
+                >
+                  {/* Geographical & Industrial Park Selectors */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Industrial Park Dropdown */}
+                    <div className="relative">
+                      <select
+                        value={selectedIndustrialPark}
+                        onChange={(e) => setSelectedIndustrialPark(e.target.value)}
+                        className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl pr-3.5 pl-8 py-2.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                      >
+                        <option value="همه شهرک‌ها">🏭 همه شهرک‌های صنعتی</option>
+                        {Array.from(new Set([...DEFAULT_INDUSTRIAL_PARKS, ...(allFactories || []).map((f: any) => f.industrialPark).filter(Boolean)])).map((park) => (
+                          <option key={`opt-park-${park}`} value={park}>
+                            {park}
+                          </option>
+                        ))}
+                      </select>
+                      <Filter size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* Province Dropdown */}
+                    <div className="relative">
+                      <select
+                        value={selectedProvince}
+                        onChange={(e) => setSelectedProvince(e.target.value)}
+                        className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl pr-3.5 pl-8 py-2.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                      >
+                        <option value="همه استان‌ها">📍 همه استان‌ها</option>
+                        {Array.from(new Set([...DEFAULT_PROVINCES, ...(allFactories || []).map((f: any) => f.province).filter(Boolean)])).map((prov) => (
+                          <option key={`opt-prov-${prov}`} value={prov}>
+                            استان {prov}
+                          </option>
+                        ))}
+                      </select>
+                      <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* Sort By Dropdown */}
+                    <div className="relative">
+                      <select
+                        value={sortBy}
+                        onChange={(e: any) => setSortBy(e.target.value)}
+                        className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl pr-3.5 pl-8 py-2.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                      >
+                        <option value="featured">⭐ برگزیدگان و ممتازین</option>
+                        <option value="capacity">⚡ بیشترین ظرفیت خالی</option>
+                        <option value="rating">🏆 بالاترین امتیاز کیفی</option>
+                        <option value="personnel">👥 مقیاس و پرسنل کارخانه</option>
+                      </select>
+                      <SlidersHorizontal size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Special Filtering Quick-Chips */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => setOnlyFirstHand(!onlyFirstHand)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                          onlyFirstHand 
+                            ? "bg-amber-500 text-slate-950 border-amber-400 ring-2 ring-amber-300/40" 
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span className="text-[13px]">👑</span>
+                        <span>فقط تولیدکنندگان دست اول</span>
+                      </button>
+
+                      <button
+                        onClick={() => setOnlyLuxuryBadges(!onlyLuxuryBadges)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                          onlyLuxuryBadges 
+                            ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white border-amber-600 ring-2 ring-amber-400/30" 
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <Award size={13} className={onlyLuxuryBadges ? "text-amber-200" : "text-amber-600"} />
+                        <span>دارای نشان امین‌الضرب / نمادهای رسمی</span>
+                      </button>
+
+                      <button
+                        onClick={() => setOnlyWithEmptyCapacity(!onlyWithEmptyCapacity)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                          onlyWithEmptyCapacity 
+                            ? "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400/30" 
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${onlyWithEmptyCapacity ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
+                        <span>دارای ظرفیت خالی خط (OEM)</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+                      <span>
+                        نمایش <span className="text-emerald-700 font-black">{toPersianNum(sortedFactories.length)}</span> کارخانه از <span className="font-black">{toPersianNum(allFactories.length)}</span>
+                      </span>
+                      {(selectedCategory !== "همه صنایع" || selectedIndustrialPark !== "همه شهرک‌ها" || selectedProvince !== "همه استان‌ها" || onlyFirstHand || onlyLuxuryBadges || onlyWithEmptyCapacity || searchQuery) && (
+                        <button
+                          onClick={() => {
+                            setSelectedCategory("همه صنایع");
+                            setSelectedIndustrialPark("همه شهرک‌ها");
+                            setSelectedProvince("همه استان‌ها");
+                            setOnlyFirstHand(false);
+                            setOnlyLuxuryBadges(false);
+                            setOnlyWithEmptyCapacity(false);
+                            setSearchQuery("");
+                          }}
+                          className="text-rose-600 hover:text-rose-700 font-black flex items-center gap-0.5 underline cursor-pointer"
+                        >
+                          <RotateCcw size={11} />
+                          <span>حذف فیلترها</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Row 3: Industry Category Pills */}
-            <div className="border-t border-slate-100 pt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
-              {(() => {
-                let dynamicCats: string[] = [];
+          <div className="border-t border-slate-100 pt-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
+            {(() => {
+              let dynamicCats: string[] = [];
                 if (b2bConfig?.categories && b2bConfig.categories.length > 0) {
                   dynamicCats = b2bConfig.categories.map((c: any) => typeof c === 'string' ? c : (c.name || c.id));
                 } else {
@@ -2377,7 +2378,6 @@ export default function FactoriesView({
                 });
               })()}
             </div>
-          </div>
 
           {/* Factory List Grid */}
           {sortedFactories.length === 0 ? (
@@ -2443,38 +2443,38 @@ export default function FactoriesView({
         </div>
       )}
 
-      {/* SUB-TAB: EMPTY CAPACITY ADS (آگهی‌های ظرفیت خالی خط تولید) */}
-      {activeSubTab === 'capacity_ads' && (
-        <div className="space-y-6">
+      {/* SUB-TAB: SEDIMENT GOODS (کالاهای رسوب‌کرده کارخانجات) */}
+      {activeSubTab === 'sediment' && (
+        <div className="space-y-6 animate-in fade-in duration-300 text-right" dir="rtl">
           {/* Top Banner & Post Ad CTA */}
           <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="space-y-2 max-w-2xl text-right z-10" dir="rtl">
-              <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 text-[11px] font-black px-3 py-1 rounded-full border border-emerald-200 shadow-2xs">
-                <Megaphone size={14} className="text-emerald-600 animate-bounce" />
-                <span>سامانه برون‌سپاری تولید و ظرفیت خالی کارخانجات (OEM/Contract Manufacturing)</span>
+              <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-800 text-[11px] font-black px-3 py-1 rounded-full border border-rose-200 shadow-2xs">
+                <Archive size={14} className="text-rose-600 animate-pulse" />
+                <span>سامانه آزادسازی انبار و نقدشوندگی کالاهای رسوب‌کرده کارخانجات</span>
               </span>
               <h2 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug">
-                تالار واگذاری و پذیرش ظرفیت خالی خطوط تولید کشور
+                تالار حراج و ترخیص کالاهای رسوب‌کرده و انبارداری کارخانجات
               </h2>
               <p className="text-xs text-slate-600 font-medium leading-relaxed font-sans">
-                کارخانجات مجهز کشور، ظرفیت‌های خالی شیفت‌های تولیدی، ماشین‌آلات بسته‌بندی، فرها و فرمولاسیون اختصاصی خود را در این بخش جهت برون‌سپاری اعلام کرده‌اند. اگر شما صاحب برند، بازرگان یا متقاضی تولید هستید، بدون دغدغه احداث کارخانه، سفارش تولید کارمزدی خود را به واحدهای رسمی ارجاع دهید.
+                کالاهای استاندارد و دارای پروانه بهداشتی دپو شده در انبار کارخانجات معتبر با تخفیف‌های استثنایی نقدی (تا ۵۰٪ زیر قیمت عمده کارخانه) جهت آزادسازی انبار و تامین فوری نقدینگی، ویژه بنکداران و عمده‌فروشان سراسر کشور.
               </p>
             </div>
 
             <button
               onClick={() => {
                 if (user?.role === "factory") {
-                  setNewCapFactoryName(user.company || user.name || "");
+                  setNewSedFactory(user.company || user.name || "");
                 }
-                setShowAddCapacityModal(true);
+                setShowAddSedimentModal(true);
               }}
-              className="px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs sm:text-sm transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.98]"
+              className="px-6 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-xs sm:text-sm transition-all shadow-lg shadow-rose-600/20 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.98] shrink-0"
             >
               <PlusCircle size={18} />
-              <span>📢 ثبت آگهی ظرفیت خالی کارخانه من</span>
+              <span>ثبت کالای رسوب‌کرده کارخانه من</span>
             </button>
           </div>
 
@@ -2482,36 +2482,48 @@ export default function FactoriesView({
           <div className="bg-white border border-slate-200 p-6 rounded-[2.5rem] shadow-3xs space-y-4 text-right">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="space-y-1">
-                <h3 className="text-xs sm:text-sm font-black text-slate-800">فیلتر و پایش آگهی‌های ظرفیت خالی</h3>
-                <p className="text-[10px] text-slate-400 font-bold">بسته‌بندی قوطی، سلفون، ظروف پت، کیسه‌پرکنی و فرمولاسیون انواع صنایع</p>
+                <h3 className="text-xs sm:text-sm font-black text-slate-800">فیلتر و پایش کالاهای رسوب‌کرده</h3>
+                <p className="text-[10px] text-slate-400 font-bold">حراج اقلام دپو شده با تخفیف بالا، مجوز بهداشتی کامل و تحویل فوری از انبار</p>
               </div>
 
-              <div className="relative w-full md:w-80">
-                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input
-                  type="text"
-                  value={searchCapQuery}
-                  onChange={(e) => setSearchCapQuery(e.target.value)}
-                  placeholder="جستجوی عنوان تولید، نام کارخانه، شهر یا دستگاه..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-3 text-xs font-black focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white focus:border-emerald-500 shadow-2xs transition-all text-slate-800"
-                />
-                {searchCapQuery && (
-                  <button onClick={() => setSearchCapQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <X size={14} />
-                  </button>
-                )}
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text"
+                    value={searchSedimentQuery}
+                    onChange={(e) => setSearchSedimentQuery(e.target.value)}
+                    placeholder="جستجوی عنوان کالا، برند یا کارخانه..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-3 text-xs font-black focus:outline-none focus:ring-1 focus:ring-rose-500 focus:bg-white focus:border-rose-500 shadow-2xs transition-all text-slate-800"
+                  />
+                  {searchSedimentQuery && (
+                    <button onClick={() => setSearchSedimentQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={sortSedimentBy}
+                  onChange={(e) => setSortSedimentBy(e.target.value as any)}
+                  className="bg-slate-50 text-slate-800 text-xs rounded-2xl px-3 py-3 border border-slate-200 focus:outline-none font-bold cursor-pointer w-full sm:w-auto"
+                >
+                  <option value="discount">بیشترین تخفیف (%)</option>
+                  <option value="price_asc">ارزان‌ترین قیمت کارتن</option>
+                  <option value="stock_desc">بیشترین موجودی انبار</option>
+                </select>
               </div>
             </div>
 
             {/* Categories scrollbar */}
             <div className="border-t border-slate-100 pt-3 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {["همه صنایع", "نوشیدنی و آبمیوه", "کیک، کلوچه و بیسکویت", "شوینده و بهداشتی", "مواد غذایی و کنسروجات", "لبنیات و فرآورده‌ها"].map((cat) => (
+              {["همه کالاهای رسوب‌کرده", "کیک، کلوچه و بیسکویت", "شوینده و بهداشتی", "نوشیدنی و آبمیوه", "مواد غذایی و کنسروجات", "روغن و چربی‌های خوراکی"].map((cat) => (
                 <button
-                  key={`cap-cat-btn-${cat}`}
-                  onClick={() => setSelectedCapCategory(cat)}
+                  key={`sed-cat-btn-${cat}`}
+                  onClick={() => setSelectedSedimentCategory(cat)}
                   className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                    selectedCapCategory === cat
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    selectedSedimentCategory === cat
+                      ? "bg-rose-600 text-white shadow-md shadow-rose-600/20"
                       : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100/50"
                   }`}
                 >
@@ -2521,88 +2533,319 @@ export default function FactoriesView({
             </div>
           </div>
 
-          {/* Grid of Capacity Ads */}
-          {filteredCapacityAds.length === 0 ? (
+          {/* Grid of Sediment Goods */}
+          {filteredSedimentGoods.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-slate-200 p-12 text-center space-y-4 shadow-sm">
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto text-2xl">
-                📢
+              <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto text-2xl">
+                📦
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-800">هیچ آگهی ظرفیت خالی پیدا نشد</h3>
+                <h3 className="text-sm font-black text-slate-800">هیچ کالای رسوب‌کرده‌ای مطابق فیلتر یافت نشد</h3>
                 <p className="text-xs text-slate-400 font-bold max-w-md mx-auto">
-                  می‌توانید فیلتر دسته‌بندی را تغییر داده یا از نوار جستجو استفاده نمایید. همچنین خودتان می‌توانید آگهی ثبت کنید.
+                  می‌توانید فیلتر دسته‌بندی را تغییر داده یا از نوار جستجو استفاده نمایید. همچنین کارخانجات می‌توانند اقلام دپو شده را ثبت کنند.
                 </p>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCapacityAds.map((ad, aIdx) => (
+              {filteredSedimentGoods.map((item, idx) => (
                 <motion.div
-                  key={`cap-ad-card-${ad.id || aIdx}-${aIdx}`}
+                  key={`sed-card-${item.id || idx}`}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[2.5rem] border border-slate-200 hover:border-emerald-300 hover:shadow-xl transition-all p-6 flex flex-col justify-between text-right space-y-4"
+                  className="bg-white rounded-[2.5rem] border border-slate-200 hover:border-rose-300 hover:shadow-xl transition-all p-6 flex flex-col justify-between text-right space-y-4"
                   dir="rtl"
                 >
                   <div className="space-y-3">
-                    <div className="relative aspect-video rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 shadow-3xs">
-                      <img src={ad.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600"} alt={ad.title} className="w-full h-full object-cover" />
-                      <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-emerald-800 font-black text-[10px] px-3 py-1.5 rounded-full border border-emerald-200">
-                        {ad.category}
+                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-white border border-slate-200 p-2.5 flex items-center justify-center shadow-3xs group/img">
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+                      <div className="absolute top-2.5 right-2.5 flex flex-col gap-1 items-end z-10">
+                        <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-md flex items-center gap-1">
+                          <TrendingDown size={11} />
+                          <span>%{toPersianNum(item.discountPercent)} تخفیف انبار</span>
+                        </span>
+                        <span className="bg-slate-900/80 backdrop-blur-xs text-white text-[9.5px] font-bold px-2 py-0.5 rounded-md">
+                          دپو: {item.sedimentDuration}
+                        </span>
+                      </div>
+                      <span className="absolute bottom-2.5 left-2.5 bg-white/90 backdrop-blur-md text-amber-800 font-black text-[9.5px] px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1 z-10">
+                        <Clock size={10} className="text-amber-600" />
+                        <span>{item.shelfLifeRemaining}</span>
                       </span>
                     </div>
 
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-emerald-700 text-[10px] font-black">
+                      <div className="flex items-center gap-1.5 text-rose-700 text-[10px] font-black">
                         <Building2 size={13} />
-                        <span>{ad.factoryName}</span>
+                        <span>{item.factoryName}</span>
+                        {item.brand && <span className="text-slate-400 font-bold">({item.brand})</span>}
                       </div>
-                      <h3 className="text-sm font-black text-slate-900 leading-snug line-clamp-2 hover:text-emerald-700 transition-colors">
-                        {ad.title}
+                      <h3 className="text-sm font-black text-slate-900 leading-snug line-clamp-2 hover:text-rose-700 transition-colors">
+                        {item.title}
                       </h3>
                       <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
-                        <MapPin size={11} className="text-emerald-500" />
-                        <span>{ad.location}</span>
+                        <MapPin size={11} className="text-rose-500" />
+                        <span>{item.location}</span>
                         <span className="w-1 h-1 rounded-full bg-slate-200" />
-                        <span>انتشار: {ad.createdAt}</span>
+                        <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{item.category}</span>
                       </div>
                     </div>
 
-                    {/* Specs info */}
-                    <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-3 space-y-2 text-xs">
-                      <div className="flex justify-between items-center text-[10px] text-slate-500">
-                        <span className="font-bold">حداقل حجم پذیرش سفارش:</span>
-                        <span className="font-black text-slate-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">{ad.minOrderQty}</span>
+                    {/* Stock and Min order */}
+                    <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center text-[11px] text-slate-600">
+                        <span className="font-bold">موجودی انبار کارخانه:</span>
+                        <span className="font-black text-slate-900 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">{toPersianNum(item.stockCartons)} کارتن</span>
                       </div>
-                      <div className="text-[10px] text-slate-600 leading-relaxed font-bold border-t border-slate-100/60 pt-2 line-clamp-2">
-                        <strong className="text-slate-800">دستگاه‌ها و خطوط:</strong> {ad.capacityDetails}
+                      <div className="flex justify-between items-center text-[11px] text-slate-600">
+                        <span className="font-bold">حداقل سفارش:</span>
+                        <span className="font-black text-slate-800">{toPersianNum(item.minOrderCartons)} کارتن</span>
                       </div>
                     </div>
 
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-3">
-                      {ad.description}
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+                      {item.description}
                     </p>
                   </div>
 
-                  {/* Footer & CTA */}
+                  {/* Pricing and Order Button */}
                   <div className="pt-2 border-t border-slate-100 space-y-3">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold">
-                      <span>کد آگهی: {toPersianNum(ad.id)}</span>
-                      <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg font-black">
-                        {toPersianNum(Array.isArray(ad.cooperationRequests) ? ad.cooperationRequests.length : 0)} پیشنهاد ثبت شده
-                      </span>
+                    <div className="flex items-end justify-between">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block line-through">
+                          قیمت کارخانه: {toPersianNum(item.originalPrice.toLocaleString())} ت
+                        </span>
+                        <span className="text-[11px] font-bold text-rose-600">
+                          قیمت حراج رسوب انبار:
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <span className="text-base font-black text-rose-600">
+                          {toPersianNum(item.sedimentPrice.toLocaleString())}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium mr-1">تومان / کارتن</span>
+                      </div>
                     </div>
 
                     <button
                       onClick={() => {
-                        setSelectedCapacityAd(ad);
-                        setReqCoopProduct(ad.title);
-                        setShowSubmitCooperationModal(true);
+                        setSelectedSedimentForOrder(item);
+                        setOrderSedQty(String(item.minOrderCartons || 10));
+                        setOrderSedSubmittedCode(null);
+                        setShowOrderSedimentModal(true);
                       }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl text-[11px] sm:text-xs transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                      className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-3 rounded-2xl text-[11px] sm:text-xs transition-all shadow-md shadow-rose-600/10 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                     >
-                      <Handshake size={15} />
-                      <span>🤝 ثبت درخواست تولید کارمزدی / همکاری</span>
+                      <ShoppingCart size={15} />
+                      <span>ثبت سفارش و خرید نقدی با تخفیف</span>
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SUB-TAB: SURPLUS PRODUCTION (مازاد خط تولید کارخانجات) */}
+      {activeSubTab === 'surplus' && (
+        <div className="space-y-6 animate-in fade-in duration-300 text-right" dir="rtl">
+          {/* Top Banner & Post Surplus CTA */}
+          <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-2 max-w-2xl text-right z-10" dir="rtl">
+              <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 text-[11px] font-black px-3 py-1 rounded-full border border-amber-200 shadow-2xs">
+                <Flame size={14} className="text-amber-600 animate-bounce" />
+                <span>سامانه عرضه مستقیم مازاد خطوط تولید و شیفت‌های مازاد کارخانجات</span>
+              </span>
+              <h2 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug">
+                تالار خرید بی‌واسطه مازاد تولید روزانه، شیفت‌های اضافی و لغو سفارشات صادراتی
+              </h2>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed font-sans">
+                محصولات داغ و تازه‌تولید که به دلیل تکمیل زودهنگام ظرفیت روزانه خط یا کنسلی پارت‌های صادراتی با قیمت کف خط تولید و تخفیف نقدی استثنایی مستقیماً از انتهای خط کارخانه واگذار می‌شوند.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                if (user?.role === "factory") {
+                  setNewSurpFactory(user.company || user.name || "");
+                }
+                setShowAddSurplusModal(true);
+              }}
+              className="px-6 py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black text-xs sm:text-sm transition-all shadow-lg shadow-amber-600/20 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+            >
+              <PlusCircle size={18} />
+              <span>اعلام مازاد خط تولید کارخانه</span>
+            </button>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="bg-white border border-slate-200 p-6 rounded-[2.5rem] shadow-3xs space-y-4 text-right">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-xs sm:text-sm font-black text-slate-800">فیلتر و پایش اقلام مازاد تولید</h3>
+                <p className="text-[10px] text-slate-400 font-bold">بارگیری مستقیم از درب کارخانه، تاریخ کاملاً روز و تخفیف نقدی کف خط</p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text"
+                    value={searchSurplusQuery}
+                    onChange={(e) => setSearchSurplusQuery(e.target.value)}
+                    placeholder="جستجوی عنوان مازاد، کارخانه، برند یا علت..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-3 text-xs font-black focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white focus:border-amber-500 shadow-2xs transition-all text-slate-800"
+                  />
+                  {searchSurplusQuery && (
+                    <button onClick={() => setSearchSurplusQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={sortSurplusBy}
+                  onChange={(e) => setSortSurplusBy(e.target.value as any)}
+                  className="bg-slate-50 text-slate-800 text-xs rounded-2xl px-3 py-3 border border-slate-200 focus:outline-none font-bold cursor-pointer w-full sm:w-auto"
+                >
+                  <option value="discount">بیشترین تخفیف (%)</option>
+                  <option value="newest">تازه‌ترین تولیدات</option>
+                  <option value="price_asc">ارزان‌ترین قیمت کارتن</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Category Pills */}
+            <div className="border-t border-slate-100 pt-3 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {SURPLUS_CATEGORIES.map((cat) => (
+                <button
+                  key={`surp-cat-btn-${cat}`}
+                  onClick={() => setSelectedSurplusCategory(cat)}
+                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+                    selectedSurplusCategory === cat
+                      ? "bg-amber-600 text-white shadow-md shadow-amber-600/20"
+                      : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100/50"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid of Surplus Goods */}
+          {filteredSurplusGoods.length === 0 ? (
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-12 text-center space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mx-auto text-2xl">
+                🔥
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-800">هیچ مازاد تولیدی مطابق فیلتر یافت نشد</h3>
+                <p className="text-xs text-slate-400 font-bold max-w-md mx-auto">
+                  می‌توانید فیلتر دسته‌بندی را تغییر داده یا از نوار جستجو استفاده نمایید. همچنین کارخانجات می‌توانند مازاد شیفت خود را ثبت کنند.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredSurplusGoods.map((item, idx) => (
+                <motion.div
+                  key={`surp-card-${item.id || idx}`}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-[2.5rem] border border-slate-200 hover:border-amber-300 hover:shadow-xl transition-all p-6 flex flex-col justify-between text-right space-y-4"
+                  dir="rtl"
+                >
+                  <div className="space-y-3">
+                    <div className="w-full h-44 rounded-2xl overflow-hidden relative bg-slate-100 border border-slate-100">
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                        <span className="bg-amber-600 text-white text-[11px] font-black px-2.5 py-1 rounded-xl shadow-md flex items-center gap-1">
+                          <TrendingDown size={12} />
+                          <span>%{toPersianNum(item.discountPercent)} تخفیف مازاد خط</span>
+                        </span>
+                        <span className="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                          {item.productionDate}
+                        </span>
+                      </div>
+                      <span className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md text-slate-800 font-black text-[10px] px-2.5 py-1 rounded-full border border-slate-200 flex items-center gap-1">
+                        <Truck size={11} className="text-amber-600" />
+                        <span>تحویل فوری درب کارخانه</span>
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-amber-700 text-[10px] font-black">
+                        <Building2 size={13} />
+                        <span>{item.factoryName}</span>
+                        {item.brand && <span className="text-slate-400 font-bold">({item.brand})</span>}
+                      </div>
+                      <h3 className="text-sm font-black text-slate-900 leading-snug line-clamp-2 hover:text-amber-700 transition-colors">
+                        {item.title}
+                      </h3>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+                        <MapPin size={11} className="text-amber-500" />
+                        <span>{item.location}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-200" />
+                        <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{item.category}</span>
+                      </div>
+                    </div>
+
+                    {/* Cause & Ready Stock */}
+                    <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center text-[11px] text-slate-700">
+                        <span className="font-bold text-amber-900">علت عرضه مازاد:</span>
+                        <span className="font-bold text-slate-800 text-[10px]">{item.cause}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-slate-600 border-t border-amber-100/60 pt-1.5">
+                        <span className="font-bold">موجودی آماده بارگیری:</span>
+                        <span className="font-black text-amber-800 bg-amber-100/60 px-2 py-0.5 rounded-md">{toPersianNum(item.readyCartons)} کارتن</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-slate-600">
+                        <span className="font-bold">حداقل خرید:</span>
+                        <span className="font-black text-slate-800">{toPersianNum(item.minOrderCartons)} کارتن</span>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {/* Pricing and Order Button */}
+                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                    <div className="flex items-end justify-between">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block line-through">
+                          قیمت معمول خط: {toPersianNum(item.originalPrice.toLocaleString())} ت
+                        </span>
+                        <span className="text-[11px] font-bold text-amber-700">
+                          قیمت مازاد تولید (تسویه نقدی):
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <span className="text-base font-black text-amber-700">
+                          {toPersianNum(item.surplusPrice.toLocaleString())}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium mr-1">تومان / کارتن</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedSurplusForOrder(item);
+                        setOrderSurpQty(String(item.minOrderCartons || 10));
+                        setOrderSurpSubmittedCode(null);
+                        setShowOrderSurplusModal(true);
+                      }}
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3 rounded-2xl text-[11px] sm:text-xs transition-all shadow-md shadow-amber-600/10 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <ShoppingCart size={15} />
+                      <span>ثبت سفارش و خرید مازاد خط تولید</span>
                     </button>
                   </div>
                 </motion.div>
@@ -2787,341 +3030,6 @@ export default function FactoriesView({
                     >
                       <ShoppingCart size={15} />
                       <span>استعلام قیمت و خرید رسمی</span>
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SUB-TAB 4: INDUSTRIAL & COMMERCIAL SERVICES DIRECTORY */}
-      {activeSubTab === 'services' && (
-        <div className="space-y-6 animate-in fade-in duration-300 text-right" dir="rtl">
-          {/* Top Banner */}
-          <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl z-10">
-              <span className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-900 text-[11px] font-black px-3.5 py-1 rounded-full border border-teal-200">
-                <Briefcase size={14} className="text-teal-600" />
-                <span>سامانه خدمات صنعتی، بازرگانی، گمرکی و آزمایشگاهی دست‌اول</span>
-              </span>
-              <h2 className="text-base sm:text-xl font-black text-slate-900">
-                ارائه و برون‌سپاری خدمات تخصصی کارخانجات با قرارداد و نظارت فنی رسمی
-              </h2>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                از طراحی قالب و سلفون تا ترخیص گمرکی، آزمون‌های کنترل کیفی COA و حسابداری صنعتی با ضمانت امانی تحویل دست‌اول.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto shrink-0 z-10">
-              <button
-                onClick={() => {
-                  setTargetService(null);
-                  setShowOrderServiceModal(true);
-                }}
-                className="flex-1 sm:flex-initial bg-teal-700 hover:bg-teal-800 text-white font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Send size={15} />
-                <span>✍️ استعلام و سفارش خدمت صنعتی</span>
-              </button>
-              <button
-                onClick={() => setShowAddServiceModal(true)}
-                className="flex-1 sm:flex-initial bg-slate-900 hover:bg-slate-800 text-white font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Plus size={15} />
-                <span>🛠️ ثبت و معرفی خدمت جدید</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Search & Filter */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-6 rounded-full bg-teal-600" />
-                <h3 className="text-sm sm:text-base font-black text-slate-900">
-                  فهرست خدمات صنعتی فعال ({toPersianNum(filteredServices.length)} خدمت)
-                </h3>
-              </div>
-
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  value={searchServiceQuery}
-                  onChange={(e) => setSearchServiceQuery(e.target.value)}
-                  placeholder="جستجوی عنوان خدمت، مجری یا شهر..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                />
-              </div>
-            </div>
-
-            {/* Category Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {SERVICE_CATEGORIES.map((cat, idx) => (
-                <button
-                  key={`srv-filter-pill-${idx}`}
-                  onClick={() => setSelectedServiceCategory(cat)}
-                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                    selectedServiceCategory === cat
-                      ? "bg-teal-700 text-white shadow-sm"
-                      : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Services Grid */}
-          {filteredServices.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-3">
-              <Briefcase size={48} className="mx-auto text-slate-300" />
-              <h4 className="text-base font-black text-slate-800">خدمت صنعتی با این مشخصات یافت نشد</h4>
-              <p className="text-xs text-slate-400">می‌توانید دسته‌بندی دیگری را انتخاب کنید یا درخواست استعلام اختصاصی ثبت فرمایید.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredServices.map((srv, idx) => (
-                <motion.div
-                  key={`srv-card-${srv.id || idx}-${idx}`}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[2.5rem] border border-slate-200 hover:border-teal-300 hover:shadow-xl transition-all p-6 flex flex-col justify-between space-y-4"
-                >
-                  <div className="space-y-3">
-                    <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-100">
-                      <img
-                        src={srv.imageUrl || "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=600"}
-                        alt={srv.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute top-3 right-3 bg-white/95 backdrop-blur-md text-teal-800 font-black text-[10px] px-3 py-1 rounded-full border border-teal-200">
-                        {srv.category}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 text-teal-800 font-black">
-                          <Building2 size={13} />
-                          <span>{srv.providerName}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-medium">{srv.location}</span>
-                      </div>
-                      <h4 className="text-sm font-black text-slate-900 leading-snug line-clamp-2">
-                        {srv.title}
-                      </h4>
-                    </div>
-
-                    {/* Details Box */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 space-y-2 text-xs">
-                      <div className="flex justify-between items-center text-slate-600">
-                        <span className="font-medium">تعرفه و نرخ:</span>
-                        <span className="font-black text-teal-800 text-xs">{srv.rate || "استعلامی / توافقی"}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-slate-600 border-t border-slate-100 pt-1.5">
-                        <span className="font-medium">مدت زمان اجرا:</span>
-                        <span className="font-bold text-slate-800">{srv.deliveryDays || "۳ تا ۵ روز کاری"}</span>
-                      </div>
-                    </div>
-
-                    {/* Capabilities Tags */}
-                    {srv.capabilities && srv.capabilities.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {srv.capabilities.map((cap, cIdx) => (
-                          <span key={`srv-cap-${srv.id}-${cIdx}`} className="text-[10px] bg-teal-50 text-teal-800 font-bold px-2 py-0.5 rounded-lg border border-teal-100">
-                            ✓ {cap}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
-                      {srv.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100">
-                    <button
-                      onClick={() => {
-                        setTargetService(srv);
-                        setShowOrderServiceModal(true);
-                      }}
-                      className="w-full bg-teal-700 hover:bg-teal-800 text-white font-black py-3 rounded-2xl text-xs transition-all shadow-md shadow-teal-700/10 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                    >
-                      <Send size={15} />
-                      <span>درخواست استعلام و اجرای خدمت</span>
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SUB-TAB 5: INDUSTRIAL EQUIPMENT & MACHINERY DIRECTORY */}
-      {activeSubTab === 'equipment' && (
-        <div className="space-y-6 animate-in fade-in duration-300 text-right" dir="rtl">
-          {/* Top Banner */}
-          <div className="relative overflow-hidden bg-white rounded-[2.5rem] p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl z-10">
-              <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-900 text-[11px] font-black px-3.5 py-1 rounded-full border border-indigo-200">
-                <Wrench size={14} className="text-indigo-600" />
-                <span>بورس واگذاری ماشین‌آلات و خطوط تولید مازاد با کارشناسی فنی</span>
-              </span>
-              <h2 className="text-base sm:text-xl font-black text-slate-900">
-                خرید و فروش بی‌واسطه تجهیزات صنعتی و دستگاه‌های فرآوری و بسته‌بندی
-              </h2>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                ارائه مستقیم ماشین‌آلات نو و کارکرده سالم کارخانجات همراه با امکان بازدید حضوری، تست سلامت و تسویه از طریق حساب امانی امن دست‌اول.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto shrink-0 z-10">
-              <button
-                onClick={() => {
-                  setTargetEquipment(null);
-                  setShowOrderEquipmentModal(true);
-                }}
-                className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Send size={15} />
-                <span>✍️ استعلام و درخواست خرید دستگاه</span>
-              </button>
-              <button
-                onClick={() => setShowAddEquipmentModal(true)}
-                className="flex-1 sm:flex-initial bg-slate-900 hover:bg-slate-800 text-white font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Plus size={15} />
-                <span>⚙️ ثبت آگهی فروش تجهیزات</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Search & Filter */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 space-y-4 shadow-xs">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-6 rounded-full bg-indigo-600" />
-                <h3 className="text-sm sm:text-base font-black text-slate-900">
-                  فهرست ماشین‌آلات فعال ({toPersianNum(filteredEquipment.length)} دستگاه)
-                </h3>
-              </div>
-
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  value={searchEquipmentQuery}
-                  onChange={(e) => setSearchEquipmentQuery(e.target.value)}
-                  placeholder="جستجوی عنوان دستگاه، کارخانه یا شهر..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-4 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-
-            {/* Category Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {EQUIPMENT_CATEGORIES.map((cat, idx) => (
-                <button
-                  key={`eq-filter-pill-${idx}`}
-                  onClick={() => setSelectedEquipmentCategory(cat)}
-                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                    selectedEquipmentCategory === cat
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Equipment Grid */}
-          {filteredEquipment.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-3">
-              <Wrench size={48} className="mx-auto text-slate-300" />
-              <h4 className="text-base font-black text-slate-800">تجهیز صنعتی با این مشخصات یافت نشد</h4>
-              <p className="text-xs text-slate-400">می‌توانید دسته‌بندی دیگری را انتخاب کنید یا درخواست خرید دستگاه موردنظر را ثبت فرمایید.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEquipment.map((eq, idx) => (
-                <motion.div
-                  key={`eq-card-${eq.id || idx}-${idx}`}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[2.5rem] border border-slate-200 hover:border-indigo-300 hover:shadow-xl transition-all p-6 flex flex-col justify-between space-y-4"
-                >
-                  <div className="space-y-3">
-                    <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-100">
-                      <img
-                        src={eq.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600"}
-                        alt={eq.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute top-3 right-3 bg-white/95 backdrop-blur-md text-indigo-800 font-black text-[10px] px-3 py-1 rounded-full border border-indigo-200">
-                        {eq.category}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 text-indigo-800 font-black">
-                          <Building2 size={13} />
-                          <span>{eq.factoryName}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-medium">{eq.location}</span>
-                      </div>
-                      <h4 className="text-sm font-black text-slate-900 leading-snug line-clamp-2">
-                        {eq.title}
-                      </h4>
-                    </div>
-
-                    {/* Price and Specs Box */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 space-y-2 text-xs">
-                      <div className="flex justify-between items-center text-slate-600">
-                        <span className="font-medium">قیمت واگذاری:</span>
-                        <span className="font-black text-indigo-900 font-mono text-xs">{eq.wholesalePrice}</span>
-                      </div>
-                      {eq.marketPrice && (
-                        <div className="flex justify-between items-center text-slate-500 border-t border-slate-100 pt-1.5 text-[11px]">
-                          <span>قیمت نو در بازار:</span>
-                          <span className="line-through font-mono">{eq.marketPrice}</span>
-                        </div>
-                      )}
-                      {eq.buyerProfit && (
-                        <div className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-1.5 rounded-xl text-emerald-800 text-[10px] font-black">
-                          <span>سود / صرفه‌جویی خریدار:</span>
-                          <span className="font-mono">{eq.buyerProfit}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-center text-slate-600 border-t border-slate-100 pt-1.5">
-                        <span className="font-medium">موجودی / تعداد:</span>
-                        <span className="font-bold text-slate-800">{eq.quantity || "۱ دستگاه"}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
-                      {eq.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100">
-                    <button
-                      onClick={() => {
-                        setTargetEquipment(eq);
-                        setShowOrderEquipmentModal(true);
-                      }}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl text-xs transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                    >
-                      <Search size={15} />
-                      <span>درخواست استعلام و بازدید فنی</span>
                     </button>
                   </div>
                 </motion.div>
@@ -4030,7 +3938,7 @@ export default function FactoriesView({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 sm:col-span-2">
                       <label className="text-xs font-black text-slate-800 block">نام شرکت / بازرگانی تامین‌کننده:</label>
                       <input
                         type="text"
@@ -4041,18 +3949,20 @@ export default function FactoriesView({
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                       />
                     </div>
+                  </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">تلفن تماس مستقیم فروش:</label>
-                      <input
-                        type="tel"
-                        required
-                        value={newMatPhone}
-                        onChange={(e) => setNewMatPhone(e.target.value)}
-                        placeholder="مثال: ۰۲۱۸۸۹۹۰۰۱۱"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
+                  {/* Mandatory Phone Verification */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <label className="font-black text-slate-800 text-xs block mb-2">شماره تماس مستقیم و تایید پیامکی تامین‌کننده:</label>
+                    <SmsPhoneVerifier
+                      phone={newMatPhone}
+                      onPhoneChange={(phone) => setNewMatPhone(phone)}
+                      onVerificationSuccess={(verifiedPhone) => {
+                        setIsRawMatPhoneVerified(true);
+                        setNewMatPhone(verifiedPhone);
+                      }}
+                      isVerified={isRawMatPhoneVerified}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -4221,812 +4131,15 @@ export default function FactoriesView({
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    disabled={!isRawMatPhoneVerified}
+                    className={`w-full py-3.5 rounded-xl font-black text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${
+                      isRawMatPhoneVerified
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer active:scale-95"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    }`}
                   >
                     <ShieldCheck size={16} />
-                    <span>تایید مشخصات و انتشار بار با ضمانت امن دست‌اول</span>
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 5: ORDER INDUSTRIAL SERVICE (RFQ) WITH ESCROW */}
-      <AnimatePresence>
-        {showOrderServiceModal && (
-          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto scrollbar-thin text-right"
-              dir="rtl"
-            >
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full text-[10px] font-black text-teal-800 mb-2">
-                    <Briefcase size={12} className="text-teal-600" />
-                    <span>درخواست استعلام خدمت صنعتی با نظارت دست‌اول</span>
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    {targetService ? `استعلام: ${targetService.title}` : "فرم استعلام و سفارش خدمات صنعتی و بازرگانی"}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">
-                    {targetService ? `مجری: ${targetService.providerName}` : "درخواست شما برای مجریان برتر و تایید شده ارسال خواهد شد"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowOrderServiceModal(false);
-                    setServiceOrderSubmittedCode(null);
-                  }}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {serviceOrderSubmittedCode ? (
-                <div className="p-6 bg-teal-50 border border-teal-200 rounded-3xl text-center space-y-4">
-                  <div className="w-16 h-16 bg-teal-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-teal-600/30">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <h4 className="text-base font-black text-teal-900">درخواست خدمت با موفقیت ثبت شد</h4>
-                  <p className="text-xs text-teal-800 font-medium leading-relaxed">
-                    کد پیگیری درخواست شما: <span className="font-mono font-black text-sm bg-white px-3 py-1 rounded-lg border border-teal-300">{serviceOrderSubmittedCode}</span>
-                  </p>
-                  <p className="text-xs text-slate-600 font-medium">
-                    کارشناس ناظر دست‌اول ظرف حداکثر ۲ ساعت کاری جهت هماهنگی جلسه فنی و صدور پیش‌فاکتور رسمی با شما تماس خواهد گرفت. کلیه تعهدات و تسویه‌ها تحت ضمانت امانی پلتفرم دست‌اول انجام می‌پذیرد.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setShowOrderServiceModal(false);
-                      setServiceOrderSubmittedCode(null);
-                    }}
-                    className="w-full py-3 bg-teal-700 hover:bg-teal-800 text-white font-black text-xs rounded-xl shadow-md transition-all"
-                  >
-                    متوجه شدم
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleOrderServiceSubmit} className="space-y-4">
-                  {/* Escrow Guarantee Box */}
-                  <div className="bg-emerald-50/80 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-900 font-black text-xs">
-                      <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
-                      <span>تضمین حسن انجام کار و امنیت مالی توسط دست‌اول</span>
-                    </div>
-                    <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
-                      هزینه خدمت تا زمان تحویل کامل خروجی، تایید آزمون و رضایت قطعی کارخانه در حساب امانی دست‌اول نزد بانک بلوکه می‌ماند و بدون تایید شما به مجری پرداخت نخواهد شد.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">نام کارخانه یا شرکت متقاضی:</label>
-                      <input
-                        type="text"
-                        required
-                        value={reqFactoryName}
-                        onChange={(e) => setReqFactoryName(e.target.value)}
-                        placeholder="مثال: صنایع غذایی بهپخش"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">تلفن همراه مسئول خرید / سفارش:</label>
-                      <input
-                        type="tel"
-                        required
-                        value={reqContactPhone}
-                        onChange={(e) => setReqContactPhone(e.target.value)}
-                        placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">شهرک صنعتی / استان کارخانه:</label>
-                    <input
-                      type="text"
-                      required
-                      value={reqCity}
-                      onChange={(e) => setReqCity(e.target.value)}
-                      placeholder="مثال: تهران - شهرک صنعتی عباس‌آباد"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">شرح نیاز فنی، ابعاد پروژه یا پرسش‌های شما:</label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={reqDetails}
-                      onChange={(e) => setReqDetails(e.target.value)}
-                      placeholder="توضیح دهید به چه خدماتی (مثلاً طراحی قالب سلفون، ترخیص مواد اولیه از گمرک بندرعباس، اصلاح دفاتر مالیاتی، کمپین پخش) با چه مهلت زمانی نیاز دارید..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-lg shadow-teal-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Send size={16} />
-                    <span>ارسال درخواست و دریافت پیش‌فاکتور با نظارت دست‌اول</span>
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 6: REGISTER INDUSTRIAL SERVICE (ارائه خدمت با واسطه‌گری امن) */}
-      <AnimatePresence>
-        {showAddServiceModal && (
-          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto scrollbar-thin text-right"
-              dir="rtl"
-            >
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full text-[10px] font-black text-teal-800 mb-2">
-                    <PlusCircle size={12} className="text-teal-600" />
-                    <span>ثبت معرفی خدمت صنعتی (بدون نیاز به پنل پیچیده)</span>
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    معرفی و ثبت خدمات صنعتی برای کارخانجات کشور
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">
-                    خدمت شما پس از تایید توسط ادمین دست‌اول منتشر شده و قراردادها از طریق سیستم واسطه‌گری امن اجرا می‌گردد.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddServiceModal(false)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {srvSuccessMsg ? (
-                <div className="p-6 bg-teal-50 border border-teal-200 rounded-3xl text-center space-y-3">
-                  <div className="w-14 h-14 bg-teal-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
-                    <CheckCircle2 size={30} />
-                  </div>
-                  <h4 className="text-base font-black text-teal-900">خدمت با موفقیت ثبت شد</h4>
-                  <p className="text-xs text-teal-800 font-medium leading-relaxed">
-                    {srvSuccessMsg}
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleRegisterService} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">عنوان خدمت صنعتی:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newSrvTitle}
-                        onChange={(e) => setNewSrvTitle(e.target.value)}
-                        placeholder="مثال: ترخیص مواد اولیه پودر کاکائو از گمرک بازرگان"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">دسته‌بندی خدمت:</label>
-                      <select
-                        value={newSrvCat}
-                        onChange={(e) => setNewSrvCat(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      >
-                        {SERVICE_CATEGORIES.filter(c => c !== "همه خدمات صنعتی").map((c, idx) => (
-                          <option key={`fact-srv-opt-${c}-${idx}`} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">نام شرکت / شخص ارائه‌دهنده خدمت:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newSrvProvider}
-                        onChange={(e) => setNewSrvProvider(e.target.value)}
-                        placeholder="مثال: گروه مهندسی و بازرگانی آریا"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">شماره تماس مستقیم کارشناس:</label>
-                      <input
-                        type="tel"
-                        required
-                        value={newSrvPhone}
-                        onChange={(e) => setNewSrvPhone(e.target.value)}
-                        placeholder="مثال: ۰۹۱۲۱۱۱۱۱۱۱"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">شهر / منطقه فعالیت:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newSrvLocation}
-                        onChange={(e) => setNewSrvLocation(e.target.value)}
-                        placeholder="مثال: تهران / گمرکات جنوب"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">تعرفه و نرخ تقریبی:</label>
-                      <input
-                        type="text"
-                        value={newSrvRate}
-                        onChange={(e) => setNewSrvRate(e.target.value)}
-                        placeholder="مثال: کارمزد ۲٪ / استعلامی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">مدت زمان اجرا / تحویل:</label>
-                      <input
-                        type="text"
-                        value={newSrvDays}
-                        onChange={(e) => setNewSrvDays(e.target.value)}
-                        placeholder="مثال: ۵ روز کاری"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">ویژگی‌ها و قابلیت‌های کلیدی (با کامای فارسی «،» جدا کنید):</label>
-                    <input
-                      type="text"
-                      value={newSrvCapabilities}
-                      onChange={(e) => setNewSrvCapabilities(e.target.value)}
-                      placeholder="مثال: کارت بازرگانی معتبر، ضمانت حسن انجام کار، فاکتور رسمی با ارزش‌افزوده"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">تصویر نمونه خدمت / مجوز / کارگاه (آپلود مستقیم یا آدرس اینترنتی):</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Drag and Drop Box */}
-                      <div
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setIsDraggingSrvImage(true);
-                        }}
-                        onDragLeave={() => setIsDraggingSrvImage(false)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setIsDraggingSrvImage(false);
-                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                            handleSrvImageFile(e.dataTransfer.files[0]);
-                          }
-                        }}
-                        className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                          isDraggingSrvImage
-                            ? "border-teal-500 bg-teal-50"
-                            : "border-slate-300 hover:border-teal-400 hover:bg-slate-50"
-                        }`}
-                        onClick={() => document.getElementById("srv-file-upload-input")?.click()}
-                      >
-                        <input
-                          id="srv-file-upload-input"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              handleSrvImageFile(e.target.files[0]);
-                            }
-                          }}
-                        />
-                        {uploadedSrvImageBase64 ? (
-                          <div className="space-y-2">
-                            <img
-                              src={uploadedSrvImageBase64}
-                              alt="پیش‌نمایش"
-                              className="w-16 h-16 object-cover rounded-lg mx-auto border border-slate-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setUploadedSrvImageBase64(null);
-                              }}
-                              className="text-[10px] bg-emerald-600 text-white px-2.5 py-1 rounded-md font-bold hover:bg-emerald-100 transition-colors"
-                            >
-                              حذف و تغییر عکس
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <UploadCloud className="text-slate-400 mx-auto" size={24} />
-                            <span className="text-[11px] font-black text-slate-700 block">
-                              آپلود مستقیم تصویر خدمت (Drag & Drop)
-                            </span>
-                            <span className="text-[9px] text-slate-400 block">
-                              یا جهت انتخاب فایل کلیک کنید
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Text URL Option */}
-                      <div className="flex flex-col justify-between space-y-1.5">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block mb-1">یا آدرس مستقیم تصویر (اختیاری):</span>
-                          <input
-                            type="text"
-                            value={uploadedSrvImageBase64 || ""}
-                            onChange={(e) => {
-                              setUploadedSrvImageBase64(e.target.value);
-                            }}
-                            placeholder="https://example.com/service-image.jpg"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                          />
-                        </div>
-                        <div className="text-[9px] text-slate-400 leading-normal bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                          * برای نمایش مطلوب‌تر، تصویری از کارگاه، دستگاه، خودروی لجستیک یا نمونه قرارداد قبلی خود بارگذاری نمایید. در صورت عدم انتخاب، تصویر پیش‌فرض مناسب این حوزه به کار گرفته می‌شود.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">شرح کامل سوابق و خدمات:</label>
-                    <textarea
-                      rows={3}
-                      value={newSrvDesc}
-                      onChange={(e) => setNewSrvDesc(e.target.value)}
-                      placeholder="سوابق اجرایی در حوزه کارخانجات و واحدهای تولیدی را به طور خلاصه شرح دهید..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                    />
-                  </div>
-
-                  {/* Escrow Guarantee Notice */}
-                  <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-[11px] text-amber-900 space-y-1 font-medium">
-                    <div className="font-black flex items-center gap-1.5 text-amber-950">
-                      <ShieldCheck size={14} className="text-amber-700" />
-                      <span>نحوه همکاری و انجام خرید/خدمات کارخانه به واسطه ادمین دست‌اول:</span>
-                    </div>
-                    <p className="text-[10px] text-amber-800 leading-relaxed">
-                      کارخانجات سفارشات خود را به صورت امن در سامانه ثبت می‌کنند؛ ادمین دست‌اول صحت مدارک و کیفیت خروجی را بررسی کرده و تسویه حساب با ارائه‌دهنده خدمت را پس از تایید نهایی کارخانه خریدار به انجام می‌رساند.
-                    </p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-lg shadow-teal-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck size={16} />
-                    <span>تایید و ارسال مشخصات خدمت جهت تایید ادمین</span>
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 6: ORDER INDUSTRIAL EQUIPMENT (RFQ) WITH ESCROW */}
-      <AnimatePresence>
-        {showOrderEquipmentModal && (
-          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto scrollbar-thin text-right"
-              dir="rtl"
-            >
-              <div className="relative border-b border-slate-100 pb-4">
-                <div className="pl-10">
-                  <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-[10px] font-black text-indigo-800 mb-2 max-w-full flex-wrap">
-                    <Wrench size={12} className="text-emerald-600 shrink-0" />
-                    <span className="leading-normal">درخواست استعلام خرید تجهیز صنعتی با نظارت دست‌اول</span>
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900 leading-snug">
-                    {targetEquipment ? `استعلام: ${targetEquipment.title}` : "فرم استعلام و سفارش خرید تجهیزات صنعتی"}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1 font-sans">
-                    {targetEquipment ? `مالک: ${targetEquipment.factoryName} | موقعیت: ${targetEquipment.location}` : "درخواست شما برای کارخانجات دارنده ماشین‌آلات ارسال خواهد شد"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowOrderEquipmentModal(false);
-                    setEqOrderSubmittedCode(null);
-                  }}
-                  className="absolute top-0 left-0 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer"
-                  title="بستن"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {eqOrderSubmittedCode ? (
-                <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-3xl text-center space-y-4 font-sans">
-                  <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/30 animate-bounce">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <h4 className="text-base font-black text-slate-900">درخواست کارشناسی و خرید با موفقیت ثبت شد</h4>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs font-medium text-emerald-800">
-                    <span>کد پیگیری درخواست شما:</span>
-                    <span className="font-mono font-black text-sm bg-white px-3 py-1.5 rounded-lg border border-emerald-300 inline-block tracking-wider whitespace-nowrap text-slate-950 shadow-inner" dir="ltr">
-                      {eqOrderSubmittedCode}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    کارشناس فنی و ناظر دست‌اول ظرف حداکثر ۲ ساعت کاری جهت هماهنگی بازدید حضوری، تست سلامت دستگاه و تنظیم قرارداد امانی واسطه‌ای با شما تماس خواهد گرفت.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setShowOrderEquipmentModal(false);
-                      setEqOrderSubmittedCode(null);
-                    }}
-                    className="w-full py-3 bg-indigo-650 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
-                  >
-                    متوجه شدم
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleOrderEquipmentSubmit} className="space-y-4">
-                  {/* Escrow Guarantee Box */}
-                  <div className="bg-emerald-50/80 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-900 font-black text-xs">
-                      <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
-                      <span>تضمین معامله امن و کارشناسی سلامت ماشین‌آلات</span>
-                    </div>
-                    <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
-                      مبلغ معامله تا زمان تحویل فیزیکی دستگاه به کارخانه شما، تست کامل قطعات برقی و مکانیکی و رضایت قطعی خریدار، در حساب امانی دست‌اول نزد بانک محفوظ می‌ماند.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">نام کارخانه یا شرکت متقاضی خرید:</label>
-                      <input
-                        type="text"
-                        required
-                        value={reqEqFactoryName}
-                        onChange={(e) => setReqEqFactoryName(e.target.value)}
-                        placeholder="مثال: کارتن‌سازی البرز نو"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">شماره تماس جهت هماهنگی بازدید:</label>
-                      <input
-                        type="tel"
-                        required
-                        value={reqEqContactPhone}
-                        onChange={(e) => setReqEqContactPhone(e.target.value)}
-                        placeholder="۰۹۱۲..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-mono text-left"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">شهر و محل دقیق نصب تجهیز:</label>
-                    <input
-                      type="text"
-                      required
-                      value={reqEqCity}
-                      onChange={(e) => setReqEqCity(e.target.value)}
-                      placeholder="مثال: قزوین - شهرک صنعتی لیا"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">توضیحات فنی، نیاز به اورهال یا شروط تست:</label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={reqEqDetails}
-                      onChange={(e) => setReqEqDetails(e.target.value)}
-                      placeholder="لطفاً مواردی نظیر برق مصرفی (تک فاز/سه فاز)، متریال بدنه، ابعاد، یا شروط ضمانت و گارانتی مدنظر خود را شرح دهید..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 bg-indigo-650 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck size={16} />
-                    <span>ثبت درخواست بازدید فنی و خرید کارشناسی‌شده</span>
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 7: ADD INDUSTRIAL EQUIPMENT (SELL MACHINE) */}
-      <AnimatePresence>
-        {showAddEquipmentModal && (
-          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto scrollbar-thin text-right"
-              dir="rtl"
-            >
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">واگذاری و فروش تجهیزات و ماشین‌آلات مازاد</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5 font-sans">تجهیزات صنعتی مازاد کارگاه یا خط تولید خود را بدون واسطه به همکاران بفروشید</p>
-                </div>
-                <button
-                  onClick={() => setShowAddEquipmentModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {eqSuccessMsg ? (
-                <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-3xl text-center space-y-4 font-sans text-emerald-900">
-                  <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/30">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <h4 className="text-base font-black text-slate-900">تجهیز صنعتی با موفقیت ثبت شد</h4>
-                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                    درخواست فروش شما ثبت گردید. پس از کارشناسی مدارک مالکیت و صحت فیزیکی تجهیز توسط کارشناسان دست‌اول، کالا با ضمانت در تالار تجهیزات صنعتی منتشر خواهد شد.
-                  </p>
-                  <button
-                    onClick={() => setShowAddEquipmentModal(false)}
-                    className="w-full py-3 bg-emerald-650 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
-                  >
-                    بستن پنجره
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleRegisterEquipment} className="space-y-4 font-sans">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">عنوان یا نام دقیق دستگاه / تجهیز:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqTitle}
-                        onChange={(e) => setNewEqTitle(e.target.value)}
-                        placeholder="مثال: دیگ بخار ۳ تنی استیل"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">دسته‌بندی تجهیز صنعتی:</label>
-                      <select
-                        value={newEqCat}
-                        onChange={(e) => setNewEqCat(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      >
-                        {EQUIPMENT_CATEGORIES.filter(c => c !== "همه تجهیزات").map((cat, idx) => (
-                          <option key={`add-eq-cat-opt-${idx}`} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">نام کارخانه، شرکت یا شخص حقیقی مالک / فروشنده:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqFactory}
-                        onChange={(e) => setNewEqFactory(e.target.value)}
-                        placeholder="مثال: صنایع غذایی بهارستان یا احمدی (شخص حقیقی)"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">موقعیت مکانی دستگاه (استان/شهر):</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqLocation}
-                        onChange={(e) => setNewEqLocation(e.target.value)}
-                        placeholder="مثال: البرز - شهرک صنعتی اشتهارد"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">موجودی / تعداد دستگاه:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqQuantity}
-                        onChange={(e) => setNewEqQuantity(e.target.value)}
-                        placeholder="مثال: ۱ دستگاه"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">نام و نام خانوادگی مسئول فروش:</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqContactPerson}
-                        onChange={(e) => setNewEqContactPerson(e.target.value)}
-                        placeholder="مثال: مهندس صادقی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 block">شماره تماس (محفوظ نزد ناظر):</label>
-                      <input
-                        type="tel"
-                        required
-                        value={newEqContactPhone}
-                        onChange={(e) => setNewEqContactPhone(e.target.value)}
-                        placeholder="۰۹۱۲..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-left font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-800 block">قیمت واگذاری زیر بازار (تومان):</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqWholesalePrice}
-                        onChange={(e) => setNewEqWholesalePrice(e.target.value)}
-                        placeholder="مثال: ۱۵۰,۰۰۰,۰۰۰ تومان"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-800 block">قیمت نو / بازار آزاد (تومان):</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqMarketPrice}
-                        onChange={(e) => setNewEqMarketPrice(e.target.value)}
-                        placeholder="مثال: ۱۹۰,۰۰۰,۰۰۰ تومان"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-800 block">منفعت نقدی خریدار (اختلاف قیمت):</label>
-                      <input
-                        type="text"
-                        required
-                        value={newEqBuyerProfit}
-                        onChange={(e) => setNewEqBuyerProfit(e.target.value)}
-                        placeholder="مثال: ۴۰ میلیون سود واگذاری فوری"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">تصویر تجهیز، کاتالوگ یا برگه کارشناسی:</label>
-                    <div className="border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50 hover:bg-emerald-50/40 rounded-2xl p-4 text-center cursor-pointer transition-all relative">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          if (e.target.files?.[0]) {
-                            const file = e.target.files[0];
-                            const result = await uploadToParsPackStorage(file, "factories");
-                            if (result.success && result.url) {
-                              setUploadedEqImageBase64(result.url);
-                            } else {
-                              const reader = new FileReader();
-                              reader.onload = (readerEvent) => {
-                                if (readerEvent.target?.result && typeof readerEvent.target.result === "string") {
-                                  setUploadedEqImageBase64(readerEvent.target.result);
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }
-                        }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      {uploadedEqImageBase64 ? (
-                        <div className="flex flex-col items-center justify-center space-y-2 relative z-20">
-                          <img src={uploadedEqImageBase64} alt="پیش‌نمایش تجهیز" className="w-24 h-24 object-cover rounded-xl border border-slate-200 shadow-sm" />
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">✓ تصویر آپلود شد</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setUploadedEqImageBase64(null);
-                              }}
-                              className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-md font-bold hover:bg-emerald-100 transition-colors z-30"
-                            >
-                              حذف و تغییر
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5 py-1">
-                          <UploadCloud className="text-emerald-500 mx-auto" size={32} />
-                          <span className="text-xs font-black text-slate-800 block">
-                            انتخاب یا کشیدن تصویر تجهیز / کاتالوگ (Drag & Drop)
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-medium block">
-                            فرمت‌های مجاز: JPG, PNG, WEBP (جهت رویت ادمین و خریداران)
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 block">توضیحات تکمیلی، شرایط تست و علت واگذاری:</label>
-                    <textarea
-                      rows={3}
-                      value={newEqDesc}
-                      onChange={(e) => setNewEqDesc(e.target.value)}
-                      placeholder="علت فروش دستگاه، وضعیت کارکرد، سرویس‌های انجام شده و گواهی سلامت ماشین‌آلات را اینجا شرح دهید..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  </div>
-
-                  {/* Escrow Guarantee Notice */}
-                  <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-[11px] text-amber-900 space-y-1 font-medium">
-                    <div className="font-black flex items-center gap-1.5 text-amber-950">
-                      <ShieldCheck size={14} className="text-amber-700" />
-                      <span>قوانین واسطه‌گری امن و کارشناسی تجهیزات در دست‌اول:</span>
-                    </div>
-                    <p className="text-[10px] text-amber-800 leading-relaxed">
-                      کارشناس ناظر دست‌اول حضورتان می‌رسد و پس از تایید فیزیکی، آن را با گارانتی امانی به همکاران عرضه می‌دارد. تا پایان زمان آزمون خریدار، مبلغ نزد پلتفرم امانت خواهد ماند.
-                    </p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck size={16} />
-                    <span>تایید مشخصات تجهیز و ارسال جهت بررسی و انتشار کارشناسی</span>
+                    <span>{isRawMatPhoneVerified ? "تایید مشخصات و انتشار بار با ضمانت امن دست‌اول" : "تایید پیامکی شماره همراه الزامی است"}</span>
                   </button>
                 </form>
               )}
@@ -5190,230 +4303,9 @@ export default function FactoriesView({
         )}
       </AnimatePresence>
 
-      {/* NEW MODAL: REGISTER CAPACITY AD (ثبت آگهی ظرفیت خالی جدید) */}
+      {/* MODAL 1: ORDER SEDIMENT GOOD (ثبت سفارش خرید کالای رسوب‌کرده) */}
       <AnimatePresence>
-        {showAddCapacityModal && (
-          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto scrollbar-thin text-right"
-              dir="rtl"
-            >
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-[10px] font-black text-emerald-800 mb-2">
-                    <Megaphone size={12} className="text-emerald-600 animate-pulse" />
-                    <span>واگذاری ظرفیت مازاد و شیفت تولید قراردادی</span>
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    ثبت آگهی ظرفیت خالی و تولید کارمزدی
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowAddCapacityModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {capAdSuccessMsg ? (
-                <div className="p-6 text-center space-y-4">
-                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-                    <CheckCircle size={36} />
-                  </div>
-                  <h4 className="text-base font-black text-slate-950">ثبت با موفقیت انجام شد</h4>
-                  <p className="text-xs text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
-                    {capAdSuccessMsg}
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleRegisterCapacityAd} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        عنوان آگهی ظرفیت خالی <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newCapTitle}
-                        onChange={(e) => setNewCapTitle(e.target.value)}
-                        placeholder="مثال: ظرفیت خالی خط پرکنی و پاستوریزاتور قوطی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        نام کارخانه / واحد تولیدی <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newCapFactoryName}
-                        onChange={(e) => setNewCapFactoryName(e.target.value)}
-                        placeholder="مثال: صنایع غذایی گل سرخ البرز"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        صنعت / حوزه فعالیت <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={newCapCat}
-                        onChange={(e) => setNewCapCat(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                      >
-                        <option value="نوشیدنی و آبمیوه">نوشیدنی و آبمیوه</option>
-                        <option value="کیک، کلوچه و بیسکویت">کیک، کلوچه و بیسکویت</option>
-                        <option value="شوینده و بهداشتی">شوینده و بهداشتی</option>
-                        <option value="مواد غذایی و کنسروجات">مواد غذایی و کنسروجات</option>
-                        <option value="لبنیات و فرآورده‌ها">لبنیات و فرآورده‌ها</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        موقعیت جغرافیایی کارخانه <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newCapLocation}
-                        onChange={(e) => setNewCapLocation(e.target.value)}
-                        placeholder="مثال: اصفهان، شهرک صنعتی رازی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        شماره تماس مستقیم مسئول خط <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newCapPhone}
-                        onChange={(e) => setNewCapPhone(e.target.value)}
-                        placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 text-left"
-                        dir="ltr"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        حداقل حجم سفارش قابل پذیرش
-                      </label>
-                      <input
-                        type="text"
-                        value={newCapMinQty}
-                        onChange={(e) => setNewCapMinQty(e.target.value)}
-                        placeholder="مثال: ۲۰,۰۰۰ عدد یا توافقی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 mb-1.5">
-                      مشخصات ماشین‌آلات و ظرفیت خط تولید <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      rows={2}
-                      required
-                      value={newCapDetails}
-                      onChange={(e) => setNewCapDetails(e.target.value)}
-                      placeholder="مثال: خط پرکنی اتوماتیک مایعات رقیق مجهز به جت‌پرینتر، لیبل‌زن صنعتی دورو و شیرینگ پک تونلی مجهز به کوره حرارتی..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 leading-relaxed"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 mb-1.5">
-                      توضیحات تکمیلی، استانداردها و شرایط همکاری <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={newCapDesc}
-                      onChange={(e) => setNewCapDesc(e.target.value)}
-                      placeholder="لطفا استانداردها، مجوزهای بهداشتی، سیب سلامت، پروانه ساخت و نحوه تامین ملزومات (کارتن، سلفون، مواد اولیه) و شرایط پرداخت را با جزئیات بنویسید..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 leading-relaxed"
-                    />
-                  </div>
-
-                  {/* Drag and Drop Image Selector */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 mb-1.5">
-                      تصویر گالری خط تولید یا ماشین‌آلات
-                    </label>
-                    <div 
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                          handleCapImageUpload(e.dataTransfer.files[0]);
-                        }
-                      }}
-                      className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center cursor-pointer hover:border-emerald-500 transition-colors bg-slate-50 relative flex flex-col items-center justify-center gap-1.5"
-                    >
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            handleCapImageUpload(e.target.files[0]);
-                          }
-                        }}
-                      />
-                      {uploadedCapImageBase64 ? (
-                        <div className="flex items-center gap-3 w-full">
-                          <img src={uploadedCapImageBase64} alt="Preview" className="w-14 h-14 object-cover rounded-xl border border-slate-200" />
-                          <div className="text-right">
-                            <span className="text-[10px] text-emerald-600 font-black block">تصویر با موفقیت انتخاب شد</span>
-                            <span className="text-[9px] text-slate-400 font-bold block">برای تغییر، مجدد کلیک کنید</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <UploadCloud size={24} className="text-slate-400" />
-                          <span className="text-[10px] text-slate-600 font-black">انتخاب تصویر خط تولید (کلیک کنید یا تصویر را به این کادر بکشید)</span>
-                          <span className="text-[9px] text-slate-400 font-bold">فرمت‌های مجاز: JPG, PNG. در غیر اینصورت از تصویر پیش‌فرض صنعت استفاده می‌شود.</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-2xl text-xs transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
-                    >
-                      <Send size={16} />
-                      <span>ثبت و انتشار آگهی ظرفیت خالی در پورتال دست‌اول</span>
-                    </button>
-                  </div>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* NEW MODAL: SUBMIT COOPERATION REQUEST (ثبت درخواست همکاری تولید کارمزدی) */}
-      <AnimatePresence>
-        {showSubmitCooperationModal && selectedCapacityAd && (
+        {showOrderSedimentModal && selectedSedimentForOrder && (
           <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -5424,23 +4316,18 @@ export default function FactoriesView({
             >
               <div className="flex items-start justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-[10px] font-black text-emerald-800 mb-2">
-                    <Handshake size={12} className="text-emerald-600" />
-                    <span>ارتباط امن مستقیم با کارخانه تحت نظارت دست‌اول</span>
+                  <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full text-[10px] font-black text-rose-800 mb-2">
+                    <Archive size={12} className="text-rose-600" />
+                    <span>خرید با تخفیف رسوب‌زدایی نقدی</span>
                   </div>
                   <h3 className="text-base sm:text-lg font-black text-slate-900">
-                    ارسال پیشنهاد تولید و همکاری کارمزدی
+                    استعلام و خرید کالای رسوب‌کرده انبار
                   </h3>
                 </div>
                 <button
                   onClick={() => {
-                    setShowSubmitCooperationModal(false);
-                    setCoopSubmittedCode(null);
-                    setReqCoopBrand("");
-                    setReqCoopContact("");
-                    setReqCoopPhone("");
-                    setReqCoopQty("");
-                    setReqCoopNotes("");
+                    setShowOrderSedimentModal(false);
+                    setOrderSedSubmittedCode(null);
                   }}
                   className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
@@ -5448,149 +4335,870 @@ export default function FactoriesView({
                 </button>
               </div>
 
-              {coopSubmittedCode ? (
+              {orderSedSubmittedCode ? (
                 <div className="p-4 sm:p-6 text-center space-y-5">
                   <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-2xs">
                     <CheckCircle2 size={32} />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-base font-black text-slate-950">درخواست همکاری شما با موفقیت ثبت شد</h4>
+                    <h4 className="text-base font-black text-slate-950">سفارش شما با موفقیت ثبت شد</h4>
                     <p className="text-xs text-slate-600 font-bold max-w-sm mx-auto leading-relaxed">
-                      کارشناسان پلتفرم دست‌اول جهت هماهنگی و بررسی ظرفیت فنی با شما و مدیر کارخانه تماس خواهند گرفت.
+                      درخواست خرید شما با کارخانه <strong className="text-slate-900 font-black">{selectedSedimentForOrder.factoryName}</strong> هماهنگ شد. کارشناسان پلتفرم دست‌اول جهت نهایی‌سازی تسویه امانی و صدور بارنامه با شما تماس خواهند گرفت.
                     </p>
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-                    <span className="text-[10px] text-slate-400 font-bold block">کد پیگیری انحصاری درخواست شما:</span>
-                    <strong className="text-base font-mono text-emerald-700 tracking-wider block font-black">{coopSubmittedCode}</strong>
-                    <span className="text-[9px] text-slate-400 font-bold block">لطفاً جهت پیگیری‌های بعدی این کد را یادداشت فرمایید.</span>
+                    <span className="text-[10px] text-slate-400 font-bold block">کد پیگیری اختصاصی:</span>
+                    <strong className="text-base font-mono text-emerald-700 tracking-wider block font-black">{orderSedSubmittedCode}</strong>
+                    <span className="text-[9px] text-slate-400 font-bold block">این سفارش در بخش «استعلام‌های خرید» نیز در دسترس شماست.</span>
                   </div>
 
                   <button
                     onClick={() => {
-                      setShowSubmitCooperationModal(false);
-                      setCoopSubmittedCode(null);
-                      setReqCoopBrand("");
-                      setReqCoopContact("");
-                      setReqCoopPhone("");
-                      setReqCoopQty("");
-                      setReqCoopNotes("");
+                      setShowOrderSedimentModal(false);
+                      setOrderSedSubmittedCode(null);
                     }}
                     className="w-full bg-slate-950 hover:bg-slate-900 text-white font-black py-3 rounded-xl text-xs transition-colors cursor-pointer"
                   >
-                    متوجه شدم - بستن کادر
+                    متوجه شدم - بستن پنجره
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleRegisterCooperationRequest} className="space-y-4">
-                  {/* Summary of target factory */}
-                  <div className="bg-slate-50/95 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-black">
-                      <span>واحد تولیدی هدف:</span>
-                      <span className="text-emerald-700 font-black">{selectedCapacityAd.factoryName}</span>
+                <form onSubmit={handleOrderSedimentSubmit} className="space-y-4">
+                  {/* Selected Item Summary */}
+                  <div className="bg-rose-50/40 border border-rose-100 rounded-2xl p-4 text-xs space-y-2">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                      <span className="text-rose-700 font-black">{selectedSedimentForOrder.factoryName}</span>
+                      <span className="bg-rose-600 text-white px-2 py-0.5 rounded font-black text-[10px]">
+                        %{toPersianNum(selectedSedimentForOrder.discountPercent)} تخفیف
+                      </span>
                     </div>
-                    <h4 className="text-xs font-black text-slate-800 leading-snug line-clamp-1">
-                      {selectedCapacityAd.title}
+                    <h4 className="text-xs font-black text-slate-900 leading-snug">
+                      {selectedSedimentForOrder.title}
                     </h4>
-                    <div className="flex justify-between items-center text-[10px] text-slate-400 pt-1 border-t border-slate-200/60 font-bold">
-                      <span>حداقل پذیرش: {selectedCapacityAd.minOrderQty}</span>
-                      <span>محل کارخانه: {selectedCapacityAd.location}</span>
+                    <div className="flex justify-between items-center text-[11px] pt-2 border-t border-rose-100 font-bold">
+                      <span className="text-slate-500">قیمت تخفیف‌خورده:</span>
+                      <span className="text-rose-700 font-black text-sm">
+                        {toPersianNum(selectedSedimentForOrder.sedimentPrice.toLocaleString())} تومان / کارتن
+                      </span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        نام برند / شرکت متقاضی <span className="text-red-500">*</span>
+                        نام خریدار / شرکت / بنکداری <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         required
-                        value={reqCoopBrand}
-                        onChange={(e) => setReqCoopBrand(e.target.value)}
-                        placeholder="مثال: بستنی میهن / برند بازرگانی نوین"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
+                        value={orderSedBuyerName}
+                        onChange={(e) => setOrderSedBuyerName(e.target.value)}
+                        placeholder="مثال: بازرگانی پارس / فروشگاه مرکزی"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-800"
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        نام و نام خانوادگی مسئول پیگیری <span className="text-red-500">*</span>
+                        شماره تماس مستقیم <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         required
-                        value={reqCoopContact}
-                        onChange={(e) => setReqCoopContact(e.target.value)}
-                        placeholder="مثال: علیرضا احمدی (مدیر تامین)"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        شماره تماس مستقیم جهت هماهنگی <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={reqCoopPhone}
-                        onChange={(e) => setReqCoopPhone(e.target.value)}
+                        value={orderSedBuyerPhone}
+                        onChange={(e) => setOrderSedBuyerPhone(e.target.value)}
                         placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 text-left"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-800 text-left"
                         dir="ltr"
                       />
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-black text-slate-800 mb-1.5">
-                        محصول مد نظر جهت تولید
+                        شهر مقصد تحویل بار
                       </label>
                       <input
                         type="text"
-                        value={reqCoopProduct}
-                        onChange={(e) => setReqCoopProduct(e.target.value)}
-                        placeholder="مثال: رانی هلو ۲۴۰ سی‌سی"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
+                        value={orderSedBuyerCity}
+                        onChange={(e) => setOrderSedBuyerCity(e.target.value)}
+                        placeholder="مثال: اصفهان / شیراز"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1.5">
+                        تعداد کارتن درخواستی (حداقل {toPersianNum(selectedSedimentForOrder.minOrderCartons)})
+                      </label>
+                      <input
+                        type="number"
+                        min={selectedSedimentForOrder.minOrderCartons || 1}
+                        max={selectedSedimentForOrder.stockCartons || 9999}
+                        required
+                        value={orderSedQty}
+                        onChange={(e) => setOrderSedQty(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-800"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-800 mb-1.5">
-                      حجم یا برآورد تعداد سفارش ماهانه
-                    </label>
-                    <input
-                      type="text"
-                      value={reqCoopQty}
-                      onChange={(e) => setReqCoopQty(e.target.value)}
-                      placeholder="مثال: ۱۰۰,۰۰۰ قوطی در ماه"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
-                    />
-                  </div>
+                  {/* Calculated Estimate */}
+                  {Number(orderSedQty) > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-600">برآورد کل سفارش با احتساب تخفیف:</span>
+                      <span className="font-black text-rose-700 text-sm">
+                        {toPersianNum((Number(orderSedQty) * selectedSedimentForOrder.sedimentPrice).toLocaleString())} تومان
+                      </span>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-xs font-black text-slate-800 mb-1.5">
-                      توضیحات تکمیلی، شرایط تسویه و مواد اولیه پیشنهادی
+                      توضیحات و نیازمندی‌های بارگیری
                     </label>
                     <textarea
-                      rows={3}
-                      value={reqCoopNotes}
-                      onChange={(e) => setReqCoopNotes(e.target.value)}
-                      placeholder="آیا تامین فویل، کارتن، قوطی یا شکر بر عهده خودتان است؟ در صورت نیاز مشخص کنید..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 leading-relaxed"
+                      rows={2}
+                      value={orderSedNotes}
+                      onChange={(e) => setOrderSedNotes(e.target.value)}
+                      placeholder="در صورت تمایل به ارسال نمونه یا تحویل در انبار مقصد، در این قسمت درج فرمایید..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-slate-800"
                     />
                   </div>
 
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl text-xs transition-colors shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-3.5 rounded-xl text-xs transition-colors shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Send size={15} />
-                      <span>ثبت و ارسال رسمی پیشنهاد به مدیر کارخانه</span>
+                      <span>ثبت نهایی سفارش خرید با ضمانت امانی دست‌اول</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 2: ADD NEW SEDIMENT GOOD (ثبت کالای رسوب‌کرده کارخانه) */}
+      <AnimatePresence>
+        {showAddSedimentModal && (
+          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-100 my-auto text-right max-h-[90vh] overflow-y-auto"
+              dir="rtl"
+            >
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full text-[10px] font-black text-rose-800 mb-2">
+                    <PlusCircle size={12} className="text-rose-600" />
+                    <span>آزادسازی انبار و نقدشوندگی سریع سرمایه کارخانه</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900">
+                    اعلام کالای رسوب‌کرده / مازاد انبار کارخانه
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAddSedimentModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {sedSuccessMsg ? (
+                <div className="p-6 text-center space-y-4">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-2xs">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h4 className="text-base font-black text-slate-950">کالا با موفقیت ثبت شد</h4>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed">{sedSuccessMsg}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleRegisterSediment} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">
+                        عنوان کالا و نوع بسته‌بندی <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newSedTitle}
+                        onChange={(e) => setNewSedTitle(e.target.value)}
+                        placeholder="مثال: بیسکویت کرمدار کاکائویی ۲۴ عددی"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">
+                        نام کارخانه / واحد تولیدی <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newSedFactory}
+                        onChange={(e) => setNewSedFactory(e.target.value)}
+                        placeholder="مثال: صنایع غذایی مینو"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">نام برند</label>
+                      <input
+                        type="text"
+                        value={newSedBrand}
+                        onChange={(e) => setNewSedBrand(e.target.value)}
+                        placeholder="مثال: مینو"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">دسته‌بندی</label>
+                      <select
+                        value={newSedCat}
+                        onChange={(e) => setNewSedCat(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+                      >
+                        {SEDIMENT_CATEGORIES.filter(c => c !== "همه کالاهای رسوب‌کرده").map(cat => (
+                          <option key={`sed-cat-${cat}`} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">محل انبار / استان و شهر</label>
+                      <input
+                        type="text"
+                        value={newSedLocation}
+                        onChange={(e) => setNewSedLocation(e.target.value)}
+                        placeholder="مثال: زنجان، خرمدره"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">موجودی (کارتن)</label>
+                      <input
+                        type="number"
+                        value={newSedStock}
+                        onChange={(e) => setNewSedStock(e.target.value)}
+                        placeholder="مثال: ۴۰۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">حداقل سفارش</label>
+                      <input
+                        type="number"
+                        value={newSedMinOrder}
+                        onChange={(e) => setNewSedMinOrder(e.target.value)}
+                        placeholder="مثال: ۱۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">قیمت معمول (تومان)</label>
+                      <input
+                        type="number"
+                        value={newSedOriginalPrice}
+                        onChange={(e) => setNewSedOriginalPrice(e.target.value)}
+                        placeholder="مثال: ۳۸۰۰۰۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">
+                        قیمت با تخفیف (تومان) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={newSedPrice}
+                        onChange={(e) => setNewSedPrice(e.target.value)}
+                        placeholder="مثال: ۲۹۵۰۰۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black text-rose-700 focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">مدت دپو در انبار</label>
+                      <input
+                        type="text"
+                        value={newSedDuration}
+                        onChange={(e) => setNewSedDuration(e.target.value)}
+                        placeholder="مثال: ۳ ماه دپو در انبار مرکزی"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">تاریخ و اعتبار انقضا</label>
+                      <input
+                        type="text"
+                        value={newSedShelfLife}
+                        onChange={(e) => setNewSedShelfLife(e.target.value)}
+                        placeholder="مثال: ۷ ماه تا انقضا"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mandatory Phone Verification */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <label className="font-black text-slate-800 text-xs block mb-2">شماره تماس مستقیم و تایید پیامکی کارخانه:</label>
+                    <SmsPhoneVerifier
+                      phone={newSedPhone}
+                      onPhoneChange={(phone) => setNewSedPhone(phone)}
+                      onVerificationSuccess={(verifiedPhone) => {
+                        setIsSedPhoneVerified(true);
+                        setNewSedPhone(verifiedPhone);
+                      }}
+                      isVerified={isSedPhoneVerified}
+                    />
+                  </div>
+
+                  {/* Image Upload */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">تصویر محصول / پالت انبار</label>
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleSedImageUpload(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center cursor-pointer hover:border-rose-500 transition-colors bg-slate-50 relative flex flex-col items-center justify-center gap-1.5"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSedImageUpload(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      {uploadedSedImageBase64 ? (
+                        <div className="flex items-center gap-3 w-full">
+                          <img src={uploadedSedImageBase64} alt="Preview" className="w-14 h-14 object-cover rounded-xl border border-slate-200" />
+                          <div className="text-right">
+                            <span className="text-[10px] text-rose-600 font-black block">تصویر انتخاب شد</span>
+                            <span className="text-[9px] text-slate-400 font-bold block">جهت تغییر تصویر دوباره کلیک کنید</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <UploadCloud size={24} className="text-slate-400" />
+                          <span className="text-[10px] text-slate-600 font-black">انتخاب تصویر کالا (کلیک کنید یا تصویر را بکشید)</span>
+                          <span className="text-[9px] text-slate-400 font-bold">فرمت‌های مجاز: JPG, PNG</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1">توضیحات تکمیلی و شرایط تسویه</label>
+                    <textarea
+                      rows={2}
+                      value={newSedDesc}
+                      onChange={(e) => setNewSedDesc(e.target.value)}
+                      placeholder="وضعیت سلامت کارتن‌ها، نحوه بارگیری از انبار کارخانه و شرایط پرداخت نقدی..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={!isSedPhoneVerified}
+                      className={`w-full font-black py-3.5 rounded-xl text-xs transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+                        isSedPhoneVerified
+                          ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <Send size={15} />
+                      <span>{isSedPhoneVerified ? "ثبت و انتشار کالای رسوب‌کرده در تالار فروش" : "تایید پیامکی شماره کارخانه الزامی است"}</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: ORDER SURPLUS GOOD (ثبت سفارش خرید مازاد خط تولید) */}
+      <AnimatePresence>
+        {showOrderSurplusModal && selectedSurplusForOrder && (
+          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100 my-auto text-right"
+              dir="rtl"
+            >
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-[10px] font-black text-amber-800 mb-2">
+                    <Flame size={12} className="text-amber-600" />
+                    <span>خرید مازاد خط تولید با قیمت کف</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900">
+                    استعلام و خرید مازاد خط تولید کارخانه
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowOrderSurplusModal(false);
+                    setOrderSurpSubmittedCode(null);
+                  }}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {orderSurpSubmittedCode ? (
+                <div className="p-4 sm:p-6 text-center space-y-5">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-2xs">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-base font-black text-slate-950">سفارش مازاد تولید با موفقیت ثبت شد</h4>
+                    <p className="text-xs text-slate-600 font-bold max-w-sm mx-auto leading-relaxed">
+                      درخواست شما با کارخانه <strong className="text-slate-900 font-black">{selectedSurplusForOrder.factoryName}</strong> هماهنگ گردید. هماهنگی بارگیری مستقیم از درب کارخانه از طریق کارشناسان دست‌اول انجام خواهد شد.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                    <span className="text-[10px] text-slate-400 font-bold block">کد رهگیری اختصاصی سفارش:</span>
+                    <strong className="text-base font-mono text-emerald-700 tracking-wider block font-black">{orderSurpSubmittedCode}</strong>
+                    <span className="text-[9px] text-slate-400 font-bold block">این سفارش در تابلوی استعلام‌های خرید شما ثبت گردید.</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowOrderSurplusModal(false);
+                      setOrderSurpSubmittedCode(null);
+                    }}
+                    className="w-full bg-slate-950 hover:bg-slate-900 text-white font-black py-3 rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    متوجه شدم - بستن پنجره
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleOrderSurplusSubmit} className="space-y-4">
+                  {/* Selected Item Summary */}
+                  <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-xs space-y-2">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                      <span className="text-amber-800 font-black">{selectedSurplusForOrder.factoryName}</span>
+                      <span className="bg-amber-600 text-white px-2 py-0.5 rounded font-black text-[10px]">
+                        %{toPersianNum(selectedSurplusForOrder.discountPercent)} تخفیف مازاد
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-black text-slate-900 leading-snug">
+                      {selectedSurplusForOrder.title}
+                    </h4>
+                    <div className="flex justify-between items-center text-[11px] pt-2 border-t border-amber-100 font-bold">
+                      <span className="text-slate-500">قیمت کف خط:</span>
+                      <span className="text-amber-700 font-black text-sm">
+                        {toPersianNum(selectedSurplusForOrder.surplusPrice.toLocaleString())} تومان / کارتن
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1.5">
+                        نام خریدار / بنکداری / فروشگاه <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={orderSurpBuyerName}
+                        onChange={(e) => setOrderSurpBuyerName(e.target.value)}
+                        placeholder="مثال: بنکداری اتحاد / فروشگاه‌های زنجیره‌ای"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1.5">
+                        شماره تماس مستقیم <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={orderSurpBuyerPhone}
+                        onChange={(e) => setOrderSurpBuyerPhone(e.target.value)}
+                        placeholder="مثال: ۰۹۱۲۳۴۵۶۷۸۹"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800 text-left"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1.5">
+                        شهر مقصد تحویل بار
+                      </label>
+                      <input
+                        type="text"
+                        value={orderSurpBuyerCity}
+                        onChange={(e) => setOrderSurpBuyerCity(e.target.value)}
+                        placeholder="مثال: تهران / تبریز / مشهد"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1.5">
+                        تعداد کارتن درخواستی (حداقل {toPersianNum(selectedSurplusForOrder.minOrderCartons)})
+                      </label>
+                      <input
+                        type="number"
+                        min={selectedSurplusForOrder.minOrderCartons || 1}
+                        max={selectedSurplusForOrder.readyCartons || 9999}
+                        required
+                        value={orderSurpQty}
+                        onChange={(e) => setOrderSurpQty(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-black focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Calculated Estimate */}
+                  {Number(orderSurpQty) > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-600">برآورد هزینه سفارش با قیمت کف خط:</span>
+                      <span className="font-black text-amber-700 text-sm">
+                        {toPersianNum((Number(orderSurpQty) * selectedSurplusForOrder.surplusPrice).toLocaleString())} تومان
+                      </span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">
+                      توضیحات و هماهنگی بارگیری
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={orderSurpNotes}
+                      onChange={(e) => setOrderSurpNotes(e.target.value)}
+                      placeholder="نوع کامیون یا خاور بارگیری، زمان تحویل و نیازمندی‌های بارنامه..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-xl text-xs transition-colors shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Send size={15} />
+                      <span>ثبت سفارش و خرید مازاد خط با ضمانت امانی دست‌اول</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 4: ADD NEW SURPLUS GOOD (ثبت مازاد خط تولید کارخانه) */}
+      <AnimatePresence>
+        {showAddSurplusModal && (
+          <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-100 my-auto text-right max-h-[90vh] overflow-y-auto"
+              dir="rtl"
+            >
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-[10px] font-black text-amber-800 mb-2">
+                    <Flame size={12} className="text-amber-600" />
+                    <span>عرضه مستقیم مازاد خطوط تولید و شیفت شب</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900">
+                    اعلام مازاد خط تولید / شیفت اضافه کارخانه
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAddSurplusModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {surpSuccessMsg ? (
+                <div className="p-6 text-center space-y-4">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-2xs">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h4 className="text-base font-black text-slate-950">مازاد خط با موفقیت ثبت شد</h4>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed">{surpSuccessMsg}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleRegisterSurplus} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">
+                        عنوان محصول مازاد تولید <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newSurpTitle}
+                        onChange={(e) => setNewSurpTitle(e.target.value)}
+                        placeholder="مثال: کروسان مغزدار شکلاتی ۲۴ عددی"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">
+                        نام کارخانه / برند <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newSurpFactory}
+                        onChange={(e) => setNewSurpFactory(e.target.value)}
+                        placeholder="مثال: صنایع غذایی پچ‌پچ"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">نام برند</label>
+                      <input
+                        type="text"
+                        value={newSurpBrand}
+                        onChange={(e) => setNewSurpBrand(e.target.value)}
+                        placeholder="مثال: پچ‌پچ"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">دسته‌بندی مازاد</label>
+                      <select
+                        value={newSurpCat}
+                        onChange={(e) => setNewSurpCat(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+                      >
+                        {SURPLUS_CATEGORIES.filter(c => c !== "همه مازادهای تولید").map(cat => (
+                          <option key={`surp-cat-${cat}`} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">محل کارخانه / شهرک صنعتی</label>
+                      <input
+                        type="text"
+                        value={newSurpLocation}
+                        onChange={(e) => setNewSurpLocation(e.target.value)}
+                        placeholder="مثال: البرز، شهرک صنعتی هشتگرد"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">موجودی آماده (کارتن)</label>
+                      <input
+                        type="number"
+                        value={newSurpReadyCartons}
+                        onChange={(e) => setNewSurpReadyCartons(e.target.value)}
+                        placeholder="مثال: ۳۰۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">حداقل سفارش</label>
+                      <input
+                        type="number"
+                        value={newSurpMinOrder}
+                        onChange={(e) => setNewSurpMinOrder(e.target.value)}
+                        placeholder="مثال: ۱۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">قیمت معمول خط (تومان)</label>
+                      <input
+                        type="number"
+                        value={newSurpOriginalPrice}
+                        onChange={(e) => setNewSurpOriginalPrice(e.target.value)}
+                        placeholder="مثال: ۴۸۰۰۰۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">
+                        قیمت کف مازاد (تومان) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={newSurpPrice}
+                        onChange={(e) => setNewSurpPrice(e.target.value)}
+                        placeholder="مثال: ۳۸۸۰۰۰"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black text-amber-700 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">تاریخ شیفت تولید</label>
+                      <input
+                        type="text"
+                        value={newSurpDate}
+                        onChange={(e) => setNewSurpDate(e.target.value)}
+                        placeholder="مثال: تولید شیفت شب گذشته"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">علت مازاد خط</label>
+                      <input
+                        type="text"
+                        value={newSurpCause}
+                        onChange={(e) => setNewSurpCause(e.target.value)}
+                        placeholder="مثال: لغو حواله صادراتی / اضافه تولید روزانه"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 mb-1">شرایط تحویل و بارگیری</label>
+                      <input
+                        type="text"
+                        value={newSurpDelivery}
+                        onChange={(e) => setNewSurpDelivery(e.target.value)}
+                        placeholder="مثال: تحویل فوری درب کارخانه با بارنامه رسمی"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mandatory Phone Verification */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <label className="font-black text-slate-800 text-xs block mb-2">شماره تماس مستقیم و تایید پیامکی کارخانه:</label>
+                    <SmsPhoneVerifier
+                      phone={newSurpPhone}
+                      onPhoneChange={(phone) => setNewSurpPhone(phone)}
+                      onVerificationSuccess={(verifiedPhone) => {
+                        setIsSurpPhoneVerified(true);
+                        setNewSurpPhone(verifiedPhone);
+                      }}
+                      isVerified={isSurpPhoneVerified}
+                    />
+                  </div>
+
+                  {/* Image Upload */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1.5">تصویر بار و بسته‌بندی خط تولید</label>
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleSurpImageUpload(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center cursor-pointer hover:border-amber-500 transition-colors bg-slate-50 relative flex flex-col items-center justify-center gap-1.5"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSurpImageUpload(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      {uploadedSurpImageBase64 ? (
+                        <div className="flex items-center gap-3 w-full">
+                          <img src={uploadedSurpImageBase64} alt="Preview" className="w-14 h-14 object-cover rounded-xl border border-slate-200" />
+                          <div className="text-right">
+                            <span className="text-[10px] text-amber-600 font-black block">تصویر انتخاب شد</span>
+                            <span className="text-[9px] text-slate-400 font-bold block">جهت تغییر تصویر مجدد کلیک کنید</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <UploadCloud size={24} className="text-slate-400" />
+                          <span className="text-[10px] text-slate-600 font-black">انتخاب تصویر مازاد خط (کلیک کنید یا تصویر را بکشید)</span>
+                          <span className="text-[9px] text-slate-400 font-bold">فرمت‌های مجاز: JPG, PNG</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-800 mb-1">توضیحات تکمیلی</label>
+                    <textarea
+                      rows={2}
+                      value={newSurpDesc}
+                      onChange={(e) => setNewSurpDesc(e.target.value)}
+                      placeholder="توضیحات در خصوص پالت‌بندی، تاریخ دقیق تولید و شرایط تسویه حساب نقدی..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={!isSurpPhoneVerified}
+                      className={`w-full font-black py-3.5 rounded-xl text-xs transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+                        isSurpPhoneVerified
+                          ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20"
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <Send size={15} />
+                      <span>{isSurpPhoneVerified ? "ثبت و انتشار مازاد تولید در تالار دست‌اول" : "تایید پیامکی شماره کارخانه الزامی است"}</span>
                     </button>
                   </div>
                 </form>

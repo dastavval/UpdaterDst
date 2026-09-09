@@ -47,17 +47,57 @@ export interface CityTierData {
   growthSteps: DealershipGrowthStep[];
 }
 
+export interface ProvinceCitiesItem {
+  province: string;
+  capital: string;
+  cities: string[];
+}
+
+export const IRAN_PROVINCES_AND_CITIES: ProvinceCitiesItem[] = [
+  { province: "تهران", capital: "تهران", cities: ["تهران", "شهریار", "اسلامشهر", "ملارد", "قدس", "پاکدشت", "ری", "ورامین", "قرچک", "اندیشه", "رباط‌کریم", "بومهن", "پردیس", "دماوند", "فیروزکوه"] },
+  { province: "خراسان رضوی", capital: "مشهد", cities: ["مشهد", "نیشابور", "سبزوار", "تربت حیدریه", "قوچان", "کاشمر", "تربت جام", "تایباد", "سرخس", "گناباد", "چناران", "فریمان", "خواف"] },
+  { province: "اصفهان", capital: "اصفهان", cities: ["اصفهان", "کاشان", "خمینی‌شهر", "نجف‌آباد", "شاهین‌شهر", "شهرضا", "فولادشهر", "مبارکه", "آران و بیدگل", "زرین‌شهر", "گلپایگان", "نائین", "نطنز"] },
+  { province: "فارس", capital: "شیراز", cities: ["شیراز", "مرودشت", "جهرم", "فسا", "کازرون", "صدرا", "لارستان", "فیروزآباد", "داراب", "ممسنی", "آباده", "نی‌ریز", "اقلید", "استهبان"] },
+  { province: "آذربایجان شرقی", capital: "تبریز", cities: ["تبریز", "مراغه", "مرند", "میانه", "اهر", "بناب", "شبستر", "جلفا", "ملکان", "سراب", "آذرشهر", "هادی‌شهر", "عجب‌شیر"] },
+  { province: "البرز", capital: "کرج", cities: ["کرج", "فردیس", "کمال‌شهر", "نظرآباد", "محمدشهر", "هشتگرد", "طالقان", "اشتهارد", "ماهدشت"] },
+  { province: "خوزستان", capital: "اهواز", cities: ["اهواز", "دزفول", "آبادان", "ماهشهر", "خرمشهر", "اندیمشک", "ایذه", "بهبهان", "شوشتر", "شوش", "مسجدسلیمان", "امیدیه", "شادگان", "رامهرمز"] },
+  { province: "قم", capital: "قم", cities: ["قم", "قنوات", "جعفریه", "کهک", "سلفچگان"] },
+  { province: "آذربایجان غربی", capital: "ارومیه", cities: ["ارومیه", "خوی", "بوکان", "مهاباد", "میاندوآب", "سلماس", "پیرانشهر", "نقده", "تکاب", "سردشت", "ماکو", "شاهین‌دژ", "اشنویه"] },
+  { province: "مازندران", capital: "ساری", cities: ["ساری", "بابل", "آمل", "قائم‌شهر", "بهشهر", "چالوس", "تنکابن", "بابلسر", "نوشهر", "رامسر", "محمودآباد", "نور", "نکا", "فریدونکنار"] },
+  { province: "گیلان", capital: "رشت", cities: ["رشت", "بندر انزلی", "لاهیجان", "لنگرود", "تالش", "آستارا", "صومعه‌سرا", "رودسر", "فومن", "آستانه اشرفیه", "ماسال", "رودبار"] },
+  { province: "کرمانشاه", capital: "کرمانشاه", cities: ["کرمانشاه", "اسلام‌آباد غرب", "کنگاور", "جوانرود", "سنقر", "هرسین", "سرپل ذهاب", "پاوه", "صحنه", "گیلانغرب"] },
+  { province: "سیستان و بلوچستان", capital: "زاهدان", cities: ["زاهدان", "زابل", "ایرانشهر", "چابهار", "سراوان", "خاش", "نیک‌شهر", "بمپور", "کنارک", "راسک"] },
+  { province: "همدان", capital: "همدان", cities: ["همدان", "ملایر", "نهاوند", "تویسرکان", "اسدآباد", "بهار", "کبودرآهنگ", "رزن", "فامنین"] },
+  { province: "کرمان", capital: "کرمان", cities: ["کرمان", "سیرجان", "رفسنجان", "جیرفت", "بم", "زرند", "کهنوج", "شهربابک", "بافت", "بردسیر", "عنبرآباد"] },
+  { province: "یزد", capital: "یزد", cities: ["یزد", "میبد", "اردکان", "بافق", "مهریز", "ابرکوه", "تفت", "اشکذر", "هرات"] },
+  { province: "اردبیل", capital: "اردبیل", cities: ["اردبیل", "پارس‌آباد", "مشگین‌شهر", "خلخال", "گرمی", "بیله‌سوار", "نمین", "سرعین"] },
+  { province: "هرمزگان", capital: "بندرعباس", cities: ["بندرعباس", "میناب", "دهبارز", "قشم", "کیش", "بندرلنگه", "حاجی‌آباد", "جاسک", "بندر خمیر", "پارسیان"] },
+  { province: "مرکزی", capital: "اراک", cities: ["اراک", "ساوه", "خمین", "محلات", "دلیجان", "شازند", "تفرش", "آشتیان", "زرندیه"] },
+  { province: "زنجان", capital: "زنجان", cities: ["زنجان", "ابهر", "خرمدره", "قیدار", "طارم", "ماهنشان", "سلطانیه"] },
+  { province: "کردستان", capital: "سنندج", cities: ["سنندج", "سقز", "مریوان", "بانه", "قروه", "بیجار", "کامیاران", "دیواندره", "دهگلان"] },
+  { province: "قزوین", capital: "قزوین", cities: ["قزوین", "الوند", "محمدیه", "تاکستان", "آبیک", "اقبالیه", "بویین‌زهرا"] },
+  { province: "لرستان", capital: "خرم‌آباد", cities: ["خرم‌آباد", "بروجرد", "دورود", "کوهدشت", "دلفان", "الیگودرز", "الشتر", "پلدختر", "ازنا"] },
+  { province: "گلستان", capital: "گرگان", cities: ["گرگان", "گنبد کاووس", "بندر ترکمن", "علی‌آباد کتول", "آزادشهر", "آق‌قلا", "کلاله", "مینودشت", "کردکوی"] },
+  { province: "سمنان", capital: "سمنان", cities: ["سمنان", "شاهرود", "دامغان", "گرمسار", "مهدیشهر", "سرخه", "میامی"] },
+  { province: "بوشهر", capital: "بوشهر", cities: ["بوشهر", "برازجان", "دشتستان", "کنگان", "گناوه", "عسلویه", "جم", "دیر", "خورموج", "دیلم"] },
+  { province: "ایلام", capital: "ایلام", cities: ["ایلام", "دهلران", "ایوان", "آبدانان", "مهران", "دره‌شهر", "سرابله", "چرداول"] },
+  { province: "چهارمحال و بختیاری", capital: "شهرکرد", cities: ["شهرکرد", "بروجن", "لردگان", "فرخ‌شهر", "فارسان", "سامان", "اردل"] },
+  { province: "خراسان شمالی", capital: "بجنورد", cities: ["بجنورد", "شیروان", "اسفراین", "آشخانه", "جاجرم", "گرمه", "فاروج"] },
+  { province: "خراسان جنوبی", capital: "بیرجند", cities: ["بیرجند", "قائن", "طبس", "فردوس", "نهبندان", "سرایان", "بشرویه", "درمیان"] },
+  { province: "کهگیلویه و بویراحمد", capital: "یاسوج", cities: ["یاسوج", "دوگنبدان", "دهدشت", "لیکک", "چرام", "لنده"] }
+];
+
 // Normalized lookup map for Iranian cities and population estimates
 const KNOWN_CITIES_DATA: Record<string, { province: string; population: number; tier: 1 | 2 | 3 | 4; tierLabel: string }> = {
   // Tier 1: کلان‌شهرهای بالای ۱.۵ میلیون نفر
   "تهران": { province: "تهران", population: 9250000, tier: 1, tierLabel: "کلان‌شهر ویژه پایتخت (سطح ۱ - توزیع منطقه‌ای)" },
-  "مشهد": { province: "خراسان رضوی", population: 3300000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
-  "اصفهان": { province: "اصفهان", population: 2200000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
-  "کرج": { province: "البرز", population: 1900000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
-  "شیراز": { province: "فارس", population: 1750000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
-  "تبریز": { province: "آذربایجان شرقی", population: 1700000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
-  "قم": { province: "قم", population: 1350000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
-  "اهواز": { province: "خوزستان", population: 1300000, tier: 1, tierLabel: "کلان‌شهر ملی (سطح ۱ - توزیع منطقه‌ای)" },
+  "مشهد": { province: "خراسان رضوی", population: 3300000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
+  "اصفهان": { province: "اصفهان", population: 2200000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
+  "کرج": { province: "البرز", population: 1900000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
+  "شیراز": { province: "فارس", population: 1750000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
+  "تبریز": { province: "آذربایجان شرقی", population: 1700000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
+  "قم": { province: "قم", population: 1350000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
+  "اهواز": { province: "خوزستان", population: 1300000, tier: 1, tierLabel: "کلان‌شهر کشور (سطح ۱ - توزیع منطقه‌ای)" },
 
   // Tier 2: کلان‌شهرهای منطقه‌ای و مراکز استان پرجمعیت (۳۵۰ هزار تا ۱.۲ میلیون)
   "کرمانشاه": { province: "کرمانشاه", population: 1020000, tier: 2, tierLabel: "مرکز استان و قطب منطقه‌ای (سطح ۲)" },
@@ -106,14 +146,19 @@ const KNOWN_CITIES_DATA: Record<string, { province: string; population: number; 
   "بروجرد": { province: "لرستان", population: 250000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "سیرجان": { province: "کرمان", population: 220000, tier: 3, tierLabel: "شهر صنعتی و معدنی (سطح ۳)" },
   "مراغه": { province: "آذربایجان شرقی", population: 190000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
+  "مرند": { province: "آذربایجان شرقی", population: 160000, tier: 3, tierLabel: "شهرستان تجاری و ترانزیتی (سطح ۳)" },
+  "شبستر": { province: "آذربایجان شرقی", population: 90000, tier: 3, tierLabel: "قطب تولید و صنایع غذایی (سطح ۳)" },
   "رفسنجان": { province: "کرمان", population: 180000, tier: 3, tierLabel: "شهرستان تجاری و کشاورزی (سطح ۳)" },
   "ساوه": { province: "مرکزی", population: 240000, tier: 3, tierLabel: "قطب صنعتی (سطح ۳)" },
   "خوی": { province: "آذربایجان غربی", population: 210000, tier: 3, tierLabel: "شهرستان مرزی و تجاری (سطح ۳)" },
   "ملایر": { province: "همدان", population: 190000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "شاهین‌شهر": { province: "اصفهان", population: 180000, tier: 3, tierLabel: "شهرستان حومه (سطح ۳)" },
+  "نجف‌آباد": { province: "اصفهان", population: 240000, tier: 3, tierLabel: "شهرستان صنعتی و تجاری (سطح ۳)" },
   "قائم‌شهر": { province: "مازندران", population: 220000, tier: 3, tierLabel: "شهر تجاری (سطح ۳)" },
   "مهاباد": { province: "آذربایجان غربی", population: 180000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
+  "بوکان": { province: "آذربایجان غربی", population: 195000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "سقز": { province: "کردستان", population: 175000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
+  "بانه": { province: "کردستان", population: 120000, tier: 3, tierLabel: "قطب تجاری مرزی (سطح ۳)" },
   "مرودشت": { province: "فارس", population: 160000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "شاهرود": { province: "سمنان", population: 160000, tier: 3, tierLabel: "شهرستان تجاری (سطح ۳)" },
   "زابل": { province: "سیستان و بلوچستان", population: 140000, tier: 3, tierLabel: "شهرستان مرزی (سطح ۳)" },
@@ -133,6 +178,133 @@ export function normalizeName(str?: string): string {
     .toLowerCase();
 }
 
+/**
+ * Accurately finds the official Iranian Province for any given City.
+ */
+export function getProvinceForCity(cityName?: string, fallbackProvince?: string): string {
+  if (!cityName || !cityName.trim()) return fallbackProvince || "تهران";
+  const normCity = normalizeName(cityName);
+  if (!normCity) return fallbackProvince || "تهران";
+
+  // 1. First Pass: Exact Match in IRAN_PROVINCES_AND_CITIES
+  for (const item of IRAN_PROVINCES_AND_CITIES) {
+    if (normalizeName(item.capital) === normCity) return item.province;
+    if (normalizeName(item.province) === normCity) return item.province;
+    if (item.cities.some(c => normalizeName(c) === normCity)) {
+      return item.province;
+    }
+  }
+
+  // 2. Exact Match in KNOWN_CITIES_DATA
+  if (KNOWN_CITIES_DATA[cityName]) {
+    return KNOWN_CITIES_DATA[cityName].province;
+  }
+  const matchedKey = Object.keys(KNOWN_CITIES_DATA).find(k => normalizeName(k) === normCity);
+  if (matchedKey) {
+    return KNOWN_CITIES_DATA[matchedKey].province;
+  }
+
+  // 3. Second Pass: Prefix / Word boundary match (e.g. "شهر اهواز", "اهواز مرکزی")
+  for (const item of IRAN_PROVINCES_AND_CITIES) {
+    for (const c of item.cities) {
+      const normC = normalizeName(c);
+      if (normC.length >= 3 && (normCity.startsWith(normC) || normC.startsWith(normCity))) {
+        return item.province;
+      }
+    }
+  }
+
+  // 4. Substring Match only if string length is significant (>= 4 characters)
+  if (normCity.length >= 4) {
+    for (const item of IRAN_PROVINCES_AND_CITIES) {
+      if (item.cities.some(c => {
+        const normC = normalizeName(c);
+        return normC.length >= 4 && (normCity.includes(normC) || normC.includes(normCity));
+      })) {
+        return item.province;
+      }
+    }
+  }
+
+  return fallbackProvince || "تهران";
+}
+
+/**
+ * Returns a flat list of all Iranian cities with their respective province.
+ */
+export function getAllCitiesList(): { province: string; city: string; isCapital: boolean }[] {
+  const list: { province: string; city: string; isCapital: boolean }[] = [];
+  IRAN_PROVINCES_AND_CITIES.forEach(p => {
+    p.cities.forEach(c => {
+      list.push({
+        province: p.province,
+        city: c,
+        isCapital: normalizeName(c) === normalizeName(p.capital)
+      });
+    });
+  });
+  return list;
+}
+
+/**
+ * Robustly matches whether a representative covers a requested city or province.
+ */
+export function isRepresentativeForCity(rep: any, targetCity?: string, targetProvince?: string): boolean {
+  if (!rep) return false;
+  if (!targetCity && !targetProvince) return true;
+
+  const normTargetCity = normalizeName(targetCity);
+  const normTargetProv = normalizeName(targetProvince || (targetCity ? getProvinceForCity(targetCity) : ""));
+
+  // 1. Direct city exact/normalized check
+  if (rep.city && normTargetCity) {
+    const normRepCity = normalizeName(rep.city);
+    if (normRepCity === normTargetCity) {
+      return true;
+    }
+    // Prefix / boundary match
+    if (normRepCity.length >= 3 && normTargetCity.length >= 3) {
+      if (normRepCity.startsWith(normTargetCity) || normTargetCity.startsWith(normRepCity)) {
+        return true;
+      }
+    }
+  }
+
+  // 2. Check cities array if representative covers multiple cities (e.g., Ahvaz and Dezful)
+  if (Array.isArray(rep.cities) && normTargetCity) {
+    if (rep.cities.some((c: string) => {
+      const normC = normalizeName(c);
+      return normC === normTargetCity || (normC.length >= 3 && (normC.startsWith(normTargetCity) || normTargetCity.startsWith(normC)));
+    })) {
+      return true;
+    }
+  }
+
+  // 3. Check coverageCities if array or string
+  if (rep.coverageCities && normTargetCity) {
+    if (Array.isArray(rep.coverageCities)) {
+      if (rep.coverageCities.some((c: string) => normalizeName(c) === normTargetCity)) return true;
+    } else if (typeof rep.coverageCities === "string") {
+      const normCov = normalizeName(rep.coverageCities);
+      if (normCov.includes(normTargetCity)) return true;
+    }
+  }
+
+  // 4. Check address with word boundaries
+  if (rep.address && normTargetCity && normTargetCity.length >= 4) {
+    const normAddr = normalizeName(rep.address);
+    if (normAddr.includes(normTargetCity)) return true;
+  }
+
+  // 5. Check company or name if city is in the title (min 4 chars)
+  if (normTargetCity && normTargetCity.length >= 4) {
+    if (rep.company && normalizeName(rep.company).includes(normTargetCity)) return true;
+    if (rep.name && normalizeName(rep.name).includes(normTargetCity)) return true;
+  }
+
+  return false;
+}
+
 export function formatTomanCurrency(amount: number): string {
   if (amount >= 1_000_000_000) {
     const milliards = amount / 1_000_000_000;
@@ -140,8 +312,9 @@ export function formatTomanCurrency(amount: number): string {
     return `${toPersianDigits(formatted)} میلیارد تومان`;
   }
   if (amount >= 1_000_000) {
-    const millions = Math.round(amount / 1_000_000);
-    return `${toPersianDigits(millions.toLocaleString("fa-IR"))} میلیون تومان`;
+    const millions = amount / 1_000_000;
+    const formatted = millions % 1 === 0 ? millions.toString() : millions.toFixed(1);
+    return `${toPersianDigits(formatted)} میلیون تومان`;
   }
   return `${toPersianDigits(amount.toLocaleString("fa-IR"))} تومان`;
 }
@@ -152,33 +325,161 @@ export function toPersianDigits(num: string | number): string {
 }
 
 /**
- * Calculates Dealership Carton Quota, Progressive Growth Tiers, and Multi-level Zones
- * tailored dynamically for Iranian Metropolises vs Small Towns.
+ * Returns dynamic customized distribution zones for any city or metropolis.
  */
-export function calculateDealershipTier(city: string, province?: string): CityTierData {
-  const normCity = normalizeName(city);
+function getDynamicZonesForCity(cityName: string, provinceName?: string): string[] {
+  const norm = normalizeName(cityName);
   
+  if (norm.includes("تهران")) {
+    return [
+      "منطقه ۱ - شمال (شمیرانات، نیاوران، سعادت‌آباد و ولنجک)",
+      "منطقه ۲ - غرب (پونک، صادقیه، چیتگر، تهران‌سر و منطقه ۲۲)",
+      "منطقه ۳ - مرکز (بازار بزرگ، خیام، ۱۵ خرداد و راسته بنکداران مولوی)",
+      "منطقه ۴ - شرق (تهرانپارس، نارمک، رسالت و حکیمیه)",
+      "منطقه ۵ - جنوب (ری، فدائیان اسلام، شوش، نازی‌آباد و کهریزک)"
+    ];
+  }
+  if (norm.includes("مشهد")) {
+    return [
+      "منطقه ۱ - غرب و بالاشهر (احمدآباد، سجاد، وکیل‌آباد و ملک‌آباد)",
+      "منطقه ۲ - مرکز و حرم (مصلی، راسته بنکداران خیام و هفده شهریور)",
+      "منطقه ۳ - شرق و شمال (طبرسی، طلاب، رسالت و بلوار گاز)",
+      "منطقه ۴ - قطب‌های صنعتی و پخش (شهرک صنعتی توس و جاده کلات)",
+      "منطقه ۵ - طرقبه، شاندیز و حومه گردشگری و ییلاقی"
+    ];
+  }
+  if (norm.includes("اصفهان")) {
+    return [
+      "منطقه ۱ - مرکز و بازار (چهارباغ، میدان امام و راسته بنکداران سبزه میدان)",
+      "منطقه ۲ - جنوب (مرداویج، خاقانی، دروازه شیراز و سپاهان‌شهر)",
+      "منطقه ۳ - غرب (آتشگاه، ناژوان و شهرک صنعتی امیرکبیر)",
+      "منطقه ۴ - شرق (بزرگمهر، پروین، پل خواجو و جی)",
+      "منطقه ۵ - بهارستان، شاهین‌شهر و مناطق تابعه اصفهان"
+    ];
+  }
+  if (norm.includes("تبریز")) {
+    return [
+      "منطقه ۱ - شمال و شرق (ولیعصر، رشدیه، ایل‌گلی، زعفرانیه و باغمیشه)",
+      "منطقه ۲ - مرکز و بازار کهن (بازار سرپوشیده، راسته کفاشان و دارایی)",
+      "منطقه ۳ - غرب و صنعتی (جاده سنتو، قراملک و شهرک‌های صنعتی شهید رجایی)",
+      "منطقه ۴ - جنوب و شهر جدید سهند (منظریه، مارالان، ابوریحان و سهند)"
+    ];
+  }
+  if (norm.includes("شیراز")) {
+    return [
+      "منطقه ۱ - شمال و غرب (معالی‌آباد، فرهنگ‌شهر، قصردشت، ارم و تاچارا)",
+      "منطقه ۲ - مرکز و بافت تجاری (بازار وکیل، لطفعلی‌خان زند و دروازه کازرون)",
+      "منطقه ۳ - شرق و جنوب (مدرس، پودنک، بلوار نصر و شهرک صنعتی بزرگ)",
+      "منطقه ۴ - شهر جدید صدرا و حومه توزیع استانی"
+    ];
+  }
+  if (norm.includes("کرج")) {
+    return [
+      "منطقه ۱ - شمال (عظیمیه، جهانشهر، گوهردشت و کوهسار)",
+      "منطقه ۲ - غرب و مرکز (مهرشهر، مهرویلا، گلشهر، طالقانی و حصارک)",
+      "منطقه ۳ - جنوب و قطب صنعتی (فردیس، محمدشهر، سیمین‌دشت و ماهدشت)"
+    ];
+  }
+  if (norm.includes("اهواز")) {
+    return [
+      "منطقه ۱ - شمال و غرب (کیانپارس، کیان‌آباد، وهابی و امانیه)",
+      "منطقه ۲ - مرکز و شرق (زیتون کارمندی، پادادشهر، باهنر و بازار امام)",
+      "منطقه ۳ - جنوب و قطب‌های صنعتی و بندری (کوت عبدالله و شهرک‌های صنعتی)"
+    ];
+  }
+  if (norm.includes("قم")) {
+    return [
+      "منطقه ۱ - جنوب و غرب (زنبیل‌آباد، صفائیه، سالاریه و بلوار امین)",
+      "منطقه ۲ - مرکز و بازار (راسته بازار کهنه، میدان آستانه و نیروگاه)",
+      "منطقه ۳ - پردیسان، شهرک قدس و قطب صنعتی شکوهیه"
+    ];
+  }
+
+  // Tier 2 & Tier 3 customized zones
+  return [
+    `منطقه ۱ - حوزه شهری و بازار مرکزی ${cityName} (فروشگاه‌ها و بنکداران مستقر)`,
+    `منطقه ۲ - حوزه پخش مویرگی حومه، شهرک‌های صنعتی و شهرستان‌های همجوار ${cityName}`
+  ];
+}
+
+/**
+ * Calculates Dealership Carton Quota, Progressive Growth Tiers, and Multi-level Zones
+ * tailored dynamically for ANY Iranian City or Small Town.
+ */
+export function calculateDealershipTier(cityInput?: string, provinceInput?: string): CityTierData {
+  let rawCity = (cityInput || "").trim();
+  let rawProvince = (provinceInput || "").trim();
+
+  // If province is given and city is empty, pick province's capital
+  if (!rawCity && rawProvince) {
+    const provMatch = IRAN_PROVINCES_AND_CITIES.find(p => normalizeName(p.province) === normalizeName(rawProvince));
+    if (provMatch) {
+      rawCity = provMatch.capital;
+    }
+  }
+
+  // Default fallback if both are empty
+  if (!rawCity) {
+    rawCity = "تهران";
+    rawProvince = "تهران";
+  }
+
+  const normCity = normalizeName(rawCity);
+  
+  // 1. Direct match in KNOWN_CITIES_DATA
   let matchedKey = Object.keys(KNOWN_CITIES_DATA).find((k) => normalizeName(k) === normCity);
-  
   if (!matchedKey) {
     matchedKey = Object.keys(KNOWN_CITIES_DATA).find((k) => normCity.includes(normalizeName(k)) || normalizeName(k).includes(normCity));
   }
 
   let baseData = matchedKey ? KNOWN_CITIES_DATA[matchedKey] : null;
 
+  // 2. If not directly in known data, search in IRAN_PROVINCES_AND_CITIES
   if (!baseData) {
-    const normProv = normalizeName(province);
-    if (normProv.includes("تهران")) {
-      baseData = { province: "تهران", population: 250000, tier: 2, tierLabel: "شهرستان تابعه تهران (سطح ۲)" };
-    } else if (normProv.includes("خراسان") || normProv.includes("اصفهان") || normProv.includes("فارس") || normProv.includes("خوزستان") || normProv.includes("البرز") || normProv.includes("گیلان") || normProv.includes("مازندران")) {
-      baseData = { province: province || "ایران", population: 120000, tier: 3, tierLabel: "شهرستان متوسط استانی (سطح ۳)" };
-    } else {
-      baseData = { province: province || "ایران", population: 65000, tier: 4, tierLabel: "شهرستان و توزیع منطقه‌ای (سطح ۴)" };
+    let foundProvItem: ProvinceCitiesItem | undefined;
+    for (const pItem of IRAN_PROVINCES_AND_CITIES) {
+      if (pItem.cities.some(c => normalizeName(c) === normCity)) {
+        foundProvItem = pItem;
+        break;
+      }
+    }
+
+    if (foundProvItem) {
+      const isCapital = normalizeName(foundProvItem.capital) === normCity;
+      if (isCapital) {
+        baseData = {
+          province: foundProvItem.province,
+          population: 400000,
+          tier: 2,
+          tierLabel: `مرکز استان ${foundProvItem.province} (سطح ۲)`
+        };
+      } else {
+        baseData = {
+          province: foundProvItem.province,
+          population: 120000,
+          tier: 3,
+          tierLabel: `شهرستان تجاری ${foundProvItem.province} (سطح ۳)`
+        };
+      }
     }
   }
 
-  const pop = baseData.population;
+  // 3. Fallback inference by Province
+  if (!baseData) {
+    const inferredProvince = rawProvince || "سایر مناطق کشور";
+    const normProv = normalizeName(inferredProvince);
+    if (normProv.includes("تهران")) {
+      baseData = { province: "تهران", population: 250000, tier: 2, tierLabel: "شهرستان تابعه تهران (سطح ۲)" };
+    } else if (normProv.includes("خراسان") || normProv.includes("اصفهان") || normProv.includes("فارس") || normProv.includes("خوزستان") || normProv.includes("البرز") || normProv.includes("گیلان") || normProv.includes("مازندران") || normProv.includes("آذربایجان")) {
+      baseData = { province: inferredProvince, population: 120000, tier: 3, tierLabel: "شهرستان متوسط استانی (سطح ۳)" };
+    } else {
+      baseData = { province: inferredProvince, population: 65000, tier: 4, tierLabel: "شهرستان و توزیع منطقه‌ای (سطح ۴)" };
+    }
+  }
+
+  const effectiveProvince = rawProvince || baseData.province;
   const isMetropolis = baseData.tier === 1;
+  const pop = baseData.population;
 
   let starterMinCartons: string;
   let monthlyCartons: string;
@@ -190,48 +491,41 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
   let recommendedFleet: string;
   let estimatedGrossMargin: string;
   let growthSteps: DealershipGrowthStep[];
-  let availableZones: string[] | undefined;
   let representativeLevels: CityTierData['representativeLevels'] | undefined;
 
-  if (baseData.tier === 1) {
-    // Tier 1: Metropolises - HIGH VOLUME & MULTI-LEVEL ZONES TO PREVENT MONOPOLY
-    starterMinCartons = "۲۰۰ تا ۵۰۰ کارتن";
-    monthlyCartons = "۱,۰۰۰ تا ۳,۰۰۰ کارتن";
-    growthTargetCartons = "تا ۵,۰۰۰ کارتن در ماه";
-    initialMinOrderToman = 300_000_000; // 300 Million Tomans
-    monthlyQuotaCeilingToman = 2_500_000_000; // 2.5 Billion Tomans
-    guaranteeLimitToman = 400_000_000;
-    recommendedWarehouseSpace = "از ۲۰۰ تا ۸۰۰ متر مربع انبار مکانیزه";
-    recommendedFleet = "۲ الی ۵ دستگاه وانت یا خاور پخش مویرگی";
-    estimatedGrossMargin = "۲۵٪ تا ۳۲٪ سود خالص";
+  const availableZones = getDynamicZonesForCity(rawCity, effectiveProvince);
 
-    availableZones = [
-      "منطقه ۱ - شمال (شمیرانات و شمال کلان‌شهر)",
-      "منطقه ۲ - غرب (قطب صنعتی و پخش مویرگی)",
-      "منطقه ۳ - مرکز (بازار اصلی و بنکداری)",
-      "منطقه ۴ - شرق (مراکز توزیع و هایپرمارکت‌ها)",
-      "منطقه ۵ - جنوب و حومه (انبارداری و لجستیک سنگین)"
-    ];
+  if (baseData.tier === 1) {
+    // Tier 1: Metropolises
+    starterMinCartons = "۱۵۰ تا ۳۰۰ کارتن";
+    monthlyCartons = "۸۰۰ تا ۲,۵۰۰ کارتن";
+    growthTargetCartons = "تا ۴,۰۰۰ کارتن در ماه";
+    initialMinOrderToman = 180_000_000;
+    monthlyQuotaCeilingToman = 2_000_000_000;
+    guaranteeLimitToman = 350_000_000;
+    recommendedWarehouseSpace = "از ۱۵۰ تا ۵۰۰ متر مربع انبار مکانیزه";
+    recommendedFleet = "۲ الی ۴ دستگاه وانت یا خاور پخش مویرگی";
+    estimatedGrossMargin = "۲۴٪ تا ۳۰٪ سود خالص";
 
     representativeLevels = [
       {
         level: "diamond",
-        title: "💎 سطح ۱: نماینده الماس (بنکداری و مدیریت منطقه‌ای)",
-        description: "توزیع انحصاری در منطقه مشخص کلان‌شهر و ارجاع کلیه خریداران عمده و هایپرمارکت‌ها",
+        title: `💎 سطح ۱: نماینده الماس (${rawCity})`,
+        description: `توزیع انحصاری در منطقه مشخص ${rawCity} و ارجاع کلیه خریداران عمده و هایپرمارکت‌ها`,
         minMonthlyVolumeToman: 1_500_000_000,
         minMonthlyVolumeFormatted: "۱.۵ میلیارد تومان"
       },
       {
         level: "gold",
-        title: "🥇 سطح ۲: نماینده طلایی (پخش مویرگی محلی)",
-        description: "عاملیت توزیع در ناحیه مشخص با پشتیبانی مویرگی سوپرمارکت‌ها",
+        title: `🥇 سطح ۲: نماینده طلایی (${rawCity})`,
+        description: `پخش مویرگی محلی و سوپرمارکت‌های زنجیره‌ای حوزه اختصاصی ${rawCity}`,
         minMonthlyVolumeToman: 600_000_000,
         minMonthlyVolumeFormatted: "۶۰۰ میلیون تومان"
       },
       {
         level: "silver",
-        title: "🥈 سطح ۳: نماینده نقره‌ای (عامل تحویل و توزیع سریع)",
-        description: "تحویل مستقیم سفارشات و عاملیت فروشگاه‌های زنجیره‌ای منطقه",
+        title: `🥈 سطح ۳: نماینده نقره‌ای (${rawCity})`,
+        description: `توزیع سریع و تأمین سوپرمارکت‌ها با ورود آسان و بدون ریسک انبارداری در ${rawCity}`,
         minMonthlyVolumeToman: 300_000_000,
         minMonthlyVolumeFormatted: "۳۰۰ میلیون تومان"
       }
@@ -240,130 +534,137 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: ورود کلان‌شهری و اخذ عاملیت منطقه",
-        cartonRange: "۲۰۰ تا ۵۰۰ کارتن",
-        volumeTomanFormatted: "۳۰۰ میلیون تومان",
-        marginPercent: "۲۲٪ تا ۲۵٪",
-        description: "شروع عاملیت رسمی در یکی از مناطق پنج‌گانه کلان‌شهر بدون انحصار تک‌نفره"
+        title: `گام ۱: ورود کم‌ریسک به بازار ${rawCity}`,
+        cartonRange: "۱۵۰ تا ۳۰۰ کارتن",
+        volumeTomanFormatted: "۱۸۰ میلیون تومان",
+        marginPercent: "۲۲٪ تا ۲۴٪",
+        description: `آغاز عاملیت رسمی در ${rawCity} با حداقل سرمایه در گردش و ارسال مستقیم کارخانه`
       },
       {
         stepNumber: 2,
-        title: "گام ۲: توسعه شبکه مویرگی منطقه",
-        cartonRange: "۱,۰۰۰ تا ۲,۰۰۰ کارتن",
-        volumeTomanFormatted: "۱ الی ۱.۵ میلیارد تومان",
-        marginPercent: "۲۶٪ تا ۲۹٪",
-        description: "پوشش مویرگی سوپرمارکت‌ها و فروشگاه‌های منطقه با ارجاع مستقیم سیستمی"
+        title: `گام ۲: تثبیت توزیع منطقه‌ای در ${rawCity}`,
+        cartonRange: "۸۰۰ تا ۱,۵۰۰ کارتن",
+        volumeTomanFormatted: "۸۰۰ میلیون تا ۱.۲ میلیارد تومان",
+        marginPercent: "۲۵٪ تا ۲۷٪",
+        description: `ارجاع سفارشات پلتفرم در منطقه انتخابی شما در ${rawCity}`
       },
       {
         stepNumber: 3,
-        title: "گام ۳: نماینده ارشد الماس کلان‌شهر",
-        cartonRange: "۳,۰۰۰ تا ۵,۰۰۰ کارتن",
-        volumeTomanFormatted: "۲.۵ میلیارد تومان",
-        marginPercent: "۳۲٪ ماکزیمم",
-        description: "بنکداری و پشتیبانی تجاری کلان‌شهر همراه با بالاترین درصد حاشیه سود کارخانه‌ای"
+        title: `گام ۳: عاملیت ارشد و بنکداری کلان‌شهر`,
+        cartonRange: "۲,۰۰۰ تا ۳,۰۰۰ کارتن",
+        volumeTomanFormatted: "۲ میلیارد تومان",
+        marginPercent: "۳۰٪ ماکزیمم",
+        description: `حداکثر سهمیه، اعتبار اسنادی صیادی و ارزان‌ترین نرخ خط تولید مستقیم`
       }
     ];
   } else if (baseData.tier === 2) {
-    // Tier 2: Provincial Hubs
-    starterMinCartons = "۶۰ تا ۱۲۰ کارتن";
-    monthlyCartons = "۳۰۰ تا ۸۰۰ کارتن";
-    growthTargetCartons = "تا ۱,۵۰۰ کارتن در ماه";
-    initialMinOrderToman = 85_000_000;
-    monthlyQuotaCeilingToman = 850_000_000;
+    // Tier 2: Provincial Centers & Large Hubs (e.g. Rasht, Kermanshah, Kashan, Dezful)
+    starterMinCartons = "۴۰ تا ۸۰ کارتن";
+    monthlyCartons = "۲۰۰ تا ۵۰۰ کارتن";
+    growthTargetCartons = "تا ۱,۰۰۰ کارتن در ماه";
+    initialMinOrderToman = 48_000_000;
+    monthlyQuotaCeilingToman = 600_000_000;
     guaranteeLimitToman = 120_000_000;
-    recommendedWarehouseSpace = "۱۰۰ تا ۲۵۰ متر مربع";
-    recommendedFleet = "۱ الی ۳ دستگاه وانت بار";
+    recommendedWarehouseSpace = "۵۰ تا ۱۵۰ متر مربع (فروشگاه یا انبار)";
+    recommendedFleet = "۱ الی ۲ دستگاه وانت پخش";
     estimatedGrossMargin = "۲۲٪ تا ۲۸٪ سود خالص";
 
     representativeLevels = [
       {
+        level: "diamond",
+        title: `💎 عاملیت انحصاری مرکز استان (${rawCity})`,
+        description: `پوشش کامل بازار بنکداران و سوپرمارکت‌های ${rawCity} و مناطق تابعه`,
+        minMonthlyVolumeToman: 500_000_000,
+        minMonthlyVolumeFormatted: "۵۰۰ میلیون تومان"
+      },
+      {
         level: "gold",
-        title: "🥇 سطح ۱: نماینده طلایی استانی",
-        description: "توزیع انحصاری مرکز استان و ارجاع کلیه خریداران عمده استان",
-        minMonthlyVolumeToman: 400_000_000,
-        minMonthlyVolumeFormatted: "۴۰۰ میلیون تومان"
+        title: `🥇 عاملیت توزیع مویرگی (${rawCity})`,
+        description: `پخش منظم در سطح شهرستان و شهرک‌های اطراف با تخفیف مستقیم`,
+        minMonthlyVolumeToman: 250_000_000,
+        minMonthlyVolumeFormatted: "۲۵۰ میلیون تومان"
       },
       {
         level: "silver",
-        title: "🥈 سطح ۲: نماینده نقره‌ای توزیع",
-        description: "عاملیت فروش مویرگی در سطح شهر و حومه",
-        minMonthlyVolumeToman: 150_000_000,
-        minMonthlyVolumeFormatted: "۱۵۰ میلیون تومان"
+        title: `🥈 عامل توزیع سریع (${rawCity})`,
+        description: `ورود چابک با شروع از ۴۰ کارتن و ارتقای سهمیه متناسب با فروش`,
+        minMonthlyVolumeToman: 100_000_000,
+        minMonthlyVolumeFormatted: "۱۰۰ میلیون تومان"
       }
     ];
 
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: ورود مرکز استان",
-        cartonRange: "۶۰ تا ۱۲۰ کارتن",
-        volumeTomanFormatted: "۸۵ میلیون تومان",
-        marginPercent: "۲۰٪ تا ۲۲٪",
-        description: "شروع توزیع در مرکز استان با پشتیبانی باربری کارخانه"
+        title: `گام ۱: ورود چابک به بازار ${rawCity}`,
+        cartonRange: "۴۰ تا ۸۰ کارتن",
+        volumeTomanFormatted: "۴۸ میلیون تومان",
+        marginPercent: "۲۱٪ تا ۲۳٪",
+        description: `شروع توزیع در ${rawCity} با تسهیلات باربری و تضمین بازخرید کارخانه`
       },
       {
         stepNumber: 2,
-        title: "گام ۲: گسترش سهمیه استانی",
-        cartonRange: "۳۰۰ تا ۸۰۰ کارتن",
-        volumeTomanFormatted: "۴۰۰ تا ۶۰۰ میلیون تومان",
+        title: `گام ۲: گسترش شبکه فروش در ${effectiveProvince}`,
+        cartonRange: "۲۰۰ تا ۵۰۰ کارتن",
+        volumeTomanFormatted: "۲۰۰ تا ۴۵۰ میلیون تومان",
         marginPercent: "۲۴٪ تا ۲۶٪",
-        description: "توزیع گسترده در فروشگاه‌های استان و ارجاع سفارشات بومی"
+        description: `توزیع گسترده در فروشگاه‌های ${rawCity} و شهرهای همجوار`
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت ارشد استان",
-        cartonRange: "۱,۰۰۰ تا ۱,۵۰۰ کارتن",
-        volumeTomanFormatted: "۸۵۰ میلیون تومان",
+        title: `گام ۳: نماینده ارشد ${rawCity}`,
+        cartonRange: "۸۰۰ تا ۱,۲۰۰ کارتن",
+        volumeTomanFormatted: "۶۰۰ میلیون تومان",
         marginPercent: "۲۸٪ ماکزیمم",
-        description: "نماینده اصلی توزیع استان با بالاترین تخفیف پلکانی"
+        description: `بالاترین رتبه نمایندگی با تخفیف طلایی و اولویت تخصیص خط تولید`
       }
     ];
   } else if (baseData.tier === 3) {
-    // Tier 3: Medium Cities (100k to 300k, e.g. Quchan, Sabzevar, Kashan, Amol) - ACCESSIBLE FOR SMALL TOWNS
-    starterMinCartons = "۱۵ تا ۳۰ کارتن";
-    monthlyCartons = "۵۰ تا ۱۵۰ کارتن";
-    growthTargetCartons = "تا ۳۰۰ کارتن در ماه";
-    initialMinOrderToman = 18_000_000; // 18 Million Tomans - Accessible
-    monthlyQuotaCeilingToman = 180_000_000;
-    guaranteeLimitToman = 30_000_000;
+    // Tier 3: Medium Cities (100k to 300k, e.g. Quchan, Sabzevar, Maragheh, Amol, Saveh)
+    starterMinCartons = "۲۰ تا ۴۰ کارتن";
+    monthlyCartons = "۶۰ تا ۱۸۰ کارتن";
+    growthTargetCartons = "تا ۴۰۰ کارتن در ماه";
+    initialMinOrderToman = 22_000_000;
+    monthlyQuotaCeilingToman = 220_000_000;
+    guaranteeLimitToman = 45_000_000;
     recommendedWarehouseSpace = "۳۰ تا ۸۰ متر مربع (مغازه، انبار یا فروشگاه)";
     recommendedFleet = "۱ دستگاه وانت یا خودرو سواری باربری";
-    estimatedGrossMargin = "۲۰٪ تا ۲۵٪ سود خالص";
+    estimatedGrossMargin = "۲۱٪ تا ۲۶٪ سود خالص";
 
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: شروع بسیار آسان شهرستان",
-        cartonRange: "۱۵ تا ۳۰ کارتن",
-        volumeTomanFormatted: "۱۸ میلیون تومان",
-        marginPercent: "۱۹٪",
-        description: "شروع کار بدون نیاز به چک سنگین یا انبار تجاری بزرگ"
+        title: `گام ۱: شروع آسان در ${rawCity}`,
+        cartonRange: "۲۰ تا ۴۰ کارتن",
+        volumeTomanFormatted: "۲۲ میلیون تومان",
+        marginPercent: "۲۰٪",
+        description: `شروع کار در ${rawCity} بدون نیاز به انبار بزرگ یا تعهدات سنگین`
       },
       {
         stepNumber: 2,
-        title: "گام ۲: توسعه توزیع محلی",
-        cartonRange: "۵۰ تا ۱۵۰ کارتن",
-        volumeTomanFormatted: "۵۰ تا ۱۰۰ میلیون تومان",
-        marginPercent: "۲۲٪",
-        description: "افزایش خودکار سهمیه متناسب با کشش بازار شهرستان"
+        title: `گام ۲: توسعه فروش شهرستان ${rawCity}`,
+        cartonRange: "۶۰ تا ۱۸۰ کارتن",
+        volumeTomanFormatted: "۶۰ تا ۱۲۰ میلیون تومان",
+        marginPercent: "۲۳٪",
+        description: `افزایش خودکار سهمیه متناسب با کشش بازار شهرستان ${rawCity}`
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت انحصاری شهرستان",
-        cartonRange: "۲۰۰ تا ۳۰۰ کارتن",
-        volumeTomanFormatted: "۱۸۰ میلیون تومان",
-        marginPercent: "۲۵٪ ماکزیمم",
-        description: "عاملیت اصلی شهر با ارجاع کلیه خریداران عمده بومی"
+        title: `گام ۳: عاملیت انحصاری ${rawCity}`,
+        cartonRange: "۲۵۰ تا ۴۰۰ کارتن",
+        volumeTomanFormatted: "۲۲۰ میلیون تومان",
+        marginPercent: "۲۶٪ ماکزیمم",
+        description: `عاملیت رسمی با ارجاع کلیه خریداران عمده و سوپرمارکت‌های بومی`
       }
     ];
   } else {
-    // Tier 4: Small Towns (< 100k) - VERY LOW BARRIER FOR SMALL CITIES
-    starterMinCartons = "۸ تا ۱۵ کارتن";
-    monthlyCartons = "۲۰ تا ۵۰ کارتن";
-    growthTargetCartons = "تا ۱۰۰ کارتن در ماه";
-    initialMinOrderToman = 10_000_000; // 10 Million Tomans - Ultra Accessible
-    monthlyQuotaCeilingToman = 80_000_000;
-    guaranteeLimitToman = 15_000_000;
+    // Tier 4: Small Towns (< 100k) - VERY ACCESSIBLE
+    starterMinCartons = "۱۰ تا ۲۰ کارتن";
+    monthlyCartons = "۳۰ تا ۶۰ کارتن";
+    growthTargetCartons = "تا ۱۲۰ کارتن در ماه";
+    initialMinOrderToman = 12_000_000;
+    monthlyQuotaCeilingToman = 90_000_000;
+    guaranteeLimitToman = 20_000_000;
     recommendedWarehouseSpace = "۲۰ تا ۵۰ متر مربع (مغازه یا انبار محلی)";
     recommendedFleet = "۱ دستگاه وانت یا خودرو شخصی";
     estimatedGrossMargin = "۲۰٪ تا ۲۴٪ سود خالص";
@@ -371,34 +672,34 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
     growthSteps = [
       {
         stepNumber: 1,
-        title: "گام ۱: ثبت و ورود سریع شهر کوچک",
-        cartonRange: "۸ تا ۱۵ کارتن",
-        volumeTomanFormatted: "۱۰ میلیون تومان",
+        title: `گام ۱: ثبت و شروع در ${rawCity}`,
+        cartonRange: "۱۰ تا ۲۰ کارتن",
+        volumeTomanFormatted: "۱۲ میلیون تومان",
         marginPercent: "۱۹٪",
-        description: "حداقل سرمایه اولیه برای همه متقاضیان شهرهای کوچک"
+        description: `ورود با حداقل سرمایه اولیه برای همه متقاضیان ${rawCity}`
       },
       {
         stepNumber: 2,
-        title: "گام ۲: رشد تدریجی",
-        cartonRange: "۲۰ تا ۵0 کارتن",
-        volumeTomanFormatted: "۲۰ تا ۵۰ میلیون تومان",
+        title: `گام ۲: رشد تدریجی توزیع محلی`,
+        cartonRange: "۳۰ تا ۶۰ کارتن",
+        volumeTomanFormatted: "۳۰ تا ۶۰ میلیون تومان",
         marginPercent: "۲۱٪",
-        description: "رشد پلکانی سهمیه متناسب با فروش ماهانه مغازه"
+        description: `رشد پلکانی متناسب با نیاز سوپرمارکت‌ها و فروشگاه‌های منطقه`
       },
       {
         stepNumber: 3,
-        title: "گام ۳: عاملیت رسمی منطقه",
-        cartonRange: "۶۰ تا ۱۰۰ کارتن",
-        volumeTomanFormatted: "۸۰ میلیون تومان",
+        title: `گام ۳: نماینده معتمد منطقه ${rawCity}`,
+        cartonRange: "۷۰ تا ۱۲۰ کارتن",
+        volumeTomanFormatted: "۹۰ میلیون تومان",
         marginPercent: "۲۴٪",
-        description: "نماینده رسمی ثبت‌شده با ارسال مستقیم باربری"
+        description: `ارسال مستقیم باربری بدون واسطه با تعرفه مصوب کارخانه`
       }
     ];
   }
 
   return {
-    cityName: city || "شهر نامشخص",
-    provinceName: baseData.province || province || "ایران",
+    cityName: rawCity,
+    provinceName: effectiveProvince,
     population: pop,
     tier: baseData.tier,
     tierLabel: baseData.tierLabel,
@@ -418,6 +719,65 @@ export function calculateDealershipTier(city: string, province?: string): CityTi
     recommendedFleet,
     estimatedGrossMargin,
     growthSteps
+  };
+}
+
+export interface DealershipSimulationResult {
+  estimatedMonthlyProfitToman: number;
+  estimatedMonthlyProfitFormatted: string;
+  estimatedMonthlyRevenueToman: number;
+  estimatedMonthlyRevenueFormatted: string;
+  requiredGuaranteeToman: number;
+  requiredGuaranteeFormatted: string;
+  profitMarginPercent: string;
+  paybackPeriodMonths: string;
+  cartonVolume: number;
+  tierRank: "الماس" | "طلایی" | "نقره‌ای" | "برنزی";
+}
+
+/**
+ * Interactive Financial Simulation Engine for Dealership Applicants.
+ */
+export function simulateDealershipFinancials(
+  cartonCount: number,
+  tier: 1 | 2 | 3 | 4
+): DealershipSimulationResult {
+  // Average carton factory price approx 1,150,000 Tomans
+  const cartonPriceToman = 1_150_000;
+  const revenueToman = cartonCount * cartonPriceToman;
+
+  let marginRate = 0.22;
+  let tierRank: "الماس" | "طلایی" | "نقره‌ای" | "برنزی" = "برنزی";
+
+  if (cartonCount >= 500 || tier === 1) {
+    marginRate = 0.28;
+    tierRank = "الماس";
+  } else if (cartonCount >= 200 || tier === 2) {
+    marginRate = 0.25;
+    tierRank = "طلایی";
+  } else if (cartonCount >= 80 || tier === 3) {
+    marginRate = 0.23;
+    tierRank = "نقره‌ای";
+  } else {
+    marginRate = 0.21;
+    tierRank = "برنزی";
+  }
+
+  const profitToman = Math.round(revenueToman * marginRate);
+  const guaranteeToman = Math.round(revenueToman * 0.25); // 25% cheque guarantee
+  const paybackMonths = cartonCount > 250 ? "۱ تا ۲ ماه" : "کمتر از ۱ ماه";
+
+  return {
+    estimatedMonthlyProfitToman: profitToman,
+    estimatedMonthlyProfitFormatted: formatTomanCurrency(profitToman),
+    estimatedMonthlyRevenueToman: revenueToman,
+    estimatedMonthlyRevenueFormatted: formatTomanCurrency(revenueToman),
+    requiredGuaranteeToman: guaranteeToman,
+    requiredGuaranteeFormatted: formatTomanCurrency(guaranteeToman),
+    profitMarginPercent: `${Math.round(marginRate * 100)}٪`,
+    paybackPeriodMonths: paybackMonths,
+    cartonVolume: cartonCount,
+    tierRank
   };
 }
 
@@ -471,4 +831,3 @@ export function findNearestRepresentative(targetCity: string, targetProvince: st
     isProvinceFallback: true
   };
 }
-

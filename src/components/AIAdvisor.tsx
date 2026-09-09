@@ -44,7 +44,7 @@ export default function AIAdvisor({ mascotUrl, productsContext = [], user }: AIA
   return (
     <>
       {/* Floating Creative Widget Container */}
-      <div className="fixed bottom-22 right-4 sm:bottom-24 sm:right-6 lg:bottom-8 lg:right-8 z-50 flex flex-col items-end pointer-events-none" dir="rtl">
+      <div className="lg:hidden fixed bottom-22 right-4 sm:bottom-24 sm:right-6 z-50 flex flex-col items-end pointer-events-none" dir="rtl">
         
         {/* Expanded Options Menu */}
         <AnimatePresence>

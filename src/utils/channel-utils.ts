@@ -108,7 +108,7 @@ export const postSpecialOfferToChannel = (product: {
 }) => {
   const priceVal = product.bulk_price || product.price || 0;
   const priceFormatted = formatPrice(priceVal);
-  const brandOrFactory = product.brand || product.factoryName || product.supplierName || "تولید ملی";
+  const brandOrFactory = product.brand || product.factoryName || product.supplierName || "تولید داخلی";
   const packInfo = product.carton_pack_count ? `کارتن ${toPersianNum(product.carton_pack_count)} عددی` : "بسته‌بندی کارخانه‌ای";
   const minOrder = product.min_order_cartons ? `${toPersianNum(product.min_order_cartons)} کارتن` : "۱ کارتن";
 

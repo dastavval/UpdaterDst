@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getAllCategoriesMerged } from "../data/categoriesData";
 import { 
   Plus, 
   CheckCircle, 
@@ -24,6 +25,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { getAdFallbackImage, AdItem } from "../utils/ad-utils";
 import { getUserSession } from "../lib/auth-helper";
+import { StrictCityProvinceSelector } from "./StrictCityProvinceSelector";
 
 interface AddAdButtonProps {
   variant?: "desktop" | "mobile-fab" | "inline";
@@ -43,33 +45,27 @@ export default function AddAdButton({
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // Debounce / prevent double-clicks
 
-  // Load dynamic categories from localStorage
+  // Load dynamic categories from localStorage merged with all 27 MASTER_CATEGORIES
   const getDynamicCategories = () => {
+    let savedCategories: any[] = [];
     try {
       const saved = localStorage.getItem("dastavval_b2b_config");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
-          return parsed.categories.map((c: any, index: number) => {
-            if (typeof c === 'string') {
-              return { id: `cat-${index + 1}`, name: c, emoji: '🏷️' };
-            }
-            return {
-              id: c.id || `cat-${index + 1}`,
-              name: c.name || '',
-              emoji: c.emoji || c.icon || '🏷️'
-            };
-          });
+        if (parsed && Array.isArray(parsed.categories)) {
+          savedCategories = parsed.categories;
         }
       }
     } catch (e) {}
-    return [
-      { id: "cat-1", name: "تنقلات و شکلات", emoji: "🍫" },
-      { id: "cat-2", name: "کیک، کلوچه و بیسکویت", emoji: "🍪" },
-      { id: "cat-3", name: "مواد غذایی و کنسروجات", emoji: "🥫" },
-      { id: "cat-4", name: "نوشیدنی‌ها", emoji: "🥤" },
-      { id: "cat-5", name: "شوینده و بهداشتی", emoji: "🧼" }
-    ];
+
+    const merged = getAllCategoriesMerged(savedCategories);
+    return merged.map(c => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      sector: c.sector,
+      type: c.type
+    }));
   };
 
   const dynamicCategories = getDynamicCategories();
@@ -82,6 +78,8 @@ export default function AddAdButton({
   });
   const [title, setTitle] = useState("");
   const [factoryName, setFactoryName] = useState(() => currentUser?.company || "");
+  const [province, setProvince] = useState(() => currentUser?.province || "تهران");
+  const [city, setCity] = useState(() => currentUser?.city || "تهران");
   const [wholesalePrice, setWholesalePrice] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -187,6 +185,8 @@ export default function AddAdButton({
         title: preparedData.title,
         description: preparedData.description,
         factoryName: preparedData.factoryName,
+        province,
+        city,
         contactPerson: preparedData.contactPerson,
         contactPhone: preparedData.contactPhone,
         badgeText: preparedData.badgeText,
@@ -646,6 +646,21 @@ export default function AddAdButton({
                         onChange={(e) => setFactoryName(e.target.value)}
                         placeholder="مثال: کارخانه کشت و صنعت دهخدا یا برند معتبر ایرانی"
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-600 transition-colors"
+                      />
+                    </div>
+
+                    {/* Province and City Selector */}
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-500 mb-1.5">
+                        استان و شهر محل بارگیری / عرضه:
+                      </label>
+                      <StrictCityProvinceSelector
+                        selectedCity={city}
+                        selectedProvince={province}
+                        onSelect={(c, p) => {
+                          setCity(c);
+                          setProvince(p);
+                        }}
                       />
                     </div>
 

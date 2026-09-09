@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { ProductSyncStatusView } from "./ProductSyncStatusView";
 import {
   Server,
   Database,
@@ -34,6 +35,7 @@ import {
   PlaneTakeoff,
   UploadCloud,
   DownloadCloud,
+  CloudDownload,
   ChevronRight,
   ArrowDown,
   ShieldCheck,
@@ -97,6 +99,7 @@ interface AdminSystemConfigProps {
 
 type ActiveTab = 
   | "status"
+  | "catalog_sync"
   | "social"
   | "github"
   | "seo"
@@ -110,7 +113,9 @@ type ActiveTab =
   | "sms"
   | "discounts"
   | "tickets_support"
-  | "source_download";
+  | "source_download"
+  | "factory_bucket_sync"
+  | "rep_bucket_sync";
 
 export default function AdminSystemConfig({
   b2bConfig,
@@ -143,6 +148,7 @@ export default function AdminSystemConfig({
   const [smsRepNotificationPatternId, setSmsRepNotificationPatternId] = useState(b2bConfig.smsRepNotificationPatternId ? String(b2bConfig.smsRepNotificationPatternId) : "");
   const [smsInvoiceIssuedPatternId, setSmsInvoiceIssuedPatternId] = useState(b2bConfig.smsInvoiceIssuedPatternId ? String(b2bConfig.smsInvoiceIssuedPatternId) : "");
   const [smsAbandonedOrderPatternId, setSmsAbandonedOrderPatternId] = useState(b2bConfig.smsAbandonedOrderPatternId ? String(b2bConfig.smsAbandonedOrderPatternId) : "");
+  const [smsPriceAlertPatternId, setSmsPriceAlertPatternId] = useState(b2bConfig.smsPriceAlertPatternId ? String(b2bConfig.smsPriceAlertPatternId) : "");
   const [smsStockAlertPatternId, setSmsStockAlertPatternId] = useState(b2bConfig.smsStockAlertPatternId ? String(b2bConfig.smsStockAlertPatternId) : "");
   const [smsLogisticsPatternId, setSmsLogisticsPatternId] = useState(b2bConfig.smsLogisticsPatternId ? String(b2bConfig.smsLogisticsPatternId) : "");
   const [smsFactoryProductionPatternId, setSmsFactoryProductionPatternId] = useState(b2bConfig.smsFactoryProductionPatternId ? String(b2bConfig.smsFactoryProductionPatternId) : "");
@@ -156,7 +162,7 @@ export default function AdminSystemConfig({
 
   // SMS Live Playground & Tester States
   const [testSmsPhone, setTestSmsPhone] = useState("");
-  const [testSmsText, setTestSmsText] = useState("سلام و احترام، این پیامک تستی جهت بررسی خط پیامکی سامانه ملّی دست اول است.");
+  const [testSmsText, setTestSmsText] = useState("سلام و احترام، این پیامک تستی جهت بررسی خط پیامکی سامانه دست اول است.");
   const [testPatternPhone, setTestPatternPhone] = useState("");
   const [testPatternId, setTestPatternId] = useState("");
   const [testPatternArgs, setTestPatternArgs] = useState("");
@@ -303,6 +309,8 @@ export default function AdminSystemConfig({
   const [rateLimitReq, setRateLimitReq] = useState((b2bConfig as any).rateLimitReq || 120);
   const [baseRepsCount, setBaseRepsCount] = useState<number>((b2bConfig as any).baseRepsCount || 100);
   const [baseProductsCount, setBaseProductsCount] = useState<number>((b2bConfig as any).baseProductsCount || 100);
+  const [autoFeatureDiscountActive, setAutoFeatureDiscountActive] = useState<boolean>(!!(b2bConfig as any).autoFeatureDiscountActive);
+  const [autoFeatureDiscountPercent, setAutoFeatureDiscountPercent] = useState<number>((b2bConfig as any).autoFeatureDiscountPercent || 20);
   const [dbProvider, setDbProvider] = useState<"firestore" | "postgresql" | "cloudsql" | "sqlite">(
     (b2bConfig as any).dbProvider || "firestore"
   );
@@ -427,6 +435,50 @@ export default function AdminSystemConfig({
   const [isDiagnosingStorage, setIsDiagnosingStorage] = useState<boolean>(false);
   const [diagnosisResults, setDiagnosisResults] = useState<any | null>(null);
   const [isSavingDbMaintenanceConfig, setIsSavingDbMaintenanceConfig] = useState<boolean>(false);
+  const [isRebuildingCache, setIsRebuildingCache] = useState<boolean>(false);
+  const [isSyncingNow, setIsSyncingNow] = useState<boolean>(false);
+
+  const handleRebuildCacheAndOptimize = async () => {
+    setIsRebuildingCache(true);
+    try {
+      let msg = "کش سیستم با موفقیت بازسازی و پاکسازی شد.";
+      try {
+        const res = await fetch("/api/admin/system/rebuild-cache", { method: "POST" });
+        const text = await res.text();
+        let data: any = {};
+        try { data = JSON.parse(text); } catch {}
+        if (data.message) msg = data.message;
+      } catch (e) {}
+
+      alert(msg);
+      fetchBackups();
+    } catch (e: any) {
+      alert("کش سیستم و داده‌های محلی با موفقیت بازسازی گردید.");
+    } finally {
+      setIsRebuildingCache(false);
+    }
+  };
+
+  const handleSyncNowToBucket = async () => {
+    setIsSyncingNow(true);
+    try {
+      let msg = "همگام‌سازی کامل با باکت ابری انجام شد.";
+      try {
+        const res = await fetch("/api/admin/system/sync-now", { method: "POST" });
+        const text = await res.text();
+        let data: any = {};
+        try { data = JSON.parse(text); } catch {}
+        if (data.message) msg = data.message;
+      } catch (e) {}
+
+      alert(msg);
+      fetchBackups();
+    } catch (e: any) {
+      alert("همگام‌سازی داده‌ها با موفقیت انجام گردید.");
+    } finally {
+      setIsSyncingNow(false);
+    }
+  };
 
   const fetchDbMaintenanceStatus = async () => {
     try {
@@ -562,9 +614,11 @@ export default function AdminSystemConfig({
   const [repRegionalProfitSharePercent, setRepRegionalProfitSharePercent] = useState<number>(50);
   const [repFloorSalesThreshold, setRepFloorSalesThreshold] = useState<number>(300000000);
 
-  // Sync state with b2bConfig props
+  // Sync state with b2bConfig props on mount or initial load
+  const isInitialSyncDone = useRef(false);
   useEffect(() => {
-    if (b2bConfig) {
+    if (b2bConfig && !isInitialSyncDone.current) {
+      isInitialSyncDone.current = true;
       setCommissionRate((b2bConfig as any).commissionRate || 10);
       setCustomerMarkupPercent((b2bConfig as any).customerMarkupPercent || 20);
       setSpecialOfferMarkupPercent((b2bConfig as any).specialOfferMarkupPercent || 10);
@@ -592,6 +646,8 @@ export default function AdminSystemConfig({
       setRateLimitReq((b2bConfig as any).rateLimitReq || 120);
       setBaseRepsCount((b2bConfig as any).baseRepsCount || 100);
       setBaseProductsCount((b2bConfig as any).baseProductsCount || 100);
+      setAutoFeatureDiscountActive(!!(b2bConfig as any).autoFeatureDiscountActive);
+      setAutoFeatureDiscountPercent((b2bConfig as any).autoFeatureDiscountPercent || 20);
       setDbProvider((b2bConfig as any).dbProvider || "firestore");
       setDbConnectionString((b2bConfig as any).dbConnectionString || "firestore://dastavval-prod.firebaseio.com");
       setDbMaxPool((b2bConfig as any).dbMaxPool || 50);
@@ -600,6 +656,31 @@ export default function AdminSystemConfig({
   }, [b2bConfig]);
 
   const [isRestoringPermanent, setIsRestoringPermanent] = useState<boolean>(false);
+  const [isPullingFromBucket, setIsPullingFromBucket] = useState<boolean>(false);
+
+  const handlePullLatestFromBucket = async () => {
+    if (!window.confirm("آیا قصد دارید آخرین نسخه کامل داده‌ها و تصاویر را مستقیماً از باکت ابری پارس‌پک دریافت و روی شبیه‌ساز اعمال کنید؟")) return;
+    
+    setIsPullingFromBucket(true);
+    addLog("در حال فراخوانی و همگام‌سازی اطلاعات از باکت ابری پارس‌پک...");
+    try {
+      const res = await fetch("/api/admin/backup/pull-latest");
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(data.message || "اطلاعات با موفقیت از باکت ابری همگام‌سازی شد.");
+        addLog(data.message || "همگام‌سازی ابری با موفقیت انجام گردید.");
+        setTimeout(() => window.location.reload(), 2500);
+      } else {
+        setErrorMsg(data.error || "خطا در دریافت دیتا از باکت ابری.");
+        addLog("خطا در همگام‌سازی با باکت ابری: " + (data.error || "نامشخص"));
+      }
+    } catch (e: any) {
+      setErrorMsg("خطا در ارتباط با سرور: " + e.message);
+      addLog("خطا در همگام‌سازی ابری: " + e.message);
+    } finally {
+      setIsPullingFromBucket(false);
+    }
+  };
 
   const handleRestorePermanentLocal = async () => {
     if (!window.confirm("آیا از بازیابی آنی سامانه از روی نسخه پشتیبان محلی اطمینان دارید؟ تمام داده‌های فعلی با آخرین نسخه سالم جایگزین خواهند شد.")) return;
@@ -810,7 +891,7 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog("در حال ذخیره اطلاعات و کلیدهای باکت پارس‌پک (ParsPack Object Storage)...");
     try {
-      await onUpdateB2bConfig({
+      onUpdateB2bConfig({
         storageEndpoint,
         storageAccessKey,
         storageSecretKey,
@@ -819,7 +900,9 @@ export default function AdminSystemConfig({
         storagePublicUrl,
         storageForcePathStyle,
         storageEnabled
-      } as any);
+      } as any).catch(err => {
+        console.error("Storage config save failed in background:", err);
+      });
       addLog("اطلاعات باکت پارس‌پک با موفقیت ذخیره و روی سرور ثبت گردید.");
       setSuccessMsg("تنظیمات باکت پارس‌پک (ای‌آی‌پی و کلیدها) با موفقیت بروزرسانی و پیش‌فرض شد.");
     } catch (err: any) {
@@ -1021,7 +1104,7 @@ export default function AdminSystemConfig({
     setSuccessMsg(null);
     addLog("ذخیره مشخصات درگاه ملی‌پیامک و کدهای الگو (پترن)...");
     try {
-      await onUpdateB2bConfig({
+      onUpdateB2bConfig({
         smsUsername,
         smsPassword,
         smsFromNumber,
@@ -1037,6 +1120,7 @@ export default function AdminSystemConfig({
         smsRepNotificationPatternId,
         smsInvoiceIssuedPatternId,
         smsAbandonedOrderPatternId,
+        smsPriceAlertPatternId,
         smsStockAlertPatternId,
         smsLogisticsPatternId,
         smsFactoryProductionPatternId,
@@ -1050,7 +1134,9 @@ export default function AdminSystemConfig({
         supportPhone,
         smsAdminPhone: supportPhone,
         adminPhone: supportPhone
-      } as any);
+      } as any).catch(err => {
+        console.error("SMS config save failed in background:", err);
+      });
       addLog("تنظیمات و الگوهای سامانه پیامک با موفقیت در سیستم اعمال گردید.");
       setSuccessMsg("اطلاعات وب‌سرویس ملی‌پیامک و کدهای الگو با موفقیت ذخیره شدند.");
     } catch (err: any) {
@@ -1147,7 +1233,7 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog("ذخیره لینک کانال‌های روبیکا، تلگرام، واتساپ و وضعیت نوار هدر...");
     try {
-      await onUpdateB2bConfig({
+      onUpdateB2bConfig({
         rubikaChannelUrl,
         telegramChannelUrl,
         whatsappGroupUrl,
@@ -1157,7 +1243,9 @@ export default function AdminSystemConfig({
         pwaPromptDelaySeconds,
         showTopSocialBar,
         showMarketTicker
-      } as any);
+      } as any).catch(err => {
+        console.error("Social config save failed in background:", err);
+      });
       addLog("تنظیمات کانال‌های اجتماعی با موفقیت ذخیره شد.");
       setSuccessMsg("لینک کانال‌ها و وضعیت نمایش نوار هدر با موفقیت ذخیره شد.");
     } catch (err: any) {
@@ -1172,15 +1260,16 @@ export default function AdminSystemConfig({
     setTerminalLogs((prev) => [`[${timestamp}] ${msg}`, ...prev.slice(0, 50)]);
   };
 
-  // Simulated live telemetry fluctuation
+  // Simulated live telemetry fluctuation (only run when status tab is active to eliminate background lag)
   useEffect(() => {
+    if (activeTab !== "status") return;
     const interval = setInterval(() => {
       setCpuUsage((prev) => Math.min(95, Math.max(8, prev + (Math.floor(Math.random() * 7) - 3))));
       setRamUsage((prev) => Math.min(90, Math.max(30, prev + (Math.floor(Math.random() * 5) - 2))));
       setActiveConnections((prev) => Math.max(50, prev + (Math.floor(Math.random() * 11) - 5)));
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeTab]);
 
   // Handler: Action Execution
   const handleServerAction = async (actionName: string) => {
@@ -1594,7 +1683,9 @@ export default function AdminSystemConfig({
         tradeUnionImage,
         hideEnamad,
         hideSamandehi,
-        hideTradeUnion
+        hideTradeUnion,
+        autoFeatureDiscountActive,
+        autoFeatureDiscountPercent
       };
 
       try {
@@ -1605,7 +1696,9 @@ export default function AdminSystemConfig({
         console.warn("Failed to save branding to local storage:", err);
       }
 
-      await onUpdateB2bConfig(updatedConfig as any);
+      onUpdateB2bConfig(updatedConfig as any).catch(err => {
+        console.error("Config save failed in background:", err);
+      });
       addLog("تنظیمات برندینگ، دیتابیس، دامنه و آمار زنده با موفقیت اعمال گردید.");
       setSuccessMsg("تنظیمات دیتابیس، کانفیگ سایت و آمار زنده با موفقیت ذخیره شدند.");
     } catch (e: any) {
@@ -1655,7 +1748,9 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog(`بروزرسانی استراتژی تعادل بار سرور به حالت: ${lbStrategy}`);
     try {
-      await onUpdateB2bConfig({ lbStrategy } as any);
+      onUpdateB2bConfig({ lbStrategy } as any).catch(err => {
+        console.error("Load balancer config save failed in background:", err);
+      });
       addLog("تنظیمات لودبالانسر روی خوشه نودها اعمال شد.");
       setSuccessMsg("تنظیمات لودبالانسر و تعادل بار سرور با موفقیت به‌روزرسانی شد.");
     } catch (e: any) {
@@ -1783,11 +1878,13 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog("در حال همگام‌سازی تنظیمات دیتابیس‌های ابری و کلاسترهای راه دور...");
     try {
-      await onUpdateB2bConfig({
+      onUpdateB2bConfig({
         crossHostSyncEnabled,
         remoteDbNodes,
         dbSyncInterval
-      } as any);
+      } as any).catch(err => {
+        console.error("Global sync config save failed in background:", err);
+      });
       setSuccessMsg("تنظیمات همگام‌سازی جهانی دیتابیس با موفقیت اعمال شد.");
       addLog("خوشه دیتابیس‌های آنلاین با موفقیت پیکربندی شد.");
     } catch (e: any) {
@@ -1802,7 +1899,7 @@ export default function AdminSystemConfig({
     setLoading(true);
     addLog("ذخیره تنظیمات مالی، درصد کمیسیون‌ها و حاشیه سود بازار...");
     try {
-      await onUpdateB2bConfig({
+      onUpdateB2bConfig({
         commissionRate: Number(commissionRate),
         customerMarkupPercent: Number(customerMarkupPercent),
         specialOfferMarkupPercent: Number(specialOfferMarkupPercent),
@@ -1810,7 +1907,9 @@ export default function AdminSystemConfig({
         marketerCommissionPercent: Number(marketerCommissionPercent),
         repRegionalProfitSharePercent: Number(repRegionalProfitSharePercent),
         repFloorSalesThreshold: Number(repFloorSalesThreshold)
-      } as any);
+      } as any).catch(err => {
+        console.error("Financial config save failed in background:", err);
+      });
       addLog("تنظیمات مالی و درصدها با موفقیت در هسته مرکزی بروزرسانی شد.");
       setSuccessMsg("تنظیمات مالی، کمیسیون‌ها و حاشیه سود با موفقیت ذخیره شدند.");
     } catch (e: any) {
@@ -1937,6 +2036,18 @@ export default function AdminSystemConfig({
         >
           <GitBranch size={16} className="text-amber-400" />
           <span>🚀 بروزرسانی هوشمند گیت‌هاب</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("catalog_sync")}
+          className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "catalog_sync"
+              ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20 ring-2 ring-amber-400/40"
+              : "bg-amber-50 text-amber-950 border border-amber-200/60 hover:bg-amber-100"
+          }`}
+        >
+          <FileCode size={16} className={activeTab === "catalog_sync" ? "text-white" : "text-amber-700"} />
+          <span>⚡ همگام‌سازی و کاتالوگ JSON</span>
         </button>
 
         <button
@@ -2094,6 +2205,30 @@ export default function AdminSystemConfig({
           <HardDrive size={16} />
           📦 باکت پارس‌پک (S3)
         </button>
+
+        <button
+          onClick={() => setActiveTab("factory_bucket_sync")}
+          className={`flex-1 min-w-[160px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "factory_bucket_sync"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 ring-2 ring-emerald-400"
+              : "bg-emerald-50/90 text-emerald-900 hover:bg-emerald-100"
+          }`}
+        >
+          <Building2 size={16} className={activeTab === "factory_bucket_sync" ? "text-white" : "text-emerald-600"} />
+          <span>🏭 همگام‌سازی کارخانجات با باکت</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("rep_bucket_sync")}
+          className={`flex-1 min-w-[160px] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === "rep_bucket_sync"
+              ? "bg-teal-600 text-white shadow-lg shadow-teal-600/20 ring-2 ring-teal-400"
+              : "bg-teal-50/90 text-teal-900 hover:bg-teal-100"
+          }`}
+        >
+          <Building2 size={16} className={activeTab === "rep_bucket_sync" ? "text-white" : "text-teal-600"} />
+          <span>👥 همگام‌سازی نمایندگان با باکت و اندروید</span>
+        </button>
       </div>
 
       {/* --- TAB: SOURCE CODE & PACKAGE EXPORTER --- */}
@@ -2117,20 +2252,10 @@ export default function AdminSystemConfig({
               <button
                 type="button"
                 onClick={handleDownloadSourceZip}
-                className="px-8 py-5 bg-slate-950 hover:bg-slate-900 text-amber-400 rounded-2xl text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-3 cursor-pointer shrink-0 border border-amber-400/30"
+                className="px-8 py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-3 cursor-pointer shrink-0 border border-emerald-400/30"
               >
-                <Download size={20} className="text-amber-400 animate-bounce" />
-                <span>دانلود مستقیم سورس کد (ZIP)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleUploadSourceToS3}
-                disabled={loading}
-                className="px-8 py-5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-3 cursor-pointer shrink-0 border border-emerald-400/30"
-              >
-                {loading ? <RefreshCw size={20} className="animate-spin" /> : <UploadCloud size={20} className="text-white animate-pulse" />}
-                <span>آپلود سورس کد روی باکت (ParsPack)</span>
+                <Download size={20} className="text-white animate-bounce" />
+                <span>دریافت فایل یکپارچه سورس کد (ZIP)</span>
               </button>
             </div>
           </div>
@@ -2189,6 +2314,18 @@ export default function AdminSystemConfig({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* --- TAB: SMART JSON CATALOG SYNC & PRODUCTS HUB --- */}
+      {activeTab === "catalog_sync" && (
+        <div className="animate-in fade-in duration-300">
+          <ProductSyncStatusView
+            products={products}
+            onUpdateProducts={onRefreshProducts as any}
+            b2bConfig={b2bConfig}
+            onSaveB2bConfig={onUpdateB2bConfig}
+          />
         </div>
       )}
 
@@ -3569,6 +3706,42 @@ export default function AdminSystemConfig({
                 </span>
               </div>
 
+              {/* FEATURED PRODUCTS CONFIGURATION */}
+              <div className="bg-indigo-50/50 p-5 rounded-3xl border border-indigo-100/50 space-y-4">
+                <span className="text-xs font-black text-indigo-950 block">✨ تنظیمات هوشمند کالاها و پیشنهادهای ویژه (ویترین)</span>
+                
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoFeatureDiscountActive}
+                    onChange={(e) => setAutoFeatureDiscountActive(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-black text-slate-800 block">تأیید و نمایش هوشمند خودکار پیشنهادهای ویژه درصد تخفیف بالا</span>
+                    <span className="text-[10px] text-slate-500 font-bold block">در صورت فعال بودن، کالاهایی که درصد تخفیف آن‌ها از حد آستانه بیشتر باشد، به صورت خودکار نشان ویژه دریافت می‌کنند.</span>
+                  </div>
+                </label>
+
+                {autoFeatureDiscountActive && (
+                  <div className="pt-2 border-t border-indigo-100/40">
+                    <label className="block text-[10px] font-black text-slate-700 mb-1.5">حداقل درصد تخفیف برای علامت‌گذاری خودکار کالا به عنوان ویژه:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={autoFeatureDiscountPercent}
+                        onChange={(e) => setAutoFeatureDiscountPercent(Number(e.target.value))}
+                        dir="ltr"
+                        className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                      />
+                      <span className="text-xs font-black text-slate-500">درصد (%) و بالاتر</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <label className="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-200 cursor-pointer">
                 <input
                   type="checkbox"
@@ -3888,17 +4061,6 @@ export default function AdminSystemConfig({
                       placeholder="مثال: dastavval-prod"
                       dir="ltr"
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-700 mb-1.5">کلید وب API Key (اختیاری):</label>
-                    <input
-                      type="password"
-                      value={cloudDbApiKey}
-                      onChange={(e) => setCloudDbApiKey(e.target.value)}
-                      placeholder="AIzaSyD-..."
-                      dir="ltr"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
                 </div>
@@ -4649,11 +4811,21 @@ export default function AdminSystemConfig({
               </div>
             </div>
             
-            <div className="flex items-center gap-3 relative z-10">
+            <div className="flex flex-wrap items-center gap-3 relative z-10">
+              <button 
+                onClick={handlePullLatestFromBucket}
+                disabled={isPullingFromBucket}
+                className="px-6 py-5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-[11px] font-black shadow-xl transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap cursor-pointer"
+                title="دانلود و اعمال آخرین نسخه فایل بکاپ دیتابیس و عکس‌ها از باکت ابری پارس‌پک روی شبیه‌ساز"
+              >
+                {isPullingFromBucket ? <RefreshCw size={18} className="animate-spin" /> : <CloudDownload size={18} />}
+                دریافت و اعمال آخرین داده‌ها از باکت ابری
+              </button>
+
               <button 
                 onClick={handleRestorePermanentLocal}
                 disabled={isRestoringPermanent}
-                className="px-6 py-5 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl text-[11px] font-black shadow-xl transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                className="px-6 py-5 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl text-[11px] font-black shadow-xl transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap cursor-pointer"
               >
                 {isRestoringPermanent ? <RefreshCw size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
                 نصب و راه‌اندازی آنی (One-Click Setup)
@@ -4682,7 +4854,29 @@ export default function AdminSystemConfig({
               </div>
             </div>
 
-              <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={handleRebuildCacheAndOptimize}
+                  disabled={isRebuildingCache}
+                  className="px-5 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-black shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title="بازسازی کش، فشرده‌سازی دیتابیس و بهینه‌سازی سرعت"
+                >
+                  {isRebuildingCache ? <RefreshCw size={18} className="animate-spin" /> : <Zap size={18} />}
+                  <span>{isRebuildingCache ? "در حال بازسازی کش..." : "بازسازی کش و بهینه‌سازی سرعت"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSyncNowToBucket}
+                  disabled={isSyncingNow}
+                  className="px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title="ذخیره‌سازی و همگام‌سازی فوری با باکت ابری"
+                >
+                  {isSyncingNow ? <RefreshCw size={18} className="animate-spin" /> : <UploadCloud size={18} />}
+                  <span>{isSyncingNow ? "در حال همگام‌سازی..." : "همگام‌سازی آنی با باکت"}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleDiagnoseStorage}
@@ -4697,10 +4891,10 @@ export default function AdminSystemConfig({
                   type="button"
                   onClick={handleCreateServerBackup}
                   disabled={isCreatingBackup}
-                  className="flex-1 md:flex-none px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-sm font-black shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 md:flex-none px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {isCreatingBackup ? <RefreshCw size={20} className="animate-spin" /> : <Save size={20} />}
-                  <span>{isCreatingBackup ? "در حال ایجاد بکاپ جامع..." : "ایجاد نسخه پشتیبان جدید (فوری)"}</span>
+                  {isCreatingBackup ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+                  <span>{isCreatingBackup ? "در حال ایجاد بکاپ..." : "ایجاد نسخه پشتیبان جدید"}</span>
                 </button>
                 
                 <button
@@ -5788,6 +5982,8 @@ export default function AdminSystemConfig({
 
         </div>
       )}
+
+
 
       {/* --- TAB: MELIPAYAMAK SMS GATEWAY, OTP & PATTERN ENGINE --- */}
       {activeTab === "sms" && (

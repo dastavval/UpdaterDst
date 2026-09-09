@@ -391,6 +391,12 @@ export default function ProductDetailModal({
                 <div className="space-y-2 text-right">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
+                      {((product as any).isSpecial || product.isFeatured) && (
+                        <span className="text-[10px] font-black text-white bg-emerald-600 px-2.5 py-0.5 rounded-lg border border-emerald-500 shadow-2xs flex items-center gap-1">
+                          <Sparkles size={11} className="fill-white text-white" />
+                          <span>ویژه 🌟</span>
+                        </span>
+                      )}
                       <span className="text-[10px] font-black text-slate-600">برند: {product.brand}</span>
                       {product.factoryName && (
                         <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">

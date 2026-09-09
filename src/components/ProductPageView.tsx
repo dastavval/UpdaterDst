@@ -185,7 +185,7 @@ export default function ProductPageView({
           
           {/* Left / Gallery Column (5 cols) */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center p-4">
+            <div className="relative w-full h-64 sm:h-72 lg:h-80 rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center p-3">
               <ProductImage
                 src={galleryImages[selectedImageIndex] || product.image_url || ''}
                 alt={product.name}

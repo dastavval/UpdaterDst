@@ -36,7 +36,104 @@ export interface BarterItem {
   qcVerified?: boolean;
 }
 
-const INITIAL_BARTER_DATA: BarterItem[] = [];
+const INITIAL_BARTER_DATA: BarterItem[] = [
+  {
+    id: "barter-deal-201",
+    title: "معاوضه ۵۰۰ کارتن کیک دوقلو کاکائویی و بیسکویت کرم‌دار با شکر سفید کارخانه‌ای و پالت چوبی",
+    category: "finished_goods",
+    offeredItem: "کیک دوقلو شکلاتی و بیسکویت کرم‌دار با کیفیت صادراتی",
+    offeredQty: "۵۰۰ کارتن (آماده بارگیری فوری)",
+    offeredValue: "۱۴۵,۰۰۰,۰۰۰ تومان",
+    wantedItem: "شکر سفید تصفیه‌شده کارخانه‌ای یا پالت چوبی استاندارد",
+    wantedQty: "۳ تن شکر یا ۱۲۰ عدد پالت چوبی",
+    companyName: "صنایع غذایی مینو ارس",
+    contactPerson: "مهندس تبریزی (مدیر تامین)",
+    phone: "۰۹۱۴۱۱۵۸۹۲۰",
+    city: "تبریز",
+    province: "آذربایجان شرقی",
+    description: "بار تازه با ۶ ماه تاریخ انقضا و دارای سیب سلامت و گواهی استاندارد. تسویه مابه‌التفاوت از طریق صندوق امانی دست‌اول انجام می‌گردد.",
+    createdAt: "امروز",
+    status: "active",
+    isVerified: true,
+    isUrgent: true,
+    viewsCount: 142,
+    cashAdjustment: "تسویه نقدی مابه‌التفاوت از طریق حساب امانی دست‌اول",
+    escrowProtected: true,
+    qcVerified: true
+  },
+  {
+    id: "barter-deal-202",
+    title: "معاوضه ۴۰۰ کارتن رب گوجه‌فرنگی ۸۰۰ گرمی بریکس ۲۷ با قوطی خالی آسان‌بازشو و کارتن ۵ لایه",
+    category: "packaging",
+    offeredItem: "رب گوجه‌فرنگی غلیظ قوطی ۸۰۰ گرم با درب ایزی‌اوپن",
+    offeredQty: "۴۰۰ کارتن (۴,۸۰۰ قوطی)",
+    offeredValue: "۲۳۰,۰۰۰,۰۰۰ تومان",
+    wantedItem: "قوطی فلزی خام ۸۰۰ گرمی یا کارتن ۵ لایه دایکاتی",
+    wantedQty: "۶,۰۰۰ عدد قوطی یا ۱,۰۰۰ کارتن مادر",
+    companyName: "کشت و صنعت گلنوش خراسان",
+    contactPerson: "آقای رحمانی",
+    phone: "۰۹۱۵۳۰۲۹۱۸۴",
+    city: "مشهد",
+    province: "خراسان رضوی",
+    description: "تولید روز با نشان استاندارد و سیب سلامت رسمی. آماده تحویل درب کارخانه با تاییدیه بازرسی دست‌اول.",
+    createdAt: "دیروز",
+    status: "active",
+    isVerified: true,
+    isUrgent: false,
+    viewsCount: 88,
+    cashAdjustment: "توافقی با تضمین و داوری دست‌اول",
+    escrowProtected: true,
+    qcVerified: true
+  },
+  {
+    id: "barter-deal-203",
+    title: "معاوضه ۱۰ تن ماکارونی رشته‌ای و پاستا فرمی با روغن خوراکی عمده و آرد سوخاری",
+    category: "finished_goods",
+    offeredItem: "انواع اسپاگتی و ماکارونی فرمی سلفونی ۷۰۰ گرمی",
+    offeredQty: "۱۰ تن (حدود ۱۴۰۰ کارتن)",
+    offeredValue: "۳۸۰,۰۰۰,۰۰۰ تومان",
+    wantedItem: "روغن سرخ‌کردنی حلب ۱۶ لیتری یا آرد سوخاری کیسه‌ای",
+    wantedQty: "۴ تن روغن یا ۶ تن آرد سوخاری",
+    companyName: "صنایع آرد و پاستا زرین‌دشت",
+    contactPerson: "مهندس گودرزی",
+    phone: "۰۹۱۲۶۴۰۵۵۱۱",
+    city: "کرج",
+    province: "البرز",
+    description: "بسته‌بندی صادراتی و با انقضای ۱۸ ماهه. امکان بازدید حضوری و ارسال نمونه پیش از معاوضه.",
+    createdAt: "۲ روز پیش",
+    status: "active",
+    isVerified: true,
+    isUrgent: false,
+    viewsCount: 215,
+    cashAdjustment: "تسویه از طریق صندوق امانی دست اول",
+    escrowProtected: true,
+    qcVerified: true
+  },
+  {
+    id: "barter-deal-204",
+    title: "معاوضه دستگاه بسته‌بندی پیلوپک افقی اتوماتیک با رول سلفون BOPP و متالایز",
+    category: "machinery",
+    offeredItem: "دستگاه پیلوپک تمام استیل سرعت بالا با سیستم PLC و چشم الکترونیک",
+    offeredQty: "۱ دستگاه (کم‌کارکرد در حد نو)",
+    offeredValue: "۴۲۰,۰۰۰,۰۰۰ تومان",
+    wantedItem: "رول سلفون صدفی، شفاف یا متالایز خط بسته‌بندی",
+    wantedQty: "معادل ارزش کارشناسی دستگاه",
+    companyName: "تجهیزات و ماشین‌سازی پارس‌تک",
+    contactPerson: "مهندس نادری",
+    phone: "۰۹۱۳۲۲۸۴۱۵۰",
+    city: "اصفهان",
+    province: "اصفهان",
+    description: "دارای گارانتی ۶ ماهه و خدمات راه‌اندازی در محل کارخانه خریدار. با نظارت و داوری دست‌اول.",
+    createdAt: "۳ روز پیش",
+    status: "active",
+    isVerified: true,
+    isUrgent: true,
+    viewsCount: 310,
+    cashAdjustment: "تعدیل نقدی مابه‌التفاوت در صندوق امانی",
+    escrowProtected: true,
+    qcVerified: true
+  }
+];
 
 interface BarterHallProps {
   user?: any;
@@ -49,7 +146,7 @@ export const BarterHall: React.FC<BarterHallProps> = ({
   onNavigateHome,
   onOpenAuth
 }) => {
-  const [barters, setBarters] = useState<BarterItem[]>([]);
+  const [barters, setBarters] = useState<BarterItem[]>(INITIAL_BARTER_DATA);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -107,16 +204,16 @@ export const BarterHall: React.FC<BarterHallProps> = ({
       const localData = localStorage.getItem("dastavval_official_barters_v2") || localStorage.getItem("dastavval_barter_deals");
       let list: BarterItem[] = localData ? JSON.parse(localData) : [];
 
-      // Filter out seed / fake mock items
-      list = list.filter(item => item && !item.id?.startsWith("barter-10") && !item.id?.includes("seed"));
+      if (!list || list.length === 0) {
+        list = INITIAL_BARTER_DATA;
+      }
 
       try {
         const snap = await getDocs(collection(db, "barter_deals"));
         if (!snap.empty) {
           const remoteList = snap.docs.map(d => ({ id: d.id, ...d.data() } as BarterItem));
-          const realRemote = remoteList.filter(item => item && !item.id?.startsWith("barter-10") && !item.id?.includes("seed"));
-          if (realRemote.length > 0) {
-            list = realRemote;
+          if (remoteList.length > 0) {
+            list = remoteList;
           }
         }
       } catch (err) {
@@ -128,7 +225,7 @@ export const BarterHall: React.FC<BarterHallProps> = ({
       localStorage.setItem("dastavval_barter_deals", JSON.stringify(list));
     } catch (e) {
       console.error("Error loading barter data:", e);
-      setBarters([]);
+      setBarters(INITIAL_BARTER_DATA);
     } finally {
       setLoading(false);
     }
@@ -322,122 +419,135 @@ export const BarterHall: React.FC<BarterHallProps> = ({
         )}
       </AnimatePresence>
 
-      {/* 🌟 HERO BANNER WITH DASTAVVAL ESCROW & GUARANTEE ASSURANCE */}
-      <div className="bg-gradient-to-l from-emerald-950 via-teal-900 to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-emerald-800/40 relative overflow-hidden mb-6">
-        <div className="absolute inset-0 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:24px_24px] opacity-20 pointer-events-none" />
-        <div className="relative z-10 space-y-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-            <div className="space-y-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-black">
-                  <ShieldCheck size={14} className="text-emerald-400" />
-                  <span>سامانه ملی تهاتر تحت نظارت و تضمین ۱۰۰٪ صندوق امانی دست‌اول</span>
-                </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[11px] font-bold">
-                  <Award size={12} />
-                  <span>تطبیق کیفی و بازرسی رسمی پیش از تخلیه</span>
-                </span>
-              </div>
-
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white flex flex-wrap items-center gap-2">
-                <span>تالار ملی تهاتر و معاوضه کالا با کالا، مواد اولیه و تجهیزات</span>
+      {/* 🌟 COMPACT & COLLAPSIBLE HERO HEADER */}
+      <div className="bg-white text-slate-900 rounded-3xl p-4 sm:p-6 shadow-xs border border-slate-200/90 relative mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 flex items-center gap-2">
+                <Repeat size={20} className="text-emerald-700" />
+                <span>تالار تهاتر و معاوضه صنعتی کالا</span>
               </h1>
-              <p className="text-xs sm:text-sm text-slate-200 max-w-3xl leading-relaxed font-medium">
-                معاوضه بدون ریسک مازاد خطوط تولید کارخانجات با مواد اولیه، ماشین‌آلات و بسته‌بندی. تمامی قراردادها توسط کارشناسان دست‌اول بازرسی و مابه‌التفاوت در حساب امانی دست‌اول بیمه و تسویه می‌گردد.
-              </p>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black">
+                <ShieldCheck size={12} className="text-emerald-700" />
+                <span>تضمین صندوق امانی</span>
+              </span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-              <button
-                onClick={() => {
-                  if (!user) {
-                    onOpenAuth?.("factory");
-                  } else {
-                    setIsSubmitModalOpen(true);
-                  }
-                }}
-                className="flex-1 sm:flex-none px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl font-black text-xs shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
-              >
-                <Plus size={16} />
-                <span>ثبت پیشنهاد تهاتر امن</span>
-              </button>
-
-              <button
-                onClick={() => setShowSafetyGuideModal(true)}
-                className="px-4 py-3 bg-white/10 hover:bg-white/20 text-emerald-200 border border-emerald-400/30 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer backdrop-blur-md whitespace-nowrap"
-              >
-                <ShieldCheck size={15} />
-                <span>پروتکل صیانت دست‌اول</span>
-              </button>
-
-              <button
-                onClick={() => setShowTrackingModal(true)}
-                className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer backdrop-blur-md whitespace-nowrap"
-              >
-                <Search size={14} />
-                <span>پیگیری با کد پرونده</span>
-              </button>
-            </div>
+            <p className="text-xs text-slate-500 font-medium line-clamp-1 sm:line-clamp-none">
+              معاوضه امن مازاد تولید، مواد اولیه و تجهیزات کارخانجات با تضمین بازرسی و صیانت مالی دست‌اول.
+            </p>
           </div>
 
-          {/* 🛡️ 5-STEP SECURE WORKFLOW VISUAL INFOGRAPHIC */}
-          <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-emerald-500/30">
-            <div className="text-[11px] font-black text-emerald-300 mb-3 flex items-center gap-1.5">
-              <Lock size={13} />
-              <span>فرآیند اجرای تهاتر ایمن و گام‌به‌گام توسط عاملیت دست‌اول:</span>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                if (!user) {
+                  onOpenAuth?.("factory");
+                } else {
+                  setIsSubmitModalOpen(true);
+                }
+              }}
+              className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-black text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <Plus size={15} />
+              <span>ثبت پیشنهاد تهاتر</span>
+            </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-center text-xs">
-              <div className="p-2.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] inline-flex items-center justify-center">۱</span>
-                <p className="font-black text-white text-[11px]">ثبت و استعلام</p>
-                <p className="text-[9px] text-slate-300 font-medium">تعیین اقلام و ارزش روز</p>
-              </div>
+            <button
+              onClick={() => setShowTrackingModal(true)}
+              className="px-3 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <Search size={13} className="text-slate-500" />
+              <span>پیگیری پرونده</span>
+            </button>
 
-              <div className="p-2.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] inline-flex items-center justify-center">۲</span>
-                <p className="font-black text-white text-[11px]">بازرسی کیفی QC</p>
-                <p className="text-[9px] text-slate-300 font-medium">تطبیق سلامت و IRC بار</p>
-              </div>
-
-              <div className="p-2.5 bg-white/5 rounded-xl border border-emerald-500/50 bg-emerald-500/10 space-y-1">
-                <span className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] inline-flex items-center justify-center">۳</span>
-                <p className="font-black text-amber-300 text-[11px]">صندوق امانی دست‌اول</p>
-                <p className="text-[9px] text-slate-300 font-medium">تضمین و ودیعه مابه‌التفاوت</p>
-              </div>
-
-              <div className="p-2.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] inline-flex items-center justify-center">۴</span>
-                <p className="font-black text-white text-[11px]">بارگیری با بارنامه</p>
-                <p className="text-[9px] text-slate-300 font-medium">حمل همزمان تحت پوشش بیمه</p>
-              </div>
-
-              <div className="p-2.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] inline-flex items-center justify-center">۵</span>
-                <p className="font-black text-white text-[11px]">تحویل و آزادسازی</p>
-                <p className="text-[9px] text-slate-300 font-medium">تایید انبار مقصد و تسویه کامل</p>
-              </div>
-            </div>
+            <button
+              onClick={() => setShowSafetyGuideModal(prev => !prev)}
+              className="px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <ShieldCheck size={14} className="text-emerald-700" />
+              <span>{showSafetyGuideModal ? "بستن راهنما ▲" : "مراحل ۵‌گانه تهاتر ▼"}</span>
+            </button>
           </div>
         </div>
+
+        {/* 🛡️ COLLAPSIBLE 5-STEP SECURE WORKFLOW */}
+        <AnimatePresence>
+          {showSafetyGuideModal && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden pt-4 mt-4 border-t border-slate-100"
+            >
+              <div className="bg-slate-50/90 rounded-2xl p-3 sm:p-4 border border-slate-200">
+                <div className="text-[11px] font-black text-slate-800 mb-2.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Lock size={13} className="text-emerald-700" />
+                    <span>مراحل ۵‌گانه اجرای تهاتر ایمن تحت نظارت دست‌اول:</span>
+                  </span>
+                  <button 
+                    onClick={() => setShowSafetyGuideModal(false)}
+                    className="text-slate-400 hover:text-slate-700 text-[10px] font-bold cursor-pointer"
+                  >
+                    بستن
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-3xs space-y-0.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-700 text-white font-black text-[9px] inline-flex items-center justify-center">۱</span>
+                    <p className="font-black text-slate-900 text-[10px]">ثبت و استعلام</p>
+                    <p className="text-[8px] text-slate-500">تعیین ارزش و کالاها</p>
+                  </div>
+
+                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-3xs space-y-0.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-700 text-white font-black text-[9px] inline-flex items-center justify-center">۲</span>
+                    <p className="font-black text-slate-900 text-[10px]">بازرسی کیفی QC</p>
+                    <p className="text-[8px] text-slate-500">تطبیق سلامت و تاریخ</p>
+                  </div>
+
+                  <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-300 shadow-3xs space-y-0.5">
+                    <span className="w-4 h-4 rounded-full bg-amber-500 text-white font-black text-[9px] inline-flex items-center justify-center">۳</span>
+                    <p className="font-black text-emerald-950 text-[10px]">صندوق امانی</p>
+                    <p className="text-[8px] text-emerald-800">تضمین مابه‌التفاوت</p>
+                  </div>
+
+                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-3xs space-y-0.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-700 text-white font-black text-[9px] inline-flex items-center justify-center">۴</span>
+                    <p className="font-black text-slate-900 text-[10px]">بارگیری با بارنامه</p>
+                    <p className="text-[8px] text-slate-500">حمل همزمان بیمه‌شده</p>
+                  </div>
+
+                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-3xs space-y-0.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-700 text-white font-black text-[9px] inline-flex items-center justify-center">۵</span>
+                    <p className="font-black text-slate-900 text-[10px]">تحویل و تسویه</p>
+                    <p className="text-[8px] text-slate-500">تایید انبار مقصد</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* SEARCH AND CATEGORY FILTER TOOLBAR */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4 mb-6">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      {/* SEARCH AND COMPACT CATEGORY FILTER TOOLBAR */}
+      <div className="bg-white rounded-3xl p-3 sm:p-4 border border-slate-200 shadow-3xs space-y-3 mb-5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           <div className="relative flex-1">
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="جستجوی کالا، کارخانه یا شهر مورد نظر در تالار تهاتر..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-10 pl-8 py-3 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-emerald-600 transition-all text-right"
+              placeholder="جستجوی کالا، کارخانه یا شهر در تالار تهاتر..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-7 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-emerald-600 transition-all text-right"
             />
-            <Search size={16} className="absolute right-3.5 top-3.5 text-slate-400" />
+            <Search size={15} className="absolute right-3 top-2.5 text-slate-400" />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute left-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="absolute left-2.5 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={14} />
               </button>
@@ -447,15 +557,15 @@ export const BarterHall: React.FC<BarterHallProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={loadBarters}
-              className="px-3.5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer"
               title="به‌روزرسانی آگهی‌ها"
             >
-              <RefreshCw size={14} className="text-emerald-700" />
-              <span>به‌روزرسانی</span>
+              <RefreshCw size={13} className="text-emerald-700" />
+              <span className="hidden sm:inline">به‌روزرسانی</span>
             </button>
 
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3.5 py-3 rounded-2xl border border-slate-200">
-              {filteredBarters.length} مورد معاوضه فعال
+            <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
+              {filteredBarters.length} معاوضه
             </span>
           </div>
         </div>

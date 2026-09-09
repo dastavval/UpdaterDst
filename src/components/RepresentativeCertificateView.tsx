@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Printer, X, Download, Loader2, Award, ShieldCheck, Check } from "lucide-react";
+import { Printer, X, Download, Loader2, Award, ShieldCheck, Check, Share2 } from "lucide-react";
 import jsPDF from "jspdf";
 import { toJpeg, toPng } from "html-to-image";
+import RepresentativeShareLicenseModal from "./RepresentativeShareLicenseModal";
 
 interface RepresentativeCertificateViewProps {
   repName: string;
@@ -39,6 +40,7 @@ export default function RepresentativeCertificateView({
   isApproved = true
 }: RepresentativeCertificateViewProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const appName = b2bConfig?.appName || "سامانه سراسری دست اول";
   const logoUrl = b2bConfig?.logoUrl;
@@ -288,10 +290,19 @@ export default function RepresentativeCertificateView({
           <div className="flex items-center gap-2">
             <button 
               onClick={handlePrint}
-              className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all cursor-pointer"
+              className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all cursor-pointer active:scale-95"
             >
               <Printer size={16} />
-              چاپ مستقیم گواهی اعطای نمایندگی
+              <span>چاپ مستقیم گواهی</span>
+            </button>
+
+            <button 
+              onClick={() => setShowShareModal(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-lg shadow-teal-600/20 hover:from-teal-700 hover:to-emerald-700 transition-all cursor-pointer active:scale-95"
+              title="اشتراک‌گذاری پروانه عاملیت در تلگرام و واتساپ"
+            >
+              <Share2 size={16} />
+              <span>اشتراک‌گذاری پروانه عاملیت</span>
             </button>
           </div>
 
@@ -501,6 +512,24 @@ export default function RepresentativeCertificateView({
           }
         }
       `}} />
+
+      {/* Share License Modal */}
+      <RepresentativeShareLicenseModal
+        rep={{
+          name: repName,
+          fullName: repName,
+          companyName: companyName,
+          company: companyName,
+          city: city,
+          agencyCode: agencyCode,
+          badge: badge,
+          tierLabel: tierTitle,
+          isApproved: isApproved
+        }}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        b2bConfig={b2bConfig}
+      />
     </div>
   );
 }

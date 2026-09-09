@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getDisplayImageUrl } from "../lib/image-utils";
+import { s3PreloadService } from "../lib/s3PreloadService";
 import { X, Maximize2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+
+// Global cache of successfully loaded image URLs to eliminate repeat shimmer / layout jumps
+const GLOBAL_LOADED_IMAGES = new Set<string>();
 
 interface ProductImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src?: string;
@@ -18,6 +22,8 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   allowFullScreen = true,
   ...props
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isIntersected, setIsIntersected] = useState<boolean>(() => loading === "eager");
   const [imgSrc, setImgSrc] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
@@ -25,7 +31,48 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   const [progress, setProgress] = useState<number>(0);
   const [showProgress, setShowProgress] = useState<boolean>(false);
 
+  // Setup Intersection Observer for highly optimized lazy loading and background prefetching
   useEffect(() => {
+    if (loading === "eager") {
+      setIsIntersected(true);
+      return;
+    }
+
+    if (typeof window === "undefined" || !window.IntersectionObserver) {
+      setIsIntersected(true);
+      return;
+    }
+
+    // Register with s3PreloadService for high-anticipation background prefetching
+    if (containerRef.current && src) {
+      s3PreloadService.observeForPrefetch(containerRef.current, src);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsIntersected(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: "800px 0px", // High anticipation prefetching: load well before scrolling into viewport
+        threshold: 0.01,
+      }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [src, loading]);
+
+  useEffect(() => {
+    if (!isIntersected) return;
+
     if (!src || src.trim() === "") {
       setHasError(true);
       setIsLoading(false);
@@ -34,10 +81,20 @@ export const ProductImage: React.FC<ProductImageProps> = ({
     }
 
     const proxiedUrl = getDisplayImageUrl(src);
+    const isAlreadyCached = GLOBAL_LOADED_IMAGES.has(proxiedUrl);
+
+    // If already loaded in memory session, show instantly with no shimmer delay
+    if (isAlreadyCached) {
+      setImgSrc(proxiedUrl);
+      setIsLoading(false);
+      setShowProgress(false);
+      setHasError(false);
+      return;
+    }
 
     // Active loading progress
     setShowProgress(true);
-    setProgress(15);
+    setProgress(25);
 
     // If we don't have an image source yet (initial load), show the skeleton shimmer
     if (!imgSrc) {
@@ -52,32 +109,26 @@ export const ProductImage: React.FC<ProductImageProps> = ({
       const img = new Image();
       img.src = proxiedUrl;
       img.referrerPolicy = "no-referrer";
+      img.decoding = "async";
       
       img.onload = () => {
+        GLOBAL_LOADED_IMAGES.add(proxiedUrl);
         setProgress(100);
-        setTimeout(() => {
-          setImgSrc(proxiedUrl);
-          setIsLoading(false);
-          setTimeout(() => {
-            setShowProgress(false);
-          }, 400);
-        }, 300);
+        setImgSrc(proxiedUrl);
+        setIsLoading(false);
+        setShowProgress(false);
       };
       
       img.onerror = () => {
         // Fallback gracefully: update source and handle error
         setProgress(100);
-        setTimeout(() => {
-          setImgSrc(proxiedUrl);
-          setHasError(true);
-          setIsLoading(false);
-          setTimeout(() => {
-            setShowProgress(false);
-          }, 400);
-        }, 300);
+        setImgSrc(proxiedUrl);
+        setHasError(true);
+        setIsLoading(false);
+        setShowProgress(false);
       };
     }
-  }, [src]);
+  }, [src, isIntersected]);
 
   // Simulated progressive timer for beautiful loading feed
   useEffect(() => {
@@ -96,11 +147,12 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   }, [showProgress, progress]);
 
   const handleLoad = () => {
+    if (imgSrc) GLOBAL_LOADED_IMAGES.add(imgSrc);
     setIsLoading(false);
     setProgress(100);
     setTimeout(() => {
       setShowProgress(false);
-    }, 400);
+    }, 200);
   };
 
   const handleError = () => {
@@ -157,6 +209,7 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   return (
     <>
       <div 
+        ref={containerRef}
         className={`relative w-full h-full overflow-hidden flex items-center justify-center ${allowFullScreen && !hasError && !isLoading ? "cursor-zoom-in" : ""}`}
         onClick={toggleFullScreen}
       >
@@ -278,6 +331,7 @@ export const ProductImage: React.FC<ProductImageProps> = ({
               onLoad={handleLoad}
               onError={handleError}
               loading={loading}
+              decoding="async"
               referrerPolicy="no-referrer"
               className={`${className} transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
               {...props}

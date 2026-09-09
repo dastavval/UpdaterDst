@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Product } from "../types";
 import { cleanUnitName, getDisplayImageUrl, getProductFallbackSvg } from "../lib/image-utils";
-import { Plus, Minus, Sparkles, Factory, MapPin, Package, Star, TrendingUp, ShieldCheck, Lock, Award, Percent, Tag, ShoppingCart, Heart, CheckCircle2 } from "lucide-react";
+import { Plus, Minus, Sparkles, Factory, MapPin, Package, Star, TrendingUp, ShieldCheck, Lock, Award, Percent, Tag, ShoppingCart, Heart, CheckCircle2, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
 
@@ -111,7 +111,19 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = React.memo(
     >
   {/* Top Badge Overlay */}
       <div className="absolute top-4 inset-x-4 z-20 flex justify-between items-start pointer-events-none">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 pointer-events-auto">
+          {((product as any).isSpecial || product.isFeatured || (product as any).discountPercent >= 15 || (product as any).discount_percent >= 15 || (product as any).badge === 'ویژه' || (product as any).badge === 'VIP' || (product as any).badge === 'منتخب') && (
+            <div className="bg-emerald-600 text-white px-2.5 py-1 rounded-xl shadow-lg border border-emerald-500 text-[10px] font-black flex items-center gap-1.5">
+              <Sparkles size={12} className="fill-white text-white" />
+              <span>ویژه 🌟</span>
+            </div>
+          )}
+          {((product as any).isFloorMarket || (product as any).isKafBazar) && (
+            <div className="bg-rose-600 text-white px-2.5 py-1 rounded-xl shadow-lg border border-rose-500 text-[10px] font-black flex items-center gap-1.5">
+              <Flame size={12} className="fill-white text-white" />
+              <span>کف بازار 🔥</span>
+            </div>
+          )}
           {profitMargin > 0 ? (
             <div className="bg-emerald-600/95 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-white/20 text-[10px] font-black flex items-center gap-1.5">
               <TrendingUp size={12} className="animate-pulse" />
@@ -148,7 +160,8 @@ export const PremiumProductCard: React.FC<PremiumProductCardProps> = React.memo(
           src={getDisplayImageUrl(product.image_url || product.imageUrl, product.name, product.brand)} 
           alt={product.name}
           className="w-full h-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-500 ease-out"
-          loading="lazy"
+          loading={index < 4 ? "eager" : "lazy"}
+          decoding="async"
           referrerPolicy="no-referrer"
           onError={(e) => { (e.target as HTMLImageElement).src = getProductFallbackSvg(product.name, product.brand); }}
         />

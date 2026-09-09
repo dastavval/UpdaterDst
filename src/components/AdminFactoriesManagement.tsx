@@ -24,12 +24,15 @@ import {
   Sliders,
   Calendar,
   Layers,
-  ShoppingBag
+  ShoppingBag,
+  Link2
 } from "lucide-react";
 import { B2BConfig, Product, FactoryProfile, BrandItem } from "../types";
 import { toPersianDigits } from "../lib/pricing";
 import ParsPackImageUploader from "./ParsPackImageUploader";
 import { DEFAULT_BRANDS } from "./AdminBrandsManagement";
+import FactoryProductLinkModal from "./FactoryProductLinkModal";
+import { StrictCityProvinceSelector } from "./StrictCityProvinceSelector";
 
 export interface ExtendedFactoryProfile extends FactoryProfile {
   productsSalesEnabled?: boolean;
@@ -49,6 +52,8 @@ interface AdminFactoriesManagementProps {
   b2bConfig: B2BConfig;
   products?: Product[];
   onUpdateB2bConfig: (updated: Partial<B2BConfig>) => Promise<void>;
+  onUpdateProduct?: (id: string, updatedFields: Partial<Product>) => Promise<any> | void;
+  onRefreshProducts?: () => Promise<void> | void;
 }
 
 export const DEFAULT_PROVINCES = [
@@ -231,8 +236,33 @@ export const LUXURY_PRESET_BADGES = [
 export default function AdminFactoriesManagement({
   b2bConfig,
   products = [],
-  onUpdateB2bConfig
+  onUpdateB2bConfig,
+  onUpdateProduct,
+  onRefreshProducts
 }: AdminFactoriesManagementProps) {
+  // Linking modal state
+  const [linkingFactory, setLinkingFactory] = useState<ExtendedFactoryProfile | null>(null);
+
+  // Helper to count linked products for any factory
+  const getFactoryLinkedCount = (f: ExtendedFactoryProfile) => {
+    if (!products || products.length === 0) return 0;
+    const fId = (f.id || "").toLowerCase().trim();
+    const fCode = (f.factoryCode || "").toLowerCase().trim();
+    const fName = (f.name || "").toLowerCase().trim();
+    const fBrands = (f.ownedBrands || []).map(b => b.toLowerCase().trim());
+    return products.filter(p => {
+      const pSeller = (p.sellerId || "").toLowerCase().trim();
+      const pFactId = ((p as any).factoryId || "").toLowerCase().trim();
+      const pFactName = (p.factoryName || (p as any).factory_name || "").toLowerCase().trim();
+      const pBrand = (p.brand || "").toLowerCase().trim();
+      if (fId && (pSeller === fId || pFactId === fId)) return true;
+      if (fCode && (pSeller === fCode || pFactId === fCode)) return true;
+      if (fName && (pFactName === fName || (pFactName.length >= 3 && fName.includes(pFactName)) || (fName.length >= 3 && pFactName.includes(fName)))) return true;
+      if (fBrands.length > 0 && fBrands.some(b => b && (pBrand === b || (pBrand.length >= 3 && pBrand.includes(b)) || (b.length >= 3 && b.includes(pBrand))))) return true;
+      return false;
+    }).length;
+  };
+
   // Load factories from config or default empty array
   const [factories, setFactories] = useState<ExtendedFactoryProfile[]>(() => {
     if (b2bConfig?.factories && Array.isArray(b2bConfig.factories)) {
@@ -771,6 +801,8 @@ export default function AdminFactoriesManagement({
         </div>
       </div>
 
+
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* RIGHT COLUMN: FACTORY FORM (5 cols) */}
@@ -849,67 +881,19 @@ export default function AdminFactoriesManagement({
             </div>
 
             {/* Province & City */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-black text-slate-700">استان مستقر</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddProvinceInline(!showAddProvinceInline)}
-                    className="text-[10.5px] text-blue-600 hover:text-blue-800 font-black cursor-pointer flex items-center gap-1 transition-colors"
-                  >
-                    <Plus size={11} />
-                    <span>{showAddProvinceInline ? "انصراف" : "+ افزودن استان جدید"}</span>
-                  </button>
-                </div>
-
-                {showAddProvinceInline && (
-                  <div className="p-2.5 mb-2 bg-blue-50 border border-blue-200 rounded-xl space-y-2 animate-in fade-in">
-                    <span className="text-[10px] font-black text-blue-900 block">تعریف استان جدید و اضافه شدن به لیست:</span>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        value={newProvinceInput}
-                        onChange={(e) => setNewProvinceInput(e.target.value)}
-                        placeholder="نام استان جدید (مثلاً هرمزگان)..."
-                        className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddInlineProvince}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-black shrink-0 cursor-pointer shadow-xs"
-                      >
-                        ثبت و انتخاب
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <input
-                  type="text"
-                  list="provinces-list"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  placeholder="مثال: تهران، اصفهان..."
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-emerald-500 outline-none transition-all"
-                />
-                <datalist id="provinces-list">
-                  {provincesList.map(prov => (
-                    <option key={prov} value={prov} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-black text-slate-700 mb-1">شهر / شهرستان</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="مثال: ری، پاکدشت، کرج..."
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-emerald-500 outline-none transition-all"
-                />
-              </div>
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-2">
+              <label className="block text-[11px] font-black text-slate-700">استان و شهر مستقر کارخانه *</label>
+              <StrictCityProvinceSelector
+                selectedCity={city || "تهران"}
+                selectedProvince={province || "تهران"}
+                onSelect={(c, p) => {
+                  setCity(c);
+                  setProvince(p);
+                }}
+                variant="button"
+                className="w-full text-right"
+                placeholder="برای تغییر استان و شهر کارخانه کلیک کنید..."
+              />
             </div>
 
             {/* Industrial Park & First-Hand Status */}
@@ -952,19 +936,16 @@ export default function AdminFactoriesManagement({
                   </div>
                 )}
 
-                <input
-                  type="text"
-                  list="industrial-parks-list"
+                <select
                   value={industrialPark}
                   onChange={(e) => setIndustrialPark(e.target.value)}
-                  placeholder="مثال: شهرک صنعتی شمس‌آباد..."
                   className="w-full px-3 py-2.5 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none transition-all shadow-2xs"
-                />
-                <datalist id="industrial-parks-list">
+                >
+                  <option value="">انتخاب شهرک صنعتی مستقر...</option>
                   {industrialParksList.map(park => (
-                    <option key={park} value={park} />
+                    <option key={park} value={park}>{park}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               <div className="flex flex-col justify-center">
@@ -1813,6 +1794,17 @@ export default function AdminFactoriesManagement({
 
                     {/* Actions and Status Control */}
                     <div className="flex items-center gap-2 md:self-center shrink-0 w-full md:w-auto justify-end border-t border-slate-100 pt-3 md:pt-0 md:border-0">
+                      {/* Products Link & Manage Button */}
+                      <button
+                        type="button"
+                        onClick={() => setLinkingFactory(f)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs"
+                        title="مدیریت و اتصال محصولات به این کارخانه"
+                      >
+                        <Link2 size={13} className="text-emerald-700" />
+                        <span>محصولات ({toPersianDigits(getFactoryLinkedCount(f))})</span>
+                      </button>
+
                       {/* National Brand / Featured Toggle */}
                       <button
                         type="button"
@@ -1882,6 +1874,17 @@ export default function AdminFactoriesManagement({
         </div>
 
       </div>
+
+      {/* Factory Product Link & Manage Modal */}
+      {linkingFactory && (
+        <FactoryProductLinkModal
+          factory={linkingFactory}
+          allProducts={products}
+          onClose={() => setLinkingFactory(null)}
+          onUpdateProduct={onUpdateProduct}
+          onRefreshProducts={onRefreshProducts}
+        />
+      )}
 
     </div>
   );

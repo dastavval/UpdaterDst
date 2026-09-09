@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { toPersianNum } from "../utils/persian-utils";
 import { ManagedUser, fetchUnifiedUsers, syncUserFromOrder, cleanIranianPhone } from "../lib/user-sync-helper";
+import { IRAN_PROVINCES_AND_CITIES } from "../utils/dealershipCityTiers";
 
 interface AdminUsersManagementProps {
   orders: any[];
@@ -32,6 +33,7 @@ export default function AdminUsersManagement({
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [provinceFilter, setProvinceFilter] = useState<string>("all");
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<'date' | 'purchases' | 'orders'>('date');
 
@@ -208,6 +210,115 @@ export default function AdminUsersManagement({
     }
   };
 
+  // ⚡ Refresh Individual User (بروزرسانی کاربر)
+  const handleBumpUser = async (u: ManagedUser) => {
+    setLoading(true);
+    try {
+      let localUsers: Record<string, ManagedUser> = {};
+      try {
+        const raw = localStorage.getItem("dastavval_local_users");
+        if (raw) localUsers = JSON.parse(raw);
+      } catch (e) {}
+
+      const nowStr = new Date().toISOString();
+      const target = localUsers[u.id] || localUsers[u.phone] || { ...u };
+      target.updatedAt = nowStr;
+      target.lastActiveAt = nowStr;
+      target.bumpedAt = nowStr;
+      localUsers[u.id] = target;
+      if (u.phone) localUsers[u.phone] = target;
+
+      localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+
+      await fetch("/api/b2b/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(localUsers)
+      }).catch(() => {});
+
+      await loadAllUsers();
+      setSuccessMsg(`⚡ اطلاعات کاربر «${u.name || u.phone}» با موفقیت بروزرسانی زنده گردید.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در بروزرسانی کاربر: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ⚡ Refresh All Users (بروزرسانی همگانی)
+  const handleBumpAllUsers = async () => {
+    setLoading(true);
+    try {
+      let localUsers: Record<string, ManagedUser> = {};
+      try {
+        const raw = localStorage.getItem("dastavval_local_users");
+        if (raw) localUsers = JSON.parse(raw);
+      } catch (e) {}
+
+      const nowStr = new Date().toISOString();
+      Object.keys(localUsers).forEach(k => {
+        if (localUsers[k]) {
+          localUsers[k].updatedAt = nowStr;
+          localUsers[k].lastActiveAt = nowStr;
+          localUsers[k].bumpedAt = nowStr;
+        }
+      });
+
+      localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+
+      await fetch("/api/b2b/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(localUsers)
+      }).catch(() => {});
+
+      await loadAllUsers();
+      setSuccessMsg(`⚡ تمام کاربران با موفقیت بروزرسانی زنده شدند.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در بروزرسانی همگانی: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ⭐ Bulk Upgrade Users to VIP / Gold
+  const handleBulkUpgradeVip = async () => {
+    setLoading(true);
+    try {
+      let localUsers: Record<string, ManagedUser> = {};
+      try {
+        const raw = localStorage.getItem("dastavval_local_users");
+        if (raw) localUsers = JSON.parse(raw);
+      } catch (e) {}
+
+      let count = 0;
+      Object.keys(localUsers).forEach(k => {
+        if (localUsers[k] && localUsers[k].status === 'active') {
+          localUsers[k].badge = 'vip';
+          count++;
+        }
+      });
+
+      localStorage.setItem("dastavval_local_users", JSON.stringify(localUsers));
+
+      await fetch("/api/b2b/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(localUsers)
+      }).catch(() => {});
+
+      await loadAllUsers();
+      setSuccessMsg(`⭐ سطح ${toPersianNum(count)} کاربر فعال با موفقیت به VIP ارتقا یافت.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در ارتقای گروهی: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleToggleStatus = (u: ManagedUser) => {
     const nextStatus = u.status === 'active' ? 'suspended' : 'active';
     const actionLabel = nextStatus === 'active' ? 'فعال‌سازی' : 'مسدود و تعلیق‌سازی';
@@ -367,6 +478,23 @@ export default function AdminUsersManagement({
     return Array.from(uniqueMap.values());
   };
 
+  // Available cities for filter based on selected province filter
+  const filterCitiesList = useMemo(() => {
+    if (provinceFilter === "all") {
+      const allC = new Set<string>();
+      IRAN_PROVINCES_AND_CITIES.forEach(p => p.cities.forEach(c => allC.add(c)));
+      return Array.from(allC);
+    }
+    const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === provinceFilter);
+    return match ? match.cities : [];
+  }, [provinceFilter]);
+
+  // Available cities for form based on formProvince
+  const formCitiesList = useMemo(() => {
+    const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === formProvince);
+    return match ? match.cities : [formCity];
+  }, [formProvince, formCity]);
+
   // Filtered & Sorted Users
   const filteredUsers = useMemo(() => {
     return usersList
@@ -376,29 +504,26 @@ export default function AdminUsersManagement({
           (u.phone || "").includes(searchQuery) ||
           (u.company || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
           (u.nationalCode || "").includes(searchQuery) ||
-          (u.city || "").toLowerCase().includes(searchQuery.toLowerCase());
+          (u.city || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (u.province || "").toLowerCase().includes(searchQuery.toLowerCase());
 
         const matchesRole = roleFilter === "all" || u.role === roleFilter;
         const matchesStatus = statusFilter === "all" || u.status === statusFilter;
+        
+        const matchesProvince = provinceFilter === "all" || 
+          u.province === provinceFilter || 
+          (!u.province && IRAN_PROVINCES_AND_CITIES.find(p => p.province === provinceFilter)?.cities.includes(u.city || ""));
+          
         const matchesCity = cityFilter === "all" || u.city === cityFilter;
 
-        return matchesSearch && matchesRole && matchesStatus && matchesCity;
+        return matchesSearch && matchesRole && matchesStatus && matchesProvince && matchesCity;
       })
       .sort((a, b) => {
         if (sortBy === 'purchases') return (b.totalPurchaseValue || 0) - (a.totalPurchaseValue || 0);
         if (sortBy === 'orders') return (b.totalOrdersCount || 0) - (a.totalOrdersCount || 0);
         return (b.createdAt || "").localeCompare(a.createdAt || "");
       });
-  }, [usersList, searchQuery, roleFilter, statusFilter, cityFilter, sortBy]);
-
-  // City list for dropdown
-  const uniqueCities = useMemo(() => {
-    const cities = new Set<string>();
-    usersList.forEach(u => {
-      if (u.city) cities.add(u.city);
-    });
-    return Array.from(cities);
-  }, [usersList]);
+  }, [usersList, searchQuery, roleFilter, statusFilter, provinceFilter, cityFilter, sortBy]);
 
   // Metrics
   const totalUsersCount = usersList.length;
@@ -429,14 +554,32 @@ export default function AdminUsersManagement({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleBumpAllUsers}
+            className="flex items-center gap-2 px-4 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-2xl text-xs font-black transition-all border border-purple-200 cursor-pointer shadow-xs active:scale-95"
+            title="بروزرسانی زنده تاریخچه و وضعیت کلیه کاربران در لیست"
+          >
+            <RefreshCw size={15} className="text-purple-600" />
+            <span>⚡ بروزرسانی همگانی</span>
+          </button>
+
+          <button
+            onClick={handleBulkUpgradeVip}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-2xl text-xs font-black transition-all border border-amber-300 cursor-pointer shadow-xs active:scale-95"
+            title="ارتقای گروهی کلیه کاربران فعال به سطح طلایی / VIP"
+          >
+            <ShieldCheck size={15} className="text-amber-600" />
+            <span>⭐ ارتقای گروهی VIP</span>
+          </button>
+
           <a
             href="/api/admin/users/export-vault"
             download="dastavval-users-vault-backup.json"
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-2xl text-xs font-black transition-all border border-amber-300 cursor-pointer shadow-xs"
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-2xl text-xs font-black transition-all border border-slate-200 cursor-pointer shadow-xs"
             title="دانلود نسخه پشتیبان کامل از مخزن امن اطلاعات کاربران، شماره‌ها، کدهای ملی و آدرس‌ها"
           >
-            <ShieldCheck size={15} className="text-amber-600" />
-            <span>بکاپ مخزن امن (JSON)</span>
+            <Download size={15} className="text-slate-600" />
+            <span>بکاپ JSON</span>
           </a>
 
           <button
@@ -444,7 +587,7 @@ export default function AdminUsersManagement({
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-2xl text-xs font-black transition-all border border-indigo-200 cursor-pointer shadow-xs"
             title="بررسی تمام فاکتورها و اضافه کردن خریداران سفارش مستقیم به این لیست"
           >
-            <RefreshCw size={15} />
+            <UserCheck size={15} />
             <span>همگام‌سازی از سفارشات</span>
           </button>
 
@@ -452,8 +595,8 @@ export default function AdminUsersManagement({
             onClick={handleExportCsv}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black transition-all border border-slate-200 cursor-pointer shadow-xs"
           >
-            <Download size={15} />
-            <span>خروجی اکسل (CSV)</span>
+            <FileText size={15} />
+            <span>خروجی اکسل</span>
           </button>
 
           <button
@@ -461,7 +604,7 @@ export default function AdminUsersManagement({
             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition-all shadow-material-md active:scale-95 cursor-pointer"
           >
             <UserPlus size={16} />
-            <span>ثبت کاربر جدید دستی</span>
+            <span>ثبت کاربر جدید</span>
           </button>
         </div>
       </div>
@@ -523,7 +666,7 @@ export default function AdminUsersManagement({
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search Input */}
           <div className="lg:col-span-2 relative">
             <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -534,6 +677,37 @@ export default function AdminUsersManagement({
               placeholder="جستجو بر اساس نام، شماره موبایل، شرکت، کدملی یا شهر..."
               className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
+          </div>
+
+          {/* Province Filter */}
+          <div>
+            <select
+              value={provinceFilter}
+              onChange={(e) => {
+                setProvinceFilter(e.target.value);
+                setCityFilter("all");
+              }}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="all">همه استان‌ها (۳۱ استان)</option>
+              {IRAN_PROVINCES_AND_CITIES.map((p, pIdx) => (
+                <option key={`filter-prov-${p.province}-${pIdx}`} value={p.province}>{p.province}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* City Filter */}
+          <div>
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            >
+              <option value="all">{provinceFilter === "all" ? "همه شهرستان‌ها" : `همه شهرهای ${provinceFilter}`}</option>
+              {filterCitiesList.map((c, cIdx) => (
+                <option key={`filter-city-${c}-${cIdx}`} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
 
           {/* Role Filter */}
@@ -565,17 +739,35 @@ export default function AdminUsersManagement({
               <option value="suspended">معلق / مسدود شده</option>
             </select>
           </div>
+        </div>
 
-          {/* Sort By */}
-          <div>
+        {/* Sort & Quick Filter Chips */}
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 flex-wrap">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+            <span>تعداد نتایج فیلتر شده:</span>
+            <span className="bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-xl font-black border border-emerald-200">
+              {toPersianNum(filteredUsers.length)} کاربر
+            </span>
+            {provinceFilter !== "all" && (
+              <button
+                onClick={() => { setProvinceFilter("all"); setCityFilter("all"); }}
+                className="text-[11px] text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer mr-2"
+              >
+                پاک‌کردن فیلتر استان ({provinceFilter})
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-bold">مرتب‌سازی:</span>
             <select
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="date">مرتب‌سازی: جدیدترین ثبت‌نام</option>
-              <option value="purchases">مرتب‌سازی: بیشترین حجم خرید</option>
-              <option value="orders">مرتب‌سازی: بیشترین تعداد سفارش</option>
+              <option value="date">جدیدترین ثبت‌نام</option>
+              <option value="purchases">بیشترین حجم خرید</option>
+              <option value="orders">بیشترین تعداد سفارش</option>
             </select>
           </div>
         </div>
@@ -722,6 +914,16 @@ export default function AdminUsersManagement({
                       {/* Actions */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center gap-1.5">
+                          {/* ⚡ Refresh User Button */}
+                          <button
+                            onClick={() => handleBumpUser(u)}
+                            className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-[11px] font-black shadow-2xs active:scale-95"
+                            title="بروزرسانی زنده اطلاعات این کاربر"
+                          >
+                            <RefreshCw size={12} className="text-purple-600" />
+                            <span>بروزرسانی</span>
+                          </button>
+
                           {/* View Orders */}
                           <button
                             onClick={() => setViewingOrdersUser(u)}
@@ -893,28 +1095,45 @@ export default function AdminUsersManagement({
                     </select>
                   </div>
 
-                  {/* City */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">شهر:</label>
-                    <input
-                      type="text"
-                      value={formCity}
-                      onChange={(e) => setFormCity(e.target.value)}
-                      placeholder="تهران، مشهد، اصفهان..."
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
                   {/* Province */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">استان:</label>
-                    <input
-                      type="text"
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>استان محل فعالیت:</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">۳۱ استان کشور</span>
+                    </label>
+                    <select
                       value={formProvince}
-                      onChange={(e) => setFormProvince(e.target.value)}
-                      placeholder="تهران، خراسان رضوی..."
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
+                      onChange={(e) => {
+                        const newProv = e.target.value;
+                        setFormProvince(newProv);
+                        const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === newProv);
+                        if (match && match.cities.length > 0) {
+                          setFormCity(match.capital || match.cities[0]);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      {IRAN_PROVINCES_AND_CITIES.map((p, pIdx) => (
+                        <option key={`form-prov-opt-${p.province}-${pIdx}`} value={p.province}>{p.province}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* City */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>شهرستان / شهر:</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">انتخاب از لیست رسمی</span>
+                    </label>
+                    <select
+                      value={formCitiesList.includes(formCity) ? formCity : (formCitiesList[0] || formCity)}
+                      onChange={(e) => setFormCity(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      {formCitiesList.map((c, cIdx) => (
+                        <option key={`form-city-opt-${c}-${cIdx}`} value={c}>{c}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Badge */}

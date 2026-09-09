@@ -68,10 +68,20 @@ export interface Product {
   surplusQuantityCartons?: number; // تعداد کارتن مازاد خط جهت تخلیه انبار
   surplusDescription?: string; // توضیحات علت مازاد و شرایط بارگیری فوری
   surplusRejectionReason?: string; // علت رد درخواست مازاد خط توسط مدیر
+  isSediment?: boolean; // آیا کالای رسوب‌کرده و دپو انبار با تخفیف نقدشوندگی است؟
+  sedimentStatus?: 'pending' | 'approved' | 'rejected' | 'none'; // وضعیت تایید رسوب انبار
+  sedimentDiscountPercent?: number; // درصد تخفیف ویژه رسوب‌زدایی
+  sedimentPrice?: number; // قیمت هر کارتن بار رسوب‌کرده
+  sedimentQuantityCartons?: number; // موجودی کارتن رسوب‌کرده
+  sedimentDuration?: string; // مدت زمان دپو در انبار
+  shelfLifeRemaining?: string; // زمان باقی‌مانده تا انقضا (مثلاً ۶ ماه تا انقضا)
+  sedimentDescription?: string; // توضیحات بار رسوب‌کرده
   boostScore?: number;
   disabled?: boolean; // New: to disable product from being listed
   chequeAllowed?: boolean; // New: whether cheque payment is allowed
   isKafBazaar?: boolean; // New: to show product in Kaf-e-Bazaar under-market section
+  isFloorMarket?: boolean; // آیا کالای کف بازار است؟
+  isKafBazar?: boolean;
   discount_percent?: number; // New: discount percent for wholesale promotions
   commissionPercent?: number; // New: custom commission rate for DastAvval
   cartAddCount?: number; // New: number of times added to cart in last 48h
@@ -422,6 +432,15 @@ export interface Order {
   loyaltyPointsEarned?: number;
   loyaltyPointsUsed?: number;
   loyaltyDiscountAmount?: number;
+  registeredBy?: {
+    name: string;
+    phone: string;
+    company: string;
+    role: string;
+    ipAddress: string;
+    userAgent: string;
+    clientTimestamp: string;
+  };
 }
 
 export type LoyaltyTier = 'bronze' | 'silver' | 'gold' | 'platinum';
@@ -512,6 +531,11 @@ export interface B2BConfig {
   factories?: FactoryProfile[];
   brands?: BrandItem[];
   representatives?: any[];
+  dealershipRequests?: any[];
+  capacityRequests?: any[];
+  safeBuyRequests?: any[];
+  representativesBucketUrl?: string;
+  factoryBucketUrl?: string;
   logoUrl?: string;
   zarinpalMerchantCode?: string;
   brandImages?: string[];
@@ -578,6 +602,7 @@ export interface B2BConfig {
   smsRepNotificationPatternId?: string | number;
   smsInvoiceIssuedPatternId?: string | number;
   smsAbandonedOrderPatternId?: string | number;
+  smsPriceAlertPatternId?: string | number;
   smsStockAlertPatternId?: string | number;
   smsLogisticsPatternId?: string | number;
   smsFactoryProductionPatternId?: string | number;

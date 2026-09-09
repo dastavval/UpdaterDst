@@ -1038,7 +1038,7 @@ export const ProductSyncStatusView: React.FC<ProductSyncStatusViewProps> = ({
             <a
               href={`/api/storage/proxy-download?url=${encodeURIComponent(activeCatalogPdfUrl)}&filename=dastavval-official-catalog.pdf`}
               download="dastavval-official-catalog.pdf"
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-98"
             >
               <Download size={14} />
               <span>دانلود ایمن باکت</span>

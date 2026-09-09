@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { ArticleDetailModal, ArticleData } from './ArticleDetailModal';
 import { Product } from '../types';
+import MarketFiguresSection from './MarketFiguresSection';
 
 export interface Article extends ArticleData {}
 
@@ -37,7 +38,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [genMessage, setGenMessage] = useState<string | null>(null);
 
-  const displayArticles = articles && articles.length > 0 ? articles : [];
+  const displayArticles = (articles && articles.length > 0 ? articles : []).filter((a: any) => a.published !== false && a.status !== 'draft');
 
   const categories = ['all', ...Array.from(new Set(displayArticles.map(a => a.category).filter(Boolean)))];
 
@@ -46,11 +47,7 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
     : displayArticles.filter(a => a.category === activeCategory);
 
   const handleArticleClick = (article: Article) => {
-    if (onOpenArticleModal) {
-      onOpenArticleModal(article);
-    } else {
-      setSelectedArticle(article);
-    }
+    window.dispatchEvent(new CustomEvent("view-article", { detail: { articleId: article.id } }));
   };
 
   const handleGenerateBatch = async () => {
@@ -214,6 +211,9 @@ export const MagazineSection: React.FC<MagazineSectionProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Prominent Figures & Trusted Market Merchants Section */}
+      <MarketFiguresSection />
 
       {/* Interactive Article Detail Modal */}
       {selectedArticle && (

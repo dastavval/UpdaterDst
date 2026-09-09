@@ -54,11 +54,14 @@ import {
   Copy,
   ChevronRight,
   ShieldAlert,
-  Coins
+  Coins,
+  Download,
+  FileSpreadsheet
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product } from "../types";
 import AddAdButton from "./AddAdButton";
+import CatalogDownloadModal from "./CatalogDownloadModal";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import HonorPlaqueCard from "./HonorPlaqueCard";
 import RepresentativeAnalyticsDashboard from "./RepresentativeAnalyticsDashboard";
@@ -254,6 +257,8 @@ export default function RepresentativeManagementPortal({
   const [customCatalogPhone, setCustomCatalogPhone] = useState(user?.phone || user?.mobile || "");
   const [customCatalogMarkup, setCustomCatalogMarkup] = useState<number>(15); // +15% profit margin for local retailers
   const [catalogCopied, setCatalogCopied] = useState(false);
+  const [isRepCatalogModalOpen, setIsRepCatalogModalOpen] = useState(false);
+  const [isDownloadingRepCatalog, setIsDownloadingRepCatalog] = useState(false);
 
   // Product Workplace State
   const [productSearch, setProductSearch] = useState("");
@@ -401,23 +406,12 @@ export default function RepresentativeManagementPortal({
     return localApproved === 'true';
   }, [user]);
 
-  // Simulated Sales State (Defaults to real verified cash purchases)
-  const [simulatedSales, setSimulatedSales] = useState<number>(() => {
-    if (user?.totalSales && user.totalSales > 0) return user.totalSales;
-    return realCashOrdersSum;
-  });
-
-  // Keep simulated sales synced with real cash orders when simulator isn't manually overriding
-  useEffect(() => {
-    if (!showSimulator) {
-      setSimulatedSales(realCashOrdersSum);
-    }
-  }, [realCashOrdersSum, showSimulator]);
+  // Representative Sales State (Uses real verified cash purchases)
+  const salesTurnover = realCashOrdersSum;
 
   // STRICT REQUIREMENT CHECK:
-  // Must have >= 300,000,000 Tomans in Cash Purchases AND be approved by Admin
-  const isCashSalesTargetAchieved = simulatedSales >= 300_000_000;
-  const isRepresentativeActive = isCashSalesTargetAchieved && isApprovedByAdmin;
+  // Must be approved by Admin to activate official representative status and certificate
+  const isRepresentativeActive = isApprovedByAdmin;
 
   // Active Tier (Only unlocked if isRepresentativeActive)
   const activeTier = useMemo(() => {
@@ -426,32 +420,32 @@ export default function RepresentativeManagementPortal({
       return {
         ...REPRESENTATIVE_TIERS[0],
         title: "متقاضی عاملیت در حال احراز صلاحیت",
-        badgeLabel: "در حال احراز حد نصاب ۳۰۰ میلیون",
+        badgeLabel: "در حال احراز صلاحیت",
         badgeBg: "bg-slate-100 text-slate-700 border-slate-300",
         discountMultiplier: 0,
-        discountRate: "غیرفعال تا احراز حد نصاب ۳۰۰M"
+        discountRate: "غیرفعال تا تایید نهایی"
       };
     }
-    const matched = [...REPRESENTATIVE_TIERS].reverse().find(t => simulatedSales >= t.minSales);
+    const matched = [...REPRESENTATIVE_TIERS].reverse().find(t => salesTurnover >= t.minSales);
     return matched || REPRESENTATIVE_TIERS[0];
-  }, [simulatedSales, isRepresentativeActive]);
+  }, [salesTurnover, isRepresentativeActive]);
 
   // Estimated Net Profit
   const netRepresentativeProfit = useMemo(() => {
-    if (!isRepresentativeActive || simulatedSales <= 0) return 0;
-    return Math.round(simulatedSales * activeTier.discountMultiplier);
-  }, [simulatedSales, activeTier, isRepresentativeActive]);
+    if (!isRepresentativeActive || salesTurnover <= 0) return 0;
+    return Math.round(salesTurnover * activeTier.discountMultiplier);
+  }, [salesTurnover, activeTier, isRepresentativeActive]);
 
   // Progress to 300M Qualification Milestone
-  const cashSalesProgressPercent = Math.min(100, Math.round((simulatedSales / 300_000_000) * 100));
+  const cashSalesProgressPercent = Math.min(100, Math.round((salesTurnover / 300_000_000) * 100));
 
   // Next tier progress calculation
   const nextTier = useMemo(() => {
-    return REPRESENTATIVE_TIERS.find(t => t.minSales > simulatedSales);
-  }, [simulatedSales]);
+    return REPRESENTATIVE_TIERS.find(t => t.minSales > salesTurnover);
+  }, [salesTurnover]);
 
   const nextTierProgressPercent = nextTier 
-    ? Math.min(100, Math.round((simulatedSales / nextTier.minSales) * 100))
+    ? Math.min(100, Math.round((salesTurnover / nextTier.minSales) * 100))
     : 100;
 
   // Dynamic Affiliate Stats
@@ -630,7 +624,7 @@ export default function RepresentativeManagementPortal({
       subject: `درخواست صدور قرارداد الحاقی ارتقای سطح به ${activeTier.title}`,
       tierTitle: activeTier.title,
       tierLevel: activeTier.levelNumber,
-      salesAmount: simulatedSales,
+      salesAmount: salesTurnover,
       repName: user?.name || "مدیریت عاملیت",
       companyName,
       province,
@@ -658,7 +652,11 @@ export default function RepresentativeManagementPortal({
   };
 
   const handleCopyCatalogLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/catalog-view?agent=${user?.agencyCode || 'REP-7012'}&margin=${customCatalogMarkup}`);
+    const agent = user?.agencyCode || user?.userCode || 'REP-7012';
+    const name = encodeURIComponent(customCatalogTitle);
+    const phone = encodeURIComponent(customCatalogPhone);
+    const url = `${window.location.origin}/catalog-view?agent=${agent}&margin=${customCatalogMarkup}&name=${name}&phone=${phone}`;
+    navigator.clipboard.writeText(url);
     setCatalogCopied(true);
     setTimeout(() => setCatalogCopied(false), 2500);
   };
@@ -666,11 +664,36 @@ export default function RepresentativeManagementPortal({
   const handlePreviewCatalog = () => {
     if (typeof window !== 'undefined') {
       const margin = customCatalogMarkup;
-      const agent = user?.agencyCode || 'REP-7012';
-      const newUrl = `${window.location.origin}${window.location.pathname}?agent=${agent}&margin=${margin}`;
+      const agent = user?.agencyCode || user?.userCode || 'REP-7012';
+      const name = encodeURIComponent(customCatalogTitle);
+      const phone = encodeURIComponent(customCatalogPhone);
+      const newUrl = `${window.location.origin}${window.location.pathname}?agent=${agent}&margin=${margin}&name=${name}&phone=${phone}`;
       window.history.pushState({ path: newUrl }, '', newUrl);
       window.dispatchEvent(new CustomEvent('switch-to-agent-catalog'));
     }
+  };
+
+  const handleOpenAdvancedCatalogModal = () => {
+    setIsRepCatalogModalOpen(true);
+  };
+
+  const handleDownloadDirectRepCatalog = () => {
+    setIsDownloadingRepCatalog(true);
+    try {
+      const agent = user?.agencyCode || user?.userCode || 'REP-7012';
+      const downloadUrl = `/api/catalog/download?agent=${encodeURIComponent(agent)}&margin=${customCatalogMarkup}&title=${encodeURIComponent(customCatalogTitle)}&phone=${encodeURIComponent(customCatalogPhone)}`;
+      window.location.href = downloadUrl;
+    } catch (e) {
+      setIsRepCatalogModalOpen(true);
+    } finally {
+      setTimeout(() => setIsDownloadingRepCatalog(false), 2000);
+    }
+  };
+
+  const handleDownloadDirectRepCsv = () => {
+    const agent = user?.agencyCode || user?.userCode || 'REP-7012';
+    const downloadUrl = `/api/catalog/download?format=csv&agent=${encodeURIComponent(agent)}&margin=${customCatalogMarkup}`;
+    window.location.href = downloadUrl;
   };
 
   const handleRequestSettlement = () => {
@@ -766,101 +789,6 @@ export default function RepresentativeManagementPortal({
     <div className="space-y-6 text-right font-sans text-slate-800 bg-white" dir="rtl">
       
       {/* ========================================================================= */}
-      {/* 1. STRICT ELIGIBILITY ALERT BANNER (شرط ۳۰۰ میلیون تومان نقدی + تایید مدیر) */}
-      {/* ========================================================================= */}
-      {!isRepresentativeActive && (
-        <motion.div 
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-emerald-50/80 border-2 border-amber-300 rounded-3xl p-5 sm:p-6 text-right space-y-4 shadow-xs"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 font-black shadow-sm">
-                <ShieldAlert size={26} />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm sm:text-base font-black text-amber-950">
-                    وضعیت حساب: متقاضی عاملیت در حال احراز صلاحیت
-                  </h3>
-                  <span className="text-[10px] font-black bg-emerald-200/80 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
-                    سطوح عاملیت قفل است 🔒
-                  </span>
-                </div>
-                <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                  بر اساس آیین‌نامه رسمی، اعطای نمایندگی، صدور لوح افتخار و فعال‌سازی تخفیفات منوط به <strong>حداقل ۳۰۰ میلیون تومان خرید نقدی در هر ماه</strong> و <strong>تایید رسمی مدیریت سامانه</strong> است.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowApprovalRequestModal(true)}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white text-xs font-black rounded-2xl transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-xs"
-            >
-              <Send size={15} />
-              <span>درخواست تایید و احراز صلاحیت به مدیریت</span>
-            </button>
-          </div>
-
-          {/* 2-Step Qualification Progress Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-emerald-200/80">
-            {/* Step 1: 300M Cash Turnover */}
-            <div className="bg-white p-3.5 rounded-2xl border border-emerald-200/80 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-slate-700 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-amber-900 flex items-center justify-center text-[11px] font-black">۱</span>
-                  <span>خرید نقدی مستقیم از کارخانجات (در هر ماه):</span>
-                </span>
-                <span className="font-mono font-black text-amber-700">
-                  {toPersianNum(simulatedSales)} / ۳۰۰,۰۰۰,۰۰۰ تومان
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    isCashSalesTargetAchieved ? "bg-emerald-500" : "bg-gradient-to-r from-amber-400 to-emerald-600"
-                  }`} 
-                  style={{ width: `${cashSalesProgressPercent}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] text-slate-500 font-bold">
-                <span>{isCashSalesTargetAchieved ? "حد نصاب خرید نقدی ماهانه تکمیل شد ✓" : `باقیمانده خرید نقدی این ماه: ${toPersianNum(((300_000_000 - simulatedSales)/1_000_000).toFixed(0))} میلیون تومان`}</span>
-                <span className="font-mono font-black text-slate-800">{toPersianNum(cashSalesProgressPercent)}٪</span>
-              </div>
-            </div>
-
-            {/* Step 2: Admin Approval */}
-            <div className="bg-white p-3.5 rounded-2xl border border-emerald-200/80 space-y-2 flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-slate-700 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-amber-900 flex items-center justify-center text-[11px] font-black">۲</span>
-                  <span>تایید مدارک و انحصار منطقه توسط مدیر:</span>
-                </span>
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                  isApprovedByAdmin ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
-                }`}>
-                  {isApprovedByAdmin ? "تایید شده ✓" : "در انتظار ممیزی"}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                پس از رسیدن به حد نصاب ۳۰۰ میلیون خرید ماهانه، کارشناسان پلتفرم صلاحیت صنفی و انحصار منطقه {province} - {city} را تایید می‌نمایند.
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Approval Feedback notification */}
-      {approvalFeedback && (
-        <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs font-black text-slate-900 flex items-center gap-2 animate-fade-in">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{approvalFeedback}</span>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
       {/* 2. EXECUTIVE STATUS DASHBOARD (کارت‌های وضعیت اختصاصی نماینده - تم سفید)    */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
@@ -883,53 +811,19 @@ export default function RepresentativeManagementPortal({
                 </span>
                 {isRepresentativeActive && (
                   <span className="text-[10px] font-black bg-emerald-600 text-white border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                    <CheckCircle2 size={12} className="text-emerald-600" />
+                    <CheckCircle2 size={12} className="text-white" />
                     <span>احراز صلاحیت رسمی در سامانه کشوری</span>
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
-                <span>کد رسمی عاملیت: <strong className="font-mono text-emerald-700 font-black">{user?.agencyCode || user?.userCode || "REP-7012"}</strong></span>
+                <span>کد رسمی عاملیت: <strong className="font-mono text-emerald-700 font-black">{user?.agencyCode || user?.userCode || "---"}</strong></span>
                 <span>•</span>
                 <span>منطقه انحصاری: <strong className="text-slate-800 font-bold">{province} - {city}</strong></span>
                 <span>•</span>
                 <span>مدیریت: <strong className="text-slate-800 font-bold">{user?.name || "همکار گرامی"}</strong></span>
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={() => setActiveTab('commissions')}
-              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            >
-              <Wallet size={16} />
-              <span>مدیریت پورسانت و تسویه</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('workplace')}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            >
-              <Briefcase size={16} />
-              <span>میز کار سفارشات مستقیم</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('perks')}
-              className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-amber-900 border border-emerald-200 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
-            >
-              <Sparkles size={16} className="text-emerald-600" />
-              <span>مزایای استراتژیک عاملیت</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('plaque')}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs border border-slate-200"
-            >
-              <Award size={16} className="text-emerald-600" />
-              <span>لوح تقدیر و مدارک رسمی</span>
-            </button>
           </div>
         </div>
 
@@ -946,17 +840,12 @@ export default function RepresentativeManagementPortal({
                 <TrendingUp size={15} className="text-emerald-600" />
                 <span>فروش کل نقدی محقق‌شده:</span>
               </span>
-              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-black border border-emerald-200">
-                +۱۴٪ رشد
-              </span>
             </div>
             <div className="text-base sm:text-xl font-black text-slate-900 font-mono">
-              {toPersianNum(simulatedSales)} <span className="text-xs font-normal text-slate-500">تومان</span>
+              {toPersianNum(salesTurnover)} <span className="text-xs font-normal text-slate-500">تومان</span>
             </div>
             <div className="text-[10px] text-slate-500 font-medium">
-              {isCashSalesTargetAchieved 
-                ? "احراز حد نصاب ۳۰۰ میلیون تومان در هر ماه ✓" 
-                : `فاصله تا حد نصاب ماهانه: ${toPersianNum(((300_000_000 - simulatedSales)/1_000_000).toFixed(0))} میلیون تومان`}
+              مجموع خریدهای قطعی و تسویه شده
             </div>
           </motion.div>
 
@@ -970,15 +859,17 @@ export default function RepresentativeManagementPortal({
                 <Wallet size={15} className="text-emerald-600" />
                 <span>سود خالص عاملیت:</span>
               </span>
-              <span className="text-[10px] font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                {isRepresentativeActive ? activeTier.discountRate : "در انتظار احراز"}
-              </span>
+              {isRepresentativeActive && (
+                <span className="text-[10px] font-mono font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  {activeTier.discountRate}
+                </span>
+              )}
             </div>
             <div className="text-base sm:text-xl font-black text-emerald-800 font-mono">
               {toPersianNum(netRepresentativeProfit)} <span className="text-xs font-normal text-slate-500">تومان</span>
             </div>
             <div className="text-[10px] text-emerald-700 font-bold">
-              {isRepresentativeActive ? "تخفیف مستقیم اعمال‌شده در فاکتورها" : "پس از احراز ۳۰۰M خرید در هر ماه فعال می‌شود"}
+              تخفیف مستقیم اعمال‌شده در فاکتورها
             </div>
           </motion.div>
 
@@ -1036,77 +927,6 @@ export default function RepresentativeManagementPortal({
 
         </div>
 
-        {/* Level Simulator Tool (Clean White Collapsible Box) */}
-        <div className="border border-slate-200 rounded-2xl p-3 bg-white">
-          <button
-            type="button"
-            onClick={() => setShowSimulator(!showSimulator)}
-            className="w-full flex items-center justify-between text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Sliders size={14} className="text-emerald-600" />
-              <span>ابزار تست و شبیه‌ساز ارتقای سطوح و تخفیفات عاملیت</span>
-            </div>
-            <span className="text-[11px] text-emerald-600 font-black">
-              {showSimulator ? "بستن شبیه‌ساز ▲" : "مشاهده شبیه‌ساز ▼"}
-            </span>
-          </button>
-
-          {showSimulator && (
-            <div className="pt-3 mt-3 border-t border-slate-100 space-y-3 animate-fade-in">
-              <p className="text-[11px] text-slate-500 font-medium">
-                جهت پیش‌نمایش نحوه ارتقای خودکار لوح افتخار، سود خالص، درصد تخفیف و حکم انحصاری، میزان فروش آزمایشی را انتخاب فرمایید:
-              </p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setSimulatedSales(realCashOrdersSum)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === realCashOrdersSum ? "bg-emerald-600 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                  }`}
-                >
-                  فروش واقعی نقدی ({toPersianNum(realCashOrdersSum)} تومان)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSimulatedSales(350_000_000)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === 350_000_000 ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-amber-900 border-emerald-200"
-                  }`}
-                >
-                  ۳۵۰M (سطح ۱: عامل فروش رسمی)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSimulatedSales(1_200_000_000)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === 1_200_000_000 ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-blue-900 border-blue-200"
-                  }`}
-                >
-                  ۱.۲B (سطح ۲: نماینده انحصاری شهر)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSimulatedSales(2_500_000_000)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === 2_500_000_000 ? "bg-purple-600 text-white border-purple-600" : "bg-white text-purple-900 border-purple-200"
-                  }`}
-                >
-                  ۲.۵B (سطح ۳: نماینده شهرستان و حومه)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSimulatedSales(5_500_000_000)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    simulatedSales === 5_500_000_000 ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-emerald-900 border-emerald-200"
-                  }`}
-                >
-                  ۵.۵B (سطح ۴: لیدر استانی)
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
       </div>
 
@@ -1204,19 +1024,6 @@ export default function RepresentativeManagementPortal({
         >
           <Coins size={16} className="text-blue-400" />
           <span>📊 سفارشات منطقه‌ای و پورسانت‌ها</span>
-        </button>
-
-        {/* Tab: Iran Province Orders Map & Coverage */}
-        <button
-          onClick={() => setActiveTab('coverage_map')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'coverage_map'
-              ? "bg-emerald-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <MapPin size={16} className="text-emerald-400" />
-          <span>🗺️ نقشه ۳۱ استان و قلمرو عاملیت</span>
         </button>
 
         {/* Tab 4: White-Label Co-Branded Catalog Maker */}
@@ -1797,12 +1604,52 @@ export default function RepresentativeManagementPortal({
             </div>
           </div>
 
+          {/* Direct Download & Advanced Actions Suite */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={handleOpenAdvancedCatalogModal}
+              className="p-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-2 shadow-md shadow-emerald-700/20 transition-all cursor-pointer text-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <Sparkles size={16} />
+              </div>
+              <span className="text-sm">شخصی‌سازی و چاپ پیشرفته</span>
+              <span className="text-[10px] text-emerald-100 font-medium">تنظیم جلد، فونت، انتخاب دسته‌ها و قالب‌ها</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadDirectRepCatalog}
+              disabled={isDownloadingRepCatalog}
+              className="p-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer text-center disabled:opacity-50"
+            >
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                {isDownloadingRepCatalog ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+              </div>
+              <span className="text-sm">دانلود مستقیم فایل کاتالوگ</span>
+              <span className="text-[10px] text-emerald-100 font-medium">سند رسمی آفلاین با نام و شماره شما</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadDirectRepCsv}
+              className="p-4 bg-white hover:bg-slate-50 text-slate-800 rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-2 border border-slate-200 shadow-xs hover:shadow-md transition-all cursor-pointer text-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                <FileSpreadsheet size={16} />
+              </div>
+              <span className="text-sm">خروجی اکسل نرخ‌نامه (CSV)</span>
+              <span className="text-[10px] text-slate-500 font-medium">با احتساب سود ٪{customCatalogMarkup} و بارکدها</span>
+            </button>
+          </div>
+
           {/* Action and Preview Link */}
           <div className="bg-emerald-50/70 p-5 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-xs font-black text-emerald-900">لینک اختصاصی کاتالوگ الکترونیک شما:</span>
-              <p className="text-[11px] text-emerald-800 font-mono">
-                {window.location.origin}/catalog-view?agent={user?.agencyCode || 'REP-7012'}&margin={customCatalogMarkup}
+              <p className="text-[11px] text-emerald-800 font-mono truncate max-w-xs sm:max-w-md">
+                {window.location.origin}/catalog-view?agent={user?.agencyCode || user?.userCode || 'REP-7012'}&margin={customCatalogMarkup}&name={encodeURIComponent(customCatalogTitle)}&phone={encodeURIComponent(customCatalogPhone)}
               </p>
             </div>
 
@@ -1810,7 +1657,7 @@ export default function RepresentativeManagementPortal({
               <button
                 type="button"
                 onClick={handlePreviewCatalog}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Eye size={14} />
                 <span>پیش‌نمایش زنده کاتالوگ</span>
@@ -1818,7 +1665,7 @@ export default function RepresentativeManagementPortal({
               <button
                 type="button"
                 onClick={handleCopyCatalogLink}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 {catalogCopied ? <Check size={14} /> : <Copy size={14} />}
                 <span>{catalogCopied ? "کپی شد" : "کپی لینک کاتالوگ"}</span>
@@ -2341,18 +2188,6 @@ export default function RepresentativeManagementPortal({
       )}
 
       {/* ========================================================================= */}
-      {/* 8C. SUB-TAB CONTENT: 🗺️ IRAN PROVINCES ORDERS MAP & COVERAGE WIDGET         */}
-      {/* ========================================================================= */}
-      {activeTab === 'coverage_map' && (
-        <IranProvinceOrdersMapWidget
-          orders={orders}
-          user={user}
-          onUpdateUser={onUpdateUser}
-          markupPercent={Number(user?.markupPercent || user?.commissionRate || 15)}
-        />
-      )}
-
-      {/* ========================================================================= */}
       {/* 8. SUB-TAB CONTENT: 📦 ORDERS & REGIONAL INVOICES                         */}
       {/* ========================================================================= */}
       {activeTab === 'orders' && (
@@ -2479,7 +2314,7 @@ export default function RepresentativeManagementPortal({
               tierLevel={activeTier.levelNumber}
               tierTitle={activeTier.title}
               badgeLabel={activeTier.badgeLabel}
-              monthlySales={simulatedSales}
+              monthlySales={salesTurnover}
               agencyCode={user?.agencyCode || user?.userCode || "REP-7012"}
               province={province}
               city={city}
@@ -2520,7 +2355,7 @@ export default function RepresentativeManagementPortal({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {REPRESENTATIVE_TIERS.map((tier, idx) => {
               const isCurrent = isRepresentativeActive && activeTier.levelNumber === tier.levelNumber;
-              const isAchieved = simulatedSales >= tier.minSales;
+              const isAchieved = salesTurnover >= tier.minSales;
 
               return (
                 <div
@@ -3147,7 +2982,7 @@ export default function RepresentativeManagementPortal({
                 <div className="text-slate-900">مجموعه متقاضی: <strong>{companyName}</strong></div>
                 <div className="text-slate-600">منطقه درخواستی انحصار: <strong>{province} - {city}</strong></div>
                 <div className="text-amber-800">
-                  مجموع خرید نقدی ثبت‌شده: <strong>{toPersianNum(simulatedSales)} تومان</strong>
+                  مجموع خرید نقدی ثبت‌شده: <strong>{toPersianNum(salesTurnover)} تومان</strong>
                 </div>
               </div>
 
@@ -3209,7 +3044,7 @@ export default function RepresentativeManagementPortal({
               <div className="bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1 text-amber-950">
                 <div className="font-bold">متقاضی: <strong>{companyName}</strong></div>
                 <div>سطح درخواستی: <strong>{activeTier.title} (سطح {toPersianNum(activeTier.levelNumber)})</strong></div>
-                <div>فروش تاییدشده: <strong>{toPersianNum(simulatedSales)} تومان</strong></div>
+                <div>فروش تاییدشده: <strong>{toPersianNum(salesTurnover)} تومان</strong></div>
               </div>
 
               <div className="space-y-1">
@@ -3258,7 +3093,7 @@ export default function RepresentativeManagementPortal({
           badge={activeTier.badgeLabel}
           tierLevel={activeTier.levelNumber}
           tierTitle={activeTier.title}
-          monthlySales={simulatedSales}
+          monthlySales={salesTurnover}
           onClose={() => setShowCertificateModal(false)}
           b2bConfig={b2bConfig}
         />
@@ -3352,6 +3187,19 @@ export default function RepresentativeManagementPortal({
       )}
 
       {/* Removed AddAdButton per user request */}
+
+      {/* Advanced Representative Catalog Download & Customization Modal */}
+      {isRepCatalogModalOpen && (
+        <CatalogDownloadModal
+          isOpen={isRepCatalogModalOpen}
+          onClose={() => setIsRepCatalogModalOpen(false)}
+          products={products || []}
+          user={user}
+          initialMarkup={customCatalogMarkup}
+          initialTitle={customCatalogTitle}
+          initialPhone={customCatalogPhone}
+        />
+      )}
 
     </div>
   );

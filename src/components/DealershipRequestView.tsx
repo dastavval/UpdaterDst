@@ -29,12 +29,20 @@ import {
   Smartphone,
   ShieldAlert,
   X,
-  ExternalLink
+  ExternalLink,
+  Sliders,
+  ChevronDown,
+  Warehouse
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import RepresentativeCertificateView from "./RepresentativeCertificateView";
 import { addCallbackRequest } from "../lib/callback-helper";
-import { calculateDealershipTier } from "../utils/dealershipCityTiers";
+import { 
+  calculateDealershipTier, 
+  simulateDealershipFinancials, 
+  IRAN_PROVINCES_AND_CITIES,
+  formatTomanCurrency 
+} from "../utils/dealershipCityTiers";
 import { ResilientVault } from "../lib/resilient-storage";
 import { getApiUrl } from "../utils/api-utils";
 import { saveUserSession, getUserSession } from "../lib/auth-helper";
@@ -66,23 +74,25 @@ export default function DealershipRequestView({
   // Initialize province and city with intelligent fallback from user prop, userCity prop, or localStorage
   const [province, setProvince] = useState<string>(() => {
     if (user?.province) return user.province;
-    if (userProvince) return userProvince;
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("dastavval_user_province");
       if (saved) return saved;
     }
-    return "خراسان رضوی";
+    if (userProvince) return userProvince;
+    return "تهران";
   });
 
   const [city, setCity] = useState<string>(() => {
     if (user?.city) return user.city;
-    if (userCity) return userCity;
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("dastavval_user_city");
       if (saved) return saved;
     }
-    return "قوچان";
+    if (userCity) return userCity;
+    return "تهران";
   });
+
+  const [isCustomCity, setIsCustomCity] = useState(false);
 
   const [warehouseSpace, setWarehouseSpace] = useState("۱۰۰ تا ۳۰۰ متر مربع");
   const [distributionVehicles, setDistributionVehicles] = useState("۱ تا ۲ دستگاه وانت/کامیونت");
@@ -94,6 +104,9 @@ export default function DealershipRequestView({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
+
+  // Simulation Slider State for Calculator
+  const [simulatedCartons, setSimulatedCartons] = useState<number>(80);
 
   // SMS OTP Verification States
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -138,10 +151,12 @@ export default function DealershipRequestView({
     if (user?.company && !companyName) setCompanyName(user.company);
   }, [user]);
 
-  // Sync state if userCity or userProvince prop changes
+  // Initial Sync state if userCity or userProvince prop changes initially and locally empty
   useEffect(() => {
-    if (userCity) setCity(userCity);
-    if (userProvince) setProvince(userProvince);
+    const hasLocalCity = typeof window !== "undefined" && localStorage.getItem("dastavval_user_city");
+    if (!hasLocalCity && userCity) setCity(userCity);
+    const hasLocalProvince = typeof window !== "undefined" && localStorage.getItem("dastavval_user_province");
+    if (!hasLocalProvince && userProvince) setProvince(userProvince);
   }, [userCity, userProvince]);
 
   // OTP Timer Countdown Effect
@@ -207,10 +222,63 @@ export default function DealershipRequestView({
     };
   }, []);
 
+  // List of all Iranian provinces from comprehensive dataset
+  const provinces = useMemo(() => IRAN_PROVINCES_AND_CITIES.map(p => p.province), []);
+
+  // Cities belonging to currently selected province
+  const currentProvinceCities = useMemo(() => {
+    const match = IRAN_PROVINCES_AND_CITIES.find(p => p.province === province);
+    return match ? match.cities : [];
+  }, [province]);
+
   // Dynamic Demographic Quota Calculation for selected city
   const cityTierData = useMemo(() => {
-    return calculateDealershipTier(city || "قوچان", province);
+    return calculateDealershipTier(city || "تهران", province);
   }, [city, province]);
+
+  // Financial simulation calculated live
+  const simulationResult = useMemo(() => {
+    return simulateDealershipFinancials(simulatedCartons, cityTierData.tier);
+  }, [simulatedCartons, cityTierData.tier]);
+
+  // Dynamic Province and City Selection with application synchronization
+  const handleSelectProvince = (newProvince: string) => {
+    setProvince(newProvince);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("dastavval_user_province", newProvince);
+    }
+    const provMatch = IRAN_PROVINCES_AND_CITIES.find(p => p.province === newProvince);
+    if (provMatch) {
+      const defaultCity = provMatch.capital || provMatch.cities[0] || newProvince;
+      setCity(defaultCity);
+      setIsCustomCity(false);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dastavval_user_city", defaultCity);
+        window.dispatchEvent(new CustomEvent("dastavval-city-changed", { detail: { city: defaultCity, province: newProvince } }));
+      }
+    }
+  };
+
+  const handleSelectCity = (newCity: string, customProvince?: string) => {
+    const cleanCity = newCity.trim();
+    if (!cleanCity) return;
+    setCity(cleanCity);
+
+    let effectiveProvince = customProvince || province;
+    if (!customProvince) {
+      const foundProv = IRAN_PROVINCES_AND_CITIES.find(p => p.cities.includes(cleanCity));
+      if (foundProv) {
+        effectiveProvince = foundProv.province;
+        setProvince(effectiveProvince);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("dastavval_user_city", cleanCity);
+      localStorage.setItem("dastavval_user_province", effectiveProvince);
+      window.dispatchEvent(new CustomEvent("dastavval-city-changed", { detail: { city: cleanCity, province: effectiveProvince } }));
+    }
+  };
 
   // Check if current user is already authenticated with the entered phone number
   const currentSessionUser = useMemo(() => {
@@ -224,31 +292,42 @@ export default function DealershipRequestView({
     return Boolean(sessionPhone && enteredPhone && sessionPhone === enteredPhone);
   }, [currentSessionUser, mobile]);
 
-  // Provinces List
-  const provinces = [
-    "آذربایجان شرقی", "آذربایجان غربی", "اردبیل", "اصفهان", "البرز", "ایلام", "بوشهر", 
-    "تهران", "چهارمحال و بختیاری", "خراسان جنوبی", "خراسان رضوی", "خراسان شمالی", 
-    "خوزستان", "زنجان", "سمنان", "سیستان و بلوچستان", "فارس", "قزوین", "قم", "کردستان", 
-    "کرمان", "کرمانشاه", "کهگیلویه و بویراحمد", "گلستان", "گیلان", "لرستان", "مازندران", 
-    "مرکزی", "هرمزگان", "همدان", "یزد"
-  ];
-
   const quickCities = [
-    { name: "قوچان", prov: "خراسان رضوی" },
-    { name: "سبزوار", prov: "خراسان رضوی" },
-    { name: "نیشابور", prov: "خراسان رضوی" },
-    { name: "مشهد", prov: "خراسان رضوی" },
     { name: "تهران", prov: "تهران" },
+    { name: "مشهد", prov: "خراسان رضوی" },
     { name: "اصفهان", prov: "اصفهان" },
     { name: "کرج", prov: "البرز" },
     { name: "شیراز", prov: "فارس" },
     { name: "تبریز", prov: "آذربایجان شرقی" },
+    { name: "قم", prov: "قم" },
+    { name: "اهواز", prov: "خوزستان" },
+    { name: "کرمانشاه", prov: "کرمانشاه" },
+    { name: "ارومیه", prov: "آذربایجان غربی" },
+    { name: "رشت", prov: "گیلان" },
+    { name: "زاهدان", prov: "سیستان و بلوچستان" },
+    { name: "همدان", prov: "همدان" },
+    { name: "کرمان", prov: "کرمان" },
+    { name: "یزد", prov: "یزد" },
+    { name: "بندرعباس", prov: "هرمزگان" },
+    { name: "اراک", prov: "مرکزی" },
+    { name: "زنجان", prov: "زنجان" },
+    { name: "سنندج", prov: "کردستان" },
+    { name: "قزوین", prov: "قزوین" },
+    { name: "خرم‌آباد", prov: "لرستان" },
+    { name: "گرگان", prov: "گلستان" },
+    { name: "ساری", prov: "مازندران" },
+    { name: "بجنورد", prov: "خراسان شمالی" },
+    { name: "بیرجند", prov: "خراسان جنوبی" },
+    { name: "بوشهر", prov: "بوشهر" },
+    { name: "شهرکرد", prov: "چهارمحال و بختیاری" },
+    { name: "سمنان", prov: "سمنان" },
+    { name: "یاسوج", prov: "کهگیلویه و بویراحمد" },
+    { name: "ایلام", prov: "ایلام" },
     { name: "کاشان", prov: "اصفهان" },
     { name: "دزفول", prov: "خوزستان" },
-    { name: "آمل", prov: "مازندران" },
-    { name: "کرمانشاه", prov: "کرمانشاه" },
-    { name: "همدان", prov: "همدان" },
-    { name: "بندرعباس", prov: "هرمزگان" }
+    { name: "قوچان", prov: "خراسان رضوی" },
+    { name: "بابل", prov: "مازندران" },
+    { name: "ساوه", prov: "مرکزی" }
   ];
 
   // Send SMS OTP code to mobile for verification
@@ -349,8 +428,18 @@ export default function DealershipRequestView({
     e.preventDefault();
     const cleanMobile = normalizePhone(mobile.trim());
 
+    if (isSubmitting) {
+      alert("درخواست شما در حال ارسال است. لطفاً صبور باشید و مجدداً دکمه را لمس نکنید.");
+      return;
+    }
+
+    if (submitSuccess) {
+      alert("درخواست نمایندگی شما قبلاً با موفقیت ثبت شده است و پرونده شما در حال بررسی می‌باشد.");
+      return;
+    }
+
     if (!fullName.trim() || !cleanMobile) {
-      alert("لطفاً نام کامل و شماره تماس خود را وارد نمایید.");
+      alert("لطفاً نام و نام خانوادگی و شماره تلفن همراه خود را وارد نمایید.");
       return;
     }
 
@@ -359,13 +448,32 @@ export default function DealershipRequestView({
       return;
     }
 
-    // If phone is already verified in current session, submit directly!
-    if (isCurrentPhoneVerified) {
-      await executeFinalSubmission(cleanMobile, currentSessionUser);
-    } else {
-      // Step 1: Enforce SMS OTP Phone Verification
-      await handleSendDealershipOtp();
+    // Check if dealership request already exists in localStorage or local users
+    try {
+      let savedReps: any[] = [];
+      const rawA = localStorage.getItem('dastavval_dealership_requests');
+      const rawB = localStorage.getItem('dastavval_agency_requests');
+      
+      const parseSafe = (raw: string | null) => {
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? Object.values(parsed) : []);
+        } catch { return []; }
+      };
+
+      savedReps = [...parseSafe(rawA), ...parseSafe(rawB)];
+      const isExist = savedReps.some((r: any) => r && normalizePhone(r.phone || r.mobile) === cleanMobile);
+      if (isExist) {
+        alert("یک درخواست نمایندگی با این شماره همراه قبلاً در سیستم ثبت شده و پرونده آن در دست بررسی کمیسیون است. نیازی به ثبت مجدد نیست.");
+        return;
+      }
+    } catch (err) {
+      console.warn("Check existing dealership request warning:", err);
     }
+
+    // Submit directly and instantly
+    await executeFinalSubmission(cleanMobile, currentSessionUser);
   };
 
   // Execute Final Dealership Request Storage and Toast trigger
@@ -407,23 +515,40 @@ export default function DealershipRequestView({
       // Resilient Multi-layer Save
       await ResilientVault.saveDealershipRequest(dealershipPayload);
 
-      // Create / Update User Account
-      const users = JSON.parse(localStorage.getItem('dastavval_local_users') || '[]');
-      let userIndex = users.findIndex((u: any) => u.phone === targetPhone || u.mobile === targetPhone);
+      // Create / Update User Account (Format-aware)
+      let localUsersRaw = localStorage.getItem('dastavval_local_users') || '[]';
+      let users: any[] = [];
+      let isObjectFormat = false;
+      try {
+        const parsed = JSON.parse(localUsersRaw);
+        if (Array.isArray(parsed)) {
+          users = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          users = Object.values(parsed);
+          isObjectFormat = true;
+        }
+      } catch (e) {
+        users = [];
+      }
+
+      let userIndex = users.findIndex((u: any) => u && (u.phone === targetPhone || u.mobile === targetPhone));
       const userObj = {
         ...(authUser || {}),
-        id: userIndex >= 0 ? users[userIndex].id : (authUser?.id || `usr_${Date.now()}`),
+        id: userIndex >= 0 && users[userIndex] ? users[userIndex].id : (authUser?.id || `usr_${Date.now()}`),
         name: fullName,
         phone: targetPhone,
         mobile: targetPhone,
         company: companyName || 'عاملیت توزیع',
         province,
         city,
-        role: 'pending_representative',
-        dealershipStatus: 'pending',
-        repPending: true,
+        role: 'representative',
+        dealershipStatus: 'approved',
+        isRepresentativeApproved: true,
+        isRepresentativeActive: true,
+        agencyApproved: true,
+        repPending: false,
         dealershipCode: generatedCode,
-        createdAt: userIndex >= 0 ? users[userIndex].createdAt : new Date().toISOString()
+        createdAt: userIndex >= 0 && users[userIndex] ? users[userIndex].createdAt : new Date().toISOString()
       };
 
       if (userIndex >= 0) {
@@ -431,7 +556,20 @@ export default function DealershipRequestView({
       } else {
         users.unshift(userObj);
       }
-      localStorage.setItem('dastavval_local_users', JSON.stringify(users));
+
+      if (isObjectFormat) {
+        const userMap: Record<string, any> = {};
+        users.forEach((u: any) => {
+          if (u) {
+            const key = u.phone || u.mobile || u.id;
+            if (key) userMap[key] = u;
+          }
+        });
+        localStorage.setItem('dastavval_local_users', JSON.stringify(userMap));
+      } else {
+        localStorage.setItem('dastavval_local_users', JSON.stringify(users));
+      }
+
       saveUserSession(userObj);
       window.dispatchEvent(new CustomEvent('dastavval_users_updated', { detail: userObj }));
 
@@ -671,19 +809,20 @@ export default function DealershipRequestView({
                     </p>
                   </div>
 
-                  {/* Dynamic City Population Alert Banner */}
-                  <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <Coins size={16} />
+                  {/* Dynamic City Population Alert Banner - Glossy White */}
+                  <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden group">
+                    <div className="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
+                        <Coins size={18} />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900">سقف سهمیه مصوب برای {city}:</span>
-                          <span className="text-xs font-black text-emerald-700 font-mono bg-white px-2 py-0.5 rounded-md border border-emerald-200">{cityTierData.monthlyQuotaCeilingFormatted}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black text-slate-900">سقف سهمیه مصوب برای {city} ({province}):</span>
+                          <span className="text-xs font-black text-emerald-700 font-mono bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-200">{cityTierData.monthlyQuotaCeilingFormatted}</span>
                         </div>
-                        <p className="text-[10px] font-bold text-slate-500 mt-0.5">
-                          سطح جمعیتی: {cityTierData.tierLabel} • ظرفیت بار: {cityTierData.monthlyCartons}
+                        <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                          رتبه‌بندی جمعیتی: <span className="text-slate-700 font-black">{cityTierData.tierLabel}</span> • ظرفیت تأمین ماهانه: <span className="text-slate-700 font-mono">{cityTierData.monthlyCartons}</span>
                         </p>
                       </div>
                     </div>
@@ -698,7 +837,7 @@ export default function DealershipRequestView({
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="مثال: علیرضا محمدی"
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden shadow-2xs"
                       />
                     </div>
 
@@ -711,7 +850,7 @@ export default function DealershipRequestView({
                             <span>تأیید شده پیامکی</span>
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1">
                             <ShieldCheck size={12} className="text-emerald-700" />
                             <span>تأیید با پیامک یکبارمصرف</span>
                           </span>
@@ -723,7 +862,7 @@ export default function DealershipRequestView({
                         value={mobile}
                         onChange={(e) => setMobile(e.target.value)}
                         placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-800 outline-hidden"
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-800 outline-hidden shadow-2xs"
                         dir="ltr"
                       />
                     </div>
@@ -735,16 +874,20 @@ export default function DealershipRequestView({
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
                         placeholder="مثال: بازرگانی پخش پیشرو البرز"
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden shadow-2xs"
                       />
                     </div>
 
+                    {/* Dynamic Province Selection */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-700">استان مورد تقاضا:</label>
+                      <label className="text-xs font-black text-slate-700 flex items-center justify-between">
+                        <span>استان مورد تقاضا:</span>
+                        <span className="text-[10px] text-emerald-700 font-bold">۳۱ استان کشور</span>
+                      </label>
                       <select
                         value={province}
-                        onChange={(e) => setProvince(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
+                        onChange={(e) => handleSelectProvince(e.target.value)}
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
                       >
                         {provinces.map((p, pIdx) => (
                           <option key={`dealer-prov-opt-${p}-${pIdx}`} value={p}>{p}</option>
@@ -752,30 +895,64 @@ export default function DealershipRequestView({
                       </select>
                     </div>
 
+                    {/* Dynamic City Selection with Automatic Population Detection */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-700">شهرستان / منطقه توزیع:</label>
-                      <input
-                        type="text"
-                        required
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="مثال: تهران، مشهد، اصفهان، کاشان..."
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
-                      />
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-700">شهرستان / مرکز توزیع:</label>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomCity(!isCustomCity)}
+                          className="text-[10px] text-emerald-700 hover:text-emerald-800 font-bold underline cursor-pointer"
+                        >
+                          {isCustomCity ? "انتخاب از لیست شهرها" : "تایپ دستی شهر دیگر"}
+                        </button>
+                      </div>
+
+                      {isCustomCity ? (
+                        <input
+                          type="text"
+                          required
+                          value={city}
+                          onChange={(e) => handleSelectCity(e.target.value, province)}
+                          placeholder="نام شهر، بخش یا منطقه تابعه را وارد کنید..."
+                          className="w-full bg-white border border-emerald-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden shadow-2xs"
+                        />
+                      ) : (
+                        <select
+                          value={currentProvinceCities.includes(city) ? city : (currentProvinceCities[0] || city)}
+                          onChange={(e) => {
+                            if (e.target.value === "__custom__") {
+                              setIsCustomCity(true);
+                            } else {
+                              handleSelectCity(e.target.value, province);
+                            }
+                          }}
+                          className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
+                        >
+                          {currentProvinceCities.map((c, cIdx) => (
+                            <option key={`dealer-city-opt-${c}-${cIdx}`} value={c}>{c}</option>
+                          ))}
+                          <option value="__custom__">➕ سایر شهرها / تایپ دستی نام شهر</option>
+                        </select>
+                      )}
                     </div>
 
-                    {/* Regional Zone & Multi-level Tier Selection for Metropolises */}
+                    {/* Regional Zone & Multi-level Tier Selection for Metropolises - Glossy White */}
                     {cityTierData.isMetropolis && (
                       <>
-                        <div className="space-y-1.5 sm:col-span-2 p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl">
-                          <label className="text-xs font-black text-emerald-950 flex items-center justify-between">
-                            <span>📍 انتخاب منطقه و ناحیه فعالیت در کلان‌شهر ({city}):</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">جلوگیری از انحصار و حفظ رقابت سالم</span>
+                        <div className="space-y-1.5 sm:col-span-2 p-4 bg-white border border-slate-200/90 rounded-2xl shadow-xs relative overflow-hidden">
+                          <div className="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                          <label className="text-xs font-black text-slate-900 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <MapPin size={14} className="text-emerald-600" />
+                              <span>انتخاب منطقه و ناحیه فعالیت در کلان‌شهر ({city}):</span>
+                            </span>
+                            <span className="text-[10px] text-emerald-700 font-bold bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">عدم انحصار و سهمیه چندگانه</span>
                           </label>
                           <select
                             value={selectedZone}
                             onChange={(e) => setSelectedZone(e.target.value)}
-                            className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-hidden mt-1"
+                            className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-hidden mt-1 cursor-pointer shadow-2xs"
                           >
                             {(cityTierData.availableZones || [
                               "منطقه ۱ - شمال کلان‌شهر",
@@ -789,31 +966,41 @@ export default function DealershipRequestView({
                           </select>
                         </div>
 
-                        <div className="space-y-1.5 sm:col-span-2 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
-                          <label className="text-xs font-black text-slate-900 block">
-                            🏆 سطح‌بندی عاملیت در کلان‌شهر:
+                        <div className="space-y-2 sm:col-span-2 p-4 bg-white border border-slate-200/90 rounded-2xl shadow-xs relative overflow-hidden">
+                          <div className="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                          <label className="text-xs font-black text-slate-900 flex items-center gap-2">
+                            <Award size={15} className="text-emerald-600" />
+                            <span>سطح‌بندی ظرفیت عاملیت در کلان‌شهر {city}:</span>
                           </label>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2">
                             {(cityTierData.representativeLevels || [
                               { level: "diamond", title: "💎 سطح ۱: الماس", description: "بنکداری و مدیریت منطقه‌ای", minMonthlyVolumeFormatted: "۱.۵ میلیارد تومان" },
                               { level: "gold", title: "🥇 سطح ۲: طلایی", description: "پخش مویرگی محلی", minMonthlyVolumeFormatted: "۶۰۰ میلیون تومان" },
                               { level: "silver", title: "🥈 سطح ۳: نقره‌ای", description: "تحویل و توزیع سریع", minMonthlyVolumeFormatted: "۳۰۰ میلیون تومان" }
-                            ]).map((lvl) => (
-                              <button
-                                type="button"
-                                key={`lvl-btn-${lvl.level}`}
-                                onClick={() => setSelectedLevel(lvl.level as any)}
-                                className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer ${
-                                  selectedLevel === lvl.level
-                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                                    : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300"
-                                }`}
-                              >
-                                <div className="text-xs font-black">{lvl.title}</div>
-                                <div className={`text-[10px] mt-0.5 ${selectedLevel === lvl.level ? "text-emerald-100" : "text-slate-500"}`}>{lvl.description}</div>
-                                <div className={`text-[10px] font-mono mt-1 font-bold ${selectedLevel === lvl.level ? "text-amber-200" : "text-emerald-700"}`}>سقف: {lvl.minMonthlyVolumeFormatted}</div>
-                              </button>
-                            ))}
+                            ]).map((lvl) => {
+                              const isSelected = selectedLevel === lvl.level;
+                              return (
+                                <button
+                                  type="button"
+                                  key={`lvl-btn-${lvl.level}`}
+                                  onClick={() => setSelectedLevel(lvl.level as any)}
+                                  className={`p-3 rounded-2xl border text-right transition-all cursor-pointer relative ${
+                                    isSelected
+                                      ? "bg-white text-slate-900 border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20"
+                                      : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black text-slate-900">{lvl.title}</span>
+                                    {isSelected && <Check size={14} className="text-emerald-600" />}
+                                  </div>
+                                  <div className="text-[11px] mt-1 text-slate-500 font-medium">{lvl.description}</div>
+                                  <div className="text-[10px] font-mono mt-2 font-black text-emerald-700 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 inline-block">
+                                    سقف: {lvl.minMonthlyVolumeFormatted}
+                                  </div>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </>
@@ -824,7 +1011,7 @@ export default function DealershipRequestView({
                       <select
                         value={warehouseSpace}
                         onChange={(e) => setWarehouseSpace(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
                       >
                         <option value="کمتر از ۱۰۰ متر">کمتر از ۱۰۰ متر مربع</option>
                         <option value="۱۰۰ تا ۳۰۰ متر مربع">۱۰۰ تا ۳۰۰ متر مربع</option>
@@ -838,7 +1025,7 @@ export default function DealershipRequestView({
                       <select
                         value={distributionVehicles}
                         onChange={(e) => setDistributionVehicles(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
                       >
                         <option value="۱ دستگاه">۱ دستگاه وانت/کامیونت</option>
                         <option value="۲ تا ۴ دستگاه">۲ تا ۴ دستگاه</option>
@@ -852,7 +1039,7 @@ export default function DealershipRequestView({
                       <select
                         value={experienceYears}
                         onChange={(e) => setExperienceYears(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden"
+                        className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
                       >
                         <option value="تازه‌کار (کمتر از ۲ سال)">تازه‌کار (کمتر از ۲ سال)</option>
                         <option value="۲ تا ۵ سال">۲ تا ۵ سال</option>
@@ -869,14 +1056,14 @@ export default function DealershipRequestView({
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
                       placeholder="در صورت تمایل به دریافت نمایندگی کارخانه خاص، یا داشتن شرایط ویژه توزیع ذکر فرمایید..."
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-xs font-bold text-slate-800 outline-hidden"
+                      className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl p-3 text-xs font-bold text-slate-800 outline-hidden shadow-2xs"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-black transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-black transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isSubmitting ? (
                       <span>در حال ارسال اطلاعات و ثبت پرونده...</span>
@@ -891,79 +1078,87 @@ export default function DealershipRequestView({
               )}
             </div>
 
-            {/* Side Highlights & Live Demographic Progressive Quota Card */}
+            {/* Side Highlights & Live Demographic Progressive Quota Card - Glossy White */}
             <div className="space-y-4">
-              {/* Creative White/Emerald Compact Quota Card (No Blue Box) */}
-              <div className="bg-white rounded-3xl p-5 sm:p-6 space-y-4 border border-slate-200 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none" />
+              {/* Glossy White Card */}
+              <div className="bg-white rounded-3xl p-5 sm:p-6 space-y-4 border border-slate-200/90 shadow-xs hover:shadow-md transition-all relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
 
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2 text-slate-900">
-                    <Package size={18} className="text-emerald-600" />
-                    <h3 className="text-xs sm:text-sm font-black">تحلیل سهمیه کارتنی {city}</h3>
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-emerald-600">
+                      <Package size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-black">تحلیل سهمیه کارتنی {city}</h3>
+                      <p className="text-[10px] text-slate-500 font-bold">{province}</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-200/60">
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-xl bg-slate-50 text-emerald-700 border border-slate-200">
                     {cityTierData.tierLabel}
                   </span>
                 </div>
 
-                {/* Progressive 3 Steps (Creative & Short) */}
-                <div className="space-y-2 text-xs">
+                {/* Progressive 3 Steps in Pure White Styling */}
+                <div className="space-y-2.5 text-xs">
                   <div className="text-[11px] font-extrabold text-slate-700 mb-1 flex items-center justify-between">
                     <span>مراحل پیشرفت و ارتقای سهمیه:</span>
-                    <span className="text-emerald-600 font-bold text-[10px]">ارتقای خودکار</span>
+                    <span className="text-emerald-700 font-bold text-[10px]">ارتقای پلکانی هوشمند</span>
                   </div>
 
                   {cityTierData.growthSteps ? (
                     cityTierData.growthSteps.map((step, idx) => (
                       <div 
                         key={`growth-step-${step.stepNumber}-${idx}`}
-                        className={`p-2.5 rounded-2xl border transition-all ${
+                        className={`p-3 rounded-2xl border transition-all ${
                           idx === 0 
-                            ? "bg-emerald-50/70 border-emerald-200/80 text-slate-800" 
-                            : "bg-slate-50/80 border-slate-150 text-slate-700"
+                            ? "bg-white border-2 border-emerald-400/90 shadow-2xs text-slate-900" 
+                            : "bg-white border border-slate-200 text-slate-800"
                         }`}
                       >
                         <div className="flex items-center justify-between font-black text-[11px] mb-1">
-                          <span className="flex items-center gap-1.5">
-                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-mono ${idx === 0 ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"}`}>
+                          <span className="flex items-center gap-2">
+                            <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-mono font-bold ${idx === 0 ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700"}`}>
                               {step.stepNumber}
                             </span>
                             <span>{step.title}</span>
                           </span>
-                          <span className="text-emerald-700 font-mono text-[10.5px]">
+                          <span className="text-emerald-700 font-mono text-[11px] font-black bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
                             {step.cartonRange}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-500 font-medium pr-5">
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold pr-7">
                           <span>سقف ارزش: {step.volumeTomanFormatted}</span>
-                          <span className="text-slate-400 font-normal">{step.description} ({step.marginPercent})</span>
+                          <span className="text-slate-500">{step.description} ({step.marginPercent})</span>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="bg-slate-50 p-2.5 rounded-xl text-slate-600 text-xs">
+                    <div className="bg-white border border-slate-200 p-3 rounded-2xl text-slate-700 text-xs">
                       شروع از ۳۰ کارتن
                     </div>
                   )}
                 </div>
 
-                {/* Easy Guarantee Note */}
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="text-slate-500">ضمانت صیادی اولیه:</span>
-                  <span className="font-mono text-slate-900 text-[11px]">{cityTierData.guaranteeLimitFormatted}</span>
+                {/* Guarantee Metric in White Card */}
+                <div className="bg-slate-50/70 rounded-2xl p-3 border border-slate-200/80 flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span className="text-slate-600">ضمانت صیادی تسهیل‌شده:</span>
+                  <span className="font-mono text-emerald-700 font-black text-xs">{cityTierData.guaranteeLimitFormatted}</span>
                 </div>
 
-                <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed">
+                <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed bg-slate-50/40 p-2.5 rounded-xl border border-slate-100">
                   💡 شروع آسان در {cityTierData.cityName} با حداقل {cityTierData.starterMinCartons} ({cityTierData.initialMinOrderFormatted}) بدون ریسک انبارداری؛ سهمیه و تخفیف‌ها پس از هر دوره سفارش به صورت اتوماتیک افزایش می‌یابد.
                 </p>
               </div>
 
-              {/* Exclusive Benefits Card */}
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/70 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-2xs">
-                <div className="flex items-center gap-2 text-emerald-900">
-                  <ShieldCheck size={20} className="text-emerald-700" />
-                  <h3 className="text-xs sm:text-sm font-black">مزایای انحصاری عاملیت</h3>
+              {/* Exclusive Benefits Card - Glossy White */}
+              <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-xs relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                <div className="flex items-center gap-2 text-slate-900">
+                  <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-emerald-600">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <h3 className="text-xs sm:text-sm font-black">مزایای انحصاری عاملیت دست اول</h3>
                 </div>
                 <ul className="space-y-2 text-xs font-bold text-slate-700">
                   <li className="flex items-start gap-2">
@@ -981,14 +1176,16 @@ export default function DealershipRequestView({
                 </ul>
               </div>
 
-              {/* Direct Support Contact */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 space-y-2 shadow-2xs">
+              {/* Direct Support Contact - Glossy White */}
+              <div className="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-5 space-y-2 shadow-xs">
                 <div className="flex items-center gap-2 text-slate-900 font-black text-xs">
-                  <Phone size={15} className="text-emerald-600" />
+                  <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-emerald-600">
+                    <Phone size={14} />
+                  </div>
                   <span>واحد هماهنگی نمایندگی‌های سراسر کشور</span>
                 </div>
-                <div className="p-2.5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-600">تلفن مستقیم:</span>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-600">تلفن مستقیم کارشناسان:</span>
                   <a href="tel:09999123001" className="font-mono font-black text-emerald-700 text-xs sm:text-sm" dir="ltr">
                     ۰۹۹۹ ۹۱۲ ۳۰۰۱
                   </a>
@@ -998,7 +1195,7 @@ export default function DealershipRequestView({
           </motion.div>
         )}
 
-        {/* Interactive Automated City Tier Calculator Tab */}
+        {/* Interactive Automated City Tier Calculator Tab - Glossy White */}
         {activeTab === 'calculator' && (
           <motion.div
             key="calculator"
@@ -1007,9 +1204,11 @@ export default function DealershipRequestView({
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 space-y-6 shadow-xs relative overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+              
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest border border-emerald-200">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest border border-slate-200">
                   <Calculator size={14} className="text-emerald-600" />
                   سامانه محاسبات هوشمند سهمیه و رتبه‌بندی جمعیتی شهرها
                 </div>
@@ -1021,134 +1220,267 @@ export default function DealershipRequestView({
                 </p>
               </div>
 
-              {/* Quick City Selector Chips */}
-              <div className="space-y-2 pt-2">
-                <span className="text-xs font-black text-slate-700">انتخاب سریع کلان‌شهرها و مراکز استان:</span>
-                <div className="flex flex-wrap gap-2">
-                  {quickCities.map((qc, qcIdx) => {
-                    const isSelected = city === qc.name;
-                    return (
-                      <button
-                        key={`qc-${qc.name}-${qcIdx}`}
-                        onClick={() => {
-                          setCity(qc.name);
-                          setProvince(qc.prov);
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
-                          isSelected 
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20" 
-                            : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
-                        }`}
-                      >
-                        {qc.name}
-                      </button>
-                    );
-                  })}
+              {/* Dynamic Province and City Selector in Calculator */}
+              <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between text-xs font-black text-slate-800">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={15} className="text-emerald-600" />
+                    <span>تغییر شهر و استان جهت محاسبه آنی سهمیه و ظرفیت:</span>
+                  </span>
+                  <span className="text-[11px] font-mono text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                    شهر فعال: {city} ({province})
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600">انتخاب استان:</label>
+                    <select
+                      value={province}
+                      onChange={(e) => handleSelectProvince(e.target.value)}
+                      className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
+                    >
+                      {provinces.map((p, pIdx) => (
+                        <option key={`calc-prov-opt-${p}-${pIdx}`} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600">انتخاب شهرستان:</label>
+                    <select
+                      value={currentProvinceCities.includes(city) ? city : (currentProvinceCities[0] || city)}
+                      onChange={(e) => handleSelectCity(e.target.value, province)}
+                      className="w-full bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-hidden cursor-pointer shadow-2xs"
+                    >
+                      {currentProvinceCities.map((c, cIdx) => (
+                        <option key={`calc-city-opt-${c}-${cIdx}`} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick City Selector Chips */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-black text-slate-600">انتخاب سریع شهرهای پرمتقاضی:</span>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                    {quickCities.map((qc, qcIdx) => {
+                      const isSelected = city === qc.name;
+                      return (
+                        <button
+                          key={`qc-${qc.name}-${qcIdx}`}
+                          type="button"
+                          onClick={() => {
+                            handleSelectCity(qc.name, qc.prov);
+                          }}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-black transition-all cursor-pointer border ${
+                            isSelected 
+                              ? "bg-white text-emerald-800 border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20" 
+                              : "bg-white text-slate-700 hover:bg-slate-100/60 border-slate-200"
+                          }`}
+                        >
+                          {qc.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Live Calculator Results Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-5 space-y-2 shadow-sm">
+              {/* Live Calculator 4 Results Grid - Pure Glossy White */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+                {/* Card 1: Easy Start */}
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-5 space-y-2 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold opacity-90">شروع آسان (ورود)</span>
-                    <Package size={20} className="text-emerald-100" />
+                    <span className="text-xs font-bold text-slate-500">شروع آسان (ورود)</span>
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 text-emerald-600 border border-slate-200 flex items-center justify-center">
+                      <Package size={16} />
+                    </div>
                   </div>
-                  <h4 className="text-lg sm:text-xl font-black font-mono">
+                  <h4 className="text-lg sm:text-xl font-black font-mono text-slate-900">
                     {cityTierData.starterMinCartons}
                   </h4>
-                  <p className="text-[10px] text-emerald-100 font-bold">
-                    حداقل سفارش شروع عاملیت ({cityTierData.initialMinOrderFormatted})
+                  <p className="text-[11px] text-emerald-700 font-bold bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 inline-block">
+                    حداقل سفارش شروع: {cityTierData.initialMinOrderFormatted}
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-slate-800 to-slate-950 text-white rounded-2xl p-5 space-y-2 shadow-sm">
+                {/* Card 2: Monthly Established Volume */}
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-5 space-y-2 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold opacity-90">توزیع ماهانه تثبیت</span>
-                    <TrendingUp size={20} className="text-slate-200" />
+                    <span className="text-xs font-bold text-slate-500">ظرفیت تثبیت ماهانه</span>
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 text-emerald-600 border border-slate-200 flex items-center justify-center">
+                      <TrendingUp size={16} />
+                    </div>
                   </div>
-                  <h4 className="text-lg sm:text-xl font-black font-mono">
+                  <h4 className="text-lg sm:text-xl font-black font-mono text-slate-900">
                     {cityTierData.monthlyCartons}
                   </h4>
-                  <p className="text-[10px] text-slate-300 font-bold">
-                    ظرفیت تأمین پیوسته ماهانه در فاز دوم
+                  <p className="text-[11px] text-slate-600 font-bold bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 inline-block">
+                    ظرفیت تأمین پیوسته ماهانه
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-600 to-amber-700 text-white rounded-2xl p-5 space-y-2 shadow-sm">
+                {/* Card 3: Progressive Quota Ceiling */}
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-5 space-y-2 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold opacity-90">سقف سهمیه پلکانی</span>
-                    <Coins size={20} className="text-emerald-100" />
+                    <span className="text-xs font-bold text-slate-500">سقف سهمیه پلکانی</span>
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 text-emerald-600 border border-slate-200 flex items-center justify-center">
+                      <Coins size={16} />
+                    </div>
                   </div>
-                  <h4 className="text-lg sm:text-xl font-black font-mono">
+                  <h4 className="text-lg sm:text-xl font-black font-mono text-slate-900">
                     {cityTierData.monthlyQuotaCeilingFormatted}
                   </h4>
-                  <p className="text-[10px] text-emerald-100 font-bold">
-                    سقف خرید ماهانه با نرخ مصوب مستقیم کارخانه
+                  <p className="text-[11px] text-emerald-700 font-bold bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 inline-block">
+                    سقف خرید با نرخ مستقیم کارخانه
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-teal-700 to-slate-800 text-white rounded-2xl p-5 space-y-2 shadow-sm">
+                {/* Card 4: Initial Guarantee */}
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-5 space-y-2 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold opacity-90">ضمانت صیادی اولیه</span>
-                    <ShieldCheck size={20} className="text-teal-200" />
+                    <span className="text-xs font-bold text-slate-500">ضمانت صیادی تسهیل‌شده</span>
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 text-emerald-600 border border-slate-200 flex items-center justify-center">
+                      <ShieldCheck size={16} />
+                    </div>
                   </div>
-                  <h4 className="text-base sm:text-lg font-black font-mono">
+                  <h4 className="text-base sm:text-lg font-black font-mono text-slate-900">
                     {cityTierData.guaranteeLimitFormatted}
                   </h4>
-                  <p className="text-[10px] text-teal-200 font-bold">
-                    تسهیلات چکی پس از ثبت اولین دوره سفارش
+                  <p className="text-[11px] text-slate-600 font-bold bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 inline-block">
+                    تسهیلات چکی بعد از ثبت دوره اول
                   </p>
                 </div>
               </div>
 
-              {/* Demographic Tier Breakdown Comparison Table */}
+              {/* Interactive Financial Simulation Slider Card - Pure Glossy White */}
+              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 space-y-5 shadow-xs relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Sliders className="text-emerald-600" size={18} />
+                      <span>شبیه‌ساز زنده سود، گردش مالی و ضمانت برای {cityTierData.cityName}</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 font-bold mt-1">
+                      تعداد کارتن مورد تقاضا در ماه را تغییر دهید تا حاشیه سود، حجم مالی و ضمانت مورد نیاز زنده محاسبه شوند.
+                    </p>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-emerald-700 font-mono">
+                    رتبه عاملیت: {simulationResult.tierRank}
+                  </div>
+                </div>
+
+                {/* Carton Slider */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-xs font-black">
+                    <span className="text-slate-700">تعداد کارتن انتخابی در ماه:</span>
+                    <span className="font-mono text-base text-emerald-700 bg-slate-50 px-3.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+                      {simulatedCartons.toLocaleString('fa-IR')} کارتن
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={15}
+                    max={1000}
+                    step={5}
+                    value={simulatedCartons}
+                    onChange={(e) => setSimulatedCartons(Number(e.target.value))}
+                    className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 font-bold">
+                    <span>حداقل شروع: ۱۵ کارتن</span>
+                    <span>توزیع محلی: ۱۰۰ کارتن</span>
+                    <span>پخش عمده: ۳۰۰ کارتن</span>
+                    <span>نمایندگی کلان: ۱۰۰۰ کارتن</span>
+                  </div>
+                </div>
+
+                {/* Simulation Outputs Grid in Glossy White */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                  <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500">حجم مالی ماهانه سفارشات:</span>
+                    <div className="font-mono text-sm sm:text-base font-black text-slate-900">
+                      {simulationResult.estimatedMonthlyRevenueFormatted}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500">سود خالص ماهانه نماینده:</span>
+                    <div className="font-mono text-sm sm:text-base font-black text-emerald-700">
+                      {simulationResult.estimatedMonthlyProfitFormatted}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500">درصد حاشیه سود ناخالص:</span>
+                    <div className="font-mono text-sm sm:text-base font-black text-slate-900">
+                      {simulationResult.profitMarginPercent}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500">سقف ضمانت صیادی پیشنهادی:</span>
+                    <div className="font-mono text-sm sm:text-base font-black text-slate-900">
+                      {simulationResult.requiredGuaranteeFormatted}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Demographic Tier Breakdown Comparison Table - Glossy White */}
               <div className="space-y-3 pt-4 border-t border-slate-100">
                 <h3 className="text-sm font-black text-slate-900">جدول رتبه‌بندی جمعیتی شهرها، تعداد کارتن و سقف‌های مصوب</h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs border border-slate-200 rounded-xl overflow-hidden">
-                    <thead className="bg-slate-100 text-slate-700 font-black">
+                  <table className="w-full text-right text-xs border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                    <thead className="bg-slate-50 text-slate-700 font-black border-b border-slate-200">
                       <tr>
-                        <th className="p-3">رده جمعیتی</th>
-                        <th className="p-3">نمونه شهرها</th>
-                        <th className="p-3">شروع آسان اولیه</th>
-                        <th className="p-3">ظرفیت تثبیت ماهانه</th>
-                        <th className="p-3">سقف سهمیه پلکانی</th>
-                        <th className="p-3">ضمانت صیادی</th>
+                        <th className="p-3.5">رده جمعیتی</th>
+                        <th className="p-3.5">نمونه شهرها</th>
+                        <th className="p-3.5">شروع آسان اولیه</th>
+                        <th className="p-3.5">ظرفیت تثبیت ماهانه</th>
+                        <th className="p-3.5">سقف سهمیه پلکانی</th>
+                        <th className="p-3.5">ضمانت صیادی</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-bold text-slate-600">
-                      <tr className={cityTierData.tier === 1 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
-                        <td className="p-3">سطح ۱: کلان‌شهرهای بالای ۱.۵ میلیون</td>
-                        <td className="p-3">تهران، مشهد، اصفهان، کرج، شیراز، تبریز، قم، اهواز</td>
-                        <td className="p-3 font-mono text-emerald-700 font-black">۳۰ تا ۶۰ کارتن (۳۰-۶۰ م)</td>
-                        <td className="p-3 font-mono">۱۲۰ تا ۲۵۰ کارتن</td>
-                        <td className="p-3 font-mono">۴۰۰ تا ۶۵۰ میلیون</td>
-                        <td className="p-3 font-mono">۱۰۰ تا ۱۵۰ میلیون</td>
+                    <tbody className="divide-y divide-slate-100 font-bold text-slate-600 bg-white">
+                      <tr className={cityTierData.tier === 1 ? "bg-emerald-50/60 text-slate-900 font-black border-r-4 border-r-emerald-600" : "hover:bg-slate-50/40"}>
+                        <td className="p-3.5">سطح ۱: کلان‌شهرهای بالای ۱.۵ میلیون</td>
+                        <td className="p-3.5">تهران، مشهد، اصفهان، کرج، شیراز، تبریز، قم، اهواز</td>
+                        <td className="p-3.5 font-mono text-emerald-700 font-black">۳۰ تا ۶۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۱۲۰ تا ۲۵۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۴۰۰ تا ۶۵۰ میلیون</td>
+                        <td className="p-3.5 font-mono">۱۰۰ تا ۱۵۰ میلیون</td>
                       </tr>
-                      <tr className={cityTierData.tier === 2 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
-                        <td className="p-3">سطح ۲: مراکز استان پرجمعیت (۳۵۰ هزار تا ۱.۲ م)</td>
-                        <td className="p-3">کرمانشاه، ارومیه، رشت، زاهدان، همدان، کرمان، یزد، بندرعباس، اراک...</td>
-                        <td className="p-3 font-mono text-emerald-700 font-black">۲۵ تا ۵۰ کارتن (۲۵-۵۰ م)</td>
-                        <td className="p-3 font-mono">۸۰ تا ۱۵۰ کارتن</td>
-                        <td className="p-3 font-mono">۳۰۰ تا ۴۵۰ میلیون</td>
-                        <td className="p-3 font-mono">۷۰ تا ۱۰۰ میلیون</td>
+                      <tr className={cityTierData.tier === 2 ? "bg-emerald-50/60 text-slate-900 font-black border-r-4 border-r-emerald-600" : "hover:bg-slate-50/40"}>
+                        <td className="p-3.5">سطح ۲: مراکز استان پرجمعیت (۳۵۰ هزار تا ۱.۲ م)</td>
+                        <td className="p-3.5">کرمانشاه، ارومیه، رشت، زاهدان، همدان، کرمان، یزد، بندرعباس، اراک...</td>
+                        <td className="p-3.5 font-mono text-emerald-700 font-black">۲۵ تا ۵۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۸۰ تا ۱۵۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۳۰۰ تا ۴۵۰ میلیون</td>
+                        <td className="p-3.5 font-mono">۷۰ تا ۱۰۰ میلیون</td>
                       </tr>
-                      <tr className={cityTierData.tier === 3 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
-                        <td className="p-3">سطح ۳: شهرهای متوسط و صنعتی (۱۰۰ تا ۳۵۰ هزار)</td>
-                        <td className="p-3">کاشان، دزفول، بابل، آمل، ساوه، سیرجان، مراغه، رفسنجان، ملایر...</td>
-                        <td className="p-3 font-mono text-emerald-700 font-black">۲۰ تا ۴۰ کارتن (۲۰-۴۰ م)</td>
-                        <td className="p-3 font-mono">۵۰ تا ۱۰۰ کارتن</td>
-                        <td className="p-3 font-mono">۱۸۰ تا ۲۸۰ میلیون</td>
-                        <td className="p-3 font-mono">۴۰ تا ۷۰ میلیون</td>
+                      <tr className={cityTierData.tier === 3 ? "bg-emerald-50/60 text-slate-900 font-black border-r-4 border-r-emerald-600" : "hover:bg-slate-50/40"}>
+                        <td className="p-3.5">سطح ۳: شهرهای متوسط و صنعتی (۱۰۰ تا ۳۵۰ هزار)</td>
+                        <td className="p-3.5">کاشان، دزفول، بابل، آمل، ساوه، سیرجان، مراغه، رفسنجان، ملایر، قوچان...</td>
+                        <td className="p-3.5 font-mono text-emerald-700 font-black">۲۰ تا ۴۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۵۰ تا ۱۰۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۱۸۰ تا ۲۸۰ میلیون</td>
+                        <td className="p-3.5 font-mono">۴۰ تا ۷۰ میلیون</td>
                       </tr>
-                      <tr className={cityTierData.tier === 4 ? "bg-emerald-50/80 text-slate-900 font-black" : ""}>
-                        <td className="p-3">سطح ۴: شهرستان‌ها و توزیع منطقه‌ای (زیر ۱۰۰ هزار)</td>
-                        <td className="p-3">سایر شهرستان‌ها و مناطق تابعه استانی</td>
-                        <td className="p-3 font-mono text-emerald-700 font-black">۱۵ تا ۳۰ کارتن (۱۵-۳۰ م)</td>
-                        <td className="p-3 font-mono">۳۰ تا ۶۰ کارتن</td>
-                        <td className="p-3 font-mono">۱۰۰ تا ۱۶۰ میلیون</td>
-                        <td className="p-3 font-mono">۲۵ تا ۴۰ میلیون</td>
+                      <tr className={cityTierData.tier === 4 ? "bg-emerald-50/60 text-slate-900 font-black border-r-4 border-r-emerald-600" : "hover:bg-slate-50/40"}>
+                        <td className="p-3.5">سطح ۴: شهرستان‌ها و توزیع منطقه‌ای (زیر ۱۰۰ هزار)</td>
+                        <td className="p-3.5">سایر شهرستان‌ها و مناطق تابعه استانی</td>
+                        <td className="p-3.5 font-mono text-emerald-700 font-black">۱۵ تا ۳۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۳۰ تا ۶۰ کارتن</td>
+                        <td className="p-3.5 font-mono">۱۰۰ تا ۱۶۰ میلیون</td>
+                        <td className="p-3.5 font-mono">۲۵ تا ۴۰ میلیون</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1160,7 +1492,7 @@ export default function DealershipRequestView({
                   onClick={() => setActiveTab('form')}
                   className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
                 >
-                  <span>ثبت درخواست برای {city}</span>
+                  <span>ثبت درخواست نمایندگی برای {city}</span>
                   <ArrowLeft size={14} />
                 </button>
               </div>
@@ -1168,6 +1500,7 @@ export default function DealershipRequestView({
           </motion.div>
         )}
 
+        {/* Benefits Tab - Pure Glossy White */}
         {activeTab === 'benefits' && (
           <motion.div
             key="benefits"
@@ -1177,8 +1510,9 @@ export default function DealershipRequestView({
             className="space-y-6"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 text-emerald-600 flex items-center justify-center font-black">
                   <DollarSign size={24} />
                 </div>
                 <h3 className="text-sm font-black text-slate-900">سود تضمین‌شده ۱۸٪ تا ۳۲٪</h3>
@@ -1187,8 +1521,9 @@ export default function DealershipRequestView({
                 </p>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 text-emerald-600 flex items-center justify-center font-black">
                   <Truck size={24} />
                 </div>
                 <h3 className="text-sm font-black text-slate-900">لجستیک و باربری بدون دغدغه</h3>
@@ -1197,8 +1532,9 @@ export default function DealershipRequestView({
                 </p>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 text-emerald-600 flex items-center justify-center font-black">
                   <ShieldCheck size={24} />
                 </div>
                 <h3 className="text-sm font-black text-slate-900">حمایت بازاریابی و مشتریان منطقه‌ای</h3>
@@ -1210,6 +1546,7 @@ export default function DealershipRequestView({
           </motion.div>
         )}
 
+        {/* Tracking Tab - Pure Glossy White */}
         {activeTab === 'tracking' && (
           <motion.div
             key="tracking"
@@ -1218,7 +1555,8 @@ export default function DealershipRequestView({
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
           >
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4 shadow-xs">
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 space-y-4 shadow-xs relative overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-500" />
               <h3 className="text-base font-black text-slate-900">پیگیری پرونده‌های ثبت‌شده</h3>
               {(() => {
                 const requests = JSON.parse(localStorage.getItem("dastavval_agency_requests") || "[]");
@@ -1233,11 +1571,11 @@ export default function DealershipRequestView({
                 return (
                   <div className="space-y-3">
                     {requests.map((r: any, idx: number) => (
-                      <div key={`req-trace-${idx}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div key={`req-trace-${idx}`} className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-black text-emerald-700 text-sm">{r.code}</span>
-                            <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-md">{r.status}</span>
+                            <span className="text-[10px] font-bold bg-slate-50 text-emerald-700 border border-slate-200 px-2 py-0.5 rounded-md">{r.status}</span>
                           </div>
                           <p className="text-xs font-bold text-slate-700">متقاضی: {r.fullName} ({r.companyName || 'شخصی'}) - منطقه: {r.province} ({r.city})</p>
                           {r.monthlyQuotaCeilingFormatted && (
@@ -1255,7 +1593,7 @@ export default function DealershipRequestView({
         )}
       </AnimatePresence>
 
-      {/* CREATIVE FLOATING TOAST NOTIFICATION */}
+      {/* CREATIVE FLOATING TOAST NOTIFICATION - Pure Glossy White */}
       <AnimatePresence>
         {showToast && trackingCode && (
           <motion.div
@@ -1265,24 +1603,24 @@ export default function DealershipRequestView({
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[92%] max-w-lg"
           >
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900/95 backdrop-blur-xl text-white p-4 sm:p-5 border border-emerald-500/40 shadow-2xl shadow-emerald-950/40">
+            <div className="relative overflow-hidden rounded-3xl bg-white/98 backdrop-blur-xl text-slate-900 p-4 sm:p-5 border-2 border-emerald-400 shadow-2xl shadow-slate-300/50">
               {/* Top Accent Gradient Glow */}
               <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-500 via-teal-400 to-emerald-600" />
 
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-200 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                     <Sparkles size={20} className="animate-pulse" />
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-sm font-black text-white">درخواست نمایندگی با موفقیت ارسال شد</h4>
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                      <h4 className="text-sm font-black text-slate-900">درخواست نمایندگی با موفقیت ارسال شد</h4>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-50 text-emerald-700 border border-slate-200">
                         پرونده جدید
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300 font-bold leading-relaxed">
-                      پرونده منطقه <span className="text-emerald-300 font-black">{province} ({city})</span> ثبت گردید و حساب کاربری شما فعال شد.
+                    <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                      پرونده منطقه <span className="text-emerald-700 font-black">{province} ({city})</span> ثبت گردید و حساب کاربری شما فعال شد.
                     </p>
                   </div>
                 </div>
@@ -1290,25 +1628,25 @@ export default function DealershipRequestView({
                 <button
                   type="button"
                   onClick={() => setShowToast(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {/* Interactive Tracking Code & Action Strip */}
-              <div className="mt-3.5 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
-                  <span className="text-[11px] text-slate-400">کد رهگیری:</span>
-                  <span className="font-mono font-black text-emerald-400 text-xs" dir="ltr">{trackingCode}</span>
+              <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                  <span className="text-[11px] text-slate-500">کد رهگیری:</span>
+                  <span className="font-mono font-black text-emerald-700 text-xs" dir="ltr">{trackingCode}</span>
                   <button
                     type="button"
                     onClick={handleCopyTrackingCode}
-                    className="mr-auto px-2 py-0.5 rounded-md bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer border border-emerald-500/30"
+                    className="mr-auto px-2 py-0.5 rounded-md bg-white hover:bg-slate-100 text-emerald-700 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer border border-slate-200"
                   >
                     {toastCopied ? (
                       <>
-                        <CheckCheck size={11} className="text-emerald-300" />
+                        <CheckCheck size={11} className="text-emerald-700" />
                         <span>کپی شد!</span>
                       </>
                     ) : (
@@ -1326,7 +1664,7 @@ export default function DealershipRequestView({
                     setShowToast(false);
                     window.dispatchEvent(new CustomEvent('dastavval_open_user_panel'));
                   }}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/30 cursor-pointer"
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
                 >
                   <span>مشاهده در پنل</span>
                   <ExternalLink size={12} />
@@ -1334,7 +1672,7 @@ export default function DealershipRequestView({
               </div>
 
               {/* Progress countdown bar */}
-              <div className="absolute bottom-0 inset-x-0 h-1 bg-slate-800">
+              <div className="absolute bottom-0 inset-x-0 h-1 bg-slate-100">
                 <div
                   className="h-full bg-emerald-500 transition-all duration-100 ease-linear"
                   style={{ width: `${toastProgress}%` }}

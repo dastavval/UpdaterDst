@@ -6,6 +6,7 @@ import { getDisplayImageUrl, cleanUnitName } from "../lib/image-utils";
 import { ProductImage } from "./ProductImage";
 import { HealthBadgesStrip, HealthCertModal, HealthAppleLogo } from "./HealthAppleBadge";
 import { getProductRolePricing, toPersianDigits } from "../lib/pricing";
+import { toEnglishNum } from "../utils/persian-utils";
 
 interface ProductCardProps {
   product: Product;
@@ -21,7 +22,7 @@ interface ProductCardProps {
 }
 
 const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, onRequireAuth, onCompare, isComparing, onViewDetails, index = 0 }: ProductCardProps) => {
-  const minCartonsLimit = Math.max(5, product.min_order_cartons || 5);
+  const minCartonsLimit = Math.max(5, product.min_order_cartons || (product as any).minOrderCartons || 5);
   const [cartons, setCartons] = useState(minCartonsLimit);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -202,6 +203,8 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
     }, 900);
   };
 
+  const isOutOfStock = product.stock_quantity_cartons !== undefined && product.stock_quantity_cartons <= 0;
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -215,9 +218,9 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
       style={{ willChange: "transform, opacity" }}
       className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-shadow duration-300 group flex flex-col relative h-full overflow-hidden transform-gpu"
     >
-      {/* Top Accent Line for Featured */}
-      {product.isFeatured && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-emerald-600 to-amber-400 z-10" />
+      {/* Top Accent Line for Featured / Special */}
+      {(product.isFeatured || (product as any).isSpecial || (product as any).isFloorMarket) && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-emerald-500 z-20" />
       )}
 
       {/* Product Image Section */}
@@ -228,23 +231,38 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
         {/* Subtle Backdrop Glow */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.02)_0%,transparent_70%)] opacity-0 group-hover/img:opacity-100 transition-opacity duration-700" />
 
-        {/* High Margin Floating Indicator */}
-        {((product.consumer_price || product.price) - product.bulk_price) > 5000 && (
-           <div className="absolute top-2.5 right-2.5 z-[15]">
-             <motion.div 
-               animate={{ y: [0, -2, 0] }}
-               transition={{ repeat: Infinity, duration: 4 }}
-               className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-black flex items-center gap-1 shadow-lg shadow-emerald-600/10"
-             >
-               <TrendingUp size={10} />
-               سود ویژه
-             </motion.div>
-           </div>
-        )}
+        {/* Unified Top Overlay Badges Row (Prevents Overlapping) */}
+        <div className="absolute top-2 inset-x-2 z-20 flex items-center justify-between gap-1 pointer-events-none">
+          {/* Right Side: High Margin Indicator */}
+          <div className="pointer-events-auto shrink-0">
+            {((product.consumer_price || product.price) - product.bulk_price) > 5000 && (
+              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[9px] font-black flex items-center gap-1 shadow-xs border border-emerald-500">
+                <TrendingUp size={10} />
+                <span>سود ویژه</span>
+              </span>
+            )}
+          </div>
+
+          {/* Left Side: Floor Market or Special/Featured */}
+          <div className="pointer-events-auto shrink-0">
+            {((product as any).isFloorMarket || (product as any).isKafBazar) ? (
+              <span className="bg-gradient-to-r from-rose-600 to-red-600 text-white px-2 py-0.5 rounded-md text-[9px] font-black flex items-center gap-1 shadow-xs border border-rose-400">
+                <Zap size={10} className="fill-white text-white" />
+                <span>کف بازار 🔥</span>
+              </span>
+            ) : (((product as any).isSpecial || product.isFeatured || (product as any).discountPercent >= 15 || (product as any).discount_percent >= 15 || product.badge === 'ویژه' || product.badge === 'VIP' || product.badge === 'منتخب')) ? (
+              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[9px] font-black flex items-center gap-1 shadow-xs border border-emerald-500">
+                <Sparkles size={10} className="fill-white text-white" />
+                <span>ویژه 🌟</span>
+              </span>
+            ) : null}
+          </div>
+        </div>
 
         <ProductImage 
           src={product.image_url} 
           alt={product.name}
+          loading={index < 4 ? "eager" : "lazy"}
           className="w-full h-full object-contain p-2.5 transition-all duration-700 ease-out group-hover/img:scale-105"
         />
         
@@ -331,83 +349,106 @@ const ProductCard = memo(({ product, onAddToCart, userBadge, user, b2bConfig, on
             <div className="flex justify-between items-center pt-1 border-t border-slate-200/50">
               <div className="flex flex-col">
                 <span className="text-[7px] sm:text-[8px] font-bold text-slate-400">بسته‌بندی</span>
-                <span className="text-[8px] sm:text-[9px] font-black text-slate-600 truncate max-w-[50px] sm:max-w-none">
-                  {toPersianNum(product.carton_pack_count)} {cleanUnitName(product.unit)}
+                <span className="text-[8px] sm:text-[9px] font-black text-slate-600">
+                  {toPersianNum(cartons)} کارتن × {toPersianNum(product.carton_pack_count)} = {toPersianNum(cartons * product.carton_pack_count)} عدد
                 </span>
               </div>
               <div className="text-left">
                 <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 block">فاکتور کارتن</span>
-                <span className="text-[9px] sm:text-[10px] font-black text-indigo-900 font-mono">
-                  {toPersianNum(pricePerCarton.toLocaleString())} <span className="text-[7px]">ت</span>
+                <span className="text-[9px] sm:text-[10px] font-black text-indigo-900 font-mono whitespace-nowrap">
+                  {toPersianNum(pricePerCarton.toLocaleString())} <span className="text-[7px]">تومان</span>
                 </span>
               </div>
             </div>
           </div>
 
           {/* Quantity & CTA */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            <div className="flex items-center bg-white border border-slate-200 rounded-lg sm:rounded-xl p-0.5">
+          {isOutOfStock ? (
+            <div className="w-full h-8 sm:h-10 bg-rose-50 border border-rose-150 text-rose-800 rounded-xl font-black text-[10px] sm:text-xs flex items-center justify-center gap-1.5 shadow-3xs cursor-not-allowed">
+              <Package size={13} className="text-rose-500 shrink-0" />
+              <span>موقتـاً ناموجـود در کارخانـه</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="flex items-center bg-white border border-slate-200 rounded-lg sm:rounded-xl p-0.5">
+                <button 
+                  onClick={handleDecrement} 
+                  className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-20" 
+                  disabled={cartons <= minCartonsLimit}
+                >
+                  <Minus size={10} />
+                </button>
+                <input 
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  value={cartons}
+                  onChange={(e) => {
+                    const clean = toEnglishNum(e.target.value).replace(/[^0-9]/g, '');
+                    if (clean === '') {
+                      setCartons(minCartonsLimit);
+                    } else {
+                      setCartons(Math.max(minCartonsLimit, parseInt(clean, 10)));
+                    }
+                  }}
+                  className="w-8 sm:w-9 text-center text-[11px] sm:text-xs font-black font-mono text-slate-900 bg-transparent outline-none"
+                  title="تعداد کارتن (مستقیماً عدد وارد کنید)"
+                />
+                <button 
+                  onClick={handleIncrement} 
+                  className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                >
+                  <Plus size={10} />
+                </button>
+              </div>
+
               <button 
-                onClick={handleDecrement} 
-                className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer disabled:opacity-20" 
-                disabled={cartons <= minCartonsLimit}
+                onClick={handleAddWithFeedback}
+                className={`relative flex-1 h-7 sm:h-9 rounded-full font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 transition-all duration-250 active:scale-[0.93] hover:scale-[1.01] cursor-pointer ${
+                  isAddedFeedback
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow-md active:shadow-xs"
+                }`}
               >
-                <Minus size={10} />
-              </button>
-              <span className="w-5 sm:w-6 text-center text-[10px] sm:text-[11px] font-black font-mono text-slate-700">{toPersianNum(cartons)}</span>
-              <button 
-                onClick={handleIncrement} 
-                className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
-              >
-                <Plus size={10} />
+                {isAddedFeedback ? (
+                  <>
+                    <CheckCircle2 size={11} className="shrink-0 text-emerald-700" />
+                    <span className="tracking-wide">ثبت شد</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart size={11} className="shrink-0" />
+                    <span className="tracking-wide">سبد خرید</span>
+                  </>
+                )}
+
+                {/* Fly-To-Cart Particle Animation */}
+                <AnimatePresence>
+                  {flyingParticles.map((particle) => (
+                    <motion.div
+                      key={`fly-${particle.id}`}
+                      initial={{ opacity: 1, scale: 0.9, x: 0, y: 0 }}
+                      animate={{
+                        opacity: [1, 1, 0],
+                        scale: [1, 1.4, 0.4],
+                        x: [-10, -40, -110],
+                        y: [-10, -90, -180],
+                        rotate: [0, -20, -45]
+                      }}
+                      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute inset-0 pointer-events-none flex items-center justify-center z-50"
+                    >
+                      <div className="flex items-center justify-center gap-1 bg-emerald-600 text-white p-2 rounded-2xl shadow-xl border border-amber-300 ring-2 ring-emerald-400">
+                        <ShoppingCart size={14} className="fill-white animate-pulse" />
+                        <span className="text-[9px] font-black font-mono">+{cartons}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </button>
             </div>
-
-            <button 
-              onClick={handleAddWithFeedback}
-              className={`relative flex-1 h-7 sm:h-9 rounded-full font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 transition-all duration-250 active:scale-[0.93] hover:scale-[1.01] cursor-pointer ${
-                isAddedFeedback
-                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow-md active:shadow-xs"
-              }`}
-            >
-              {isAddedFeedback ? (
-                <>
-                  <CheckCircle2 size={11} className="shrink-0 text-emerald-700" />
-                  <span className="tracking-wide">ثبت شد</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingCart size={11} className="shrink-0" />
-                  <span className="tracking-wide">سبد خرید</span>
-                </>
-              )}
-
-              {/* Fly-To-Cart Particle Animation */}
-              <AnimatePresence>
-                {flyingParticles.map((particle) => (
-                  <motion.div
-                    key={`fly-${particle.id}`}
-                    initial={{ opacity: 1, scale: 0.9, x: 0, y: 0 }}
-                    animate={{
-                      opacity: [1, 1, 0],
-                      scale: [1, 1.4, 0.4],
-                      x: [-10, -40, -110],
-                      y: [-10, -90, -180],
-                      rotate: [0, -20, -45]
-                    }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute inset-0 pointer-events-none flex items-center justify-center z-50"
-                  >
-                    <div className="flex items-center justify-center gap-1 bg-emerald-600 text-white p-2 rounded-2xl shadow-xl border border-amber-300 ring-2 ring-emerald-400">
-                      <ShoppingCart size={14} className="fill-white animate-pulse" />
-                      <span className="text-[9px] font-black font-mono">+{cartons}</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </button>
-          </div>
+          )}
         </div>
       </div>
 

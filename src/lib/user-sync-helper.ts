@@ -20,6 +20,9 @@ export interface ManagedUser {
   creditLimit?: number;
   notes?: string;
   createdAt?: string;
+  updatedAt?: string;
+  lastActiveAt?: string;
+  bumpedAt?: string;
   lastOrderDate?: string;
   source?: string;
   avatarUrl?: string;

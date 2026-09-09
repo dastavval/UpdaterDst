@@ -9,7 +9,9 @@ interface NewsSectionProps {
 }
 
 export default function NewsSection({ news, theme }: NewsSectionProps) {
-  if (!news || news.length === 0) {
+  const publishedNews = (news || []).filter((item: any) => item.published !== false && item.status !== 'draft');
+
+  if (!publishedNews || publishedNews.length === 0) {
     return (
       <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-3xl space-y-2">
         <Newspaper className="mx-auto text-slate-400" size={28} />
@@ -36,7 +38,7 @@ export default function NewsSection({ news, theme }: NewsSectionProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {news.map((item, idx) => (
+        {publishedNews.map((item, idx) => (
           <motion.div
             key={`news-sec-${item.id || idx}-${idx}`}
             initial={{ opacity: 0, y: 10 }}

@@ -1,6 +1,6 @@
 {
   "provider": "gemini",
-  "apiKey": "sk-nu9DekGooajPvsxcqppf5Es4MnCBpiSaYepvYYWIMQ2bE6tq",
+  "apiKey": "sk-SrXqovvUclaVyKecixYDrkefRP7aUgQAZlZjDIy099R663oT",
   "endpointUrl": "https://api.gapgpt.ir/v1",
   "model": "gpt-4o-mini"
 }

@@ -80,7 +80,7 @@ export default function PwaInstallBanner({ appName = "دست اول", logoUrl, o
         initial={{ y: 100, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 100, opacity: 0, scale: 0.95 }}
-        className="fixed bottom-22 left-3 right-3 sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md z-[9999] bg-white/95 text-slate-900 p-4 rounded-3xl border border-emerald-500/30 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 text-right"
+        className="lg:hidden fixed bottom-22 left-3 right-3 sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md z-[9999] bg-white/95 text-slate-900 p-4 rounded-3xl border border-emerald-500/30 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 text-right"
         dir="rtl"
       >
         <div className="flex items-center gap-3">

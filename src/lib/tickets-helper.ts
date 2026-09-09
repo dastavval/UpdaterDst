@@ -51,8 +51,23 @@ function filterOutMockTickets(list: SupportTicket[]): SupportTicket[] {
 }
 
 export async function fetchAllTickets(): Promise<SupportTicket[]> {
+  // 1. Fetch from server API /api/tickets
   try {
-    // 1. Check Firestore
+    const res = await fetch("/api/tickets");
+    if (res.ok) {
+      const serverTickets = await res.json();
+      if (Array.isArray(serverTickets)) {
+        const cleaned = filterOutMockTickets(serverTickets);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        return cleaned;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not read tickets from /api/tickets server endpoint:", err);
+  }
+
+  // 2. Check Firestore fallback
+  try {
     const snap = await getDocs(collection(db, "tickets"));
     if (snap && snap.docs.length > 0) {
       const rawTickets: SupportTicket[] = snap.docs.map(d => {
@@ -86,7 +101,6 @@ export async function fetchAllTickets(): Promise<SupportTicket[]> {
       });
 
       const tickets = filterOutMockTickets(rawTickets);
-      // Save locally
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
       return tickets;
     }
@@ -94,7 +108,7 @@ export async function fetchAllTickets(): Promise<SupportTicket[]> {
     console.warn("Could not read tickets from Firestore, falling back to local vault:", err);
   }
 
-  // 2. Local fallback
+  // 3. Local fallback
   try {
     const local = localStorage.getItem(STORAGE_KEY);
     if (local) {
@@ -160,14 +174,23 @@ export async function createNewTicket(
     updatedAt: dateStr
   };
 
-  // 1. Save in Firestore if available
+  // 1. Post to Server /api/tickets for server and bucket persistence
   try {
-    await setDoc(doc(db, "tickets", trackingCode), newTicket);
+    await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTicket)
+    });
   } catch (err) {
-    console.warn("Error saving ticket to Firestore, saving to local vault:", err);
+    console.warn("Error saving ticket to server /api/tickets:", err);
   }
 
-  // 2. Save locally
+  // 2. Save in Firestore if available
+  try {
+    await setDoc(doc(db, "tickets", trackingCode), newTicket);
+  } catch (err) {}
+
+  // 3. Save locally
   try {
     const current = await fetchAllTickets();
     const updated = [newTicket, ...current.filter(t => t.id !== trackingCode)];
@@ -206,12 +229,19 @@ export async function addMessageToTicket(
     messages: [...ticket.messages, newMessage]
   };
 
+  // Server persistence
+  try {
+    await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedTicket)
+    });
+  } catch (err) {}
+
   // Firestore update
   try {
     await setDoc(doc(db, "tickets", ticketId), updatedTicket);
-  } catch (err) {
-    console.warn("Error updating ticket in Firestore:", err);
-  }
+  } catch (err) {}
 
   // Local update
   const updatedList = current.map(t => (t.id === ticketId ? updatedTicket : t));
@@ -238,10 +268,16 @@ export async function updateTicketStatusInStore(
   };
 
   try {
+    await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedTicket)
+    });
+  } catch (err) {}
+
+  try {
     await setDoc(doc(db, "tickets", ticketId), updatedTicket);
-  } catch (err) {
-    console.warn("Error updating ticket status in Firestore:", err);
-  }
+  } catch (err) {}
 
   const updatedList = current.map(t => (t.id === ticketId ? updatedTicket : t));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
@@ -251,12 +287,10 @@ export async function updateTicketStatusInStore(
 export async function deleteTicketFromStore(ticketId: string): Promise<void> {
   const current = await fetchAllTickets();
   const updatedList = current.filter(t => t.id !== ticketId && t.trackingCode !== ticketId);
-  
+
   try {
     await deleteDoc(doc(db, "tickets", ticketId));
-  } catch (err) {
-    console.warn("Error deleting ticket in Firestore:", err);
-  }
+  } catch (err) {}
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
   window.dispatchEvent(new CustomEvent("dastavval-tickets-updated", { detail: updatedList }));

@@ -296,23 +296,23 @@ export default function WeeklySalesSchedule({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-1.5 rounded-full text-xs font-black shadow-xs">
                   <Flame size={15} className="text-rose-500 fill-rose-100 animate-pulse" />
-                  <span>برنامه فروش و حراج هفتگی کارخانجات</span>
+                  <span>سبد خرید گروهی (جشنواره ویژه مهر ماه)</span>
                 </div>
 
                 {discountConfig.globalDiscountActive && (
                   <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-900 px-3 py-1 rounded-full text-xs font-black shadow-xs">
                     <Sparkles size={13} className="text-amber-600" />
-                    <span>٪{toPersianDigits(discountConfig.globalDiscountPercent)} تخفیف گروهی فعال</span>
+                    <span>٪{toPersianDigits(discountConfig.globalDiscountPercent)} تخفیف سبد گروهی فعال</span>
                   </div>
                 )}
               </div>
 
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 leading-snug">
-                تخفیف‌های سهمیه‌ای و <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-600">حراج هفتگی کارخانجات</span>
+                سبد خرید گروهی و <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-600">سبد ویژه مهر ماه با تخفیف تناژ</span>
               </h1>
               
               <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed max-w-2xl">
-                کالاهای منتخب کارخانجات با تخفیف‌های ویژه کف کارخانه و سهمیه محدود جهت توزیع مستقیم به بنکداران، پخش‌ها و فروشگاه‌های سراسر کشور.
+                مشارکت در سبدهای خرید گروهی بنکداران و عمده‌فروشان سراسر کشور با بالاترین درصد تخفیف کارخانه‌ای، سهمیه ویژه مهر ماه و ارسال مستقیم.
               </p>
 
               {/* Badges of Platform Guarantee */}

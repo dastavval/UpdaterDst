@@ -43,6 +43,7 @@ export default function AdminArticles({
   const [newsImage, setNewsImage] = useState("");
   const [newsCategory, setNewsCategory] = useState("تنظیم بازار");
   const [newsSource, setNewsSource] = useState("روابط عمومی دست اول");
+  const [newsPublished, setNewsPublished] = useState<boolean>(true);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // SEO Pillar & Keywords States
@@ -52,6 +53,25 @@ export default function AdminArticles({
   const [newsMetaTitle, setNewsMetaTitle] = useState("");
   const [newsMetaDescription, setNewsMetaDescription] = useState("");
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [isGeneratingAiImage, setIsGeneratingAiImage] = useState(false);
+
+  const handleGenerateAiArticleImage = () => {
+    setIsGeneratingAiImage(true);
+    try {
+      const keyword = newsFocusKeyword || newsTitle || "خرید عمده مواد غذایی کارخانه";
+      const cleanKeyword = keyword.replace(/[^\u0600-\u06FF\s0-9a-zA-Z]/g, ' ').trim();
+      const promptText = `Iranian wholesale B2B food factory distribution, ${cleanKeyword}, high resolution photo`;
+      const aiImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=1200&height=630&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+      
+      setNewsImage(aiImageUrl);
+      setSuccessMsg("🤖 تصویر اختصاصی با هوش مصنوعی برای مقاله تولید شد.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (e: any) {
+      setErrorMsg("خطا در ساخت تصویر با هوش مصنوعی.");
+    } finally {
+      setIsGeneratingAiImage(false);
+    }
+  };
 
   const handleAutoGenerateSeoKeywords = async () => {
     if (!newsTitle) {
@@ -135,6 +155,31 @@ export default function AdminArticles({
   const [gapGptStatusMsg, setGapGptStatusMsg] = useState<string | null>(null);
   const [isGeneratingWithGapGpt, setIsGeneratingWithGapGpt] = useState(false);
   const [gapGptTone, setGapGptTone] = useState<string>('رسمی و بنکداری');
+
+  const handleProductChange = (prodId: string) => {
+    setGapGptProductId(prodId);
+    if (!prodId) {
+      setGapGptFactoryId("");
+      return;
+    }
+    const selectedProd = products.find(p => String(p.id) === String(prodId));
+    if (selectedProd) {
+      const factories = b2bConfig?.factories || [];
+      const matchedFactory = factories.find((f: any) => 
+        String(f.id) === String(selectedProd.factoryId) || 
+        String(f.id) === String(selectedProd.factory_id) || 
+        String(f.name).toLowerCase().includes(String(selectedProd.brand || '').toLowerCase()) ||
+        String(selectedProd.brand || '').toLowerCase().includes(String(f.name).toLowerCase()) ||
+        String(f.name).toLowerCase().includes(String(selectedProd.sellerName || '').toLowerCase())
+      );
+      if (matchedFactory) {
+        setGapGptFactoryId(matchedFactory.id);
+        setGapGptStatusMsg(`کارخانه مرتبط شناسایی و قفل شد: ${matchedFactory.name}`);
+      } else {
+        setGapGptStatusMsg(`توجه: کارخانه‌ای مرتبط با برند "${selectedProd.brand || 'نامشخص'}" پیدا نشد. لطفاً دستی کارخانه مرتبط را انتخاب کنید.`);
+      }
+    }
+  };
 
   // GapGPT Settings Modal & Config
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -280,6 +325,8 @@ export default function AdminArticles({
         metaDescription: newsMetaDescription || newsSummary,
         imageUrl: newsImage || "https://images.unsplash.com/photo-1504711432869-efd5973e8a48?auto=format&fit=crop&q=80&w=1000",
         source: newsSource,
+        published: newsPublished,
+        status: newsPublished ? "published" : "draft",
         date: new Date().toLocaleDateString('fa-IR'),
         createdAt: new Date().toISOString()
       };
@@ -318,7 +365,7 @@ export default function AdminArticles({
       }
       localStorage.setItem("dastavval_news_articles", JSON.stringify(currentArticles));
 
-      setSuccessMsg(editingNewsId ? "خبر با موفقیت بروزرسانی شد." : "خبر جدید با موفقیت منتشر شد.");
+      setSuccessMsg(editingNewsId ? "خبر با موفقیت بروزرسانی شد." : (newsPublished ? "خبر جدید با موفقیت منتشر شد." : "مقاله به صورت پیش‌نویس ذخیره گردید."));
       setIsAddingNews(false);
       setEditingNewsId(null);
       setNewsTitle("");
@@ -329,11 +376,50 @@ export default function AdminArticles({
       setNewsSecondaryKeywords("");
       setNewsMetaTitle("");
       setNewsMetaDescription("");
+      setNewsPublished(true);
       
       if (onUpdateArticles) await onUpdateArticles();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       setErrorMsg("خطا در انتشار خبر: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveArticle = async (articleToApprove: any) => {
+    setLoading(true);
+    try {
+      const updated = {
+        ...articleToApprove,
+        published: true,
+        status: "published"
+      };
+
+      try {
+        if (articleToApprove.id) {
+          await updateDoc(doc(db, "news", articleToApprove.id), { published: true, status: "published" });
+        }
+      } catch (e) {}
+
+      try {
+        await fetch("/api/articles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updated)
+        });
+      } catch (e) {}
+
+      const saved = localStorage.getItem("dastavval_news_articles");
+      let currentArticles: any[] = saved !== null ? JSON.parse(saved) : (articles || []);
+      currentArticles = currentArticles.map(a => a.id === articleToApprove.id ? updated : a);
+      localStorage.setItem("dastavval_news_articles", JSON.stringify(currentArticles));
+
+      setSuccessMsg("✅ مقاله با موفقیت بررسی و در مجله عمومی منتشر گردید.");
+      if (onUpdateArticles) await onUpdateArticles();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("خطا در تایید مقاله: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -353,6 +439,7 @@ export default function AdminArticles({
     setNewsMetaDescription(article.metaDescription || article.summary || "");
     setNewsImage(article.imageUrl || "");
     setNewsSource(article.source || "مدیریت سامانه");
+    setNewsPublished(article.published !== false && article.status !== 'draft');
   };
 
   const handleDeleteNews = async (id: string, index?: number) => {
@@ -394,7 +481,7 @@ export default function AdminArticles({
 
   const handleGenerateSingleGapGptArticle = async () => {
     setIsGeneratingWithGapGpt(true);
-    setGapGptStatusMsg("در حال تولید و نگارش مقاله تخصصی با هوش مصنوعی GapGPT و لینک‌دهی سئو...");
+    setGapGptStatusMsg("در حال نگارش مقاله دقیق بر اساس اطلاعات واقعی دیتابیس با هوش مصنوعی GapGPT...");
     try {
       const res = await fetch("/api/ai/generate-article", {
         method: "POST",
@@ -402,6 +489,8 @@ export default function AdminArticles({
         body: JSON.stringify({
           topicType: gapGptTopicType,
           targetId: gapGptTopicType === 'product' ? gapGptProductId : (gapGptTopicType === 'factory' ? gapGptFactoryId : undefined),
+          productId: gapGptProductId,
+          factoryId: gapGptFactoryId,
           customPrompt: gapGptCustomPrompt,
           category: gapGptCategory,
           tone: gapGptTone
@@ -415,7 +504,12 @@ export default function AdminArticles({
         setNewsCategory(data.article.category || gapGptCategory);
         setNewsImage(data.article.imageUrl || "");
         setNewsSource(data.article.source || "تحریریه هوش مصنوعی GapGPT");
-        setGapGptStatusMsg("✅ مقاله هوشمند با موفقیت تولید گردید! اطلاعات فرم زیر تکمیل شد؛ می‌توانید بررسی و منتشر کنید.");
+        setNewsFocusKeyword(data.article.focusKeyword || "");
+        setNewsSecondaryKeywords(Array.isArray(data.article.secondaryKeywords) ? data.article.secondaryKeywords.join("، ") : "");
+        setNewsMetaTitle(data.article.metaTitle || "");
+        setNewsMetaDescription(data.article.metaDescription || "");
+        setNewsPublished(false); // REQUIRES ADMIN APPROVAL BEFORE PUBLISHING!
+        setGapGptStatusMsg("📝 پیش‌نویس مقاله با موفقیت تولید شد! اطلاعات در فرم زیر آماده است؛ لطفاً بررسی نموده و پس از تایید روی «ذخیره و انتشار مقاله» کلیک فرمایید.");
         setIsAddingNews(true);
         if (onUpdateArticles) await onUpdateArticles();
       } else {
@@ -568,7 +662,7 @@ export default function AdminArticles({
               <label className="block text-[11px] font-bold text-slate-300 mb-1.5">کالای مرتبط (جهت لینک‌دهی سئو):</label>
               <select
                 value={gapGptProductId}
-                onChange={(e) => setGapGptProductId(e.target.value)}
+                onChange={(e) => handleProductChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs font-bold text-white focus:border-amber-400 outline-none"
               >
                 <option value="">انتخاب خودکار توسط GapGPT</option>
@@ -702,26 +796,23 @@ export default function AdminArticles({
                         onChange={(e) => setAiProvider(e.target.value)}
                         className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        <option value="gapgpt">GapGPT ایران (بدون تحریم و ویژه فارسی)</option>
-                        <option value="gemini">Google Gemini AI</option>
-                        <option value="custom">سرور سفارشی OpenAI Compatible</option>
+                        <option value="gapgpt">موتور اختصاصی GapGPT (بدون تحریم، فوق‌سریع به فارسی)</option>
+                        <option value="custom">درگاه سفارشی GapGPT Pro</option>
                       </select>
                     </div>
 
                     {/* AI Model */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">مدل هوش مصنوعی (AI Model):</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">مدل هوش مصنوعی (GapGPT Model):</label>
                       <select
                         value={aiModel}
                         onChange={(e) => setAiModel(e.target.value)}
                         className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        <option value="gpt-4o-mini">gpt-4o-mini (سریع، کم‌هزینه و عالی برای مقالات B2B)</option>
-                        <option value="gpt-4o">gpt-4o (جامع‌ترین و عمیق‌ترین تحلیل سئو)</option>
-                        <option value="gemini-3.8-flash">gemini-3.8-flash (مدل پیش‌فرض و فوق‌العاده سریع گوگل)</option>
-                        <option value="gemini-3.6-flash">gemini-3.6-flash (مدل استاندارد و پایدار گوگل)</option>
-                        <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (بالاترین کیفیت استدلال و تحلیل عمیق)</option>
-                        <option value="gemini-3.7-flash">gemini-3.7-flash (مدل پیشرفته گوگل)</option>
+                        <option value="gpt-4o-mini">gpt-4o-mini (مدل هوشمند پیش‌فرض GapGPT - فوق‌سریع و دقیق)</option>
+                        <option value="gpt-4o">gpt-4o (جامع‌ترین تحلیل بازار بنکداری و تولید سئو)</option>
+                        <option value="gapgpt-4o">gapgpt-4o (مدل بومی هجین و تخصصی تجاری)</option>
+                        <option value="gpt-3.5-turbo">gpt-3.5-turbo (مدل اقتصادی و سبک)</option>
                       </select>
                     </div>
                   </div>
@@ -976,19 +1067,24 @@ export default function AdminArticles({
             </div>
 
             <div className="space-y-2 text-right">
-              <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">تصویر شاخص (آپلود فایل یا آدرس تصویر)</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-black text-slate-400 mr-2 uppercase tracking-widest">تصویر شاخص (آدرس لینک بیرونی، آپلود رایگان یا ساخت هوشمند)</label>
+                <span className="text-[10px] text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  💡 قرار دادن لینک بیرونی کاملاً رایگان است
+                </span>
+              </div>
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input 
                     type="text"
                     value={newsImage}
                     onChange={(e) => setNewsImage(e.target.value)}
-                    placeholder="https://... یا آپلود از رایانه"
-                    className="flex-1 px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold"
+                    placeholder="آدرس تصویر از اینترنت (https://...) یا آپلود رایگان"
+                    className="flex-1 min-w-[200px] px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold"
                   />
                   <label className="px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black cursor-pointer flex items-center gap-2 transition-all shrink-0 shadow-sm">
                     {isUploadingImage ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
-                    <span>{isUploadingImage ? "در حال آپلود..." : "آپلود تصویر"}</span>
+                    <span>{isUploadingImage ? "در حال آپلود..." : "آپلود رایگان تصویر"}</span>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -996,15 +1092,59 @@ export default function AdminArticles({
                       className="hidden" 
                     />
                   </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiArticleImage}
+                    disabled={isGeneratingAiImage}
+                    className="px-4 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-black cursor-pointer flex items-center gap-1.5 transition-all shrink-0 shadow-sm disabled:opacity-50"
+                    title="تولید اختیاری تصویر شاخص با AI"
+                  >
+                    {isGeneratingAiImage ? <RefreshCw size={16} className="animate-spin" /> : <Bot size={16} />}
+                    <span>تولید اختیاری با AI</span>
+                  </button>
                 </div>
+
+                {/* Quick Free Stock Images Presets (No Cost) */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-[10px] text-slate-400 font-bold ml-1">تصاویر آماده رایگان (یک‌کلیک):</span>
+                  <button
+                    type="button"
+                    onClick={() => setNewsImage("https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=1200&auto=format&fit=crop")}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    🏬 انبار و صنایع غذایی
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewsImage("https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1200&auto=format&fit=crop")}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    🏭 خط تولید کارخانه
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewsImage("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=1200&auto=format&fit=crop")}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    🚚 باربری و لوجستیک
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewsImage("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1200&auto=format&fit=crop")}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                  >
+                    🛒 بنکداری و عمده‌فروشی
+                  </button>
+                </div>
+
                 {newsImage && (
-                  <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 mt-1">
                     <img src={newsImage} alt="پیش‌نمایش مقاله" className="w-16 h-12 rounded-xl object-cover border border-slate-200" />
                     <div className="text-xs font-bold text-slate-600 truncate flex-1 dir-ltr text-left">{newsImage}</div>
                     <button 
                       type="button" 
                       onClick={() => setNewsImage("")} 
-                      className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg text-xs font-bold"
+                      className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg text-xs font-bold cursor-pointer"
                     >
                       حذف
                     </button>
@@ -1131,12 +1271,42 @@ export default function AdminArticles({
             />
           </div>
 
-          <div className="mt-10 flex justify-start">
+          <div className="mt-6 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-900">وضعیت انتشار مقاله در مجله عمومی:</p>
+                <p className="text-[10px] text-slate-500 font-bold mt-0.5">جهت حفظ کیفیت، مقالات هوش مصنوعی ابتدا پیش‌نویس می‌شوند تا پس از تایید ادمین منتشر شوند.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setNewsPublished(false)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${!newsPublished ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200'}`}
+              >
+                🟡 پیش‌نویس (نیاز به تایید)
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewsPublished(true)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${newsPublished ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-white text-slate-600 border-slate-200'}`}
+              >
+                🟢 تایید و انتشار عمومی
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-start">
             <button 
               onClick={handleCreateOrUpdateNews}
-              className="px-10 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-black transition-all shadow-material-lg hover:-translate-y-1 cursor-pointer"
+              className="px-10 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-black transition-all shadow-material-lg hover:-translate-y-1 cursor-pointer flex items-center gap-2"
             >
-              {editingNewsId ? "بروزرسانی نهایی مطلب" : "انتشار و نمایش"}
+              <CheckCircle2 size={18} />
+              <span>{editingNewsId ? "بروزرسانی نهایی مطلب" : (newsPublished ? "ذخیره و انتشار عمومی" : "ذخیره به صورت پیش‌نویس")}</span>
             </button>
           </div>
         </div>
@@ -1151,55 +1321,88 @@ export default function AdminArticles({
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {articles.map((article, idx) => (
-            <div 
-              key={`news-item-${article.id || idx}-${idx}`} 
-              className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-material-md hover transition-all duration-500 group flex gap-6"
-            >
-              <div className="w-32 h-32 rounded-2xl overflow-hidden shrink-0 shadow-inner border border-slate-50">
-                <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
-              </div>
-              
-              <div className="flex flex-col justify-between flex-1">
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="px-3 py-1 bg-emerald-600 text-white rounded-full text-[9px] font-black uppercase tracking-tighter">
-                      {article.category}
-                    </span>
-                    <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                      <Calendar size={10} />
-                      {article.date}
-                    </p>
-                  </div>
-                  <h5 className="text-sm font-black text-slate-900 mb-2 line-clamp-1">{article.title}</h5>
-                  <p className="text-[11px] text-slate-500 font-bold line-clamp-2 leading-relaxed">{article.summary}</p>
+          {articles.map((article, idx) => {
+            const isApproved = article.published !== false && article.status !== 'draft';
+            return (
+              <div 
+                key={`news-item-${article.id || idx}-${idx}`} 
+                className={`bg-white rounded-[2rem] border p-6 shadow-material-md hover transition-all duration-500 group flex gap-6 ${isApproved ? 'border-slate-100' : 'border-amber-200 bg-amber-50/20'}`}
+              >
+                <div className="w-32 h-32 rounded-2xl overflow-hidden shrink-0 shadow-inner border border-slate-50 relative">
+                  <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  {!isApproved && (
+                    <div className="absolute inset-0 bg-amber-950/40 backdrop-blur-xs flex items-center justify-center p-1 text-center">
+                      <span className="text-[9px] font-black text-amber-200 bg-amber-900/90 px-2 py-1 rounded-md border border-amber-400/50">
+                        پیش‌نویس
+                      </span>
+                    </div>
+                  )}
                 </div>
+                
+                <div className="flex flex-col justify-between flex-1">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-3 py-1 bg-emerald-600 text-white rounded-full text-[9px] font-black uppercase tracking-tighter">
+                          {article.category}
+                        </span>
+                        {isApproved ? (
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[9px] font-extrabold flex items-center gap-1">
+                            <CheckCircle2 size={10} />
+                            منتشرشده
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-md text-[9px] font-black flex items-center gap-1">
+                            🟡 نیازمند تایید ادمین
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                        <Calendar size={10} />
+                        {article.date}
+                      </p>
+                    </div>
+                    <h5 className="text-sm font-black text-slate-900 mb-2 line-clamp-1">{article.title}</h5>
+                    <p className="text-[11px] text-slate-500 font-bold line-clamp-2 leading-relaxed">{article.summary}</p>
+                  </div>
 
-                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-50">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleEditNewsClick(article)}
-                      className="p-2.5 bg-slate-50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
-                      title="ویرایش مطلب"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteNews(article.id, idx)}
-                      className="p-2.5 bg-slate-50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
-                      title="حذف مطلب"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-slate-400">منبع: {article.source}</p>
+                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      {!isApproved && (
+                        <button
+                          type="button"
+                          onClick={() => handleApproveArticle(article)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                          title="تایید محتوا و انتشار مستقیم در سایت"
+                        >
+                          <CheckCircle2 size={13} />
+                          <span>تایید و انتشار</span>
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => handleEditNewsClick(article)}
+                        className="p-2.5 bg-slate-50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                        title="ویرایش مطلب"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteNews(article.id, idx)}
+                        className="p-2.5 bg-slate-50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                        title="حذف مطلب"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className="text-[9px] font-black text-slate-400">منبع: {article.source}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

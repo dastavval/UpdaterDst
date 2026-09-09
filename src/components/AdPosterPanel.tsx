@@ -12,6 +12,10 @@ import { db } from "../lib/data-layer";
 import { collection, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc } from "../lib/data-layer";
 import { uploadToParsPackStorage } from "../utils/storage";
 import { getApiUrl } from "../utils/api-utils";
+import { StrictCityProvinceSelector } from "./StrictCityProvinceSelector";
+import SmsPhoneVerifier from "./SmsPhoneVerifier";
+import AdEditUpgradeModal from "./AdEditUpgradeModal";
+import { MASTER_CATEGORIES, getAllCategoriesMerged } from "../data/categoriesData";
 
 interface AdPosterPanelProps {
   user: any;
@@ -40,34 +44,41 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [selectedUpgradeModalAd, setSelectedUpgradeModalAd] = useState<AdItem | null>(null);
+  const [selectedUpgradeModalMode, setSelectedUpgradeModalMode] = useState<"edit" | "upgrade" | "delete">("edit");
 
-  // Load dynamic categories from localStorage
+  const handleModalAdUpdated = (updatedAd: AdItem) => {
+    setAds(prev => prev.map(a => a.id === updatedAd.id ? updatedAd : a));
+    showToast("آگهی با موفقیت به‌روزرسانی شد.");
+  };
+
+  const handleModalAdDeleted = (deletedId: string) => {
+    setAds(prev => prev.filter(a => a.id !== deletedId));
+    showToast("آگهی با موفقیت حذف گردید.");
+  };
+
+  // Load dynamic categories merging saved b2b_config categories with all 27 MASTER_CATEGORIES
   const dynamicCategories = useMemo(() => {
+    let savedCategories: any[] = [];
     try {
       const saved = localStorage.getItem("dastavval_b2b_config");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
-          return parsed.categories.map((c: any, index: number) => {
-            if (typeof c === 'string') {
-              return { id: `cat-${index + 1}`, name: c, emoji: '🏷️' };
-            }
-            return {
-              id: c.id || `cat-${index + 1}`,
-              name: c.name || '',
-              emoji: c.emoji || c.icon || '🏷️'
-            };
-          });
+        if (parsed && Array.isArray(parsed.categories)) {
+          savedCategories = parsed.categories;
         }
       }
     } catch (e) {}
-    return [
-      { id: "cat-1", name: "تنقلات و شکلات", emoji: "🍫" },
-      { id: "cat-2", name: "کیک، کلوچه و بیسکویت", emoji: "🍪" },
-      { id: "cat-3", name: "مواد غذایی و کنسروجات", emoji: "🥫" },
-      { id: "cat-4", name: "نوشیدنی‌ها", emoji: "🥤" },
-      { id: "cat-5", name: "شوینده و بهداشتی", emoji: "🧼" }
-    ];
+
+    const merged = getAllCategoriesMerged(savedCategories);
+    return merged.map(c => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      sector: c.sector,
+      type: c.type
+    }));
   }, []);
 
   // Form State
@@ -82,6 +93,7 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
     contactPerson: user?.name || "",
     contactPhone: user?.phone || "",
     city: user?.city || "تهران",
+    province: user?.province || "تهران",
     description: "",
     imageUrl: "",
     isBarterAllowed: false,
@@ -159,6 +171,7 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
       contactPerson: user?.name || "",
       contactPhone: user?.phone || "",
       city: user?.city || "تهران",
+      province: user?.province || "تهران",
       description: "",
       imageUrl: "",
       isBarterAllowed: false,
@@ -181,6 +194,7 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
       contactPerson: (ad as any).contactPerson || user?.name || "",
       contactPhone: (ad as any).contactPhone || user?.phone || "",
       city: (ad as any).city || "تهران",
+      province: (ad as any).province || "تهران",
       description: ad.description,
       imageUrl: ad.imageUrl || "",
       isBarterAllowed: (ad as any).isBarterAllowed || false,
@@ -217,6 +231,11 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
       return;
     }
 
+    if (!editingAd && !isPhoneVerified) {
+      alert("جهت حفظ امنیت و اصالت آگهی، تأیید پیامکی شماره همراه الزامی است.");
+      return;
+    }
+
     const userKey = user?.uid || user?.id || user?.phone || "guest_ad_poster";
     let badge = "📉 زیر قیمت بازار";
     if (adForm.category === "liquid") badge = "🔥 حراج و مازاد";
@@ -239,6 +258,8 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
         buyerProfit: "تخفیف ویژه کارخانه",
         contactPerson: adForm.contactPerson || user?.name || "",
         contactPhone: adForm.contactPhone || user?.phone || "",
+        city: adForm.city,
+        province: adForm.province,
         date: "امروز"
       };
 
@@ -274,6 +295,8 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
         description: adForm.description || "فروش مستقیم بدون واسطه با تضمین سلامت و بارنامه رسمی پلتفرم.",
         badgeText: badge,
         status: "approved",
+        city: adForm.city,
+        province: adForm.province,
         date: "امروز",
         isSponsored: false
       };
@@ -595,9 +618,9 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
                       />
                       <div className="absolute top-3 right-3 flex flex-col gap-1.5">
                         {ad.isSponsored && (
-                          <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1">
-                            <Sparkles size={12} />
-                            <span>ویژه شده در صدر</span>
+                          <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1 border border-emerald-500">
+                            <Sparkles size={12} className="fill-white text-white" />
+                            <span>ویژه 🌟</span>
                           </span>
                         )}
                         <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg shadow-lg ${
@@ -632,14 +655,30 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
 
                         <div className="flex items-center gap-1.5">
                           <button 
-                            onClick={() => openEditModal(ad)}
+                            onClick={() => {
+                              setSelectedUpgradeModalAd(ad);
+                              setSelectedUpgradeModalMode("edit");
+                            }}
                             className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
-                            title="ویرایش آگهی"
+                            title="ویرایش مشخصات آگهی"
                           >
                             <Edit3 size={16} />
                           </button>
                           <button 
-                            onClick={() => handleDeleteAd(ad.id)}
+                            onClick={() => {
+                              setSelectedUpgradeModalAd(ad);
+                              setSelectedUpgradeModalMode("upgrade");
+                            }}
+                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                            title="نردبان و ویژه کردن"
+                          >
+                            <TrendingUp size={16} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSelectedUpgradeModalAd(ad);
+                              setSelectedUpgradeModalMode("delete");
+                            }}
                             className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                             title="حذف آگهی"
                           >
@@ -652,7 +691,10 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
                     {/* Actions Area */}
                     {!ad.isSponsored && (
                       <button 
-                        onClick={() => handlePromoteAd(ad)}
+                        onClick={() => {
+                          setSelectedUpgradeModalAd(ad);
+                          setSelectedUpgradeModalMode("upgrade");
+                        }}
                         className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-black transition-all flex items-center justify-center gap-1.5 border-t border-amber-200 cursor-pointer"
                       >
                         <Zap size={14} className="text-amber-600" />
@@ -772,21 +814,24 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:border-emerald-600 outline-none"
                     >
                       <option value="under_market">📉 زیر قیمت بازار (کف قیمت)</option>
-                      <option value="liquid">🔥 حراج و تسویه فوری مازاد</option>
-                      <option value="direct_supply">📦 تامین مستقیم خط تولید</option>
+                      <option value="liquid">🔥 حراج و تسویه فوری مازاد تولید</option>
+                      <option value="direct_supply">📦 تامین مستقیم و بدون واسطه خط تولید</option>
+                      <option value="materials">🧪 مواد اولیه و مواد شیمیایی خوراکی</option>
+                      <option value="equipment">⚙️ ماشین‌آلات و خطوط تولید صنعتی</option>
+                      <option value="services">🛠️ خدمات صنعتی، چاپ و بسته‌بندی</option>
                       <option value="barter">🔄 معاوضه و تهاتر کارخانه‌ای</option>
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-black text-slate-800 block">شهر و محل بارگیری:</label>
-                    <input 
-                      type="text"
-                      required
-                      value={adForm.city}
-                      onChange={e => setAdForm({ ...adForm, city: e.target.value })}
-                      placeholder="مثال: تبریز / تهران / مشهد"
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:border-emerald-600 outline-none"
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="font-black text-slate-800 block">استان و شهر محل بارگیری:</label>
+                    <StrictCityProvinceSelector
+                      selectedCity={adForm.city}
+                      selectedProvince={adForm.province}
+                      onSelect={(c, p) => setAdForm({ ...adForm, city: c, province: p })}
+                      variant="button"
+                      className="w-full text-right font-bold"
+                      placeholder="کلیک کنید تا استان و شهر بارگیری کالا را انتخاب کنید"
                     />
                   </div>
                 </div>
@@ -879,7 +924,7 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
                 </div>
 
                 {/* Company & Contact */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="font-black text-slate-700 block">نام کارخانه یا فروشگاه:</label>
                     <input 
@@ -901,19 +946,21 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none"
                     />
                   </div>
+                </div>
 
-                  <div className="space-y-1">
-                    <label className="font-black text-slate-700 block">شماره تماس مستقیم خریداران:</label>
-                    <input 
-                      type="tel"
-                      required
-                      value={adForm.contactPhone}
-                      onChange={e => setAdForm({ ...adForm, contactPhone: e.target.value })}
-                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-left outline-none"
-                      dir="ltr"
-                    />
-                  </div>
+                {/* Mandatory Phone Verification */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <label className="font-black text-slate-800 text-xs block mb-2">شماره تماس مستقیم و تایید پیامکی مالک آگهی:</label>
+                  <SmsPhoneVerifier
+                    phone={adForm.contactPhone}
+                    onPhoneChange={(phone) => setAdForm(prev => ({ ...prev, contactPhone: phone }))}
+                    onVerificationSuccess={(verifiedPhone) => {
+                      setIsPhoneVerified(true);
+                      setAdForm(prev => ({ ...prev, contactPhone: verifiedPhone }));
+                      showToast("شماره همراه شما با موفقیت تایید شد.");
+                    }}
+                    isVerified={isPhoneVerified || !!editingAd}
+                  />
                 </div>
 
                 {/* Description */}
@@ -953,10 +1000,15 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black shadow-md flex items-center gap-2 cursor-pointer"
+                    disabled={!editingAd && !isPhoneVerified}
+                    className={`px-6 py-2.5 rounded-xl font-black shadow-md flex items-center gap-2 cursor-pointer ${
+                      editingAd || isPhoneVerified
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    }`}
                   >
                     <Check size={16} />
-                    <span>{editingAd ? "ذخیره تغییرات" : "تایید و انتشار آگهی"}</span>
+                    <span>{editingAd ? "ذخیره تغییرات" : isPhoneVerified ? "تایید و انتشار آگهی" : "نیاز به تایید پیامکی شماره"}</span>
                   </button>
                 </div>
               </form>
@@ -964,6 +1016,17 @@ export const AdPosterPanel: React.FC<AdPosterPanelProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Edit / Upgrade / Delete Modal */}
+      <AdEditUpgradeModal
+        isOpen={!!selectedUpgradeModalAd}
+        onClose={() => setSelectedUpgradeModalAd(null)}
+        ad={selectedUpgradeModalAd}
+        mode={selectedUpgradeModalMode}
+        onAdUpdated={handleModalAdUpdated}
+        onAdDeleted={handleModalAdDeleted}
+        currentUser={user}
+      />
     </div>
   );
 };

@@ -31,12 +31,16 @@ import {
   ArrowUpRight,
   Filter,
   Eye,
+  EyeOff,
   RefreshCw,
   ShoppingBag,
   SlidersHorizontal,
   Headphones,
   History,
-  Info
+  Info,
+  Link2,
+  Percent,
+  TrendingUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Product, Order } from "../types";
@@ -47,6 +51,8 @@ import FactoryTicketsTab from "./factory/FactoryTicketsTab";
 import FactoryHistoryTab from "./factory/FactoryHistoryTab";
 import AddAdButton from "./AddAdButton";
 import MyAdsManager from "./MyAdsManager";
+import FactoryProductLinkModal from "./FactoryProductLinkModal";
+import { StrictCityProvinceSelector } from "./StrictCityProvinceSelector";
 
 export interface FloorMarketDeal {
   id: string;
@@ -111,8 +117,8 @@ export default function FactoryManagementPortal({
   onUpdateB2bConfig,
   onOpenInvoiceModal
 }: FactoryManagementPortalProps) {
-  // Main tabs: 1. Products list, 2. Add product, 3. Orders, 4. Floor Market (کف بازار), 5. Sales Settings, 6. Tickets, 7. History, 8. Factory profile
-  const [activeTab, setActiveTab] = useState<'products' | 'add_product' | 'orders' | 'floor_market' | 'sales_settings' | 'tickets' | 'history' | 'profile' | 'ads' | 'capacity_ads'>('products');
+  // Main tabs: 1. Products list, 2. Add product, 3. Orders, 4. Floor Market (کف بازار), 5. Sales Settings, 6. Tickets, 7. History, 8. Factory profile, 9. Brands
+  const [activeTab, setActiveTab] = useState<'products' | 'add_product' | 'orders' | 'floor_market' | 'sales_settings' | 'tickets' | 'history' | 'profile' | 'ads' | 'capacity_ads' | 'brands'>('products');
 
   // Helper: Convert numbers to Persian Digits
   const toPersianNum = (num: number | string | undefined | null) => {
@@ -159,6 +165,78 @@ export default function FactoryManagementPortal({
   const [portalNewDetails, setPortalNewDetails] = useState("");
   const [portalNewDesc, setPortalNewDesc] = useState("");
   const [portalNewImage, setPortalNewImage] = useState("");
+
+  // Brand Management States
+  const [newBrandName, setNewBrandName] = useState("");
+  const [newBrandType, setNewBrandType] = useState("کنسرو و مواد غذایی");
+  const [newBrandLogoUrl, setNewBrandLogoUrl] = useState("");
+  const [newBrandProvince, setNewBrandProvince] = useState(user?.province || "تهران");
+  const [newBrandDescription, setNewBrandDescription] = useState("");
+  const [newBrandRegNumber, setNewBrandRegNumber] = useState("");
+  const [brandSubmitMsg, setBrandSubmitMsg] = useState("");
+  const [isBrandSubmitting, setIsBrandSubmitting] = useState(false);
+
+  const handlePortalAddBrand = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBrandName.trim()) {
+      setBrandSubmitMsg("❌ لطفاً نام برند را وارد نمایید.");
+      return;
+    }
+    
+    setIsBrandSubmitting(true);
+    setBrandSubmitMsg("");
+
+    setTimeout(() => {
+      const newBrand = {
+        id: "brand-" + Date.now(),
+        name: newBrandName.trim(),
+        type: newBrandType,
+        category: newBrandType,
+        icon: "🏷️",
+        bg: "bg-emerald-500",
+        text: "text-white",
+        logoUrl: newBrandLogoUrl.trim() || "https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=200&auto=format&fit=crop",
+        factoryId: user?.id || user?.userCode || "FAC-GEN",
+        factoryName: currentFactoryName,
+        description: newBrandDescription.trim() || `برند رسمی محصولات باکیفیت ${currentFactoryName}`,
+        province: newBrandProvince,
+        badge: "در انتظار تایید ادمین",
+        status: "pending",
+        regNumber: newBrandRegNumber.trim()
+      };
+
+      let existingBrands = [];
+      if (b2bConfig?.brands && Array.isArray(b2bConfig.brands)) {
+        existingBrands = [...b2bConfig.brands];
+      } else {
+        try {
+          const saved = localStorage.getItem("dastavval_custom_brands_v2");
+          if (saved) existingBrands = JSON.parse(saved);
+        } catch (err) {}
+      }
+
+      const updatedBrands = [newBrand, ...existingBrands];
+
+      localStorage.setItem("dastavval_custom_brands_v2", JSON.stringify(updatedBrands));
+      if (onUpdateB2bConfig) {
+        onUpdateB2bConfig({
+          ...b2bConfig,
+          brands: updatedBrands
+        });
+      }
+
+      window.dispatchEvent(new CustomEvent("dastavval_brands_updated", { detail: { brands: updatedBrands } }));
+
+      setNewBrandName("");
+      setNewBrandLogoUrl("");
+      setNewBrandDescription("");
+      setNewBrandRegNumber("");
+      setIsBrandSubmitting(false);
+      setBrandSubmitMsg("✅ درخواست ثبت برند شما با موفقیت ثبت شد و پس از تایید مدیریت فعال خواهد شد.");
+
+      setTimeout(() => setBrandSubmitMsg(""), 6000);
+    }, 800);
+  };
 
   const handlePortalAddCapacityAd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +329,28 @@ export default function FactoryManagementPortal({
     return Array.from(new Set(list));
   }, [b2bConfig, products]);
 
+  // Load and memoize brands belonging to this factory
+  const allBrandsInSystem = useMemo(() => {
+    if (b2bConfig?.brands && Array.isArray(b2bConfig.brands)) {
+      return b2bConfig.brands;
+    }
+    try {
+      const saved = localStorage.getItem("dastavval_custom_brands_v2");
+      if (saved) return JSON.parse(saved);
+    } catch (err) {}
+    return [];
+  }, [b2bConfig?.brands]);
+
+  const myBrands = useMemo(() => {
+    return allBrandsInSystem.filter((b: any) => {
+      const fid = (b.factoryId || "").toLowerCase().trim();
+      const uid = (user?.id || "").toLowerCase().trim();
+      const fname = (b.factoryName || "").toLowerCase().trim();
+      const cname = (user?.company || user?.name || "").toLowerCase().trim();
+      return (fid && fid === uid) || (fname && cname && fname === cname);
+    });
+  }, [allBrandsInSystem, user]);
+
   // Filter products belonging strictly to this factory
   const myProducts = useMemo(() => {
     if (!user) return [];
@@ -340,17 +440,41 @@ export default function FactoryManagementPortal({
     });
   }, [myProducts, productSearch, filterStatus]);
 
+  const handleQuickStatusChange = async (productId: string, action: 'activate' | 'deactivate' | 'out_of_stock' | 'charge_50' | 'charge_200') => {
+    if (!onUpdateProduct) return;
+    try {
+      let fields: Partial<Product> = {};
+      if (action === 'activate') {
+        fields = { disabled: false, isApproved: true, approvalStatus: 'approved' };
+      } else if (action === 'deactivate') {
+        fields = { disabled: true };
+      } else if (action === 'out_of_stock') {
+        fields = { stock_quantity_cartons: 0 };
+      } else if (action === 'charge_50') {
+        fields = { stock_quantity_cartons: 50 };
+      } else if (action === 'charge_200') {
+        fields = { stock_quantity_cartons: 200 };
+      }
+      // Instant optimistic update: do not wait for server response or trigger expensive re-fetch
+      onUpdateProduct(productId, fields);
+    } catch (err) {
+      console.error("Error in quick status change:", err);
+    }
+  };
+
   // -------------------------------------------------------------
   // Streamlined Product Form (No consumer price, using admin categories)
   // -------------------------------------------------------------
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [prodName, setProdName] = useState("");
+  const [prodBrand, setProdBrand] = useState("");
   const [prodCategory, setProdCategory] = useState("");
   const [prodBulkPrice, setProdBulkPrice] = useState<string>("");
   const [prodCartonPack, setProdCartonPack] = useState<string>("24");
   const [prodMinOrder, setProdMinOrder] = useState<string>("5");
   const [prodStock, setProdStock] = useState<string>("100");
   const [prodWeight, setProdWeight] = useState<string>("");
+  const [prodUnit, setProdUnit] = useState<string>("کارتن");
   const [prodImageUrl, setProdImageUrl] = useState<string>("");
   const [prodDescription, setProdDescription] = useState<string>("");
   const [prodTags, setProdTags] = useState<string>("");
@@ -430,6 +554,56 @@ export default function FactoryManagementPortal({
   const [showSellLotModal, setShowSellLotModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [floorSuccessMsg, setFloorSuccessMsg] = useState<string | null>(null);
+
+  // Catalog linking modal state
+  const [showCatalogLinkModal, setShowCatalogLinkModal] = useState(false);
+
+  // Quick price editing state
+  const [quickPriceProduct, setQuickPriceProduct] = useState<Product | null>(null);
+  const [quickPriceVal, setQuickPriceVal] = useState<number | "">("");
+  const [isSavingQuickPrice, setIsSavingQuickPrice] = useState(false);
+
+  // Save quick price update
+  const handleSaveQuickPrice = async () => {
+    if (!quickPriceProduct || quickPriceVal === "" || Number(quickPriceVal) <= 0) {
+      alert("لطفاً مبلغ معتبر وارد کنید.");
+      return;
+    }
+
+    setIsSavingQuickPrice(true);
+    try {
+      const newP = Number(quickPriceVal);
+      if (onUpdateProduct) {
+        await onUpdateProduct(quickPriceProduct.id, {
+          bulk_price: newP,
+          price: newP
+        });
+      }
+      if (onRefreshProducts) {
+        await onRefreshProducts();
+      }
+      setQuickPriceProduct(null);
+      setQuickPriceVal("");
+    } catch (err: any) {
+      alert("خطا در ذخیره قیمت: " + (err.message || "لطفاً دوباره تلاش کنید."));
+    } finally {
+      setIsSavingQuickPrice(false);
+    }
+  };
+
+  // Factory profile representation for linking modal
+  const currentFactoryProfile = useMemo(() => {
+    return {
+      id: user?.id || factoryCode || "factory_user",
+      name: currentFactoryName,
+      factoryCode: factoryCode || user?.factoryCode || "FAC",
+      province: user?.province || "",
+      city: user?.city || "",
+      logoUrl: user?.logoUrl || user?.avatar || "",
+      ownedBrands: myBrands.map(b => b.name),
+      isFirstHand: true
+    };
+  }, [user, currentFactoryName, factoryCode, myBrands]);
 
   // Form for selling in floor market
   const [selectedLotProdId, setSelectedLotProdId] = useState<string>("");
@@ -653,12 +827,14 @@ export default function FactoryManagementPortal({
   const handleStartEdit = (prod: Product) => {
     setEditingProductId(prod.id);
     setProdName(prod.name);
+    setProdBrand(prod.brand || "");
     setProdCategory(prod.category || availableCategories[0]);
     setProdBulkPrice(String(prod.bulk_price || prod.price || ""));
     setProdCartonPack(String(prod.carton_pack_count || "24"));
     setProdMinOrder(String(prod.min_order_cartons || "5"));
     setProdStock(String(prod.stock_quantity_cartons ?? "100"));
     setProdWeight((prod as any).weight || "");
+    setProdUnit((prod as any).unit || "کارتن");
     setProdImageUrl(prod.image_url || "");
     setProdDescription(prod.description || "");
     setProdTags(prod.tags && Array.isArray(prod.tags) ? prod.tags.join("، ") : "");
@@ -669,12 +845,14 @@ export default function FactoryManagementPortal({
   const handleResetForm = () => {
     setEditingProductId(null);
     setProdName("");
+    setProdBrand("");
     setProdCategory(availableCategories[0] || "تنقلات و چیپس");
     setProdBulkPrice("");
     setProdCartonPack("24");
     setProdMinOrder("5");
     setProdStock("100");
     setProdWeight("");
+    setProdUnit("کارتن");
     setProdImageUrl("");
     setProdDescription("");
     setProdTags("");
@@ -719,14 +897,14 @@ export default function FactoryManagementPortal({
       const customTagsList = prodTags ? prodTags.split(/[\n،,]+/).map(t => t.trim()).filter(Boolean) : [];
       const computedTags = getEffectiveProductTags({
         name: prodName.trim(),
-        brand: user?.company || currentFactoryName,
+        brand: prodBrand || user?.company || currentFactoryName,
         category: prodCategory || availableCategories[0],
         tags: customTagsList
       });
 
       const productPayload: Partial<Product> = {
         name: prodName.trim(),
-        brand: user?.company || currentFactoryName,
+        brand: prodBrand || user?.company || currentFactoryName,
         category: prodCategory || availableCategories[0],
         price: cleanBulkPrice,
         bulk_price: cleanBulkPrice,
@@ -734,7 +912,7 @@ export default function FactoryManagementPortal({
         carton_pack_count: cleanPack,
         min_order_cartons: cleanMin,
         stock_quantity_cartons: cleanStock,
-        unit: "کارتن",
+        unit: prodUnit || "کارتن",
         image_url: prodImageUrl,
         description: prodDescription.trim(),
         tags: computedTags,
@@ -970,6 +1148,9 @@ export default function FactoryManagementPortal({
               <span className="bg-emerald-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full border border-emerald-100">
                 پنل اختصاصی کارخانه
               </span>
+              <span className="bg-slate-100 text-slate-600 text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border border-slate-200">
+                ID: {user?.factoryCode || user?.userCode || user?.id || "FAC-1001"}
+              </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
               مسئول هماهنگی: {user?.name || "ثبت نشده"} | تلفن بارگیری: {user?.phone || "ثبت نشده"}
@@ -1109,6 +1290,18 @@ export default function FactoryManagementPortal({
         </button>
 
         <button
+          onClick={() => setActiveTab('brands')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'brands'
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Award size={16} />
+          <span>🏷️ برندهای من</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('profile')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'profile'
@@ -1161,6 +1354,15 @@ export default function FactoryManagementPortal({
                   در انتظار تایید ({toPersianNum(totalPending)})
                 </button>
               </div>
+
+              <button
+                onClick={() => setShowCatalogLinkModal(true)}
+                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                title="اتصال کالا از کاتالوگ پلتفرم یا تنظیم دسته‌جمعی قیمت‌ها"
+              >
+                <Link2 size={15} />
+                <span>اتصال کالا از کاتالوگ</span>
+              </button>
 
               <button
                 onClick={() => {
@@ -1285,6 +1487,84 @@ export default function FactoryManagementPortal({
 
                     {/* Actions */}
                     <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
+                      {/* Quick Status Toggles Row (4-5 Icons) */}
+                      <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-xl border border-slate-150 gap-1 mb-1">
+                        <span className="text-[9px] font-black text-slate-400 select-none mr-1">تنظیم سریع:</span>
+                        <div className="flex items-center gap-1">
+                          {/* 1. Activate */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(product.id, 'activate')}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                              !product.disabled && (product.isApproved || product.approvalStatus === 'approved')
+                                ? "bg-emerald-600 text-white shadow-2xs"
+                                : "bg-white text-slate-400 hover:text-emerald-600 border border-slate-200"
+                            }`}
+                            title="فعال‌سازی و نمایش در ویترین"
+                          >
+                            <Eye size={12} />
+                          </button>
+
+                          {/* 2. Deactivate */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(product.id, 'deactivate')}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                              product.disabled
+                                ? "bg-rose-600 text-white shadow-2xs"
+                                : "bg-white text-slate-400 hover:text-rose-600 border border-slate-200"
+                            }`}
+                            title="غیرفعال‌سازی و مخفی کردن"
+                          >
+                            <EyeOff size={12} />
+                          </button>
+
+                          {/* 3. Out of stock */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(product.id, 'out_of_stock')}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                              product.stock_quantity_cartons === 0
+                                ? "bg-amber-500 text-slate-950 shadow-2xs"
+                                : "bg-white text-slate-400 hover:text-amber-600 border border-slate-200"
+                            }`}
+                            title="ناموجود کردن کالا"
+                          >
+                            <AlertCircle size={12} />
+                          </button>
+
+                          {/* 4. Charge 50 */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(product.id, 'charge_50')}
+                            className={`px-1.5 py-1 rounded-lg transition-all text-[9px] font-black cursor-pointer flex items-center gap-0.5 ${
+                              product.stock_quantity_cartons === 50
+                                ? "bg-indigo-600 text-white shadow-2xs"
+                                : "bg-white text-slate-500 hover:text-indigo-600 border border-slate-200"
+                            }`}
+                            title="شارژ سریع ۵۰ کارتن"
+                          >
+                            <Package size={10} />
+                            <span>۵۰</span>
+                          </button>
+
+                          {/* 5. Charge 200 */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(product.id, 'charge_200')}
+                            className={`px-1.5 py-1 rounded-lg transition-all text-[9px] font-black cursor-pointer flex items-center gap-0.5 ${
+                              product.stock_quantity_cartons === 200
+                                ? "bg-violet-600 text-white shadow-2xs"
+                                : "bg-white text-slate-500 hover:text-violet-600 border border-slate-200"
+                            }`}
+                            title="شارژ سریع ۲۰۰ کارتن"
+                          >
+                            <Boxes size={10} />
+                            <span>۲۰۰</span>
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Primary Actions Row */}
                       <div className="flex items-center gap-1.5">
                         <button
@@ -1409,7 +1689,7 @@ export default function FactoryManagementPortal({
             </div>
 
             {/* 2. Product Name & Category (Synced with Admin Categories) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               <div className="space-y-1">
                 <label className="text-xs font-black text-slate-800 block">نام محصول:</label>
@@ -1423,8 +1703,24 @@ export default function FactoryManagementPortal({
                 />
               </div>
 
+              {myBrands.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 block">برند تجاری محصول:</label>
+                  <select
+                    value={prodBrand}
+                    onChange={(e) => setProdBrand(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900 cursor-pointer"
+                  >
+                    <option value="">{user?.company || currentFactoryName} (بدون زیربرند)</option>
+                    {myBrands.filter((b: any) => b.status === 'approved' || b.badge?.includes("رسمی")).map((b: any) => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="space-y-1">
-                <label className="text-xs font-black text-slate-800 block">دسته‌بندی اصلی کالا (تعریف شده توسط مدیریت):</label>
+                <label className="text-xs font-black text-slate-800 block">دسته‌بندی اصلی کالا:</label>
                 <select
                   value={prodCategory}
                   onChange={(e) => setProdCategory(e.target.value)}
@@ -1500,8 +1796,21 @@ export default function FactoryManagementPortal({
 
             </div>
 
-            {/* 4. Weight & Description */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 4. Packaging, Weight & Description */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-3xl border border-slate-100">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-800 block">نوع بسته‌بندی:</label>
+                <select
+                  value={prodUnit}
+                  onChange={(e) => setProdUnit(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900 cursor-pointer"
+                >
+                  {["کارتن", "کیسه", "باکس", "بشکه", "پالت", "قوطی", "شیشه", "پت", "حلب", "سلفون", "گونی", "بسته", "دبه", "شل"].map(u => (
+                    <option key={`fact-prod-unit-${u}`} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-black text-slate-800 block">وزن هر بسته تکی (اختیاری):</label>
                 <input
@@ -1509,11 +1818,11 @@ export default function FactoryManagementPortal({
                   value={prodWeight}
                   onChange={(e) => setProdWeight(e.target.value)}
                   placeholder="مثال: ۶۰ گرم"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
-              <div className="md:col-span-2 space-y-1">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 block">توضیحات کوتاه محصول (اختیاری):</label>
                   <button
@@ -1531,7 +1840,7 @@ export default function FactoryManagementPortal({
                   value={prodDescription}
                   onChange={(e) => setProdDescription(e.target.value)}
                   placeholder="توضیحات مختصر در مورد ترکیبات و کیفیت محصول..."
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-emerald-600 text-xs font-bold text-slate-900"
+                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-2xl focus:border-emerald-600 text-xs font-bold text-slate-900"
                 />
               </div>
 
@@ -2019,6 +2328,205 @@ export default function FactoryManagementPortal({
       )}
 
       {/* ========================================================================= */}
+      {/* BRAND MANAGEMENT TAB (برندهای من - تعریف و مدیریت برند برای کارخانه) */}
+      {/* ========================================================================= */}
+      {activeTab === 'brands' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-2xl" />
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-black font-sans flex items-center gap-2">
+                  <Award className="text-amber-300" />
+                  مدیریت برندها و نشان‌های تجاری
+                </h3>
+                <p className="text-xs text-emerald-100 font-bold max-w-xl leading-relaxed">
+                  برندها و مارک‌های تجاری ثبت شده خود را در این بخش تعریف و مدیریت کنید. برندها پس از ثبت با وضعیت "در انتظار تایید مدیریت" ثبت می‌شوند و پس از تایید توسط ادمین مرکزی، در لیست برندهای رسمی کالا و کل فاکتورهای سامانه به کار می‌روند.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Form to Request/Add Brand */}
+            <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-5">
+              <h4 className="text-xs font-black text-slate-800 pb-3 border-b border-slate-100 flex items-center gap-1.5">
+                <span>➕ درخواست ثبت نشان (برند) جدید</span>
+              </h4>
+
+              <form onSubmit={handlePortalAddBrand} className="space-y-4">
+                {brandSubmitMsg && (
+                  <div className={`p-4 rounded-2xl text-xs font-bold leading-relaxed ${brandSubmitMsg.includes('❌') ? 'bg-rose-50 text-rose-800 border border-rose-100' : 'bg-emerald-50 text-emerald-800 border border-emerald-100'}`}>
+                    {brandSubmitMsg}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">نام نشان تجاری (فارسی / انگلیسی):</label>
+                  <input
+                    type="text"
+                    value={newBrandName}
+                    onChange={(e) => setNewBrandName(e.target.value)}
+                    placeholder="مثال: چی‌توز، میهن، سن‌ایچ..."
+                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 rounded-2xl px-4 py-3 text-xs font-bold transition-all text-slate-800"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">دسته بندی محصولات برند:</label>
+                  <select
+                    value={newBrandType}
+                    onChange={(e) => setNewBrandType(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 rounded-2xl px-4 py-3 text-xs font-bold transition-all text-slate-800 cursor-pointer"
+                  >
+                    <option value="کنسرو و مواد غذایی">🥫 کنسرو و مواد غذایی</option>
+                    <option value="تنقلات و شکلات">🍫 تنقلات و شکلات</option>
+                    <option value="کیک، کلوچه و بیسکویت">🍪 کیک، کلوچه و بیسکویت</option>
+                    <option value="نوشیدنی‌ها">🥤 نوشیدنی‌ها</option>
+                    <option value="شوینده و بهداشتی">🧼 شوینده و بهداشتی</option>
+                    <option value="لبنیات">🥛 لبنیات و پنیر</option>
+                    <option value="روغن و چربی‌ها">🛢️ روغن‌های خوراکی</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">استان مبدا و ثبت برند:</label>
+                  <input
+                    type="text"
+                    value={newBrandProvince}
+                    onChange={(e) => setNewBrandProvince(e.target.value)}
+                    placeholder="مثال: تهران، اصفهان، خراسان رضوی..."
+                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 rounded-2xl px-4 py-3 text-xs font-bold transition-all text-slate-800"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">شماره ثبت رسمی علامت تجاری (اختیاری):</label>
+                  <input
+                    type="text"
+                    value={newBrandRegNumber}
+                    onChange={(e) => setNewBrandRegNumber(e.target.value)}
+                    placeholder="مثال: ۳۸۴۹۲۱"
+                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 rounded-2xl px-4 py-3 text-xs font-bold transition-all text-slate-800 text-left font-mono"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <ParsPackImageUploader
+                    label="تصویر نشان تجاری / لوگوی برند:"
+                    subLabel="لوگوی مربع با پس‌زمینه سفید یا شفاف پیشنهاد می‌شود."
+                    value={newBrandLogoUrl}
+                    onChange={(url) => setNewBrandLogoUrl(url)}
+                    folder="brands"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 block">توضیحات و پیشینه برند:</label>
+                  <textarea
+                    rows={3}
+                    value={newBrandDescription}
+                    onChange={(e) => setNewBrandDescription(e.target.value)}
+                    placeholder="توضیحاتی کوتاه درباره تاسیس برند، گواهینامه‌ها و سهم بازار محصولات بنویسید..."
+                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 rounded-2xl px-4 py-3 text-xs font-bold transition-all text-slate-800 leading-relaxed"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isBrandSubmitting}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-md shadow-emerald-600/10 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isBrandSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>در حال ثبت اطلاعات...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Award size={16} />
+                      <span>ثبت درخواست و ارسال به مدیریت</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* List of Current Brands */}
+            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+              <h4 className="text-xs font-black text-slate-800 pb-3 border-b border-slate-100 flex items-center justify-between">
+                <span>📋 برندهای تایید شده و درخواست‌های اخیر</span>
+                <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full font-black">
+                  {toPersianNum(myBrands.length)} برند
+                </span>
+              </h4>
+
+              {myBrands.length === 0 ? (
+                <div className="p-12 text-center space-y-3">
+                  <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mx-auto text-xl">
+                    🏷️
+                  </div>
+                  <h5 className="text-xs font-black text-slate-800">هنوز برندی ثبت نکرده‌اید</h5>
+                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto leading-relaxed">
+                    با استفاده از فرم روبرو اولین برند تولیدی یا بازرگانی خود را جهت تایید و نمایش در سایت ثبت کنید.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {myBrands.map((b: any) => {
+                    const isPending = b.status === "pending" || b.badge?.includes("انتظار");
+                    return (
+                      <div
+                        key={b.id}
+                        className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 flex flex-col justify-between gap-3 relative hover:shadow-xs transition-all"
+                      >
+                        <div className="flex items-start gap-3">
+                          <img
+                            src={b.logoUrl || "https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=200&auto=format&fit=crop"}
+                            alt={b.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 bg-white"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="space-y-1">
+                            <h5 className="text-xs font-black text-slate-800">{b.name}</h5>
+                            <span className="text-[10px] text-slate-400 font-bold block">{b.type || b.category}</span>
+                            <span className="text-[9px] text-slate-500 font-mono block">استان: {b.province}</span>
+                          </div>
+                        </div>
+
+                        {b.description && (
+                          <p className="text-[10px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+                            {b.description}
+                          </p>
+                        )}
+
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-400">
+                            {b.regNumber ? `شماره ثبت: ${toPersianNum(b.regNumber)}` : "فاقد شماره ثبت"}
+                          </span>
+                          
+                          {isPending ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1 shrink-0 animate-pulse">
+                              <span>⏱️ در انتظار تایید</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0">
+                              <span>✓ تایید رسمی</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 5. TAB: FACTORY PROFILE & RICH INFORMATION (Configured Once / Optional) */}
       {/* ========================================================================= */}
       {activeTab === 'profile' && (
@@ -2398,15 +2906,17 @@ export default function FactoryManagementPortal({
 
                   <div>
                     <label className="block text-xs font-black text-slate-800 mb-1.5">
-                      موقعیت کارخانه (شهر/استان) <span className="text-red-500">*</span>
+                      موقعیت کارخانه (استان و شهر مستقر) <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      required
-                      value={portalNewLocation}
-                      onChange={(e) => setPortalNewLocation(e.target.value)}
-                      placeholder="مثال: تبریز، شهرک صنعتی شهید سلیمی"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:outline-none focus:ring-2"
+                    <StrictCityProvinceSelector
+                      selectedCity={portalNewLocation.includes('،') ? portalNewLocation.split('،')[0]?.trim() : portalNewLocation}
+                      selectedProvince={portalNewLocation.includes('،') ? portalNewLocation.split('،')[1]?.trim() : "تهران"}
+                      onSelect={(city, province) => {
+                        setPortalNewLocation(`${city}، ${province}`);
+                      }}
+                      variant="button"
+                      className="w-full text-right"
+                      placeholder="برای تغییر استان و شهر کلیک کنید..."
                     />
                   </div>
 
@@ -3197,6 +3707,17 @@ export default function FactoryManagementPortal({
           window.dispatchEvent(new CustomEvent("dastavval_floor_deals_updated"));
         }}
       />
+
+      {/* Catalog Product Link & Batch Price Modal for Factory */}
+      {showCatalogLinkModal && (
+        <FactoryProductLinkModal
+          factory={currentFactoryProfile as any}
+          allProducts={products}
+          onClose={() => setShowCatalogLinkModal(false)}
+          onUpdateProduct={onUpdateProduct}
+          onRefreshProducts={onRefreshProducts}
+        />
+      )}
 
     </div>
   );

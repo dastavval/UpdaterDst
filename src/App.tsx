@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, doc, updateDoc, setDoc, deleteDoc, db, auth } from "./lib/data-layer";
-import { seedProductsIfEmpty, INITIAL_PRODUCTS } from "./lib/db-helper";
 import { cacheProducts, getCachedProducts, cacheB2bConfig, getCachedB2bConfig } from "./lib/db";
 import { Product, OrderItem, Order } from "./types";
 import { getDisplayImageUrl } from "./lib/image-utils";
@@ -22,6 +21,7 @@ import FactoryCompetition from "./components/FactoryCompetition";
 import SiteRoadmap from "./components/SiteRoadmap";
 import { AboutUsSection, ContactSection, TrustSection } from "./components/InfoSections";
 import MagazineSection from "./components/MagazineSection";
+import { ArticlePageView } from "./components/ArticlePageView";
 import OrderSuccessModal from "./components/OrderSuccessModal";
 import ProductDetailModal from "./components/ProductDetailModal";
 import GapGptAssistant from "./components/GapGptAssistant";
@@ -38,9 +38,13 @@ import OfflineBanner from "./components/OfflineBanner";
 import LazyViewport from "./components/LazyViewport";
 import { VoiceSearchButton } from "./components/VoiceSearchButton";
 import { SmsNewsletterSection } from "./components/SmsNewsletterSection";
+import { MASTER_CATEGORIES } from "./data/categoriesData";
 import VirtualizedProductGrid from "./components/VirtualizedProductGrid";
 import InteractiveProductCarousel from "./components/InteractiveProductCarousel";
 
+import StrictCityProvinceSelector from "./components/StrictCityProvinceSelector";
+import { getProvinceForCity, isRepresentativeForCity } from "./utils/dealershipCityTiers";
+import { ResilientVault } from "./lib/resilient-storage";
 import CheckoutWizard from "./components/CheckoutWizard";
 import WholesaleInvoiceView from "./components/WholesaleInvoiceView";
 import ChequeCharterModal from "./components/ChequeCharterModal";
@@ -52,6 +56,7 @@ import { getLoyaltySummary } from "./lib/loyalty-store";
 import { getUserSession, saveUserSession, clearUserSession } from "./lib/auth-helper";
 import { s3PreloadService } from "./lib/s3PreloadService";
 import { checkAndSyncAppVersion } from "./lib/smart-version-sync";
+import SmartSimplifierHub from "./components/SmartSimplifierHub";
 
 // Resilient lazy loader with auto-retry on dynamic chunk fetch errors
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -101,14 +106,13 @@ const SystemPages = lazyWithRetry(() => import("./components/SystemPages"));
 const BarterHall = lazyWithRetry(() => import("./components/BarterHall"));
 const SpecialOffersView = lazyWithRetry(() => import("./components/SpecialOffersView"));
 const BestsellersView = lazyWithRetry(() => import("./components/BestsellersView"));
-import { INITIAL_NEWS, INITIAL_FACTORIES, INITIAL_CATEGORIES } from "./lib/db-helper";
 import { getBestDiscount } from "./lib/discounts";
 import { getApiUrl, isWarehouseBrand } from "./utils/api-utils";
 import { recordCRMOrder } from "./lib/crm-helper";
 import { registerRegionalOrderFromCheckout } from "./lib/leads-store";
 import { getProductRolePricing, toPersianDigits } from "./lib/pricing";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, ChevronDown, Filter, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search, RefreshCw, LayoutGrid } from "lucide-react";
+import { X, ShoppingBag, CheckCircle2, Loader2, AlertCircle, Settings, Package, Layers, FileText, Activity, ShieldCheck, MapPin, Phone, Mail, Printer, Grid, List, Sparkles, Building, Building2, Award, MessageSquare, DollarSign, TrendingUp, TrendingDown, Percent, ArrowUpRight, Gift, Percent as PercentIcon, Tag, Download, ChevronRight, ChevronDown, Filter, BrainCircuit, LayoutDashboard, BookOpen, Zap, CreditCard, Receipt, Home, User, Compass, ArrowUp, Upload, Edit2, Trash2, Plus, Check, Palette, Paintbrush, Search, RefreshCw, LayoutGrid, FileJson } from "lucide-react";
 import { SectionSkeleton, CatalogSkeleton, TableSkeleton, DashboardSkeleton, ModalSkeleton, CalculatorSkeleton, FadeInContainer, ProductGridSkeleton, BentoProductGridSkeleton } from "./components/Skeleton";
 import { translations, Language } from "./lib/translations";
 import { generateId, generateProductCode, generateFactoryCode, generateUserCode, generateCategoryCode } from "./lib/id-utils";
@@ -221,6 +225,8 @@ const toPersianNum = (num: number | string) => {
   return num.toString().replace(/[0-9]/g, (w) => (persian as any)[w]);
 };
 
+const INITIAL_CATEGORIES = MASTER_CATEGORIES.map(c => c.name);
+
 export default function App() {
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [paletteIndex, setPaletteIndex] = useState<number>(0);
@@ -252,9 +258,15 @@ export default function App() {
   const [dailyAI, setDailyAI] = useState<any>(null);
 
   // New B2B dynamic personalization states
-  const [interfaceMode, setInterfaceMode] = useState<'simple' | 'advanced'>('advanced');
+  const [interfaceMode, setInterfaceMode] = useState<'simple' | 'advanced'>(() => {
+    const saved = localStorage.getItem('dastavval_interface_mode');
+    return (saved as any) || 'advanced';
+  });
   const [userBadge, setUserBadge] = useState<'bronze' | 'silver' | 'gold' | 'vip' | 'admin'>('bronze');
-  const INITIAL_DEFAULT_FACTORIES: any[] = [];
+
+  useEffect(() => {
+    localStorage.setItem('dastavval_interface_mode', interfaceMode);
+  }, [interfaceMode]);
 
   const [b2bConfig, setB2bConfig] = useState<any>(() => {
     const defaultDefaults = {
@@ -267,11 +279,11 @@ export default function App() {
       rawMaterialAds: [],
       sponsoredAds: [],
       categories: [
-        { id: "cat-1", name: "تنقلات و شکلات", label: "تنقلات و شکلات", image: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80&w=600" },
-        { id: "cat-2", name: "کیک، کلوچه و بیسکویت", label: "کیک، کلوچه و بیسکویت", image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&q=80&w=600" },
-        { id: "cat-3", name: "مواد غذایی و کنسروجات", label: "مواد غذایی و کنسروجات", image: "https://images.unsplash.com/photo-1534483509719-3feaee7c30da?auto=format&fit=crop&q=80&w=600" },
-        { id: "cat-4", name: "نوشیدنی‌ها", label: "نوشیدنی‌ها", image: "https://images.unsplash.com/photo-1622597467827-43f0553ad9fe?auto=format&fit=crop&q=80&w=600" },
-        { id: "cat-5", name: "شوینده و بهداشتی", label: "شوینده و بهداشتی", image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=600" }
+        { id: "cat-1", name: "تنقلات و شکلات", label: "تنقلات و شکلات", image: "http://c102393.parspack.net/c102393/products/prd_1.webp" },
+        { id: "cat-2", name: "کیک، کلوچه و بیسکویت", label: "کیک، کلوچه و بیسکویت", image: "http://c102393.parspack.net/c102393/products/prd_2.webp" },
+        { id: "cat-3", name: "مواد غذایی و کنسروجات", label: "مواد غذایی و کنسروجات", image: "http://c102393.parspack.net/c102393/products/prd_3.webp" },
+        { id: "cat-4", name: "نوشیدنی‌ها", label: "نوشیدنی‌ها", image: "http://c102393.parspack.net/c102393/products/prd_4.webp" },
+        { id: "cat-5", name: "شوینده و بهداشتی", label: "شوینده و بهداشتی", image: "http://c102393.parspack.net/c102393/products/prd_5.webp" }
       ],
       logoUrl: "https://raw.githubusercontent.com/antigravity-agent/media/main/dastavval_logo.png",
       mascotUrl: "/assets/mascot_character.jpg",
@@ -353,7 +365,8 @@ export default function App() {
   });
 
   const [appMode, setAppMode] = useState<'presentation' | 'portal'>('presentation');
-  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'barter' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog' | 'error' | 'profit-simulator' | 'loyalty' | 'weekly-schedule' | 'product-page' | 'ad_poster_panel' | 'ad-detail' | 'special-offers' | 'bestsellers' | 'competition'>('presentation');
+  const [activeTab, setActiveTab] = useState<'presentation' | 'order' | 'portal' | 'admin' | 'news' | 'profile' | 'user' | 'factories' | 'about' | 'learning' | 'support' | 'vendor' | 'billboard' | 'barter' | 'dealership' | 'agency' | 'dealership_request' | 'rep_cert' | 'certificate' | 'agent-catalog' | 'error' | 'profit-simulator' | 'loyalty' | 'weekly-schedule' | 'product-page' | 'ad_poster_panel' | 'ad-detail' | 'special-offers' | 'bestsellers' | 'competition' | 'article-page'>('presentation');
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [billboardSubTab, setBillboardSubTab] = useState<'floor_deals' | 'barter_hall' | 'ad_poster_panel'>('floor_deals');
   const [selectedAdForDetail, setSelectedAdForDetail] = useState<any>(null);
 
@@ -374,7 +387,7 @@ export default function App() {
         }
       } catch (e) {}
     }
-    return INITIAL_PRODUCTS;
+    return [];
   });
   const [loading, setLoading] = useState(false);
 
@@ -386,7 +399,33 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list' | 'high_margin'>('list');
+  const [hideOutOfStock, setHideOutOfStock] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("dastavval_hide_out_of_stock");
+        return saved ? saved === "true" : true;
+      } catch (e) {
+        return true;
+      }
+    }
+    return true;
+  });
+  const [viewMode, setViewModeState] = useState<'table' | 'grid' | 'list' | 'high_margin'>(() => {
+    try {
+      const saved = localStorage.getItem("dastavval_preferred_view_mode");
+      if (saved && ['table', 'grid', 'list', 'high_margin'].includes(saved)) {
+        return saved as any;
+      }
+    } catch {}
+    return 'list';
+  });
+
+  const setViewMode = (mode: 'table' | 'grid' | 'list' | 'high_margin') => {
+    setViewModeState(mode);
+    try {
+      localStorage.setItem("dastavval_preferred_view_mode", mode);
+    } catch {}
+  };
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'best-selling' | 'newest' | 'price-asc' | 'price-desc'>('default');
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -397,6 +436,29 @@ export default function App() {
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [liveVisitors, setLiveVisitors] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('dastavval_live_visitors_count');
+      if (saved) return parseInt(saved, 10);
+      const hour = new Date().getHours();
+      const base = (hour >= 8 && hour <= 18) ? 1420 : 780;
+      return base + Math.floor(Math.random() * 210);
+    } catch {
+      return 1250;
+    }
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveVisitors(prev => {
+        const delta = Math.floor(Math.random() * 7) - 3;
+        const next = Math.max(280, prev + delta);
+        try { localStorage.setItem('dastavval_live_visitors_count', next.toString()); } catch {}
+        return next;
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
   const [cart, setCart] = useState<OrderItem[]>(() => {
     try {
       const persistent = localStorage.getItem('dastavval_persistent_cart');
@@ -490,7 +552,7 @@ export default function App() {
         id: catId || 'cat-' + Date.now(),
         name: editingCatName.trim(),
         label: editingCatName.trim(),
-        image: "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=600"
+        image: "http://c102393.parspack.net/c102393/products/prd_10.webp"
       });
     }
 
@@ -540,7 +602,7 @@ export default function App() {
       id: 'cat-' + Date.now(),
       name: newCatName.trim(),
       label: newCatName.trim(),
-      image: "https://images.unsplash.com/photo-1581798459219-318e76aecc7b?auto=format&fit=crop&q=80&w=600"
+      image: "http://c102393.parspack.net/c102393/products/prd_10.webp"
     });
     
     handleUpdateB2bConfig({
@@ -707,6 +769,22 @@ export default function App() {
     };
     window.addEventListener("view-factory", handleFactoryView);
     return () => window.removeEventListener("view-factory", handleFactoryView);
+  }, []);
+
+  // Global Article View Event Listener
+  useEffect(() => {
+    const handleArticleView = (e: any) => {
+      if (e.detail?.articleId) {
+        setSelectedArticleId(e.detail.articleId);
+        setActiveTab('article-page');
+        const url = new URL(window.location.href);
+        url.searchParams.set('article', e.detail.articleId);
+        window.history.pushState({}, '', url.toString());
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener("view-article", handleArticleView);
+    return () => window.removeEventListener("view-article", handleArticleView);
   }, []);
 
   // Global Catalog Modal Event Listener
@@ -903,9 +981,10 @@ export default function App() {
           setInitialFactoryIdParam(factoryParam);
           setActiveTab('factories');
         }
-        const articleParam = params.get('article');
+        const articleParam = params.get('article') || params.get('articleId') || params.get('a');
         if (articleParam) {
-          setActiveTab('news');
+          setSelectedArticleId(articleParam);
+          setActiveTab('article-page');
         }
       }
     }
@@ -1002,8 +1081,8 @@ export default function App() {
   const [paymentReceiptImage, setPaymentReceiptImage] = useState<string>("");
 
   // Unified City & Province states
-  const [userCity, setUserCity] = useState<string>(() => localStorage.getItem("dastavval_user_city") || "تبریز");
-  const [userProvince, setUserProvince] = useState<string>(() => localStorage.getItem("dastavval_user_province") || "آذربایجان شرقی");
+  const [userCity, setUserCity] = useState<string>(() => localStorage.getItem("dastavval_user_city") || "تهران");
+  const [userProvince, setUserProvince] = useState<string>(() => localStorage.getItem("dastavval_user_province") || "تهران");
   const [cityAgency, setCityAgency] = useState<any>(null);
 
   const checkCityRepresentative = useCallback(() => {
@@ -1013,16 +1092,22 @@ export default function App() {
         return;
       }
 
+      const effectiveProv = userProvince || getProvinceForCity(userCity);
+
       // 1. Check approved representatives from admin panel database
       const savedReps: any[] = JSON.parse(localStorage.getItem("dastavval_representatives") || "[]");
-      const approvedAdminRep = savedReps.find((r: any) => 
-        r.isApproved === true && 
-        (r.status === 'active' || !r.status) &&
-        r.city && r.city.trim().toLowerCase() === userCity.trim().toLowerCase()
-      );
+      const approvedAdminRep = savedReps.find((r: any) => {
+        const isApproved = r.isApproved === true || r.status === 'active' || !r.status;
+        return isApproved && isRepresentativeForCity(r, userCity, effectiveProv);
+      });
 
       if (approvedAdminRep) {
-        setCityAgency(approvedAdminRep);
+        const trueProvince = getProvinceForCity(approvedAdminRep.city || userCity, approvedAdminRep.province || effectiveProv);
+        setCityAgency({
+          ...approvedAdminRep,
+          city: approvedAdminRep.city || userCity,
+          province: trueProvince
+        });
         return;
       }
 
@@ -1038,17 +1123,27 @@ export default function App() {
           (u.id && localStorage.getItem(`dastavval_rep_approved_${u.id}`) === "true");
 
         const isActive = u.status === 'active' || u.status === undefined;
-        const matchesCity = u.city && u.city.trim().toLowerCase() === userCity.trim().toLowerCase();
         const hasRepRole = u.role === 'representative' || u.role === 'agency';
+        const matchesCity = isRepresentativeForCity(u, userCity, effectiveProv);
 
         return isApprovedByAdmin && isActive && hasRepRole && matchesCity;
-      });
+      }) as any;
 
-      setCityAgency(approvedUserRep || null);
+      if (approvedUserRep) {
+        const trueProvince = getProvinceForCity(approvedUserRep.city || userCity, approvedUserRep.province || effectiveProv);
+        setCityAgency({
+          ...approvedUserRep,
+          city: approvedUserRep.city || userCity,
+          province: trueProvince
+        });
+        return;
+      }
+
+      setCityAgency(null);
     } catch(e) {
       setCityAgency(null);
     }
-  }, [userCity]);
+  }, [userCity, userProvince]);
 
   useEffect(() => {
     checkCityRepresentative();
@@ -1106,14 +1201,14 @@ export default function App() {
     } catch (e) {}
   };
 
-  // Live Auto-rotate main showcase catalog periodically
+  // Live Auto-rotate main showcase catalog periodically (Slow, calm, unobtrusive)
   useEffect(() => {
-    if (!isLiveCatalogRotating) return;
+    if (!isLiveCatalogRotating || viewMode === 'list' || activeTab !== 'presentation' || searchQuery !== '') return;
     const interval = setInterval(() => {
       setRotationOffset((prev) => (prev + 7) % 100);
-    }, 10000); // Auto-advance product rotation every 10 seconds
+    }, 90000); // Calm 90-second rotation interval
     return () => clearInterval(interval);
-  }, [isLiveCatalogRotating]);
+  }, [isLiveCatalogRotating, viewMode, activeTab, searchQuery]);
 
   useEffect(() => {
     const handleOpenAuth = (e: any) => {
@@ -1255,6 +1350,87 @@ export default function App() {
       }
     } catch (err) {
       console.error("Error in bulk updating products:", err);
+    }
+  };
+
+  const handleApplyJsonImportedProducts = async (importedItems: any[], mode: 'merge' | 'replace' = 'merge') => {
+    if (!importedItems || importedItems.length === 0) return;
+
+    const convertedProducts: Product[] = importedItems.map((item, idx) => {
+      const price = Number(item.sellPrice || item.price || item.factoryPrice || 0);
+      const factoryPrice = Number(item.factoryPrice || item.price || price || 0);
+      const category = (item.category || "تنقلات و شکلات").trim();
+      const code = item.sku || item.productCode || `P-${2000 + idx}`;
+      const img = item.imageUrl || item.image || item.image_url || "http://c102393.parspack.net/c102393/products/prd_10.webp";
+      const brandName = item.brand || item.factory || "کارخانه همکار دست اول";
+      const packCount = Number(item.cartonPackCount || item.packageCount || item.carton_pack_count || 24);
+      const minMoq = Number(item.minOrderCartons || item.minOrder || item.min_order_cartons || 1);
+
+      return {
+        id: String(item.id || `json-prod-${Date.now()}-${idx}`),
+        name: item.name || "محصول جدید کاتالوگ",
+        brand: brandName,
+        price: price,
+        bulk_price: price,
+        factoryPrice: factoryPrice,
+        minOrder: minMoq,
+        min_order_cartons: minMoq,
+        minOrderCartons: minMoq,
+        unit: item.unit || "کارتن",
+        category: category,
+        description: item.description || `تولید استاندارد ${brandName} با بسته‌بندی کارخانه‌ای`,
+        image: img,
+        image_url: img,
+        imageUrl: img,
+        packageCount: packCount,
+        carton_pack_count: packCount,
+        stock: item.stockCartons !== undefined ? Number(item.stockCartons) : (item.stock !== undefined ? Number(item.stock) : 100),
+        factory: brandName,
+        factory_name: brandName,
+        factoryName: brandName,
+        isSpecial: Boolean(item.isSpecial),
+        profitMargin: item.profitMargin !== undefined ? Number(item.profitMargin) : Math.max(12, Math.round(((price - factoryPrice) / (factoryPrice || 1)) * 100) || 18),
+        productCode: code,
+        sku: code,
+        isApproved: true,
+        approvalStatus: 'approved' as const
+      };
+    });
+
+    let finalProducts: Product[] = [];
+    if (mode === 'replace') {
+      finalProducts = convertedProducts;
+    } else {
+      const map = new Map<string, Product>();
+      products.forEach(p => {
+        const key = p.productCode || p.id || p.name;
+        map.set(key, p);
+      });
+      convertedProducts.forEach(p => {
+        const key = p.productCode || p.id || p.name;
+        const existing = map.get(key);
+        if (existing) {
+          map.set(key, { ...existing, ...p });
+        } else {
+          map.set(key, p);
+        }
+      });
+      finalProducts = Array.from(map.values());
+    }
+
+    setProducts(finalProducts);
+    await syncProductsWithServer(finalProducts);
+
+    // Also extract new categories and merge them
+    const newCategories = Array.from(new Set(convertedProducts.map(p => p.category).filter(Boolean)));
+    const existingCatNames = (b2bConfig.categories || []).map((c: any) => typeof c === 'string' ? c : c.name);
+    const toAdd = newCategories.filter(c => !existingCatNames.includes(c));
+    if (toAdd.length > 0) {
+      const updatedCats = [
+        ...(b2bConfig.categories || []),
+        ...toAdd.map(name => ({ id: `cat-${Date.now()}-${name}`, name, label: name }))
+      ];
+      handleUpdateB2bConfig({ ...b2bConfig, categories: updatedCats });
     }
   };
 
@@ -1825,6 +2001,48 @@ export default function App() {
     }
   };
 
+  const setExactCartQuantity = (product: Product, targetQty: number) => {
+    if (!product || !product.id) return;
+    const packCount = Math.max(1, product.carton_pack_count || 12);
+    let pricePerCarton = 0;
+    try {
+      const rolePricing = getProductRolePricing(product, user, userBadge);
+      pricePerCarton = rolePricing?.pricePerCarton || (product.bulk_price || product.price || 0) * packCount;
+    } catch {
+      pricePerCarton = (product.bulk_price || product.price || 0) * packCount;
+    }
+
+    if (targetQty <= 0) {
+      setCart(prev => prev.filter(item => item.productId !== product.id));
+    } else {
+      setCart(prev => {
+        const existingIdx = prev.findIndex(item => item.productId === product.id);
+        if (existingIdx > -1) {
+          return prev.map((item, idx) => 
+            idx === existingIdx
+              ? {
+                  ...item,
+                  quantityCartons: targetQty,
+                  totalItems: targetQty * packCount,
+                  pricePerCarton
+                }
+              : item
+          );
+        } else {
+          return [...prev, {
+            productId: product.id,
+            name: product.name || "کالای بدون نام",
+            quantityCartons: targetQty,
+            pricePerCarton,
+            totalItems: targetQty * packCount,
+            image_url: product.image_url || "",
+            unitsPerCarton: packCount
+          }];
+        }
+      });
+    }
+  };
+
   const addToCart = (product: Product, quantityCartons: number) => {
     if (!product || !product.id) {
       console.error("addToCart: Invalid product object", product);
@@ -1874,7 +2092,7 @@ export default function App() {
         return prev;
       }
     });
-    setIsCartOpen(true);
+    // Do not automatically pop open checkout modal on every add to cart
   };
 
   const addMultipleToCart = (items: { product: Product; quantityCartons: number }[]) => {
@@ -1926,7 +2144,7 @@ export default function App() {
         return prev;
       }
     });
-    setIsCartOpen(true);
+    // Do not automatically pop open checkout modal on every add to cart
   };
 
   const removeFromCart = (productId: string) => {
@@ -2037,10 +2255,10 @@ export default function App() {
 
       const storedAffiliateRepId = typeof window !== 'undefined' ? localStorage.getItem('dastavval_affiliate_rep_id') : null;
       const orderData: any = {
-        buyerName,
-        buyerPhone,
-        buyerAddress,
-        buyerCompany: buyerCompany || "فروشگاه عمده",
+        buyerName: buyerName || user?.name || "خریدار محترم",
+        buyerPhone: buyerPhone || user?.phone || user?.mobile || "",
+        buyerAddress: buyerAddress || user?.address || `تحویل در استان ${userProvince} - شهر ${userCity}`,
+        buyerCompany: buyerCompany || user?.company || "فروشگاه عمده",
         items: cart,
         totalAmount: finalAmount,
         originalAmount: totalAmount,
@@ -2188,6 +2406,10 @@ export default function App() {
 
   const filteredProducts = useMemo(() => {
     return activeProducts.filter(product => {
+      // Filter out-of-stock products if hideOutOfStock is enabled
+      const isOutOfStock = product.stock_quantity_cartons !== undefined && product.stock_quantity_cartons <= 0;
+      if (hideOutOfStock && isOutOfStock) return false;
+
       const matchesCategory = activeCategory === "همه" || product.category === activeCategory;
       const matchesBrand = selectedBrand === "همه" || product.brand === selectedBrand;
       
@@ -2242,12 +2464,20 @@ export default function App() {
         return bBoost - aBoost;
       }
       
-      // Dynamic Session Rotational Shuffle
+      // In direct buying list mode or wholesale order tab, maintain 100% stable sorting to prevent item jumping
+      if (viewMode === 'list' || activeTab === 'order') {
+        const idA = Number(a.id) || 0;
+        const idB = Number(b.id) || 0;
+        if (idA && idB) return idA - idB;
+        return String(a.id || "").localeCompare(String(b.id || ""));
+      }
+
+      // Dynamic Session Rotational Shuffle (Only in presentation showcase)
       const hashA = ((a.id ? String(a.id).charCodeAt(0) : 0) + (a.name ? a.name.charCodeAt(0) : 0) + rotationOffset) % 100;
       const hashB = ((b.id ? String(b.id).charCodeAt(0) : 0) + (b.name ? b.name.charCodeAt(0) : 0) + rotationOffset) % 100;
       return hashB - hashA;
     });
-  }, [activeProducts, activeCategory, selectedBrand, searchQuery, sortBy, rotationOffset]);
+  }, [activeProducts, activeCategory, selectedBrand, searchQuery, sortBy, rotationOffset, hideOutOfStock, viewMode, activeTab]);
 
   const getBadgeDetails = (badge: string) => {
     switch(badge) {
@@ -2298,15 +2528,25 @@ export default function App() {
         setUserBadge('admin');
       }
     }
+    // Verify and persist all JSON data structures (users, ads, factories, orders) on startup
+    ResilientVault.verifyAndPersistAllData().catch(err => console.warn("Initial data verification sync error:", err));
   }, []);
 
   // Pre-fill buyer details when user is logged in
   useEffect(() => {
     if (user) {
-      if (user.name && user.role !== 'admin' && user.name !== "مدیریت کل سامانه") setBuyerName(user.name);
-      if (user.phone) setBuyerPhone(user.phone);
-      if (user.company && user.role !== 'admin') setBuyerCompany(user.company);
-      if (user.address && user.role !== 'admin') setBuyerAddress(user.address);
+      if (user.name) setBuyerName(user.name);
+      if (user.phone || user.mobile) setBuyerPhone(user.phone || user.mobile || "");
+      if (user.company) setBuyerCompany(user.company);
+      if (user.address) setBuyerAddress(user.address);
+      if (user.city) {
+        setUserCity(user.city);
+        localStorage.setItem("dastavval_user_city", user.city);
+      }
+      if (user.province) {
+        setUserProvince(user.province);
+        localStorage.setItem("dastavval_user_province", user.province);
+      }
     }
   }, [user]);
 
@@ -2318,19 +2558,17 @@ export default function App() {
   return (
     <div className="min-h-screen transition-colors duration-300 font-sans bg-white text-slate-900" dir={language === 'en' ? 'ltr' : 'rtl'}>
       
-      {/* Branded High-Performance Creative White Splash Screen (Initial & Data Sync) */}
+      {/* Branded High-Performance Creative White Splash Screen (Initial load only) */}
       <AnimatePresence>
-        {(showSplash || isSyncingData) && (
+        {showSplash && (
           <SplashScreen
             appName={b2bConfig?.appName}
             appSub={b2bConfig?.appSub}
             logoUrl={b2bConfig?.logoUrl}
-            mode={isSyncingData ? 'data_sync' : 'initial_load'}
+            mode="initial_load"
             onFinishLoading={() => {
               setShowSplash(false);
-              setIsSyncingData(false);
             }}
-            isDataReady={products && products.length > 0}
           />
         )}
       </AnimatePresence>
@@ -2625,19 +2863,18 @@ export default function App() {
         userBadge={userBadge}
       />
 
-      {/* Main Container */}
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 bg-white ${
+      {/* Main Container with stable min-height to prevent layout jump on desktop */}
+      <main className={`w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 min-h-[75vh] bg-white ${
         (activeTab === 'presentation' || activeTab === 'about') ? 'pb-0' : 'pb-24 lg:py-6'
       }`}>
         <Suspense fallback={<DashboardSkeleton />}>
-          <AnimatePresence mode="wait">
+          <div className="w-full">
             {activeTab === 'presentation' && (
               <motion.div
                 key="presentation"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15 }}
                 className="space-y-6 sm:space-y-8"
               >
                 <DynamicPresentation 
@@ -2681,139 +2918,199 @@ export default function App() {
                 transition={{ duration: 0.2 }}
                 className="space-y-4"
               >
-                {/* 1. کادر کوتاه، تمیز و خلاقانه بالای صفحه با دکمه‌های کاملاً برجسته، تفکیک‌شده و قابل لمس */}
-                <div id="unified-agency-platform-banner" className="bg-white border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 shadow-2xs text-right animate-fade-in" dir="rtl">
-                  <div className="flex flex-wrap items-center justify-between gap-2.5">
-                    {/* سمت راست: هویت مستقیم سفارش و شهر مقصد */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 text-sm shadow-3xs font-black">
-                        🏭
+                {/* 1. کادر کوتاه، تمیز و متقارن بالای صفحه با ساختار Grid دو ستونه در دسکتاپ، پدینگ بهینه و یکنواخت، سایه نرم و گوشه‌های گرد هماهنگ */}
+                <div 
+                  id="unified-agency-platform-banner" 
+                  className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 shadow-sm shadow-slate-200/50 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-300 text-right animate-fade-in" 
+                  dir="rtl"
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-3 sm:gap-4">
+                    {/* ستون راست (دسکتاپ): هویت مستقیم سفارش، انتخابگر دقیق شهر/استان و کد عاملیت */}
+                    <div className="lg:col-span-7 flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-3">
+                      <div className="flex items-center gap-2.5 sm:gap-3">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-700 text-white flex items-center justify-center shrink-0 text-base shadow-3xs font-black ring-2 ring-emerald-100">
+                          🏭
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <span className="font-black text-xs sm:text-sm text-slate-900">سفارش مستقیم از کارخانجات</span>
+                          <span className="text-[10px] font-bold text-slate-300">|</span>
+                          
+                          {/* Searchable Province & City Selector directly inside the banner */}
+                          <StrictCityProvinceSelector
+                            selectedCity={userCity}
+                            selectedProvince={userProvince}
+                            onSelect={(c, p) => {
+                              setUserCity(c);
+                              setUserProvince(p);
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-black text-xs sm:text-sm text-slate-900">سفارش مستقیم از کارخانجات</span>
-                        <span className="text-[10px] font-bold text-slate-400">|</span>
-                        <span className="text-[10.5px] font-black text-emerald-900 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                          <MapPin size={11} className="text-emerald-700" />
-                          مقصد: {userCity}
-                        </span>
-                      </div>
+
+                      {cityAgency && (
+                        <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-xl text-[11px] shadow-3xs">
+                          <span className="text-emerald-800 font-bold">کد عاملیت:</span>
+                          <span className="font-mono font-black text-emerald-900 dir-ltr tracking-wide">{cityAgency.agencyCode || cityAgency.id || 'DA-1402-88'}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* سمت چپ: ۳ دکمه کاملاً متمایز، برجسته و قابل کلیک */}
-                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                      {/* دکمه ۱: اخذ عاملیت یا وضعیت عاملیت فعال */}
+                    {/* ستون چپ (دسکتاپ): دکمه‌های عملیاتی، تماس مستقیم و وضعیت عاملیت */}
+                    <div className="lg:col-span-5 flex items-center justify-start lg:justify-end gap-2 flex-wrap">
+                      {/* دکمه ۱: وضعیت عاملیت فعال یا اخذ عاملیت */}
                       {cityAgency ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsRepDetailsExpanded(!isRepDetailsExpanded)}
-                          className="h-8 sm:h-8.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1.5"
-                          title="مشاهده مشخصات و پروانه عاملیت"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                          <span>عاملیت {userCity}</span>
-                          <ChevronDown size={13} className={`transition-transform duration-200 text-emerald-700 ${isRepDetailsExpanded ? 'rotate-180' : ''}`} />
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setIsRepDetailsExpanded(!isRepDetailsExpanded)}
+                            className="h-9 sm:h-9.5 px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl sm:rounded-2xl font-black text-xs transition-all cursor-pointer shadow-3xs hover:shadow-xs active:scale-95 flex items-center gap-2"
+                            title="مشاهده مشخصات و پروانه عاملیت"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                            <span>عاملیت رسمی {userCity}</span>
+                            <ChevronDown size={14} className={`transition-transform duration-200 text-emerald-700 ${isRepDetailsExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          <a
+                            href={`tel:${cityAgency.phone || '09121234567'}`}
+                            className="h-9 sm:h-9.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-black text-xs transition-all flex items-center gap-1.5 shadow-3xs hover:shadow-xs active:scale-95"
+                            title="تماس تلفنی مستقیم با عاملیت"
+                          >
+                            <Phone size={13} />
+                            <span className="font-mono text-[11px] dir-ltr hidden sm:inline">{cityAgency.phone || '۰۹۱۲۱۲۳۴۵۶۷'}</span>
+                            <span className="sm:hidden">تماس</span>
+                          </a>
+                        </>
                       ) : (
                         <button 
                           type="button"
                           onClick={() => setActiveTab('dealership_request')}
-                          className="h-8 sm:h-8.5 px-3 bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 text-amber-900 border border-amber-300 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1.5"
+                          className="h-9 sm:h-9.5 px-3.5 bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 text-amber-900 border border-amber-300 rounded-xl sm:rounded-2xl font-black text-xs transition-all cursor-pointer shadow-3xs hover:shadow-xs active:scale-95 flex items-center gap-2"
                         >
                           <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                           <span>اخذ عاملیت {userCity}</span>
                         </button>
                       )}
 
-                      {/* دکمه ۲: تغییر شهر */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const customEvent = new CustomEvent("open-city-picker-modal-from-banner");
-                          window.dispatchEvent(customEvent);
-                        }}
-                        className="h-8 sm:h-8.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1"
-                      >
-                        <MapPin size={12} className="text-slate-500" />
-                        <span>تغییر شهر</span>
-                      </button>
-
-                      {/* دکمه ۳: معرفی پلتفرم */}
+                      {/* دکمه ۲: معرفی پلتفرم */}
                       <button
                         type="button"
                         onClick={() => setActiveTab('presentation')}
-                        className="h-8 sm:h-8.5 px-3 bg-slate-50 hover:bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl font-black text-xs transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1"
+                        className="h-9 sm:h-9.5 px-3 sm:px-3.5 bg-slate-50 hover:bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl sm:rounded-2xl font-black text-xs transition-all cursor-pointer shadow-3xs hover:shadow-xs active:scale-95 flex items-center gap-1.5"
                       >
                         <span>ℹ️</span>
-                        <span>معرفی پلتفرم</span>
+                        <span>معرفی</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* پنل کشویی اطلاعات کامل نماینده و ترابری */}
+                  {/* پنل کشویی دو ستونه کارتونی و متقارن اطلاعات کامل نماینده */}
                   <AnimatePresence>
                     {cityAgency && isRepDetailsExpanded && (
                       <motion.div
                         initial={{ opacity: 0, height: 0, y: -8 }}
                         animate={{ opacity: 1, height: "auto", y: 0 }}
                         exit={{ opacity: 0, height: 0, y: -8 }}
-                        className="bg-white border border-emerald-500/25 rounded-xl p-3.5 mt-2.5 shadow-sm text-right overflow-hidden relative"
+                        className="bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 border-2 border-emerald-500/30 rounded-2xl p-4 mt-3 shadow-md text-right overflow-hidden relative"
                       >
-                        <div className="absolute left-3 top-3 bg-emerald-50 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>عاملیت رسمی فعال</span>
-                        </div>
-
-                        <h4 className="text-xs sm:text-sm font-black text-slate-900 mb-3 flex items-center gap-2 pb-2 border-b border-slate-100">
-                          <span>📋 مشخصات و پروانه عاملیت توزیع شهرستان {userCity}</span>
-                        </h4>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
-                            <span className="text-[9.5px] text-slate-400 font-bold">🏢 نام شرکت / بنکداری:</span>
-                            <strong className="text-slate-800 font-black">
-                              {cityAgency.company || cityAgency.agencyName || 'شرکت توزیع و پخش دست اول'}
-                            </strong>
+                        {/* نشان ویژه بالای کارت */}
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-100/80">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-sm ring-2 ring-emerald-200">
+                              📑
+                            </div>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                                پروانه و شناسنامه عاملیت رسمی استان {getProvinceForCity(cityAgency.city || userCity, cityAgency.province || userProvince)} - شهرستان {cityAgency.city || userCity}
+                              </h4>
+                              <p className="text-[10px] font-bold text-slate-500">پشتیبانی و توزیع مستقیم محصولات کارخانجات</p>
+                            </div>
                           </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
-                            <span className="text-[9.5px] text-slate-400 font-bold">👤 مدیر عاملیت:</span>
-                            <strong className="text-slate-800 font-black">
-                              {cityAgency.name || cityAgency.displayName || cityAgency.representative || 'جناب آقای رضایی'}
-                            </strong>
-                          </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
-                            <span className="text-[9.5px] text-slate-400 font-bold">📞 تلفن همراه مستقیم:</span>
-                            <strong className="text-slate-800 font-bold font-mono text-left" dir="ltr">
-                              {cityAgency.phone || '۰۹۱۲۱۲۳۴۵۶۷'}
-                            </strong>
-                          </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5">
-                            <span className="text-[9.5px] text-slate-400 font-bold">🔑 کد نمایندگی رسمی:</span>
-                            <strong className="text-emerald-700 font-black font-mono">
-                              {cityAgency.agencyCode || cityAgency.id || 'DA-1402-88'}
-                            </strong>
-                          </div>
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-0.5 sm:col-span-2">
-                            <span className="text-[9.5px] text-slate-400 font-bold">📍 آدرس انبار تحویل و بارگیری:</span>
-                            <strong className="text-slate-700 font-black leading-relaxed">
-                              {cityAgency.address || `دفتر مرکزی توزیع و باربری مجاز شهرستان ${userCity}`}
-                            </strong>
+                          <div className="bg-emerald-100 text-emerald-900 text-[10.5px] font-black px-3 py-1 rounded-full border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            <span>عاملیت فعال و تاییدشده</span>
                           </div>
                         </div>
 
-                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => window.location.href = `tel:${cityAgency.phone || '09121234567'}`}
-                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10.5px] font-black rounded-lg transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        {/* ساختار کارتونی متقارن ۲ ستونه با سایه‌ها و حاشیه‌های نرم‌تر */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          {/* ستون راست: هویت و کد نمایندگی */}
+                          <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3.5 shadow-sm shadow-slate-200/40 hover:shadow-md hover:border-emerald-300 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                              <span className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-black shadow-3xs">🏢</span>
+                              <span className="font-black text-slate-800 text-xs">مشخصات مدیریت و مجموعه</span>
+                            </div>
+
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center bg-slate-50/60 p-2.5 rounded-xl border border-slate-100/50">
+                                <span className="text-slate-500 font-bold text-[11px]">👤 مدیر عاملیت:</span>
+                                <strong className="text-slate-900 font-black text-xs">
+                                  {cityAgency.name || cityAgency.displayName || cityAgency.representative || 'نماینده رسمی دست اول'}
+                                </strong>
+                              </div>
+
+                              <div className="flex justify-between items-center bg-slate-50/60 p-2.5 rounded-xl border border-slate-100/50">
+                                <span className="text-slate-500 font-bold text-[11px]">🏢 نام شرکت / بنکداری:</span>
+                                <strong className="text-slate-900 font-black text-xs">
+                                  {cityAgency.company || cityAgency.agencyName || 'شرکت توزیع و پخش دست اول'}
+                                </strong>
+                              </div>
+
+                              <div className="flex justify-between items-center bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
+                                <span className="text-emerald-900 font-black text-[11px]">🔑 کد انحصاری عاملیت:</span>
+                                <strong className="text-emerald-800 font-black font-mono text-sm sm:text-base tracking-wider bg-white px-2.5 py-1 rounded-lg border border-emerald-200/80 shadow-3xs">
+                                  {cityAgency.agencyCode || cityAgency.id || 'DA-1402-88'}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ستون چپ: ارتباطات و لجیستیک انبار */}
+                          <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3.5 shadow-sm shadow-slate-200/40 hover:shadow-md hover:border-emerald-300 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                              <span className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-black shadow-3xs">📞</span>
+                              <span className="font-black text-slate-800 text-xs">ارتباط مستقیم و تحویل بار</span>
+                            </div>
+
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center bg-slate-50/60 p-2.5 rounded-xl border border-slate-100/50">
+                                <span className="text-slate-500 font-bold text-[11px]">📞 شماره تماس مستقیم:</span>
+                                <strong className="text-emerald-800 font-mono font-black text-sm sm:text-base text-left tracking-wider bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-3xs" dir="ltr">
+                                  {cityAgency.phone || cityAgency.mobile || cityAgency.tel || '۰۹۱۲۱۲۳۴۵۶۷'}
+                                </strong>
+                              </div>
+
+                              <div className="flex justify-between items-center bg-slate-50/60 p-2.5 rounded-xl border border-slate-100/50">
+                                <span className="text-slate-500 font-bold text-[11px]">📍 استان و شهرستان:</span>
+                                <strong className="text-slate-900 font-black text-xs">
+                                  {getProvinceForCity(cityAgency.city || userCity, cityAgency.province || userProvince)} - {cityAgency.city || userCity}
+                                </strong>
+                              </div>
+
+                              <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-100/50 space-y-1">
+                                <span className="text-slate-500 font-bold text-[10.5px]">🚛 آدرس انبار و تحویل بار:</span>
+                                <p className="text-slate-800 font-black text-[11px] leading-relaxed">
+                                  {cityAgency.address || `انبار مرکزی توزیع و باربری مجاز شهرستان ${cityAgency.city || userCity}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* دکمه‌های عملیاتی سفارشی با طراحی کارتونی */}
+                        <div className="mt-3.5 pt-3 border-t border-emerald-100 flex flex-wrap gap-2 justify-end items-center">
+                          <a
+                            href={`tel:${cityAgency.phone || cityAgency.mobile || cityAgency.tel || '09121234567'}`}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-black rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
                           >
-                            <span>📞 تماس با نماینده</span>
-                          </button>
+                            <span>📞 تماس مستقیم تلفنی</span>
+                          </a>
                           <button
                             type="button"
                             onClick={() => setIsRepDetailsExpanded(false)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10.5px] font-black rounded-lg transition-all cursor-pointer"
+                            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-black rounded-xl transition-all cursor-pointer border border-slate-200"
                           >
-                            بستن
+                            بستن پنل
                           </button>
                         </div>
                       </motion.div>
@@ -2871,49 +3168,65 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* ردیف دوم: سوییچر متقارن حالت نمایش + دکمه دانلود PDF */}
-                  <div className="flex items-center justify-between gap-1.5">
-                    {/* حالت‌های نمایش */}
-                    <div className="flex-1 grid grid-cols-3 sm:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+                  {/* ردیف دوم: سوییچر متقارن حالت نمایش + دکمه دانلود PDF و وضعیت موجودی */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    {/* حالت‌های اصلی نمایش: خرید سریع، کاتالوگ کارتی، بیشترین سود */}
+                    <div className="w-full sm:w-auto grid grid-cols-3 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 shadow-3xs">
                       {[
-                        { id: 'list', icon: Zap, label: 'خرید سریع (مستقیم)', short: '⚡ خرید سریع' },
-                        { id: 'grid', icon: Grid, label: 'کارتی (سود)', short: 'کارتی (سود)' },
-                        { id: 'high_margin', icon: TrendingUp, label: 'بیشترین سود', short: 'بیشترین سود' }
-                      ].map((mode) => (
-                        <button
-                          key={`app-view-mode-${mode.id}`}
-                          type="button"
-                          onClick={() => setViewMode(mode.id as any)}
-                          className={`flex items-center justify-center gap-1 py-2 px-2.5 sm:px-3 rounded-lg text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                            viewMode === mode.id
-                              ? "bg-white text-emerald-800 shadow-xs border border-slate-200/90"
-                              : "text-slate-600 hover:text-slate-900"
-                          }`}
-                          title={mode.label}
-                        >
-                          <mode.icon size={13} className={viewMode === mode.id ? "text-emerald-700" : "text-slate-400"} />
-                          <span className="hidden sm:inline">{mode.label}</span>
-                          <span className="sm:hidden">{mode.short}</span>
-                        </button>
-                      ))}
+                        { id: 'list', icon: Zap, label: 'خرید سریع (مستقیم)', short: '⚡ خرید سریع', iconColor: 'text-emerald-500' },
+                        { id: 'grid', icon: Grid, label: 'کاتالوگ کارتی', short: 'کاتالوگ', iconColor: 'text-emerald-600' },
+                        { id: 'high_margin', icon: TrendingUp, label: 'بیشترین سود ریالی', short: 'پر سود', iconColor: 'text-rose-500' }
+                      ].map((mode) => {
+                        const isActive = viewMode === mode.id;
+                        const Icon = mode.icon;
+                        return (
+                          <button
+                            key={`app-view-mode-${mode.id}`}
+                            type="button"
+                            onClick={() => setViewMode(mode.id as any)}
+                            className={`flex items-center justify-center gap-1.5 py-2 px-2 sm:px-3.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap select-none ${
+                              isActive
+                                ? "bg-white text-emerald-950 shadow-sm border border-slate-200/90 ring-2 ring-emerald-500/10"
+                                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                            }`}
+                            title={mode.label}
+                          >
+                            <Icon size={14} className={isActive ? mode.iconColor : "text-slate-400"} />
+                            <span className="hidden md:inline">{mode.label}</span>
+                            <span className="md:hidden text-[11px] sm:text-xs font-black">{mode.short}</span>
+                          </button>
+                        );
+                      })}
                     </div>
 
-                    {/* ابزار هوشمند وضعیت شبکه + دکمه کاتالوگ PDF */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <NetworkStatusWidget
-                        currentViewMode={viewMode}
-                        onSwitchToListMode={() => setViewMode('list')}
-                      />
+                    {/* ابزارهای کمکی: وضعیت موجودی و خروجی کاتالوگ PDF */}
+                    <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextVal = !hideOutOfStock;
+                          setHideOutOfStock(nextVal);
+                          localStorage.setItem("dastavval_hide_out_of_stock", String(nextVal));
+                        }}
+                        className={`h-9 sm:h-10 px-2.5 sm:px-3 flex-1 sm:flex-initial border rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-3xs ${
+                          hideOutOfStock
+                            ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100/70"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                        title={hideOutOfStock ? "نمایش همه کالاها (شامل ناموجود)" : "مخفی‌سازی هوشمند کالاهای ناموجود"}
+                      >
+                        <Package size={14} className={hideOutOfStock ? "text-amber-600" : "text-slate-500"} />
+                        <span className="whitespace-nowrap">{hideOutOfStock ? "فقط موجودها" : "همه کالاها"}</span>
+                      </button>
 
                       <button
                         type="button"
                         onClick={() => setIsCatalogOpen(true)}
-                        className="h-10 px-2.5 sm:px-3.5 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-3xs"
+                        className="h-9 sm:h-10 px-2.5 sm:px-3 flex-1 sm:flex-initial bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-3xs"
                         title="دانلود کاتالوگ PDF"
                       >
-                        <Printer size={14} />
-                        <span className="hidden sm:inline">کاتالوگ PDF</span>
-                        <span className="sm:hidden">PDF</span>
+                        <Printer size={14} className="text-slate-500" />
+                        <span className="whitespace-nowrap">کاتالوگ PDF</span>
                       </button>
                     </div>
                   </div>
@@ -3045,7 +3358,7 @@ export default function App() {
                   ) : viewMode === 'list' ? (
                     <QuickOrderList 
                       products={filteredProducts} 
-                      onAddToCart={(product, qty) => addToCart(product, qty)} 
+                      onAddToCart={(product, qty) => setExactCartQuantity(product, qty)} 
                       cart={cart.map(item => ({ productId: item.productId, quantity: item.quantityCartons }))}
                       fullCart={cart}
                       user={user}
@@ -3146,6 +3459,7 @@ export default function App() {
                 <Suspense fallback={<DashboardSkeleton />}>
                   <FadeInContainer>
                     <AdminPanel 
+                      user={user}
                       products={products}
                       onAddProduct={handleAddProduct}
                       onUpdateProduct={handleUpdateProduct}
@@ -3153,6 +3467,7 @@ export default function App() {
                       onBatchDeleteProducts={handleBatchDeleteProducts}
                       onBulkUpdateProducts={handleBulkUpdateProducts}
                       onRefreshProducts={fetchProducts}
+                      onApplyJsonImportedProducts={handleApplyJsonImportedProducts}
                       b2bConfig={b2bConfig}
                       onUpdateB2bConfig={handleUpdateB2bConfig}
                       articles={articles}
@@ -3319,6 +3634,40 @@ export default function App() {
                   />
                 </FadeInContainer>
               </Suspense>
+            </motion.div>
+          )}
+
+          {activeTab === 'article-page' && selectedArticleId && (
+            <motion.div
+              key="article-page"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ArticlePageView
+                articleId={selectedArticleId}
+                articles={articles}
+                b2bConfig={b2bConfig}
+                products={products}
+                onClose={() => {
+                  setSelectedArticleId(null);
+                  setActiveTab('news');
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('article');
+                  window.history.pushState({}, '', url.toString());
+                }}
+                onOpenProduct={(prod) => {
+                  openProductPage(prod);
+                }}
+                onOpenFactory={(facId) => {
+                  setInitialFactoryIdParam(facId);
+                  setActiveTab('factories');
+                }}
+                onSwitchTab={(tab) => {
+                  setActiveTab(tab as any);
+                }}
+              />
             </motion.div>
           )}
 
@@ -3766,7 +4115,7 @@ export default function App() {
               </Suspense>
             </motion.div>
           )}
-        </AnimatePresence>
+          </div>
         </Suspense>
       </main>
 
@@ -4580,14 +4929,20 @@ export default function App() {
               <p className="flex items-center gap-1.5">
                 © {new Date().getFullYear()} <span className="text-slate-600">{b2bConfig.appName || "بازرگانی دست اول"}</span>. تمامی حقوق محفوظ است.
               </p>
-              {/* Clean Live Online Visitors in Footer */}
+              {/* Network Status Widget & Online Visitors in Footer */}
+              <NetworkStatusWidget
+                currentViewMode={viewMode}
+                onSwitchToListMode={() => setViewMode('list')}
+                onUpgradeToFullMode={() => setViewMode('grid')}
+              />
+
               <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/80 text-emerald-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span>بازدیدکنندگان آنلاین:</span>
-                <span className="font-mono font-black text-emerald-700">۳,۴۸۲ نفر</span>
+                <span className="font-mono font-black text-emerald-700">{toPersianNum(liveVisitors)} نفر</span>
               </div>
             </div>
             <div className="flex flex-wrap justify-center gap-4 md:gap-6">
@@ -4625,7 +4980,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToTop}
-            className="fixed bottom-38 left-5 sm:bottom-24 sm:left-6 lg:bottom-8 lg:left-8 z-40 p-3 bg-white/95 backdrop-blur-md hover:bg-slate-50 text-slate-800 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-slate-200 flex items-center justify-center group"
+            className="lg:hidden fixed bottom-38 left-5 sm:bottom-24 sm:left-6 z-40 p-3 bg-white/95 backdrop-blur-md hover:bg-slate-50 text-slate-800 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-slate-200 flex items-center justify-center group"
             title="بازگشت به بالای صفحه"
           >
             <ArrowUp size={20} className="text-slate-800 group-hover:-translate-y-0.5 transition-transform" />

@@ -20,6 +20,7 @@ import {
   Hash
 } from "lucide-react";
 import { B2BConfig, Product } from "../types";
+import { MASTER_CATEGORIES, getAllCategoriesMerged } from "../data/categoriesData";
 
 interface AdminCategoriesManagementProps {
   b2bConfig: B2BConfig;
@@ -31,22 +32,21 @@ export interface CategoryItem {
   id: string;
   name: string;
   emoji: string;
-  type: 'product' | 'raw_material' | 'equipment' | 'service' | 'barter' | 'general';
+  type: 'product' | 'agriculture' | 'raw_material' | 'equipment' | 'capacity' | 'service' | 'barter' | 'general';
   description?: string;
   subcategories?: string[];
   isCustom?: boolean;
 }
 
-const DEFAULT_CATEGORIES: CategoryItem[] = [
-  { id: 'cat-1', name: 'تنقلات و شکلات', emoji: '🍫', type: 'product', description: 'انواع شکلات، بیسکویت، ویفر، چیپس و تنقلات کارخانه‌ای', subcategories: ['بیسکویت', 'ویفر', 'چیپس', 'شکلات'] },
-  { id: 'cat-2', name: 'شوینده و بهداشتی', emoji: '🧼', type: 'product', description: 'مواد شوینده، مایع دستشویی، پودر لباسشویی و بهداشتی', subcategories: ['مایع ظرفشویی', 'دستمال کاغذی', 'شامپو'] },
-  { id: 'cat-3', name: 'کنسرو و مواد غذایی', emoji: '🥫', type: 'product', description: 'رب گوجه، کنسروجات، تن ماهی، خیارشور و ترشیجات', subcategories: ['رب گوجه', 'کنسرو ماهی', 'خیارشور'] },
-  { id: 'cat-4', name: 'نوشیدنی و لبنیات', emoji: '🥛', type: 'product', description: 'آبمیوه، نوشابه، شیر، پنیر پیتزا و فرآورده‌های لبنی', subcategories: ['آبمیوه', 'شیر', 'پنیر پیتزا'] },
-  { id: 'cat-5', name: 'مواد اولیه و شیمیایی', emoji: '🧪', type: 'raw_material', description: 'اسانس‌ها، رنگ خوراکی، افزودنی‌های غذایی، پلیمر و گلوکز', subcategories: ['شکر صنعتی', 'گلوکز', 'اسانس خوراکی'] },
-  { id: 'cat-6', name: 'ماشین‌آلات و تجهیزات', emoji: '⚙️', type: 'equipment', description: 'دستگاه‌های بسته‌بندی، میکسر، سیل‌کن و خطوط تولید صنعتی', subcategories: ['دستگاه بسته‌بندی', 'سیل‌کن', 'میکسر'] },
-  { id: 'cat-7', name: 'خدمات صنعتی و بسته بندی', emoji: '📦', type: 'service', description: 'خدمات چاپ، کارتن‌سازی، تزریق پلاستیک و آزمایشگاهی', subcategories: ['کارتن‌سازی', 'چاپ سلفون', 'نایلون'] },
-  { id: 'cat-8', name: 'تهاتر کارخانه‌ای', emoji: '🔄', type: 'barter', description: 'معاوضه مازاد تولید کارخانجات با مواد اولیه، تجهیزات و خودرو', subcategories: ['تهاتر کالا', 'تهاتر مواد اولیه'] },
-];
+const DEFAULT_CATEGORIES: CategoryItem[] = MASTER_CATEGORIES.map(c => ({
+  id: c.id,
+  name: c.name,
+  emoji: c.emoji,
+  type: c.type as any,
+  description: c.description,
+  subcategories: c.subcategories,
+  isCustom: false
+}));
 
 const POPULAR_CATEGORY_TEMPLATES = [
   { name: 'لبنیات و فرآورده‌های شیری', emoji: '🥛', type: 'product' as const, description: 'شیر، پنیر پیتزا، کره صنعتی، خامه و دوغ کارخانه‌ای', subcategories: ['پنیر پیتزا', 'شیر تتراپک', 'کره حیوانی'] },
@@ -71,30 +71,16 @@ export default function AdminCategoriesManagement({
   products = []
 }: AdminCategoriesManagementProps) {
   const [categories, setCategories] = useState<CategoryItem[]>(() => {
-    if (b2bConfig?.categories && Array.isArray(b2bConfig.categories) && b2bConfig.categories.length > 0) {
-      return b2bConfig.categories.map((c: any, index: number) => {
-        if (typeof c === 'string') {
-          return {
-            id: `cat-${index + 1}`,
-            name: c,
-            emoji: '🏷️',
-            type: 'product',
-            description: '',
-            subcategories: []
-          };
-        }
-        return {
-          id: c.id || `cat-${index + 1}`,
-          name: c.name || '',
-          emoji: c.emoji || '🏷️',
-          type: c.type || 'product',
-          description: c.description || '',
-          subcategories: Array.isArray(c.subcategories) ? c.subcategories : [],
-          isCustom: !!c.isCustom
-        };
-      });
-    }
-    return DEFAULT_CATEGORIES;
+    const mergedList = getAllCategoriesMerged(b2bConfig?.categories);
+    return mergedList.map(c => ({
+      id: c.id,
+      name: c.name,
+      emoji: c.emoji,
+      type: (c.type || 'product') as any,
+      description: c.description || '',
+      subcategories: c.subcategories || [],
+      isCustom: !c.id.startsWith('cat-food-') && !c.id.startsWith('cat-agri-') && !c.id.startsWith('cat-mat-') && !c.id.startsWith('cat-eq-') && !c.id.startsWith('cat-cap-') && !c.id.startsWith('cat-serv-') && !c.id.startsWith('cat-barter-')
+    }));
   });
 
   const [name, setName] = useState("");
@@ -237,10 +223,12 @@ export default function AdminCategoriesManagement({
 
   const getTypeLabel = (t: CategoryItem['type']) => {
     switch(t) {
-      case 'product': return 'کالاهای کارخانه‌ای';
+      case 'product': return 'کالاهای غذایی و سوپرمارکتی';
+      case 'agriculture': return 'محصولات کشاورزی و فله';
       case 'raw_material': return 'مواد اولیه و شیمیایی';
       case 'equipment': return 'ماشین‌آلات و تجهیزات';
-      case 'service': return 'خدمات و بسته‌بندی';
+      case 'capacity': return 'ظرفیت خالی و تولید قراردادی';
+      case 'service': return 'خدمات، چاپ و بسته‌بندی';
       case 'barter': return 'کالاهای تهاتری';
       default: return 'عمومی و متفرقه';
     }
@@ -249,8 +237,10 @@ export default function AdminCategoriesManagement({
   const getTypeBadgeColor = (t: CategoryItem['type']) => {
     switch(t) {
       case 'product': return 'bg-blue-50 text-blue-800 border-blue-200';
+      case 'agriculture': return 'bg-lime-50 text-lime-800 border-lime-200';
       case 'raw_material': return 'bg-purple-50 text-purple-800 border-purple-200';
       case 'equipment': return 'bg-amber-50 text-amber-800 border-amber-200';
+      case 'capacity': return 'bg-teal-50 text-teal-800 border-teal-200';
       case 'service': return 'bg-emerald-50 text-emerald-800 border-emerald-200';
       case 'barter': return 'bg-rose-50 text-rose-800 border-rose-200';
       default: return 'bg-slate-50 text-slate-700 border-slate-200';
@@ -403,10 +393,12 @@ export default function AdminCategoriesManagement({
                 onChange={(e) => setType(e.target.value as any)}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:bg-white"
               >
-                <option value="product">کالاها و محصولات کارخانه‌ای (محصول نهایی)</option>
-                <option value="raw_material">مواد اولیه و شیمیایی (تولیدی)</option>
-                <option value="equipment">ماشین‌آلات و تجهیزات خطوط تولید</option>
-                <option value="service">خدمات صنعتی، چاپ و بسته‌بندی</option>
+                <option value="product">کالاهای غذایی و سوپرمارکتی (محصول نهایی و بسته‌بندی)</option>
+                <option value="agriculture">محصولات کشاورزی، باغی و غلات فله</option>
+                <option value="raw_material">مواد اولیه، شیمیایی و افزودنی‌های تولید</option>
+                <option value="equipment">ماشین‌آلات، تجهیزات و خطوط تولید</option>
+                <option value="capacity">ظرفیت خالی خط تولید و کارمزدی</option>
+                <option value="service">خدمات صنعتی، چاپ، سلفون و کارتن‌سازی</option>
                 <option value="barter">تهاتر و معاوضه کارخانه‌ای</option>
                 <option value="general">عمومی و سایر صنایع</option>
               </select>
@@ -497,12 +489,14 @@ export default function AdminCategoriesManagement({
                   onChange={e => setSelectedTypeFilter(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="all">همه بخش‌ها</option>
-                  <option value="product">کالاهای کارخانه‌ای</option>
-                  <option value="raw_material">مواد اولیه</option>
-                  <option value="equipment">ماشین‌آلات</option>
-                  <option value="service">خدمات</option>
-                  <option value="barter">تهاتر</option>
+                  <option value="all">همه بخش‌ها (جامع)</option>
+                  <option value="product">کالاهای غذایی و سوپرمارکتی</option>
+                  <option value="agriculture">محصولات کشاورزی و فله</option>
+                  <option value="raw_material">مواد اولیه و شیمیایی</option>
+                  <option value="equipment">ماشین‌آلات و تجهیزات</option>
+                  <option value="capacity">ظرفیت خالی خط تولید</option>
+                  <option value="service">خدمات و بسته‌بندی</option>
+                  <option value="barter">تهاتر و معاوضه</option>
                 </select>
               </div>
             </div>

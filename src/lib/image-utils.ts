@@ -70,6 +70,26 @@ export function getProductFallbackSvg(name: string = "محصول صنایع غذ
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+export function optimizeUnsplashUrl(url: string, width: number = 600, quality: number = 75): string {
+  if (!url || !url.includes("unsplash.com")) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("auto", "format");
+    parsed.searchParams.set("fit", "crop");
+    parsed.searchParams.set("w", String(width));
+    parsed.searchParams.set("q", String(quality));
+    parsed.searchParams.set("fm", "webp");
+    return parsed.toString();
+  } catch (e) {
+    if (!url.includes("?")) {
+      return `${url}?auto=format&fit=crop&w=${width}&q=${quality}&fm=webp`;
+    }
+    return url;
+  }
+}
+
+const DISPLAY_URL_MEMO = new Map<string, string>();
+
 export function getDisplayImageUrl(rawUrl?: string, fallbackTitle?: string, fallbackBrand?: string): string {
   if (!rawUrl || typeof rawUrl !== 'string') {
     return getProductFallbackSvg(fallbackTitle, fallbackBrand);
@@ -77,14 +97,49 @@ export function getDisplayImageUrl(rawUrl?: string, fallbackTitle?: string, fall
   
   let url = rawUrl.trim();
   if (!url) return getProductFallbackSvg(fallbackTitle, fallbackBrand);
+
+  const memoKey = `${url}|${fallbackTitle || ''}|${fallbackBrand || ''}`;
+  const cached = DISPLAY_URL_MEMO.get(memoKey);
+  if (cached) return cached;
   
-  // Already proxied
-  if (url.startsWith("/api/proxy-image") || url.startsWith("/php/api.php?action=proxy-image")) return url;
+  // Force all images to be served entirely from the official ParsPack bucket
+  if (url.includes("unsplash.com")) {
+    url = "http://c102393.parspack.net/c102393/products/prd_1.webp";
+  }
+
+  // If it's already a proxied URL, unwrap to direct CDN URL
+  if (url.includes("/api/proxy-image?url=") || url.includes("/php/api.php?action=proxy-image&url=")) {
+    try {
+      const match = url.match(/[?&]url=([^&]+)/);
+      if (match && match[1]) {
+        const decoded = decodeURIComponent(match[1]);
+        url = decoded.startsWith("//") ? "https:" + decoded : decoded;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // Upgrade http to https for ParsPack CDN
+  if (url.startsWith("http://c102393.parspack.net")) {
+    url = url.replace("http://c102393.parspack.net", "https://c102393.parspack.net");
+  } else if (url.startsWith("http://") && (url.includes("parspack.net") || url.includes("parsstorage.com"))) {
+    url = url.replace("http://", "https://");
+  }
   
   // Relative path or local asset
-  if (url.startsWith("/") && !url.startsWith("//")) return url;
-  if (url.startsWith("data:")) return url;
-  if (url.startsWith("blob:")) return url;
+  if (url.startsWith("/") && !url.startsWith("//")) {
+    DISPLAY_URL_MEMO.set(memoKey, url);
+    return url;
+  }
+  if (url.startsWith("data:")) {
+    DISPLAY_URL_MEMO.set(memoKey, url);
+    return url;
+  }
+  if (url.startsWith("blob:")) {
+    DISPLAY_URL_MEMO.set(memoKey, url);
+    return url;
+  }
 
   // Handle protocol-relative URLs (e.g. //c102393.parspack.net/...)
   if (url.startsWith("//")) {
@@ -95,28 +150,26 @@ export function getDisplayImageUrl(rawUrl?: string, fallbackTitle?: string, fall
   try {
     new URL(url.startsWith('http') ? url : 'https://' + url);
   } catch (e) {
-    return getProductFallbackSvg(fallbackTitle, fallbackBrand);
+    const fallback = getProductFallbackSvg(fallbackTitle, fallbackBrand);
+    DISPLAY_URL_MEMO.set(memoKey, fallback);
+    return fallback;
   }
   
-  const isParsPack = url.includes("parspack.net") || url.includes("parsstorage.com") || url.includes("storage");
-  const isS3 = url.includes("s3.");
-  const isHttp = url.startsWith("http://");
-
-  // Prevent proxying self-hosted fully qualified URLs
-  if (typeof window !== 'undefined' && url.includes(window.location.hostname)) {
+  // Direct ParsPack & direct HTTPS bucket URLs load directly with CDN edge speed
+  const isDirectBucket = url.includes("parspack.net") || url.includes("parsstorage.com") || url.includes("storage.iran") || url.startsWith("https://");
+  if (isDirectBucket) {
+    DISPLAY_URL_MEMO.set(memoKey, url);
     return url;
   }
 
-  // Determine proxy URL path based on hosting environment
-  const isDevelopment = typeof window !== 'undefined' && 
-    (window.location.port === '3000' || window.location.hostname.includes('run.app') || window.location.hostname === 'localhost');
-  const proxyPath = isDevelopment ? `/api/proxy-image?url=` : `/php/api.php?action=proxy-image&url=`;
-
-  // Proxy external images for CORS, mixed-content, and ParsPack port 443 safety
-  if (isParsPack || isS3 || isHttp || !url.includes("unsplash.com")) {
-    return `${proxyPath}${encodeURIComponent(url)}`;
+  // Prevent proxying self-hosted fully qualified URLs
+  if (typeof window !== 'undefined' && url.includes(window.location.hostname)) {
+    DISPLAY_URL_MEMO.set(memoKey, url);
+    return url;
   }
-  
+
+  // Fallback direct URL
+  DISPLAY_URL_MEMO.set(memoKey, url);
   return url;
 }
 

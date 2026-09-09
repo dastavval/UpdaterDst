@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getAllCategoriesMerged } from "../data/categoriesData";
 import { collection, getDocs, addDoc, serverTimestamp, updateDoc, doc, query, where, orderBy, setDoc } from "../lib/data-layer";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "../lib/data-layer";
 import { db, auth } from "../lib/data-layer";
@@ -398,6 +399,34 @@ export default function MultiVendorPanel({
     }
   };
 
+  const handleQuickStatusChange = async (prodId: string, action: 'activate' | 'deactivate' | 'out_of_stock' | 'charge_50' | 'charge_200') => {
+    try {
+      let fields: any = {};
+      if (action === 'activate') {
+        fields = { disabled: false, isApproved: true, approvalStatus: 'approved' };
+      } else if (action === 'deactivate') {
+        fields = { disabled: true };
+      } else if (action === 'out_of_stock') {
+        fields = { stock_quantity_cartons: 0 };
+      } else if (action === 'charge_50') {
+        fields = { stock_quantity_cartons: 50 };
+      } else if (action === 'charge_200') {
+        fields = { stock_quantity_cartons: 200 };
+      }
+
+      // Optimistic state update for 0ms lag perception
+      setProducts(prev => prev.map(p => p.id === prodId ? { ...p, ...fields } : p));
+
+      // Non-blocking background save to database
+      updateDoc(doc(db, "products", prodId), fields).then(() => {
+        fetchVendorData();
+        onRefreshProducts();
+      });
+    } catch (err) {
+      console.error("Status change error in MultiVendorPanel:", err);
+    }
+  };
+
   // If not logged in, show the gorgeous Authentication Screen (Login & Register)
   if (!isLoggedIn) {
     return (
@@ -622,22 +651,20 @@ export default function MultiVendorPanel({
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-700"
                   >
                     {(() => {
-                      let catList: string[] = [];
+                      let savedCategories: any[] = [];
                       try {
                         const saved = localStorage.getItem("dastavval_b2b_config");
                         if (saved) {
                           const parsed = JSON.parse(saved);
-                          if (parsed?.categories && parsed.categories.length > 0) {
-                            catList = parsed.categories.map((c: any) => typeof c === 'string' ? c : (c.name || c.id));
+                          if (parsed && Array.isArray(parsed.categories)) {
+                            savedCategories = parsed.categories;
                           }
                         }
                       } catch (e) {}
-                      if (catList.length === 0) {
-                        catList = Array.from(new Set(products.map((p: any) => p.category).filter(Boolean)));
-                      }
-                      if (catList.length === 0) catList = ["عمومی"];
-                      return catList.map((catName: string, i: number) => (
-                        <option key={`mv-cat-opt-${catName}-${i}`} value={catName}>{catName}</option>
+
+                      const categoriesList = getAllCategoriesMerged(savedCategories);
+                      return categoriesList.map((cat, i) => (
+                        <option key={`mv-cat-opt-${cat.id}-${i}`} value={cat.name}>{cat.name}</option>
                       ));
                     })()}
                   </select>
@@ -806,22 +833,20 @@ export default function MultiVendorPanel({
                   className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus focus text-xs text-right font-bold text-gray-700"
                 >
                   {(() => {
-                    let catList: string[] = [];
+                    let savedCategories: any[] = [];
                     try {
                       const saved = localStorage.getItem("dastavval_b2b_config");
                       if (saved) {
                         const parsed = JSON.parse(saved);
-                        if (parsed?.categories && parsed.categories.length > 0) {
-                          catList = parsed.categories.map((c: any) => typeof c === 'string' ? c : (c.name || c.id));
+                        if (parsed && Array.isArray(parsed.categories)) {
+                          savedCategories = parsed.categories;
                         }
                       }
                     } catch (e) {}
-                    if (catList.length === 0) {
-                      catList = Array.from(new Set(products.map((p: any) => p.category).filter(Boolean)));
-                    }
-                    if (catList.length === 0) catList = ["عمومی"];
-                    return catList.map((catName: string, i: number) => (
-                      <option key={`mv-panel-cat-${catName}-${i}`} value={catName}>{catName}</option>
+
+                    const categoriesList = getAllCategoriesMerged(savedCategories);
+                    return categoriesList.map((cat, i) => (
+                      <option key={`mv-panel-cat-${cat.id}-${i}`} value={cat.name}>{cat.name}</option>
                     ));
                   })()}
                 </select>
@@ -988,7 +1013,10 @@ export default function MultiVendorPanel({
                     <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100">
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 font-bold block">موجودی کارخانه:</span>
-                        <span className="text-xs font-black text-gray-900">{prod.stock_quantity_cartons} کارتن</span>
+                        <span className="text-xs font-black text-gray-900">
+                          {prod.stock_quantity_cartons} کارتن
+                          {prod.disabled && <span className="bg-rose-100 text-rose-800 text-[9px] px-1.5 py-0.5 rounded-md mr-1.5 font-bold">غیرفعال 👁️‍🌫️</span>}
+                        </span>
                       </div>
                       <div className="flex gap-1.5">
                         <button 
@@ -1002,6 +1030,84 @@ export default function MultiVendorPanel({
                           className="px-2.5 py-1 text-[11px] font-black text-emerald-600 bg-emerald-50 hover rounded-lg transition-colors cursor-pointer"
                         >
                           ۵+
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Status Toggles Row (4-5 Icons) */}
+                    <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-xl border border-slate-200 gap-1 mt-1">
+                      <span className="text-[9px] font-black text-slate-500 mr-1">تنظیم سریع کالا:</span>
+                      <div className="flex items-center gap-1">
+                        {/* 1. Activate */}
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(prod.id, 'activate')}
+                          className={`p-1 rounded-md transition-all cursor-pointer ${
+                            !prod.disabled && (prod.isApproved || prod.approvalStatus === 'approved')
+                              ? "bg-emerald-600 text-white shadow-2xs"
+                              : "bg-white text-slate-400 hover:text-emerald-600 border border-slate-200"
+                          }`}
+                          title="فعال‌سازی کالا"
+                        >
+                          <Eye size={11} />
+                        </button>
+
+                        {/* 2. Deactivate */}
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(prod.id, 'deactivate')}
+                          className={`p-1 rounded-md transition-all cursor-pointer ${
+                            prod.disabled
+                              ? "bg-rose-600 text-white shadow-2xs"
+                              : "bg-white text-slate-400 hover:text-rose-600 border border-slate-200"
+                          }`}
+                          title="غیرفعال‌سازی"
+                        >
+                          <EyeOff size={11} />
+                        </button>
+
+                        {/* 3. Out of stock */}
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(prod.id, 'out_of_stock')}
+                          className={`p-1 rounded-md transition-all cursor-pointer ${
+                            prod.stock_quantity_cartons === 0
+                              ? "bg-amber-500 text-slate-950 shadow-2xs"
+                              : "bg-white text-slate-400 hover:text-amber-600 border border-slate-200"
+                          }`}
+                          title="ناموجود کردن"
+                        >
+                          <AlertCircle size={11} />
+                        </button>
+
+                        {/* 4. Charge 50 */}
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(prod.id, 'charge_50')}
+                          className={`px-1 py-0.5 rounded-md transition-all text-[8px] font-black cursor-pointer flex items-center gap-0.5 ${
+                            prod.stock_quantity_cartons === 50
+                              ? "bg-indigo-600 text-white shadow-2xs"
+                              : "bg-white text-slate-500 hover:text-indigo-600 border border-slate-200"
+                          }`}
+                          title="شارژ ۵۰"
+                        >
+                          <Package size={9} />
+                          <span>۵۰</span>
+                        </button>
+
+                        {/* 5. Charge 200 */}
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusChange(prod.id, 'charge_200')}
+                          className={`px-1 py-0.5 rounded-md transition-all text-[8px] font-black cursor-pointer flex items-center gap-0.5 ${
+                            prod.stock_quantity_cartons === 200
+                              ? "bg-violet-600 text-white shadow-2xs"
+                              : "bg-white text-slate-500 hover:text-violet-600 border border-slate-200"
+                          }`}
+                          title="شارژ ۲۰۰"
+                        >
+                          <Layers size={9} />
+                          <span>۲۰۰</span>
                         </button>
                       </div>
                     </div>

@@ -5,8 +5,10 @@ import { getDisplayImageUrl, getProductFallbackSvg } from "../lib/image-utils";
 import { 
   ShoppingCart, Plus, Minus, Package, Check, 
   Search, Filter, Phone, ArrowRight, Share2, 
-  MapPin, User, ShieldCheck, Heart, Trash2, MessageSquare, ExternalLink
+  MapPin, User, ShieldCheck, Heart, Trash2, MessageSquare, ExternalLink,
+  Download, FileText, Printer, ChevronLeft, CheckCircle2, MessageCircle
 } from "lucide-react";
+import { addDoc, collection, serverTimestamp, db } from "../lib/data-layer";
 
 interface AgentCatalogViewProps {
   products: Product[];
@@ -22,17 +24,20 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
   const [clientPhone, setClientPhone] = useState("");
   const [clientName, setClientName] = useState("");
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [lastOrderTrack, setLastOrderTrack] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Extract query parameters from URL
   const queryParams = useMemo(() => {
-    if (typeof window === "undefined") return { agent: "REP-7012", margin: 15, name: "", phone: "" };
+    if (typeof window === "undefined") return { agent: "REP-7012", margin: 15, name: "", phone: "", city: "", province: "" };
     const params = new URLSearchParams(window.location.search);
     return {
       agent: params.get("agent") || "REP-7012",
       margin: Number(params.get("margin")) || 15,
       name: params.get("name") || "پخش دست اول شبستر",
-      phone: params.get("phone") || "09055883360"
+      phone: params.get("phone") || "09055883360",
+      city: params.get("city") || "",
+      province: params.get("province") || ""
     };
   }, []);
 
@@ -151,12 +156,50 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
     }
   };
 
-  const handleSubmitOrder = (e: React.FormEvent) => {
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartSummary.itemsList.length === 0) return;
 
-    // Build the WhatsApp/SMS order message text
+    // 1. Prepare Order Object for Database
+    const trackingNumber = `CAT-${Math.floor(100000 + Math.random() * 900000)}`;
+    const newOrder = {
+      trackingNumber,
+      customerName: clientName || "مشتری کاتالوگ",
+      customerPhone: clientPhone,
+      buyerName: clientName,
+      buyerPhone: clientPhone,
+      phone: clientPhone,
+      items: cartSummary.itemsList.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        brand: item.product.brand,
+        quantityCartons: item.qty,
+        pricePerCarton: item.product.markedUpPrice,
+        totalItems: item.qty * (item.product.carton_pack_count || 1),
+        image_url: item.product.image_url
+      })),
+      totalAmount: cartSummary.totalPrice,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      affiliateRepId: agent, // Track the representative who shared the link
+      paymentMethod: 'catalog_request',
+      type: 'catalog_order',
+      isCatalogOrder: true,
+      city: queryParams.city || "",
+      province: queryParams.province || ""
+    };
+
+    try {
+      // 2. Save to Firestore/Database so rep and admin see it
+      await addDoc(collection(db, "orders"), newOrder);
+      console.log("Order saved to database:", trackingNumber);
+    } catch (err) {
+      console.error("Failed to save order to DB:", err);
+    }
+
+    // 3. Build the WhatsApp/SMS order message text
     let messageText = `*سفارش جدید از کاتالوگ الکترونیک*\n`;
+    messageText += `🔖 شماره پیگیری: ${trackingNumber}\n`;
     messageText += `👤 خریدار: ${clientName || "همکار گرامی"}\n`;
     if (clientPhone) messageText += `📞 تلفن: ${clientPhone}\n`;
     messageText += `---------------------------------------\n`;
@@ -175,53 +218,83 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
     
     // Create direct links
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${agentPhone.replace(/^0/, "+98")}&text=${encodedText}`;
-    const smsUrl = `sms:${agentPhone}?body=${encodedText}`;
-
-    // Open WhatsApp as priority, or fallback
+    
+    // Open WhatsApp
     window.open(whatsappUrl, "_blank");
     
+    setLastOrderTrack(trackingNumber);
     setOrderSubmitted(true);
-    setTimeout(() => {
-      setOrderSubmitted(false);
-      setCart({});
-      setShowCartModal(false);
-    }, 3000);
+    // Don't auto-close cart so user can see tracking
+  };
+
+  const handleCloseSuccess = () => {
+    setOrderSubmitted(false);
+    setCart({});
+    setShowCartModal(false);
+  };
+
+  const handleDownloadCatalog = () => {
+    const downloadUrl = `/api/catalog/download?agent=${encodeURIComponent(agent)}&margin=${margin}&title=${encodeURIComponent(agentName)}&phone=${encodeURIComponent(agentPhone)}`;
+    window.location.href = downloadUrl;
+  };
+
+  const handlePrintCatalog = () => {
+    try {
+      window.print();
+    } catch (err) {
+      handleDownloadCatalog();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-right pb-24" dir="rtl">
-      {/* Agent Premium Header */}
-      <div className="bg-gradient-to-b from-emerald-900 to-emerald-950 text-white pb-10 pt-6 px-4 rounded-b-[40px] shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+    <div className="min-h-screen bg-slate-50 text-right pb-24 print:bg-white print:pb-0" dir="rtl">
+      {/* Print-only Catalog Header */}
+      <div className="hidden print:block mb-8 border-b-2 border-emerald-600 pb-6">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black text-emerald-950">لیست قیمت و کاتالوگ محصولات</h1>
+            <p className="text-sm font-bold text-slate-500">تامین‌کننده: {agentName}</p>
+            <p className="text-sm font-bold text-slate-500">شماره تماس: {toPersianNum(agentPhone)}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-black text-emerald-600 mb-2">دست اول</div>
+            <p className="text-xs text-slate-400">تاریخ چاپ: {toPersianNum(new Date().toLocaleDateString('fa-IR'))}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Agent Premium Header (Creative White Theme) */}
+      <div className="bg-white text-slate-900 pb-10 pt-6 px-4 rounded-b-[40px] shadow-sm relative overflow-hidden border-b border-slate-200 print:hidden">
+        <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:24px_24px]" />
         
         <div className="max-w-4xl mx-auto space-y-6 relative z-10">
           <div className="flex items-center justify-between">
-            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] sm:text-xs font-black px-3.5 py-1 rounded-full flex items-center gap-1.5">
-              <ShieldCheck size={14} className="text-emerald-400" />
+            <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] sm:text-xs font-black px-4 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-2xs">
+              <ShieldCheck size={14} className="text-emerald-500" />
               عاملیت رسمی و انحصاری توزیع استانی
             </span>
             
             {onClose && (
               <button 
                 onClick={onClose}
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer"
+                className="w-10 h-10 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 transition-all cursor-pointer shadow-xs"
               >
-                <ArrowRight size={18} />
+                <ArrowRight size={20} />
               </button>
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-2 border-t border-emerald-800/60">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-2 border-t border-slate-100">
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-lg border border-emerald-800/50">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-sm border border-slate-200 rotate-3">
                   🏢
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight">{agentName}</h1>
-                  <p className="text-xs text-emerald-300 font-bold flex items-center gap-1 mt-1">
-                    <User size={12} />
-                    <span>نماینده رسمی توزیع و پخش مستقیم از کارخانجات</span>
+                  <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">{agentName}</h1>
+                  <p className="text-xs sm:text-sm text-emerald-600 font-bold flex items-center gap-1.5 mt-1.5">
+                    <MapPin size={14} />
+                    <span>نماینده رسمی توزیع مستقیم از کارخانجات</span>
                   </p>
                 </div>
               </div>
@@ -230,24 +303,41 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
             <div className="flex flex-wrap items-center gap-3">
               <a 
                 href={`tel:${agentPhone}`}
-                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-950/40"
+                className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-600/20"
               >
-                <Phone size={15} />
+                <Phone size={16} />
                 <span>تماس مستقیم: {toPersianNum(agentPhone)}</span>
               </a>
 
               <button
-                onClick={handleShare}
-                className="px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer"
+                onClick={handleDownloadCatalog}
+                className="px-5 py-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                title="دانلود فایل اختصاصی کاتالوگ"
               >
-                <Share2 size={15} />
-                <span>{copiedLink ? "لینک کپی شد!" : "اشتراک‌گذاری کاتالوگ"}</span>
+                <Download size={16} className="text-emerald-700" />
+                <span>دانلود کاتالوگ</span>
+              </button>
+
+              <button
+                onClick={handlePrintCatalog}
+                className="px-5 py-3.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+              >
+                <Printer size={16} className="text-slate-500" />
+                <span>نسخه چاپی / PDF</span>
+              </button>
+              
+              <button
+                onClick={handleShare}
+                className="w-12 h-12 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                title="اشتراک‌گذاری"
+              >
+                <Share2 size={18} className={copiedLink ? "text-emerald-500" : "text-slate-500"} />
               </button>
             </div>
           </div>
           
-          <div className="bg-emerald-900/50 border border-emerald-800/60 rounded-2xl p-4 text-xs sm:text-sm font-medium text-emerald-100 flex items-center gap-3">
-            <span className="text-xl">💡</span>
+          <div className="bg-emerald-50/50 border border-emerald-100 rounded-3xl p-5 text-xs sm:text-sm font-medium text-slate-700 flex items-center gap-4 shadow-2xs">
+            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-xs shrink-0 text-xl border border-emerald-100">💡</div>
             <p className="leading-relaxed">
               به کاتالوگ اختصاصی ما خوش آمدید! کلیه قیمت‌های مندرج در این لیست با <strong>حاشیه سود قانونی مصوب ({toPersianNum(margin)}٪)</strong> محاسبه گردیده و سفارشات شما مستقیماً توسط این نمایندگی تامین، بارگیری و تحویل می‌گردد.
             </p>
@@ -257,7 +347,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
 
       <div className="max-w-4xl mx-auto px-4 mt-8 space-y-6">
         {/* Search & Categories */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4 print:hidden">
           <div className="relative">
             <input 
               type="text"
@@ -287,16 +377,16 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:grid-cols-2 print:gap-6">
           {filteredProducts.map((p, pIdx) => {
             const inCartQty = cart[p.id] || 0;
             return (
               <div 
                 key={`agent-cat-prod-${p.id || pIdx}-${pIdx}`}
-                className="bg-white rounded-3xl border border-slate-200 p-4 shadow-xs flex gap-4 hover:border-emerald-500/30 hover:shadow-md transition-all relative overflow-hidden"
+                className="bg-white rounded-3xl border border-slate-200 p-4 shadow-xs flex gap-4 hover:border-emerald-500/30 hover:shadow-md transition-all relative overflow-hidden print:shadow-none print:border-slate-300 print:break-inside-avoid"
               >
                 {/* Product Image */}
-                <div className="w-24 sm:w-28 h-24 sm:h-28 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100 relative flex items-center justify-center p-1">
+                <div className="w-24 sm:w-28 h-24 sm:h-28 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-100 relative flex items-center justify-center p-1 print:border-slate-200">
                   <img 
                     src={getDisplayImageUrl(p.image_url || p.imageUrl, p.name, p.brand)} 
                     alt={p.name}
@@ -305,7 +395,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                     onError={(e) => { (e.target as HTMLImageElement).src = getProductFallbackSvg(p.name, p.brand); }}
                   />
                   {p.badge && (
-                    <span className="absolute top-1 right-1 bg-emerald-600 text-white font-black text-[9px] px-2 py-0.5 rounded-md shadow-xs">
+                    <span className="absolute top-1 right-1 bg-emerald-600 text-white font-black text-[9px] px-2 py-0.5 rounded-md shadow-xs print:hidden">
                       {p.badge}
                     </span>
                   )}
@@ -316,7 +406,7 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-slate-400">{p.brand}</span>
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full print:bg-white print:border print:border-emerald-100">
                         {p.category}
                       </span>
                     </div>
@@ -336,8 +426,8 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
                       <span className="text-[9px] text-slate-400 font-bold block">حداقل سفارش: {toPersianNum(p.min_order_cartons)} کارتن</span>
                     </div>
 
-                    {/* Order buttons */}
-                    <div className="flex items-center">
+                    {/* Order buttons - Hidden on print */}
+                    <div className="flex items-center print:hidden">
                       {inCartQty > 0 ? (
                         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl p-1">
                           <button 
@@ -388,37 +478,42 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
       </div>
 
       {/* Floating Bottom Cart Bar */}
-      {cartSummary.totalItems > 0 && (
-        <div className="fixed bottom-6 left-4 right-4 z-40 max-w-xl mx-auto">
-          <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-2xl flex items-center justify-between gap-4">
+      {cartSummary.totalItems > 0 && !showCartModal && (
+        <div className="fixed bottom-24 sm:bottom-8 left-4 right-4 z-[9999] max-w-xl mx-auto">
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="bg-white/95 backdrop-blur-xl text-slate-900 p-4 sm:p-5 rounded-[2.5rem] border border-white shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2)] flex items-center justify-between gap-4"
+          >
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-600 flex items-center justify-center text-white relative">
-                <ShoppingCart size={20} />
-                <span className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center border-2 border-slate-900 font-mono">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center relative shadow-lg shadow-emerald-600/20">
+                <ShoppingCart size={22} />
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm font-mono">
                   {toPersianNum(cartSummary.totalItems)}
                 </span>
               </div>
               <div className="space-y-0.5 text-right">
-                <span className="text-[10px] text-slate-400 font-bold block">مجموع مبلغ فاکتور</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-base sm:text-lg font-black text-emerald-400">
+                <span className="text-[9px] text-slate-400 font-black block uppercase tracking-tighter">سفارش مستقیم از: {agentName}</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-base sm:text-xl font-black text-slate-900">
                     {formatPersianCurrency(cartSummary.totalPrice)}
                   </span>
-                  <span className="text-[10px] text-slate-300 font-black">تومان</span>
+                  <span className="text-[10px] text-slate-500 font-bold">تومان</span>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => setShowCartModal(true)}
-              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm rounded-2xl transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95"
             >
-              <span>مشاهده و ثبت نهایی سفارش</span>
-              <ArrowRight size={15} className="rotate-180" />
+              <span>مشاهده و ثبت نهایی</span>
+              <ArrowRight size={16} className="rotate-180" />
             </button>
-          </div>
+          </motion.div>
         </div>
       )}
+
 
       {/* Cart & Checkout Modal */}
       <AnimatePresence>
@@ -447,14 +542,42 @@ export default function AgentCatalogView({ products, onClose, b2bConfig }: Agent
               </div>
 
               {orderSubmitted ? (
-                <div className="py-10 text-center space-y-4">
-                  <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto border border-emerald-200">
-                    ✓
+                /* SUCCESS SCREEN */
+                <div className="p-8 sm:p-10 text-center space-y-6">
+                  <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/10">
+                    <CheckCircle2 size={48} />
                   </div>
-                  <h4 className="text-base font-black text-slate-800">سفارش شما با موفقیت آماده شد!</h4>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                    پیام سفارش با فرمت استاندارد برای ارسال به شماره عاملیت ({toPersianNum(agentPhone)}) بارگذاری گردید. در حال انتقال به پیام‌رسان...
-                  </p>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black text-slate-900">سفارش شما با موفقیت ثبت شد!</h4>
+                    <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                      شماره پیگیری سفارش: <span className="text-emerald-700 font-mono font-black text-sm">{lastOrderTrack}</span>
+                    </p>
+                  </div>
+                  
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-right space-y-3">
+                    <p className="text-[11px] text-slate-600 leading-relaxed font-bold">
+                      ✅ سفارش شما در سیستم بازرگانی ثبت شد و هم‌اکنون برای مدیریت {agentName} قابل مشاهده است.
+                    </p>
+                    <p className="text-[11px] text-slate-600 leading-relaxed font-bold">
+                      ✅ جهت تسریع در فرآیند بارگیری و ارسال، می‌توانید جزئیات سفارش را از طریق واتساپ نیز برای ایشان ارسال فرمایید.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-4">
+                    <button
+                      onClick={handleCloseSuccess}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-2xl transition-all cursor-pointer shadow-lg shadow-emerald-600/10"
+                    >
+                      بستن و بازگشت به کاتالوگ
+                    </button>
+                    <button
+                      onClick={(e) => handleSubmitOrder(e as any)}
+                      className="w-full py-3.5 bg-white border border-slate-200 text-slate-700 text-[11px] font-black rounded-2xl transition-all hover:bg-slate-50 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle size={14} className="text-emerald-500" />
+                      ارسال مجدد در واتساپ
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmitOrder} className="space-y-5">

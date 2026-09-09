@@ -19,6 +19,7 @@ import {
   Edit3, 
   Trash2, 
   Eye, 
+  EyeOff,
   ChevronRight, 
   BarChart3, 
   SlidersHorizontal,
@@ -380,6 +381,76 @@ export default function FactoryDashboard({
       onRefreshProducts();
     } catch (e) {
       console.warn("Stock update error:", e);
+    }
+  };
+
+  const handleQuickStatusChange = async (prodId: string, action: 'activate' | 'deactivate' | 'out_of_stock' | 'charge_50' | 'charge_200') => {
+    try {
+      let fields: any = {};
+      if (action === 'activate') {
+        fields = { disabled: false, isApproved: true, approvalStatus: 'approved' };
+      } else if (action === 'deactivate') {
+        fields = { disabled: true };
+      } else if (action === 'out_of_stock') {
+        fields = { stock_quantity_cartons: 0 };
+      } else if (action === 'charge_50') {
+        fields = { stock_quantity_cartons: 50 };
+      } else if (action === 'charge_200') {
+        fields = { stock_quantity_cartons: 200 };
+      }
+      // Fire and forget in background
+      updateDoc(doc(db, "products", prodId), fields).then(() => {
+        onRefreshProducts();
+      });
+    } catch (e) {
+      console.warn("Status change error:", e);
+    }
+  };
+
+  const handleToggleSediment = async (p: Product) => {
+    try {
+      const nextSediment = !p.isSediment;
+      const discount = p.sedimentDiscountPercent || 20;
+      const calcPrice = Math.round((p.bulk_price || p.price || 0) * (1 - discount / 100));
+      const updatedFields: Partial<Product> = {
+        isSediment: nextSediment,
+        sedimentStatus: nextSediment ? 'approved' : 'none',
+        sedimentDiscountPercent: discount,
+        sedimentPrice: calcPrice,
+        sedimentQuantityCartons: p.sedimentQuantityCartons || p.stock_quantity_cartons || 50,
+        sedimentDuration: p.sedimentDuration || '۲ ماه دپو در انبار',
+        sedimentDescription: p.sedimentDescription || `کالای رسوب‌کرده کارخانه با تخفیف نقدشوندگی ${discount}٪`,
+        updated_at: new Date().toISOString()
+      };
+
+      await updateDoc(doc(db, "products", p.id), updatedFields);
+      window.dispatchEvent(new CustomEvent('dastavval_products_updated', { detail: { productId: p.id, isSediment: nextSediment } }));
+      onRefreshProducts();
+    } catch (e) {
+      console.warn("Sediment toggle error:", e);
+    }
+  };
+
+  const handleToggleSurplus = async (p: Product) => {
+    try {
+      const nextSurplus = !p.isSurplus;
+      const discount = p.surplusDiscountPercent || 22;
+      const calcPrice = Math.round((p.bulk_price || p.price || 0) * (1 - discount / 100));
+      const updatedFields: Partial<Product> = {
+        isSurplus: nextSurplus,
+        surplusStatus: nextSurplus ? 'approved' : 'none',
+        surplusDiscountPercent: discount,
+        surplusPrice: calcPrice,
+        surplusQuantityCartons: p.surplusQuantityCartons || p.stock_quantity_cartons || 80,
+        surplusDescription: p.surplusDescription || `مازاد خط تولید با بارگیری فوری و تخفیف ${discount}٪`,
+        updated_at: new Date().toISOString()
+      };
+
+      await updateDoc(doc(db, "products", p.id), updatedFields);
+      window.dispatchEvent(new CustomEvent('dastavval_products_updated', { detail: { productId: p.id, isSurplus: nextSurplus } }));
+      onRefreshProducts();
+    } catch (e) {
+      console.warn("Surplus toggle error:", e);
     }
   };
 
@@ -839,6 +910,7 @@ export default function FactoryDashboard({
                     <th className="p-3">قیمت مصرف‌کننده</th>
                     <th className="p-3 text-center">بسته‌بندی</th>
                     <th className="p-3 text-center">موجودی کارتن</th>
+                    <th className="p-3 text-center">تنظیم سریع وضعیت / انبار</th>
                     <th className="p-3 text-center">عملیات</th>
                   </tr>
                 </thead>
@@ -853,7 +925,10 @@ export default function FactoryDashboard({
                             className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                           />
                           <div>
-                            <div className="font-black text-slate-900">{p.name}</div>
+                            <div className="font-black text-slate-900">
+                              {p.name}
+                              {p.disabled && <span className="bg-rose-100 text-rose-800 text-[9px] px-1.5 py-0.5 rounded-md mr-1.5 font-bold">غیرفعال 👁️‍🌫️</span>}
+                            </div>
                             <div className="text-[10px] text-slate-400">{p.category} | حداقل: {Math.max(5, p.min_order_cartons || 5)} کارتن</div>
                           </div>
                         </div>
@@ -889,13 +964,121 @@ export default function FactoryDashboard({
                         </div>
                       </td>
                       <td className="p-3 text-center">
-                        <button
-                          onClick={() => handleStartEdit(p)}
-                          className="p-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer"
-                          title="ویرایش مشخصات"
-                        >
-                          <Edit3 size={15} />
-                        </button>
+                        <div className="inline-flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                          {/* 1. Activate */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(p.id, 'activate')}
+                            className={`p-1 rounded-md transition-all cursor-pointer ${
+                              !p.disabled && (p.isApproved || p.approvalStatus === 'approved')
+                                ? "bg-emerald-600 text-white shadow-3xs"
+                                : "bg-white text-slate-400 hover:text-emerald-600 border border-slate-200"
+                            }`}
+                            title="فعال‌سازی و نمایش در ویترین"
+                          >
+                            <Eye size={11} />
+                          </button>
+
+                          {/* 2. Deactivate */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(p.id, 'deactivate')}
+                            className={`p-1 rounded-md transition-all cursor-pointer ${
+                              p.disabled
+                                ? "bg-rose-600 text-white shadow-3xs"
+                                : "bg-white text-slate-400 hover:text-rose-600 border border-slate-200"
+                            }`}
+                            title="غیرفعال‌سازی و مخفی کردن"
+                          >
+                            <EyeOff size={11} />
+                          </button>
+
+                          {/* 3. Out of stock */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(p.id, 'out_of_stock')}
+                            className={`p-1 rounded-md transition-all cursor-pointer ${
+                              p.stock_quantity_cartons === 0
+                                ? "bg-amber-500 text-slate-950 shadow-3xs"
+                                : "bg-white text-slate-400 hover:text-amber-600 border border-slate-200"
+                            }`}
+                            title="ناموجود کردن کالا"
+                          >
+                            <AlertCircle size={11} />
+                          </button>
+
+                          {/* 4. Charge 50 */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(p.id, 'charge_50')}
+                            className={`px-1 py-0.5 rounded-md transition-all text-[9px] font-black cursor-pointer flex items-center gap-0.5 ${
+                              p.stock_quantity_cartons === 50
+                                ? "bg-indigo-600 text-white shadow-3xs"
+                                : "bg-white text-slate-500 hover:text-indigo-600 border border-slate-200"
+                            }`}
+                            title="شارژ سریع ۵۰ کارتن"
+                          >
+                            <Package size={9} />
+                            <span>۵۰</span>
+                          </button>
+
+                          {/* 5. Charge 200 */}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusChange(p.id, 'charge_200')}
+                            className={`px-1 py-0.5 rounded-md transition-all text-[9px] font-black cursor-pointer flex items-center gap-0.5 ${
+                              p.stock_quantity_cartons === 200
+                                ? "bg-violet-600 text-white shadow-3xs"
+                                : "bg-white text-slate-500 hover:text-violet-600 border border-slate-200"
+                            }`}
+                            title="شارژ سریع ۲۰۰ کارتن"
+                          >
+                            <Layers size={9} />
+                            <span>۲۰۰</span>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="p-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {/* Sediment Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSediment(p)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 border ${
+                              p.isSediment
+                                ? "bg-amber-500 text-slate-950 border-amber-400 shadow-xs"
+                                : "bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-50 border-slate-200"
+                            }`}
+                            title="فعال/غیرفعال‌سازی رسوب کالا"
+                          >
+                            <Layers size={11} />
+                            <span>{p.isSediment ? "📦 رسوب (فعال)" : "📦 رسوب"}</span>
+                          </button>
+
+                          {/* Surplus Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSurplus(p)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 border ${
+                              p.isSurplus
+                                ? "bg-blue-600 text-white border-blue-500 shadow-xs"
+                                : "bg-white text-slate-600 hover:text-blue-700 hover:bg-blue-50 border-slate-200"
+                            }`}
+                            title="فعال/غیرفعال‌سازی مازاد خط تولید"
+                          >
+                            <Package size={11} />
+                            <span>{p.isSurplus ? "🏭 مازاد (فعال)" : "🏭 مازاد"}</span>
+                          </button>
+
+                          {/* Edit Button */}
+                          <button
+                            onClick={() => handleStartEdit(p)}
+                            className="p-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer border border-slate-200"
+                            title="ویرایش مشخصات"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

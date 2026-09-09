@@ -29,11 +29,13 @@ import {
   Briefcase,
   Eye,
   Repeat,
+  RotateCcw,
   ArrowLeftRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { uploadToParsPackStorage } from "../utils/storage";
 import ImageLightbox from "./ImageLightbox";
+import StrictCityProvinceSelector from "./StrictCityProvinceSelector";
 
 interface AdminAdsManagementProps {
   sponsoredAds: any[];
@@ -81,6 +83,8 @@ export default function AdminAdsManagement({
   const [newQuantity, setNewQuantity] = useState('');
   const [newWholesalePrice, setNewWholesalePrice] = useState('');
   const [newMarketPrice, setNewMarketPrice] = useState('');
+  const [newCity, setNewCity] = useState('تهران');
+  const [newProvince, setNewProvince] = useState('تهران');
   const [newBuyerProfit, setNewBuyerProfit] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -252,12 +256,138 @@ export default function AdminAdsManagement({
     }
   };
 
+  // 🌟 Toggle Special (Featured) Ad
+  const handleToggleSpecialAd = async (ad: any) => {
+    try {
+      const nextIsSpecial = !(ad.isSpecial || ad.plan === 'vip' || ad.isSponsored);
+      const updateData = {
+        ...ad,
+        isSpecial: nextIsSpecial,
+        plan: nextIsSpecial ? 'vip' : 'standard',
+        isSponsored: nextIsSpecial,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Call API directly
+      await fetch(`/api/v1/dev/ads/${ad.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      }).catch(() => {});
+
+      if (onEditAd) {
+        await onEditAd(ad.id, updateData);
+      }
+      if (b2bConfig && onUpdateB2bConfig) {
+        const updatedAds = (b2bConfig.sponsoredAds || []).map((a: any) => 
+          String(a.id) === String(ad.id) ? { ...a, ...updateData } : a
+        );
+        await onUpdateB2bConfig({ ...b2bConfig, sponsoredAds: updatedAds });
+      }
+      window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+      setSuccessMsg(`وضعیت آگهی "${ad.displayTitle || ad.title}" به ${nextIsSpecial ? 'ویژه 🌟' : 'عادی'} تغییر یافت.`);
+    } catch (e: any) {
+      setErrorMsg(e.message || "خطا در تغییر وضعیت ویژه");
+    }
+  };
+
+  // 🔥 Toggle Floor Market Ad
+  const handleToggleFloorMarketAd = async (ad: any) => {
+    try {
+      const nextIsFloor = !(ad.isFloorMarket || ad.isKafBazar || ad.category === 'under_market');
+      const updateData = {
+        ...ad,
+        isFloorMarket: nextIsFloor,
+        isKafBazar: nextIsFloor,
+        category: nextIsFloor ? 'under_market' : 'direct_supply',
+        updatedAt: new Date().toISOString()
+      };
+
+      // Call API directly
+      await fetch(`/api/v1/dev/ads/${ad.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      }).catch(() => {});
+
+      if (onEditAd) {
+        await onEditAd(ad.id, updateData);
+      }
+      if (b2bConfig && onUpdateB2bConfig) {
+        const updatedAds = (b2bConfig.sponsoredAds || []).map((a: any) => 
+          String(a.id) === String(ad.id) ? { ...a, ...updateData } : a
+        );
+        await onUpdateB2bConfig({ ...b2bConfig, sponsoredAds: updatedAds });
+      }
+      window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+      setSuccessMsg(`آگهی "${ad.displayTitle || ad.title}" ${nextIsFloor ? 'به کف بازار 🔥 اضافه شد.' : 'از کف بازار حذف شد.'}`);
+    } catch (e: any) {
+      setErrorMsg(e.message || "خطا در تغییر وضعیت کف بازار");
+    }
+  };
+
   const handleApproveSpecial = (ad: any) => {
     onEditAd(ad.id, {
       isSponsored: true,
       specialPaymentStatus: 'approved'
     });
     setSuccessMsg("آگهی با موفقیت به وضعیت ویژه ارتقا یافت.");
+  };
+
+  // ⚡ Refresh Single Ad (بروزرسانی آگهی)
+  const handleBumpAd = (ad: any) => {
+    const todayPersian = new Date().toLocaleDateString("fa-IR");
+    onEditAd(ad.id, {
+      date: todayPersian,
+      updatedAt: new Date().toISOString(),
+      bumpedAt: new Date().toISOString()
+    });
+
+    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+    window.dispatchEvent(new CustomEvent("dastavval-ads-sync"));
+
+    setSuccessMsg(`⚡ آگهی «${ad.displayTitle || ad.title}» با موفقیت بروزرسانی و به صدر تالار منتقل گردید.`);
+    setTimeout(() => setSuccessMsg(null), 3000);
+  };
+
+  // ⚡ Refresh All Active Ads (بروزرسانی همگانی آگهی‌ها)
+  const handleBumpAllAds = () => {
+    const todayPersian = new Date().toLocaleDateString("fa-IR");
+    allCombinedAds.forEach(ad => {
+      if (ad.normalizedStatus === 'approved' || !ad.status) {
+        onEditAd(ad.id, {
+          date: todayPersian,
+          updatedAt: new Date().toISOString(),
+          bumpedAt: new Date().toISOString()
+        });
+      }
+    });
+
+    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+    window.dispatchEvent(new CustomEvent("dastavval-ads-sync"));
+
+    setSuccessMsg(`⚡ کلیه آگهی‌های فعال با موفقیت بروزرسانی زنده شدند.`);
+    setTimeout(() => setSuccessMsg(null), 3000);
+  };
+
+  // ✅ Bulk Approve All Pending Ads (تایید دسته جمعی آگهی‌های در انتظار)
+  const handleBulkApprovePendingAds = () => {
+    const pendingList = allCombinedAds.filter(ad => ad.normalizedStatus === 'pending');
+    if (pendingList.length === 0) {
+      setSuccessMsg("هیچ آگهی جدیدی در صف تایید وجود ندارد.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+      return;
+    }
+
+    pendingList.forEach(ad => {
+      onUpdateAdStatus(ad.id, 'approved');
+    });
+
+    window.dispatchEvent(new CustomEvent("dastavval_ads_updated"));
+    window.dispatchEvent(new CustomEvent("dastavval-ads-sync"));
+
+    setSuccessMsg(`✅ تعداد ${pendingList.length} آگهی با موفقیت در یک مرحله تایید و منتشر گردیدند.`);
+    setTimeout(() => setSuccessMsg(null), 3000);
   };
 
   const handleRejectSpecial = (ad: any) => {
@@ -295,6 +425,8 @@ export default function AdminAdsManagement({
         marketPrice: newMarketPrice.includes("تومان") ? newMarketPrice : (newMarketPrice + " تومان"),
         buyerProfit: newBuyerProfit || "۲۰٪ سود ناخالص",
         isSponsored: false,
+        city: newCity,
+        province: newProvince,
         date: new Date().toLocaleDateString("fa-IR"),
         imageUrl: uploadedImage || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=400",
         imageUrls: uploadedImage ? [uploadedImage] : [],
@@ -323,6 +455,8 @@ export default function AdminAdsManagement({
       setNewQuantity('');
       setNewWholesalePrice('');
       setNewMarketPrice('');
+      setNewCity('تهران');
+      setNewProvince('تهران');
       setNewBuyerProfit('');
       setUploadedImage(null);
     } catch (err: any) {
@@ -392,13 +526,33 @@ export default function AdminAdsManagement({
             </p>
           </div>
 
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shrink-0"
-          >
-            <Plus size={16} />
-            <span>ثبت آگهی مستقیم مدیر</span>
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={handleBumpAllAds}
+              className="px-4 py-3 rounded-2xl bg-purple-600/30 hover:bg-purple-600/50 text-white text-xs font-black transition-all flex items-center justify-center gap-2 border border-purple-400/40 cursor-pointer shrink-0 active:scale-95 shadow-md shadow-purple-900/20"
+              title="بروزرسانی زنده تاریخ و وضعیت کلیه آگهی‌های فعال در صفحه"
+            >
+              <RotateCcw size={16} className="text-purple-300" />
+              <span>⚡ بروزرسانی همگانی</span>
+            </button>
+
+            <button
+              onClick={handleBulkApprovePendingAds}
+              className="px-4 py-3 rounded-2xl bg-emerald-600/30 hover:bg-emerald-600/50 text-white text-xs font-black transition-all flex items-center justify-center gap-2 border border-emerald-400/40 cursor-pointer shrink-0 active:scale-95 shadow-md shadow-emerald-900/20"
+              title="تایید یک‌باره کلیه آگهی‌های در انتظار بررسی"
+            >
+              <CheckCircle size={16} className="text-emerald-300" />
+              <span>✅ تایید دسته‌جمعی</span>
+            </button>
+
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <Plus size={16} />
+              <span>ثبت آگهی مستقیم مدیر</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -602,6 +756,21 @@ export default function AdminAdsManagement({
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     
+                    {/* Special / Floor Market Badges */}
+                    {(ad.isSpecial || ad.plan === 'vip' || ad.isSponsored) && (
+                      <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 border border-amber-300 shadow-md flex items-center gap-1 z-10">
+                        <Sparkles size={11} className="fill-slate-950" />
+                        ویژه شده 🌟
+                      </span>
+                    )}
+
+                    {(ad.isFloorMarket || ad.isKafBazar) && (
+                      <span className="absolute top-10 left-3 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-600 text-white border border-rose-400 shadow-md flex items-center gap-1 z-10">
+                        <Zap size={11} className="fill-white" />
+                        کف بازار 🔥
+                      </span>
+                    )}
+
                     {/* Category Tag */}
                     <span className={"absolute top-3 right-3 px-3 py-1 rounded-full text-[10px] font-black border backdrop-blur-md shadow-xs " + ad.typeColor}>
                       {ad.typeLabel}
@@ -651,6 +820,12 @@ export default function AdminAdsManagement({
                         <Phone size={13} className="text-emerald-500 shrink-0" />
                         <span className="dir-ltr text-right">{ad.displayPhone}</span>
                       </div>
+                      {(ad.city || ad.province) && (
+                        <div className="flex items-center gap-1.5 col-span-2 text-indigo-700 bg-indigo-50/60 border border-indigo-100 rounded-lg p-1.5 font-black">
+                          <span>📍 محل بارگیری:</span>
+                          <span>{ad.province || "تهران"} - {ad.city || "تهران"}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Price & Category info */}
@@ -700,15 +875,53 @@ export default function AdminAdsManagement({
                 </div>
 
                 {/* Footer Action Buttons */}
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                  {/* 🌟 Special Toggle Button */}
+                  <button
+                    onClick={() => handleToggleSpecialAd(ad)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs active:scale-95 ${
+                      ad.isSpecial || ad.plan === 'vip' || ad.isSponsored
+                        ? "bg-amber-500 text-slate-950 border border-amber-400 font-black shadow-amber-500/20"
+                        : "bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200"
+                    }`}
+                    title="ویژه کردن آگهی جهت نمایش برجسته با نشان طلایی در بالای سایت"
+                  >
+                    <Sparkles size={13} className={ad.isSpecial || ad.plan === 'vip' ? "fill-slate-950" : "text-amber-600"} />
+                    <span>{ad.isSpecial || ad.plan === 'vip' || ad.isSponsored ? "ویژه شده 🌟" : "ویژه کردن"}</span>
+                  </button>
+
+                  {/* 🔥 Floor Market Toggle Button */}
+                  <button
+                    onClick={() => handleToggleFloorMarketAd(ad)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs active:scale-95 ${
+                      ad.isFloorMarket || ad.isKafBazar
+                        ? "bg-rose-600 text-white border border-rose-500 font-black shadow-rose-600/20"
+                        : "bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200"
+                    }`}
+                    title="علامت‌گذاری به‌عنوان آگهی کف بازار و حراجی زیر قیمت"
+                  >
+                    <Zap size={13} className={ad.isFloorMarket || ad.isKafBazar ? "fill-white" : "text-rose-600"} />
+                    <span>{ad.isFloorMarket || ad.isKafBazar ? "کف بازار 🔥" : "کف آگهی"}</span>
+                  </button>
+
+                  {/* ⚡ Refresh Ad Button */}
+                  <button
+                    onClick={() => handleBumpAd(ad)}
+                    className="py-2 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                    title="بروزرسانی زنده تاریخ و انتقال این آگهی به صدر تالار بورس و بازار"
+                  >
+                    <RotateCcw size={13} className="text-purple-600" />
+                    <span>بروزرسانی</span>
+                  </button>
+
                   {/* Approve Button */}
                   {isPending || isRejected ? (
                     <button
                       onClick={() => onUpdateAdStatus(ad.id, 'approved')}
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 cursor-pointer"
+                      className="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/20 cursor-pointer"
                     >
-                      <Check size={15} />
-                      <span>تأیید و انتشار</span>
+                      <Check size={14} />
+                      <span>تأیید</span>
                     </button>
                   ) : null}
 
@@ -719,9 +932,9 @@ export default function AdminAdsManagement({
                         setRejectingAdId(ad.id);
                         setRejectionReasonInput('');
                       }}
-                      className="py-2.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-amber-800 border border-amber-300 text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-amber-800 border border-amber-300 text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <X size={15} />
+                      <X size={14} />
                       <span>رد آگهی</span>
                     </button>
                   ) : null}
@@ -729,10 +942,10 @@ export default function AdminAdsManagement({
                   {/* Delete Button */}
                   <button
                     onClick={() => handleDeleteAd(ad)}
-                    className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 text-xs transition-all cursor-pointer shrink-0"
+                    className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 text-xs transition-all cursor-pointer shrink-0"
                     title="حذف کامل آگهی"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </motion.div>
@@ -949,6 +1162,21 @@ export default function AdminAdsManagement({
                     placeholder="مشخصات فنی، شرایط تحویل، تسویه امانی..."
                     rows={3}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-rose-400 outline-none font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <label className="text-xs font-bold text-slate-800 block">استان و شهر محل بارگیری کالا / انبار:</label>
+                  <StrictCityProvinceSelector
+                    selectedCity={newCity}
+                    selectedProvince={newProvince}
+                    onSelect={(c, p) => {
+                      setNewCity(c);
+                      setNewProvince(p);
+                    }}
+                    variant="button"
+                    className="w-full text-right bg-white border border-slate-200"
+                    placeholder="کلیک کنید تا استان و شهر بارگیری را انتخاب کنید"
                   />
                 </div>
 

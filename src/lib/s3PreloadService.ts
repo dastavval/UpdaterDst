@@ -16,6 +16,71 @@ class S3PreloadService {
   private preloadedUrls = new Set<string>();
   private isInitialized = false;
   private cachedProductsPromise: Promise<any[]> | null = null;
+  private prefetchObserver: IntersectionObserver | null = null;
+  private observerMap = new WeakMap<Element, string>();
+
+  /**
+   * Registers a DOM element for lazy background prefetching when it approaches the viewport.
+   * This is triggered before the element actually is rendered/loaded by the component to warm the cache.
+   */
+  public observeForPrefetch(element: Element | null, imageUrl: string | undefined): void {
+    if (typeof window === 'undefined' || !window.IntersectionObserver || !element || !imageUrl) return;
+
+    const optimizedUrl = getDisplayImageUrl(imageUrl);
+    if (!optimizedUrl || this.preloadedUrls.has(optimizedUrl)) return;
+
+    // Initialize observer lazily
+    if (!this.prefetchObserver) {
+      this.prefetchObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const el = entry.target;
+              const url = this.observerMap.get(el);
+              if (url) {
+                this.preloadSingleUrl(url);
+                this.observerMap.delete(el);
+              }
+              this.prefetchObserver?.unobserve(el);
+            }
+          });
+        },
+        {
+          rootMargin: "400px 0px", // High-anticipation prefetching (400px before appearing)
+          threshold: 0.01,
+        }
+      );
+    }
+
+    this.observerMap.set(element, optimizedUrl);
+    this.prefetchObserver.observe(element);
+  }
+
+  /**
+   * Instantly preloads a single URL via background Image instantiation and link preload
+   */
+  public preloadSingleUrl(url: string): void {
+    if (!url || typeof window === 'undefined' || this.preloadedUrls.has(url)) return;
+    this.preloadedUrls.add(url);
+
+    // 1. Image Object instantiation for network request warming
+    const img = new Image();
+    img.src = url;
+
+    // 2. High-priority DOM Link Prefetch injection
+    try {
+      const existingLink = document.querySelector(`link[href="${url}"]`);
+      if (!existingLink) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch'; // Use prefetch for background resources
+        link.as = 'image';
+        link.href = url;
+        document.head.appendChild(link);
+      }
+    } catch (e) {
+      // Safely ignore DOM insertion errors
+    }
+  }
 
   /**
    * Cache-First getter for critical products from IndexedDB / LocalStorage before App render

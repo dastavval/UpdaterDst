@@ -44,10 +44,21 @@ interface CatalogDownloadModalProps {
   products: Product[];
   user?: any;
   initialMarkup?: number | null;
+  initialTitle?: string;
+  initialPhone?: string;
   autoPrint?: boolean;
 }
 
-export default function CatalogDownloadModal({ isOpen, onClose, products, user, initialMarkup, autoPrint }: CatalogDownloadModalProps) {
+export default function CatalogDownloadModal({ 
+  isOpen, 
+  onClose, 
+  products, 
+  user, 
+  initialMarkup, 
+  initialTitle, 
+  initialPhone, 
+  autoPrint 
+}: CatalogDownloadModalProps) {
   const isAdmin = user?.role === 'admin';
   
   // Navigation tabs inside modal: 'settings' | 'preview' | 'downloads'
@@ -114,6 +125,13 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
       if (typeof initialMarkup === 'number') {
         setCustomMarkupPercent(initialMarkup);
       }
+      if (initialTitle) {
+        setCatalogTitle(initialTitle);
+        setDistributorName(initialTitle);
+      }
+      if (initialPhone) {
+        setDistributorPhone(initialPhone);
+      }
       if (autoPrint) {
         const timer = setTimeout(() => {
           handlePrint();
@@ -121,7 +139,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
         return () => clearTimeout(timer);
       }
     }
-  }, [isOpen, initialMarkup, autoPrint]);
+  }, [isOpen, initialMarkup, initialTitle, initialPhone, autoPrint]);
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1274,10 +1292,12 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
       } else {
         setIsGenerating(false);
         setPopupError(true);
+        handleDownloadStandaloneHtml();
       }
     } catch (e) {
       setIsGenerating(false);
       setPopupError(true);
+      handleDownloadStandaloneHtml();
     }
   };
 
@@ -1341,25 +1361,41 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
     URL.revokeObjectURL(url);
   };
 
-  // Secure Cloud PDF Download Handler with automatic fallback
+  // Secure Cloud PDF Download Handler with automatic fallback and direct blob trigger
   const handleDownloadCloudPdf = async () => {
     setIsDownloadingCloudPdf(true);
     try {
       const safeUrl = catalogPdfUrl.trim();
-      const proxyDownloadUrl = `/api/storage/proxy-download?url=${encodeURIComponent(safeUrl)}&filename=dastavval-official-catalog.pdf`;
-      
-      // Test if server proxy can serve it
-      const checkRes = await fetch(proxyDownloadUrl, { method: "HEAD" });
-      if (checkRes.ok) {
-        window.location.href = proxyDownloadUrl;
-      } else {
-        // If not found in remote bucket, generate the pristine offline HTML/PDF print version
-        handlePrint();
+      let downloaded = false;
+
+      if (safeUrl) {
+        const proxyDownloadUrl = `/api/storage/proxy-download?url=${encodeURIComponent(safeUrl)}&filename=dastavval-official-catalog.pdf`;
+        try {
+          const response = await fetch(proxyDownloadUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "dastavval-official-catalog.pdf";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            downloaded = true;
+          }
+        } catch (fetchErr) {
+          console.warn("Proxy download fetch failed, falling back to html catalog download:", fetchErr);
+        }
+      }
+
+      if (!downloaded) {
+        handleDownloadStandaloneHtml();
       }
     } catch (e) {
-      handlePrint();
+      handleDownloadStandaloneHtml();
     } finally {
-      setIsDownloadingCloudPdf(false);
+      setTimeout(() => setIsDownloadingCloudPdf(false), 500);
     }
   };
 
@@ -1372,7 +1408,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-2 sm:p-4 text-right" dir="rtl">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[120] flex items-center justify-center p-2 sm:p-4 text-right" dir="rtl">
       <motion.div 
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1386,9 +1422,9 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
               <Printer size={24} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-black text-slate-900 text-base sm:text-lg">کاتالوگ‌ساز و بروشور رسمی بازرگانی دست اول</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-xs">
+                <span className="whitespace-nowrap shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
                   چاپ و خروجی A4
                 </span>
               </div>
@@ -1789,7 +1825,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                                   referrerPolicy="no-referrer"
                                   onError={(e) => { (e.target as HTMLImageElement).src = fallbackSvg; }}
                                 />
-                                <span className="absolute top-1 right-1 bg-slate-900/80 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
+                                <span className="absolute top-1 right-1 bg-slate-700/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
                                   {p.brand}
                                 </span>
                                 {Number(margin) > 0 && (
@@ -1816,10 +1852,10 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                     </div>
                   ) : catalogLayout === 'magazine' ? (
                     <div className="space-y-3">
-                      <div className="bg-gradient-to-r from-emerald-800 to-slate-900 text-white p-4 rounded-xl text-center">
-                        <div className="text-xs font-black text-emerald-300">طرح بروشور و ژورنال لوکس</div>
+                      <div className="bg-emerald-700 text-white p-4 rounded-xl text-center shadow-xs">
+                        <div className="text-xs font-black text-emerald-200">طرح بروشور و ژورنال لوکس</div>
                         <div className="text-sm font-black text-white mt-1">{catalogTitle}</div>
-                        <div className="text-[10px] text-slate-300 mt-0.5">{distributorName} | {distributorPhone}</div>
+                        <div className="text-[10px] text-emerald-100 mt-0.5">{distributorName} | {distributorPhone}</div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {filteredProducts.slice(0, 8).map((p, idx) => {
@@ -1902,9 +1938,9 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 {/* 1. Direct Print / PDF Save */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-emerald-500 transition-all">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-400 transition-all">
                   <div className="space-y-2">
-                    <div className="w-11 h-11 bg-emerald-600 text-white rounded-xl flex items-center justify-center">
+                    <div className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-xs">
                       <Printer size={22} />
                     </div>
                     <h4 className="font-black text-slate-900 text-sm">چاپ مستقیم و ذخیره استاندارد PDF</h4>
@@ -1915,7 +1951,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                   <button
                     onClick={handlePrint}
                     disabled={isGenerating || filteredProducts.length === 0}
-                    className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer"
+                    className="mt-4 w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-slate-900/15 active:scale-98 transition-all cursor-pointer"
                   >
                     <Printer size={16} />
                     <span>{isGenerating ? "در حال پردازش..." : `چاپ / خروجی PDF (${toPersianDigits(filteredProducts.length)} کالا)`}</span>
@@ -1923,9 +1959,9 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                 </div>
 
                 {/* 2. Standalone HTML/PDF Interactive Document */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-teal-500 transition-all">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-400 transition-all">
                   <div className="space-y-2">
-                    <div className="w-11 h-11 bg-teal-600 text-white rounded-xl flex items-center justify-center">
+                    <div className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-xs">
                       <Download size={22} />
                     </div>
                     <h4 className="font-black text-slate-900 text-sm">دانلود فایل کاتالوگ آفلاین چندرسانه‌ای</h4>
@@ -1936,7 +1972,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                   <button
                     onClick={handleDownloadStandaloneHtml}
                     disabled={filteredProducts.length === 0}
-                    className="mt-4 w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-black text-xs py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-teal-600/20 cursor-pointer"
+                    className="mt-4 w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-slate-900/15 active:scale-98 transition-all cursor-pointer"
                   >
                     <Download size={16} />
                     <span>دانلود مستقیم فایل آفلاین کاتالوگ</span>
@@ -1944,9 +1980,9 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                 </div>
 
                 {/* 3. Excel Spreadsheet (CSV) */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-emerald-500 transition-all">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-400 transition-all">
                   <div className="space-y-2">
-                    <div className="w-11 h-11 bg-emerald-700 text-white rounded-xl flex items-center justify-center">
+                    <div className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-xs">
                       <FileSpreadsheet size={22} />
                     </div>
                     <h4 className="font-black text-slate-900 text-sm">خروجی رسمی اکسل و جدول قیمت (CSV)</h4>
@@ -1957,7 +1993,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                   <button
                     onClick={handleDownloadCSV}
                     disabled={filteredProducts.length === 0}
-                    className="mt-4 w-full bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-black text-xs py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20 cursor-pointer"
+                    className="mt-4 w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-slate-900/15 active:scale-98 transition-all cursor-pointer"
                   >
                     <FileSpreadsheet size={16} />
                     <span>دانلود فایل اکسل لیست قیمت</span>
@@ -1965,9 +2001,9 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                 </div>
 
                 {/* 4. Shareable Live Catalog Web Link */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-indigo-500 transition-all">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-400 transition-all">
                   <div className="space-y-2">
-                    <div className="w-11 h-11 bg-indigo-600 text-white rounded-xl flex items-center justify-center">
+                    <div className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-xs">
                       <Share2 size={22} />
                     </div>
                     <h4 className="font-black text-slate-900 text-sm">لینک آنلاین کاتالوگ هوشمند اختصاصی</h4>
@@ -1977,9 +2013,9 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                   </div>
                   <button
                     onClick={handleCopyShareLink}
-                    className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 cursor-pointer"
+                    className="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-slate-900/15 active:scale-98 transition-all cursor-pointer"
                   >
-                    {copySuccess ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+                    {copySuccess ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Copy size={16} />}
                     <span>{copySuccess ? "لینک کپی شد!" : "کپی لینک اختصاصی کاتالوگ"}</span>
                   </button>
                 </div>
@@ -1987,23 +2023,23 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
               </div>
 
               {/* Cloud PDF File Section (Bucket Fixed & Proxied) */}
-              <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white p-5 rounded-2xl border border-emerald-700/40 shadow-lg space-y-3">
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/90 shadow-3xs space-y-3">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs">
                       <FileText size={20} />
                     </div>
                     <div>
-                      <h4 className="font-black text-sm text-white">فایل رسمی و جامع کاتالوگ کارخانجات (نسخه ابری باکت پارس‌پک)</h4>
-                      <p className="text-[11px] text-slate-300">نسخه تایید شده با تمامی گواهینامه‌ها، استانداردها و شرایط توزیع سراسری</p>
+                      <h4 className="font-black text-sm text-slate-900">فایل رسمی و جامع کاتالوگ کارخانجات (نسخه ابری باکت پارس‌پک)</h4>
+                      <p className="text-[11px] text-slate-600 font-medium mt-0.5">نسخه تایید شده با تمامی گواهینامه‌ها، استانداردها و شرایط توزیع سراسری</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       onClick={handleDownloadCloudPdf}
                       disabled={isDownloadingCloudPdf}
-                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black rounded-xl transition-all inline-flex items-center gap-2 shrink-0 shadow-lg shadow-emerald-500/25 cursor-pointer"
+                      className="w-full sm:w-auto px-5 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all inline-flex items-center justify-center gap-2 shrink-0 shadow-md shadow-slate-900/15 active:scale-98 cursor-pointer"
                     >
                       {isDownloadingCloudPdf ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
                       <span>دانلود فایل جامع PDF</span>
@@ -2012,11 +2048,11 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                 </div>
 
                 {isAdmin && (
-                  <div className="pt-3 border-t border-emerald-800/60 space-y-2">
-                    <div className="text-[10px] font-black text-emerald-300">
+                  <div className="pt-3 border-t border-emerald-200 space-y-2">
+                    <div className="text-[10px] font-black text-emerald-800">
                       🔒 کنترل پنل ادمین: بارگذاری نسخه به‌روزشده فایل PDF در سرور ابری پارس‌پک
                     </div>
-                    <div className="relative border border-dashed border-emerald-500/50 hover:border-emerald-400 bg-emerald-950/40 rounded-xl p-3 text-center transition-all cursor-pointer">
+                    <div className="relative border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white/80 rounded-xl p-3 text-center transition-all cursor-pointer">
                       <input
                         type="file"
                         accept=".pdf"
@@ -2024,8 +2060,8 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
                         disabled={isUploadingPdf}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                       />
-                      <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-200">
-                        {isUploadingPdf ? <RefreshCw size={16} className="animate-spin text-emerald-400" /> : <CloudUpload size={16} className="text-emerald-400" />}
+                      <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-800">
+                        {isUploadingPdf ? <RefreshCw size={16} className="animate-spin text-emerald-600" /> : <CloudUpload size={16} className="text-emerald-600" />}
                         <span>{isUploadingPdf ? "در حال آپلود در باکت پارس‌پک..." : "برای انتخاب و جایگزینی فایل PDF کلیک نمایید"}</span>
                       </div>
                     </div>
@@ -2055,7 +2091,7 @@ export default function CatalogDownloadModal({ isOpen, onClose, products, user, 
             {activeTab !== 'downloads' && (
               <button
                 onClick={() => setActiveTab('downloads')}
-                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
+                className="flex-1 sm:flex-none bg-slate-900 hover:bg-slate-800 text-white font-black text-xs px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-slate-900/15 cursor-pointer transition-all active:scale-98"
               >
                 <Download size={15} />
                 <span>دریافت خروجی‌ها (PDF / HTML / اکسل)</span>

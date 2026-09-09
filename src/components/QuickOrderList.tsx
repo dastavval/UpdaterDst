@@ -25,7 +25,9 @@ import {
   Info,
   AlertCircle,
   Check,
-  Ticket
+  Ticket,
+  ChevronDown,
+  Building2
 } from 'lucide-react';
 import { Product, CartItem, User, DiscountCoupon } from '../types';
 import { validateCouponCode, incrementCouponUsage } from '../lib/coupon-service';
@@ -33,9 +35,89 @@ import { getDisplayImageUrl } from '../lib/image-utils';
 import { ResilientVault } from '../lib/resilient-storage';
 import { saveUserSession } from '../lib/auth-helper';
 import { getApiUrl } from '../utils/api-utils';
+import { toEnglishNum } from '../utils/persian-utils';
 
 const toPersianNum = (n: number | string) => {
   return String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
+};
+
+interface CartonQuantityInputProps {
+  value: number;
+  min?: number;
+  max?: number;
+  onChange: (val: number) => void;
+  className?: string;
+  size?: 'sm' | 'md';
+}
+
+const CartonQuantityInput: React.FC<CartonQuantityInputProps> = ({
+  value,
+  min = 1,
+  max = 9999,
+  onChange,
+  className = "",
+  size = 'md'
+}) => {
+  const [localVal, setLocalVal] = useState<string>(String(value || 1));
+  const isFocusedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setLocalVal(String(value || 1));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isFocusedRef.current = true;
+    const raw = e.target.value;
+    // Support English, Persian, and Arabic digits
+    const cleaned = toEnglishNum(raw).replace(/[^0-9]/g, '');
+    setLocalVal(cleaned);
+
+    if (cleaned !== '') {
+      const parsed = parseInt(cleaned, 10);
+      if (!isNaN(parsed) && parsed >= min && parsed <= max) {
+        onChange(parsed);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    if (localVal === '' || isNaN(parseInt(localVal, 10))) {
+      setLocalVal(String(value || min));
+      onChange(value || min);
+    } else {
+      const parsed = Math.min(max, Math.max(min, parseInt(localVal, 10)));
+      setLocalVal(String(parsed));
+      onChange(parsed);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      autoComplete="off"
+      value={localVal}
+      onFocus={() => { isFocusedRef.current = true; }}
+      onClick={(e) => e.stopPropagation()}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      className={`text-center font-black font-mono text-emerald-950 outline-none bg-white rounded-md border border-emerald-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 shadow-3xs transition-all ${
+        size === 'sm' ? 'w-10 h-7 text-xs px-0.5' : 'w-12 h-8 text-xs sm:text-sm px-1'
+      } ${className}`}
+      title="تعداد کارتن (مستقیماً عدد وارد فرمایید)"
+    />
+  );
 };
 
 interface QuickOrderListProps {
@@ -77,6 +159,40 @@ export default function QuickOrderList({
   onViewDetails
 }: QuickOrderListProps) {
   const [activeTab, setActiveTab] = useState<'items' | 'checkout'>('items');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'cheque'>('cash');
+  const [chequeTerm, setChequeTerm] = useState<'none' | '1month' | '2month'>('none');
+  const [showOnlySpecial, setShowOnlySpecial] = useState(false);
+
+  const sortedProducts = useMemo(() => {
+    const isFeaturedProduct = (p: any) => {
+      if (p.isFeatured === true || p.isFeatured === "true" || p.isFeatured === 1) {
+        return true;
+      }
+      if (b2bConfig?.autoFeatureDiscountActive) {
+        const discount = Number(p.discount_percent || p.discountPercent || 0);
+        const threshold = Number(b2bConfig?.autoFeatureDiscountPercent || 20);
+        if (discount >= threshold) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    let list = [...products].sort((a, b) => {
+      const aFeatured = isFeaturedProduct(a) || a.specialOfferActive || a.isBestseller || a.badge === 'ویژه';
+      const bFeatured = isFeaturedProduct(b) || b.specialOfferActive || b.isBestseller || b.badge === 'ویژه';
+      if (aFeatured && !bFeatured) return -1;
+      if (!aFeatured && bFeatured) return 1;
+      const idA = Number(a.id) || 0;
+      const idB = Number(b.id) || 0;
+      if (idA && idB) return idA - idB;
+      return String(a.id || "").localeCompare(String(b.id || ""));
+    });
+    if (showOnlySpecial) {
+      list = list.filter(p => isFeaturedProduct(p) || p.specialOfferActive || p.badge === 'ویژه');
+    }
+    return list;
+  }, [products, showOnlySpecial, b2bConfig]);
   const [showEditBuyer, setShowEditBuyer] = useState(false);
   const [showAddressField, setShowAddressField] = useState(false);
   const [previewImage, setPreviewImage] = useState<{
@@ -143,6 +259,8 @@ export default function QuickOrderList({
   const [appliedCoupon, setAppliedCoupon] = useState<DiscountCoupon | null>(null);
   const [couponDiscountAmount, setCouponDiscountAmount] = useState<number>(0);
   const [couponMsg, setCouponMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [isCouponAccordionOpen, setIsCouponAccordionOpen] = useState(false);
+  const [isRepAccordionOpen, setIsRepAccordionOpen] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
 
@@ -334,13 +452,13 @@ export default function QuickOrderList({
 
   const handleQtyChange = (product: Product, delta: number) => {
     const currentInCart = getProductQtyInCart(product.id);
-    const minQty = Math.max(1, product.min_order_cartons || 1);
+    const minQty = Math.max(5, Number(product.min_order_cartons || (product as any).minOrderCartons || 5));
     
     let next: number;
     if (delta > 0) {
       next = currentInCart === 0 ? minQty : currentInCart + 1;
     } else {
-      next = currentInCart <= 1 ? 0 : currentInCart - 1;
+      next = currentInCart <= minQty ? 0 : currentInCart - 1;
     }
 
     onAddToCart(product, next);
@@ -403,8 +521,15 @@ export default function QuickOrderList({
     return Math.round((cartTotalPrice * 3) / 100);
   }, [cartTotalPrice, appliedRepCode]);
 
+  const chequeSurcharge = useMemo(() => {
+    if (paymentMethod !== 'cheque') return 0;
+    if (chequeTerm === '1month') return Math.round(cartTotalPrice * 0.06);
+    if (chequeTerm === '2month') return Math.round(cartTotalPrice * 0.12);
+    return 0;
+  }, [cartTotalPrice, paymentMethod, chequeTerm]);
+
   const totalDiscountAmount = volumeDiscountAmount + repDiscountAmount + couponDiscountAmount;
-  const finalPayableAmount = Math.max(0, cartTotalPrice - totalDiscountAmount);
+  const finalPayableAmount = Math.max(0, cartTotalPrice + chequeSurcharge - totalDiscountAmount);
 
   // Apply Coupon Handler
   const handleApplyCoupon = (e?: React.FormEvent) => {
@@ -519,7 +644,9 @@ export default function QuickOrderList({
         appliedRepCode,
         createdAt: new Date().toISOString(),
         status: 'pending',
-        paymentMethod: 'cash'
+        paymentMethod,
+        chequeTerm: paymentMethod === 'cheque' ? chequeTerm : undefined,
+        chequeSurcharge: paymentMethod === 'cheque' ? chequeSurcharge : undefined
       };
 
       // Save order to multi-layer resilient vault
@@ -650,24 +777,56 @@ export default function QuickOrderList({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-3xs gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (item.product) handleQtyChange(item.product, 1);
+                      }}
+                      title="افزایش یک کارتن"
+                      className="w-7 h-7 rounded-md bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      <Plus size={13} />
+                    </button>
+                    <CartonQuantityInput
+                      value={item.quantityCartons}
+                      size="sm"
+                      onChange={(newQty) => {
+                        if (item.product) {
+                          handleSetExactQty(item.product, newQty);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={item.quantityCartons <= 1}
+                      onClick={() => {
+                        if (item.product && item.quantityCartons > 1) {
+                          handleQtyChange(item.product, -1);
+                        }
+                      }}
+                      title="کاهش یک کارتن"
+                      className="w-7 h-7 rounded-md bg-slate-50 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Minus size={13} />
+                    </button>
+                  </div>
+
+                  {/* Dedicated Delete Button */}
                   <button
                     type="button"
                     onClick={() => {
-                      if (item.product) handleQtyChange(item.product, 1);
+                      if (onRemoveFromCart) {
+                        onRemoveFromCart(item.productId);
+                      } else if (item.product) {
+                        handleSetExactQty(item.product, 0);
+                      }
                     }}
-                    className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                    title="حذف کامل از سبد خرید"
+                    className="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-200 flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (item.product) handleQtyChange(item.product, -1);
-                    }}
-                    className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center font-bold text-xs cursor-pointer"
-                  >
-                    -
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
@@ -784,18 +943,9 @@ export default function QuickOrderList({
             {inlineStep === 'otp' && (
               <form onSubmit={handleInlineVerifyOtp} className="space-y-2.5">
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="text-[11px] font-black text-slate-700 truncate">
-                      کد تأیید پیامک‌شده:
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setInlineStep('phone')}
-                      className="text-[10px] text-slate-500 hover:text-slate-800 underline cursor-pointer shrink-0 whitespace-nowrap mr-1"
-                    >
-                      ویرایش شماره
-                    </button>
-                  </div>
+                  <label className="text-[11px] font-black text-slate-800 block mb-1">
+                    کد تأیید پیامک‌شده را وارد کنید:
+                  </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="tel"
@@ -805,12 +955,12 @@ export default function QuickOrderList({
                       placeholder="کد ۵ رقمی"
                       dir="ltr"
                       autoFocus
-                      className="min-w-0 flex-1 bg-white border border-emerald-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-base font-mono font-black text-center text-slate-900 outline-none tracking-widest"
+                      className="min-w-0 flex-1 bg-white border border-emerald-400 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-base font-mono font-black text-center text-slate-900 outline-none tracking-widest shadow-xs"
                     />
                     <button
                       type="submit"
                       disabled={inlineLoading || !inlineCode.trim()}
-                      className="px-4 sm:px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 cursor-pointer transition-all disabled:opacity-50 shrink-0 whitespace-nowrap"
+                      className="px-4 sm:px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 cursor-pointer transition-all disabled:opacity-50 shrink-0 whitespace-nowrap shadow-xs"
                     >
                       {inlineLoading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                       <span>تأیید</span>
@@ -818,7 +968,7 @@ export default function QuickOrderList({
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-500 bg-slate-50 p-2 rounded-xl border border-slate-100">
                   <span>
                     {inlineTimer > 0 ? (
                       `ارسال مجدد تا ${inlineTimer} ثانیه`
@@ -826,12 +976,19 @@ export default function QuickOrderList({
                       <button
                         type="button"
                         onClick={handleInlineSendOtp}
-                        className="text-emerald-700 hover:underline cursor-pointer"
+                        className="text-emerald-700 hover:underline cursor-pointer font-black"
                       >
                         ارسال مجدد پیامک
                       </button>
                     )}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setInlineStep('phone')}
+                    className="text-[10px] text-slate-600 hover:text-emerald-800 underline cursor-pointer shrink-0 font-black"
+                  >
+                    ویرایش شماره
+                  </button>
                 </div>
               </form>
             )}
@@ -944,105 +1101,220 @@ export default function QuickOrderList({
           </div>
         )}
 
-        {/* Optional Coupon Code */}
-        <div className="pt-2 border-t border-slate-100 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
-              <Ticket size={14} className="text-amber-600" />
-              <span>کد تخفیف (کوپن):</span>
-            </div>
-            {appliedCoupon && (
-              <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                {appliedCoupon.type === 'percentage' ? `${toPersianNum(appliedCoupon.value)}٪ تخفیف` : `${toPersianNum(couponDiscountAmount.toLocaleString())} تومان`}
+        {/* Collapsible (کشویی) Discount Coupon Accordion */}
+        <div className="pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setIsCouponAccordionOpen(prev => !prev)}
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer border border-slate-200/70"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                <Ticket size={14} />
+              </div>
+              <span className="text-xs font-black text-slate-800">
+                کد تخفیف (کوپن)
               </span>
-            )}
-          </div>
-
-          <div className="flex gap-2">
-            <input 
-              type="text"
-              value={couponInput}
-              onChange={e => {
-                setCouponInput(e.target.value.toUpperCase());
-                if (couponMsg) setCouponMsg(null);
-              }}
-              disabled={!!appliedCoupon}
-              placeholder="مثال: WELCOME10 یا VIP500K"
-              dir="ltr"
-              className="flex-1 h-9 bg-slate-50 border border-slate-200 rounded-xl px-3 text-[11px] font-mono font-black text-slate-800 outline-none focus:border-emerald-600 uppercase disabled:bg-slate-100"
+              {appliedCoupon && (
+                <span className="text-[10px] font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                  {appliedCoupon.type === 'percentage' ? `${toPersianNum(appliedCoupon.value)}٪ تخفیف` : `${toPersianNum(couponDiscountAmount.toLocaleString())} ت تخفیف`}
+                </span>
+              )}
+            </div>
+            <ChevronDown
+              size={15}
+              className={`text-slate-500 transition-transform duration-200 ${isCouponAccordionOpen ? 'rotate-180' : ''}`}
             />
-            {appliedCoupon ? (
-              <button
-                type="button"
-                onClick={handleRemoveCoupon}
-                className="h-9 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap"
-              >
-                حذف کوپن
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleApplyCoupon}
-                className="h-9 px-3.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs"
-              >
-                اعمال کوپن
-              </button>
-            )}
-          </div>
-          {couponMsg && (
-            <p className={`text-[10px] font-bold ${couponMsg.type === 'success' ? 'text-teal-700' : 'text-rose-500'}`}>
-              {couponMsg.text}
-            </p>
+          </button>
+
+          {isCouponAccordionOpen && (
+            <div className="mt-2 p-2.5 rounded-xl bg-amber-50/40 border border-amber-200/60 space-y-2 animate-fade-in">
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  value={couponInput}
+                  onChange={e => {
+                    setCouponInput(e.target.value.toUpperCase());
+                    if (couponMsg) setCouponMsg(null);
+                  }}
+                  disabled={!!appliedCoupon}
+                  placeholder="مثال: WELCOME10 یا VIP500K"
+                  dir="ltr"
+                  className="flex-1 h-9 bg-white border border-slate-200 rounded-xl px-3 text-[11px] font-mono font-black text-slate-800 outline-none focus:border-emerald-600 uppercase disabled:bg-slate-100 shadow-2xs"
+                />
+                {appliedCoupon ? (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="h-9 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    حذف کوپن
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    className="h-9 px-3.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shadow-2xs"
+                  >
+                    اعمال کوپن
+                  </button>
+                )}
+              </div>
+              {couponMsg && (
+                <p className={`text-[10px] font-bold ${couponMsg.type === 'success' ? 'text-teal-700' : 'text-rose-500'}`}>
+                  {couponMsg.text}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Optional Representative Code */}
-        <div className="pt-0.5">
-          {!appliedRepCode ? (
-            <div className="flex gap-2">
-              <input 
-                type="text"
-                value={repCodeInput}
-                onChange={e => {
-                  setRepCodeInput(e.target.value);
-                  if (repCodeMsg) setRepCodeMsg(null);
-                }}
-                placeholder="کد معرف / نماینده (اختیاری)"
-                className="flex-1 h-9 bg-slate-50 border border-slate-200 rounded-xl px-3 text-[11px] font-mono text-slate-800 outline-none focus:border-emerald-600"
-              />
-              <button
-                type="button"
-                onClick={handleApplyRepCode}
-                className="h-9 px-3 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 border border-slate-200 rounded-xl text-xs font-black transition-all cursor-pointer"
-              >
-                اعمال
-              </button>
+        {/* Collapsible (کشویی) Representative Code Accordion */}
+        <div className="pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setIsRepAccordionOpen(prev => !prev)}
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer border border-slate-200/70"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                <Building2 size={14} />
+              </div>
+              <span className="text-xs font-black text-slate-800">
+                کد معرف یا نمایندگی (اختیاری)
+              </span>
+              {appliedRepCode && (
+                <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  کد معرف: {appliedRepCode}
+                </span>
+              )}
             </div>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center justify-between text-xs font-black text-emerald-900">
-              <span>کد معرف ({appliedRepCode}) اعمال شد</span>
-              <button 
-                type="button" 
-                onClick={() => setAppliedRepCode(null)}
-                className="text-rose-500 hover:underline text-[10px] cursor-pointer"
-              >
-                حذف
-              </button>
+            <ChevronDown
+              size={15}
+              className={`text-slate-500 transition-transform duration-200 ${isRepAccordionOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {isRepAccordionOpen && (
+            <div className="mt-2 p-2.5 rounded-xl bg-emerald-50/40 border border-emerald-200/60 space-y-2 animate-fade-in">
+              {!appliedRepCode ? (
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={repCodeInput}
+                    onChange={e => {
+                      setRepCodeInput(e.target.value);
+                      if (repCodeMsg) setRepCodeMsg(null);
+                    }}
+                    placeholder="کد معرف / نماینده شما"
+                    className="flex-1 h-9 bg-white border border-slate-200 rounded-xl px-3 text-[11px] font-mono text-slate-800 outline-none focus:border-emerald-600 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyRepCode}
+                    className="h-9 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs"
+                  >
+                    اعمال
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-emerald-100/70 border border-emerald-300 px-3 py-1.5 rounded-xl flex items-center justify-between text-xs font-black text-emerald-950">
+                  <span>کد معرف ({appliedRepCode}) اعمال شد</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setAppliedRepCode(null)}
+                    className="text-rose-600 hover:underline text-[10px] cursor-pointer"
+                  >
+                    حذف
+                  </button>
+                </div>
+              )}
+              {repCodeMsg && (
+                <p className={`text-[10px] font-bold ${repCodeMsg.type === 'success' ? 'text-emerald-700' : 'text-rose-500'}`}>
+                  {repCodeMsg.text}
+                </p>
+              )}
             </div>
-          )}
-          {repCodeMsg && (
-            <p className={`text-[10px] font-bold mt-1 ${repCodeMsg.type === 'success' ? 'text-emerald-700' : 'text-rose-500'}`}>
-              {repCodeMsg.text}
-            </p>
           )}
         </div>
+      </div>
+
+      {/* Payment Method Selector (Cash / Cheque) */}
+      <div className="pt-3 border-t border-slate-100 space-y-2">
+        <label className="text-xs font-black text-slate-800 block">انتخاب روش تسویه و پرداخت فاکتور:</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setPaymentMethod('cash');
+              setChequeTerm('none');
+            }}
+            className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              paymentMethod === 'cash'
+                ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/15 text-emerald-900'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <span className="text-xs font-black">💵 تسویه نقدی درب کارخانه</span>
+            <span className="text-[9px] font-bold opacity-85">قیمت کاتالوگ پایه</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPaymentMethod('cheque');
+              setChequeTerm('1month');
+            }}
+            className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+              paymentMethod === 'cheque'
+                ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/15 text-indigo-900'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <span className="text-xs font-black">💳 خرید چکی (۵۰٪ نقد + چک)</span>
+            <span className="text-[9px] font-bold opacity-85">صیادی بنفش مدت‌دار</span>
+          </button>
+        </div>
+
+        {/* Cheque Terms Sub-options */}
+        {paymentMethod === 'cheque' && (
+          <div className="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-150 space-y-2" dir="rtl">
+            <span className="text-[10px] font-black text-indigo-950 block">انتخاب مدت چک:</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => setChequeTerm('1month')}
+                className={`py-1.5 px-2 rounded-lg text-[10px] font-black text-center transition-all cursor-pointer ${
+                  chequeTerm === '1month'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-white text-indigo-900 border border-indigo-200/60 hover:bg-indigo-100/50'
+                }`}
+              >
+                چک ۱ ماهه مدت‌دار
+              </button>
+              <button
+                type="button"
+                onClick={() => setChequeTerm('2month')}
+                className={`py-1.5 px-2 rounded-lg text-[10px] font-black text-center transition-all cursor-pointer ${
+                  chequeTerm === '2month'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-white text-indigo-900 border border-indigo-200/60 hover:bg-indigo-100/50'
+                }`}
+              >
+                چک ۲ ماهه مدت‌دار
+              </button>
+            </div>
+            <p className="text-[9px] font-bold text-indigo-700 leading-relaxed">
+              * توجه داشته باشید که قیمت نقدی و چکی محصولات با یکدیگر متفاوت است.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Financial Summary */}
       <div className="space-y-2 pt-3 border-t border-slate-100 text-xs">
         <div className="flex justify-between items-center text-slate-500 font-bold">
-          <span>مبلغ اقلام:</span>
-          <span className="font-mono text-slate-900">{cartTotalPrice.toLocaleString('fa-IR')} تومان</span>
+          <span>{paymentMethod === 'cheque' ? 'مبلغ کالاها (با احتساب تعدیل مدت‌دار):' : 'مبلغ کل کالاها:'}</span>
+          <span className="font-mono text-slate-900">{(cartTotalPrice + chequeSurcharge).toLocaleString('fa-IR')} تومان</span>
         </div>
 
         {couponDiscountAmount > 0 && (
@@ -1121,32 +1393,80 @@ export default function QuickOrderList({
 
   return (
     <div className="space-y-4" dir="rtl">
-      {/* Mobile Tab Switcher */}
-      <div className="lg:hidden flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-3xs">
-        <button
-          type="button"
-          onClick={() => setActiveTab('items')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'items'
-              ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/90'
-              : 'text-slate-600'
-          }`}
-        >
-          <Package size={16} />
-          <span>لیست کالاها ({products.length})</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('checkout')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'checkout'
-              ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/90'
-              : 'text-slate-600'
-          }`}
-        >
-          <FileText size={16} />
-          <span>پیش‌فاکتور {cartTotalCartons > 0 ? `(${cartTotalCartons} کارتن)` : ''}</span>
-        </button>
+      {/* Unified Top Header & Tab Control: Borderless, Seamless & Aligned */}
+      <div className="bg-slate-50/50 p-1.5 sm:p-2 rounded-2xl border-0 space-y-3">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black border border-emerald-100 shadow-3xs">
+              <Zap size={15} className="text-emerald-600 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-xs sm:text-sm font-black text-slate-850 leading-tight">خرید مستقیم از کارخانجات (لیست سریع)</h2>
+              <p className="text-[10px] text-slate-500 font-bold hidden sm:block">انتخاب سریع اقلام، برآورد تخفیفات عمده و صدور فوری پیش‌فاکتور رسمی</p>
+            </div>
+          </div>
+
+          {/* Dedicated Back / Exit Button */}
+          {(onClose || onBackToGrid) && (
+            <button
+              type="button"
+              onClick={onClose || onBackToGrid}
+              className="px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-50 active:scale-95 text-slate-700 hover:text-slate-900 text-xs font-black rounded-xl border border-slate-200/80 shadow-3xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+            >
+              <ArrowRight size={14} className="text-slate-500" />
+              <span>بازگشت به کاتالوگ</span>
+            </button>
+          )}
+        </div>
+
+        {/* Toggle Switch Bar for Special & Discounted Products */}
+        <div className="flex items-center justify-between px-1 py-1 border-t border-slate-200/50">
+          <span className="text-xs font-black text-slate-700">فیلتر هوشمند کالاها:</span>
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-3xs">
+            <span className="text-[11px] font-black text-slate-700">فقط اقلام ویژه و تخفیف‌دار</span>
+            <button
+              type="button"
+              onClick={() => setShowOnlySpecial(!showOnlySpecial)}
+              className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
+                showOnlySpecial ? 'bg-emerald-600' : 'bg-slate-300'
+              }`}
+            >
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                  showOnlySpecial ? '-translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Tab Switcher: Integrated, Borderless & Rounded */}
+        <div className="lg:hidden flex items-center bg-slate-100 p-1 rounded-xl border-0 shadow-3xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab('items')}
+            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'items'
+                ? 'bg-white text-emerald-800 shadow-3xs border border-slate-200/40'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Package size={14} />
+            <span>لیست کالاها ({products.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('checkout')}
+            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'checkout'
+                ? 'bg-white text-emerald-800 shadow-3xs border border-slate-200/40'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FileText size={14} />
+            <span>پیش‌فاکتور {cartTotalCartons > 0 ? `(${cartTotalCartons} کارتن)` : ''}</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. MAIN 2-COLUMN LAYOUT */}
@@ -1164,15 +1484,16 @@ export default function QuickOrderList({
                 </p>
               </div>
             ) : (
-              products.map((product, pIdx) => {
+              sortedProducts.map((product, pIdx) => {
                 const currentQty = getProductQtyInCart(product.id);
                 const cartonPack = product.carton_pack_count || 1;
+                const unitPrice = product.bulk_price || product.price || 0;
                 const cartonPrice = (product.bulk_price || 0) * cartonPack;
                 const isInCart = currentQty > 0;
 
                 return (
                   <div 
-                    key={`quick-item-${product.id || pIdx}-${pIdx}`}
+                    key={`quick-item-${product.id || pIdx}`}
                     onClick={() => {
                       if (onViewDetails) {
                         onViewDetails(product);
@@ -1219,76 +1540,114 @@ export default function QuickOrderList({
 
                     {/* ۲. دو سوم کادر: اسم، زیر اسم مشخصات و قیمت، و کلید افزودن */}
                     <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
-                      {/* بالا: اسم محصول */}
+                      {/* بالا: بج‌ها و اسم محصول */}
                       <div>
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          {((product as any).isFeatured || product.isFeatured || product.isBestseller || product.badge === 'ویژه' || (b2bConfig?.autoFeatureDiscountActive && Number(product.discount_percent || product.discountPercent || 0) >= Number(b2bConfig?.autoFeatureDiscountPercent || 20))) && (
+                            <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg text-[9.5px] font-black flex items-center gap-1 shadow-2xs">
+                              <Sparkles size={10} className="fill-white text-white" />
+                              <span>ویژه 🌟</span>
+                            </span>
+                          )}
+                          {((product as any).isFloorMarket || (product as any).isKafBazar) && (
+                            <span className="bg-rose-600 text-white px-2 py-0.5 rounded-lg text-[9.5px] font-black flex items-center gap-1 shadow-2xs">
+                              <Zap size={10} className="fill-white text-white" />
+                              <span>کف بازار 🔥</span>
+                            </span>
+                          )}
+                        </div>
                         <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug line-clamp-2 hover:text-emerald-800 transition-colors">
                           {product.name}
                         </h3>
-                        <div className="text-[11px] font-bold text-slate-500 mt-1">
-                          بسته‌بندی: <strong className="text-slate-900 font-mono font-black">{cartonPack}</strong> عدد در هر کارتن
+                        <div className="text-[11px] font-bold text-slate-500 mt-1 flex items-center justify-between gap-2 flex-wrap">
+                          <span>
+                            بسته‌بندی: {currentQty > 0 ? (
+                              <strong className="text-emerald-800 font-mono font-black">{currentQty.toLocaleString('fa-IR')} کارتن × {cartonPack.toLocaleString('fa-IR')} = {(currentQty * cartonPack).toLocaleString('fa-IR')} عدد تکی</strong>
+                            ) : (
+                              <strong className="text-slate-900 font-mono font-black">۱ کارتن × {cartonPack.toLocaleString('fa-IR')} عدد تکی</strong>
+                            )}
+                          </span>
+                          <span className="text-emerald-700 font-black whitespace-nowrap text-xs">
+                            قیمت تکی: <strong className="font-mono text-emerald-800 text-xs sm:text-sm font-black">{unitPrice.toLocaleString('fa-IR')}</strong> <span className="text-[10px] text-slate-400 font-normal">تومان</span>
+                          </span>
                         </div>
                       </div>
 
-                      {/* پایین: زیر اسم قیمت و دکمه افزودن کارتن */}
-                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-end justify-between gap-2">
-                        {/* قیمت هر کارتن */}
-                        <div>
-                          <div className="text-[10px] text-slate-400 font-bold">قیمت هر کارتن:</div>
-                          <div className="text-xs sm:text-sm font-black text-slate-950 font-mono">
-                            {cartonPrice.toLocaleString('fa-IR')} <span className="text-[10px] font-sans font-bold text-slate-500">تومان</span>
-                          </div>
-                        </div>
+                      {/* پایین: کلید ثبت یا شمارنده کارتن */}
+                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                        {isInCart ? (
+                          <div className="flex items-center gap-1.5 w-full justify-end">
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="flex items-center bg-emerald-50 border-2 border-emerald-600 rounded-xl p-1 shadow-2xs gap-1">
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQtyChange(product, 1);
+                                  }}
+                                  className="w-8 h-8 sm:w-9 sm:h-9 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0"
+                                  title="افزایش یک کارتن"
+                                >
+                                  <Plus size={16} />
+                                </button>
+                                
+                                <div className="flex items-center justify-center">
+                                  <CartonQuantityInput
+                                    value={currentQty}
+                                    size="md"
+                                    onChange={(newQty) => {
+                                      handleSetExactQty(product, newQty);
+                                    }}
+                                  />
+                                </div>
 
-                        {/* کلید ثبت یا شمارنده کارتن (با جلوگیری از باز شدن صفحه محصول هنگام لمس کلیدها) */}
-                        <div 
-                          className="shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {isInCart ? (
-                            <div className="flex items-center bg-emerald-50 border-2 border-emerald-600 rounded-xl p-0.5 shadow-2xs gap-0.5">
-                              <button 
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleQtyChange(product, 1);
-                                }}
-                                className="w-8 h-8 sm:w-9 sm:h-9 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95"
-                                title="افزایش یک کارتن"
-                              >
-                                <Plus size={15} />
-                              </button>
-                              
-                              <div className="px-1.5 text-center min-w-[34px]">
-                                <span className="text-xs sm:text-sm font-black text-emerald-950 font-mono leading-none block">{currentQty}</span>
-                                <span className="text-[8px] text-emerald-800 font-black block mt-0.5">کارتن</span>
+                                <button 
+                                  type="button"
+                                  disabled={currentQty <= 1}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (currentQty > 1) {
+                                      handleQtyChange(product, -1);
+                                    }
+                                  }}
+                                  className="w-8 h-8 sm:w-9 sm:h-9 bg-white hover:bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center border border-slate-200 transition-all cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                                  title="کاهش یک کارتن"
+                                >
+                                  <Minus size={16} />
+                                </button>
                               </div>
 
-                              <button 
+                              {/* Dedicated Delete Button */}
+                              <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleQtyChange(product, -1);
+                                  if (onRemoveFromCart) {
+                                    onRemoveFromCart(product.id);
+                                  } else {
+                                    handleSetExactQty(product, 0);
+                                  }
                                 }}
-                                className="w-8 h-8 sm:w-9 sm:h-9 bg-white hover:bg-rose-50 text-rose-700 rounded-lg flex items-center justify-center border border-rose-200 transition-all cursor-pointer active:scale-95"
-                                title="کاهش یک کارتن"
+                                className="w-8 h-8 sm:w-9 sm:h-9 bg-rose-50 hover:bg-rose-600 text-rose-500 hover:text-white rounded-xl flex items-center justify-center border border-rose-200 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                                title="حذف کالا از سبد خرید"
                               >
-                                <Minus size={15} />
+                                <Trash2 size={15} />
                               </button>
                             </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQtyChange(product, 1);
-                              }}
-                              className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl font-black text-xs transition-all flex items-center gap-1 cursor-pointer bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs active:scale-95 whitespace-nowrap"
-                            >
-                              <Plus size={15} />
-                              <span>افزودن کارتن</span>
-                            </button>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQtyChange(product, 1);
+                            }}
+                            className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl font-black text-xs transition-all flex items-center gap-1 cursor-pointer bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs active:scale-95 whitespace-nowrap"
+                          >
+                            <Plus size={15} />
+                            <span>افزودن کارتن</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1383,14 +1742,15 @@ export default function QuickOrderList({
 
               {/* مشخصات و دکمه رفتن به صفحه محصول */}
               <div className="flex items-center justify-between pt-1 gap-2 flex-wrap">
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400">قیمت هر کارتن:</div>
-                  <div className="text-sm sm:text-base font-black text-slate-900 font-mono">
-                    {previewImage.cartonPrice.toLocaleString('fa-IR')} <span className="text-[10px] font-sans font-bold text-slate-500">تومان</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-bold mt-0.5">
-                    ({previewImage.cartonPack} عدد در کارتن)
-                  </div>
+                <div className="flex items-baseline gap-1 whitespace-nowrap">
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-500">قیمت کارتن:</span>
+                  <span className="text-sm sm:text-base font-black text-slate-900 font-mono tracking-tight">
+                    {previewImage.cartonPrice.toLocaleString('fa-IR')}
+                  </span>
+                  <span className="text-[10px] font-sans font-bold text-slate-500">تومان</span>
+                  <span className="text-[10px] text-slate-400 font-bold mr-1">
+                    ({previewImage.cartonPack} عدد)
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">

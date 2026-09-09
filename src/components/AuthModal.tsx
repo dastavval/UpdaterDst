@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { getApiUrl } from "../utils/api-utils";
 import { saveUserSession } from "../lib/auth-helper";
+import { StrictCityProvinceSelector } from "./StrictCityProvinceSelector";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -39,6 +40,8 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [nationalCode, setNationalCode] = useState("");
+  const [province, setProvince] = useState("تهران");
+  const [city, setCity] = useState("تهران");
   const [address, setAddress] = useState("");
   const [step, setStep] = useState<'phone' | 'otp' | 'profile'>('phone');
   const [verifiedUser, setVerifiedUser] = useState<any>(null);
@@ -234,7 +237,9 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
         phone: targetPhone,
         mobile: targetPhone,
         name: name.trim(),
-        address: address.trim(),
+        province,
+        city,
+        address: address.trim() || `استان ${province} - شهر ${city}`,
         company: company.trim() || verifiedUser?.company || "",
         nationalCode: nationalCode.trim() || verifiedUser?.nationalCode || "",
         role: verifiedUser?.role || 'customer',
@@ -319,8 +324,8 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
     }
 
     const fullCode = newDigits.join("");
-    // Auto submit if 5 digits are entered OR if master admin 4-digit code (3360) is entered
-    if ((fullCode.length === 5 && !newDigits.includes("")) || fullCode === "3360") {
+    // Auto submit if 5 digits are entered
+    if (fullCode.length === 5 && !newDigits.includes("")) {
       executeVerifyOtp(fullCode);
     }
   };
@@ -358,13 +363,13 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-md overflow-y-auto" dir="rtl">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-white/60 backdrop-blur-3xl overflow-y-auto" dir="rtl">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="relative w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden my-auto flex flex-col"
+        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+        className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-[0_32px_80px_-16px_rgba(0,0,0,0.15)] overflow-hidden my-auto flex flex-col"
       >
         {/* Close Button */}
         <button
@@ -457,36 +462,20 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
               </div>
             </form>
           ) : step === 'otp' ? (
-            /* STEP 2: VERIFY OTP CODE */
-            <div className="space-y-5">
-              <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                  <span className="text-slate-700 font-bold">کد به شماره </span>
-                  <span className="font-mono font-black text-emerald-950 px-2 py-0.5 bg-white rounded-lg border border-emerald-200" dir="ltr">
-                    {phone}
-                  </span>
-                  <span className="text-slate-700 font-bold"> ارسال شد.</span>
+            /* STEP 2: VERIFY OTP CODE - OPTIMIZED UX WITH PIN BOXES ON TOP */
+            <div className="space-y-4">
+              {/* 5-Digit PIN Boxes - Placed at the top for instant thumb & eye focus */}
+              <div className="space-y-2.5">
+                <div className="text-center space-y-1">
+                  <label className="text-xs font-black text-slate-900 block">
+                    کد تأیید ۵ رقمی پیامک‌شده را وارد کنید:
+                  </label>
+                  <p className="text-[11px] text-slate-400 font-bold">
+                    کد یک‌بار مصرف ارسالی به تلفن همراه شما
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep('phone');
-                    setOtpDigits(["", "", "", "", ""]);
-                  }}
-                  className="text-[11px] font-black text-emerald-800 hover:text-slate-950 underline cursor-pointer"
-                >
-                  ویرایش شماره
-                </button>
-              </div>
-
-              {/* 5-Digit PIN Boxes */}
-              <div className="space-y-3">
-                <label className="text-xs font-black text-slate-900 block text-center">
-                  کد تأیید ۵ رقمی پیامک‌شده را وارد فرمایید:
-                </label>
                 
-                <div className="flex items-center justify-center gap-2.5" dir="ltr">
+                <div className="flex items-center justify-center gap-2 sm:gap-3 py-1" dir="ltr">
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={`authmodal-pin-${idx}`}
@@ -507,6 +496,27 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Phone indicator & Edit Number - Placed below OTP boxes as requested */}
+              <div className="p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-2xl flex items-center justify-between text-xs transition-colors">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                  <span className="text-slate-600 font-bold truncate">شماره تماس:</span>
+                  <span className="font-mono font-black text-slate-900 px-2 py-0.5 bg-white rounded-lg border border-slate-200" dir="ltr">
+                    {phone}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('phone');
+                    setOtpDigits(["", "", "", "", ""]);
+                  }}
+                  className="text-[11px] font-black text-emerald-700 hover:text-emerald-900 bg-white hover:bg-emerald-50 border border-slate-200 px-2.5 py-1 rounded-xl cursor-pointer shrink-0 transition-all"
+                >
+                  ویرایش شماره
+                </button>
               </div>
 
               {/* Countdown & Resend Button */}
@@ -574,7 +584,21 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
 
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-800 block text-right">
-                    استان، شهر و نشانی دقیق تحویل سفارش <span className="text-rose-500">* (الزامی)</span>:
+                    انتخاب استان و شهر محل سکونت / فعالیت <span className="text-rose-500">* (الزامی)</span>:
+                  </label>
+                  <StrictCityProvinceSelector
+                    selectedCity={city}
+                    selectedProvince={province}
+                    onSelect={(c, p) => {
+                      setCity(c);
+                      setProvince(p);
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-800 block text-right">
+                    نشانی دقیق پستی / تحویل سفارش <span className="text-rose-500">* (الزامی)</span>:
                   </label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 text-slate-400" size={16} />
@@ -582,7 +606,7 @@ export default function AuthModal({ isOpen, onClose, b2bConfig, onAuthSuccess }:
                       required
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="مثال: تهران، خیابان پیروزی، میدان شهدا، پلاک... (جهت ثبت رسمی در فاکتور و ارسال بار)"
+                      placeholder="مثال: خیابان پیروزی، میدان شهدا، پلاک... (جهت ثبت رسمی در فاکتور و ارسال بار)"
                       rows={2}
                       className="w-full pl-9 pr-4 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10 transition-all text-right resize-none"
                     />

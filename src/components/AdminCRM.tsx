@@ -2,7 +2,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Users, ShieldCheck, MapPin, Search, Plus, Download, 
-  RefreshCw, Edit3, Trash2, Phone, FileText, X, AlertCircle, Send, Minus
+  RefreshCw, Edit3, Trash2, Phone, FileText, X, AlertCircle, Send, Minus,
+  CheckCircle2
 } from "lucide-react";
 import { toPersianNum } from "../utils/persian-utils";
 import { CRMCustomer, updateCRMCustomer, addCRMCustomer, deleteCRMCustomer } from "../lib/crm-helper";
@@ -32,6 +33,108 @@ export default function AdminCRM({
   onUpdateOrders
 }: AdminCRMProps) {
   // Local UI State
+  const [adminViewTab, setAdminViewTab] = useState<'crm_list' | 'role_requests'>('crm_list');
+  const [roleRequests, setRoleRequests] = useState<any[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('dastavval_role_requests') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const refreshRoleRequests = () => {
+    try {
+      setRoleRequests(JSON.parse(localStorage.getItem('dastavval_role_requests') || '[]'));
+    } catch {
+      setRoleRequests([]);
+    }
+  };
+
+  const handleApproveRoleRequest = async (req: any) => {
+    confirmAction(
+      "تأیید و ارتقای نقش تجاری",
+      `آیا از ارتقای نقش «${req.userName || req.company}» به «${req.requestedRoleTitle || req.requestedRole}» اطمینان دارید؟`,
+      async () => {
+        try {
+          // 1. Update Request status
+          const updatedReqs = roleRequests.map(r => r.id === req.id ? { ...r, status: 'approved', approvedAt: new Date().toISOString() } : r);
+          setRoleRequests(updatedReqs);
+          localStorage.setItem('dastavval_role_requests', JSON.stringify(updatedReqs));
+
+          // 2. Update/create in CRM Customers
+          const existingCustomer = crmCustomers.find(c => c.phone === req.phone);
+          if (existingCustomer) {
+            await updateCRMCustomer(existingCustomer.id, {
+              role: req.requestedRole,
+              status: 'active',
+              badge: req.requestedRole === 'factory' ? 'vip' : 'gold',
+              company: req.company || existingCustomer.company,
+              notes: `${existingCustomer.notes || ''} [ارتقا یافته به ${req.requestedRoleTitle} توسط مدیر در ${new Date().toLocaleDateString('fa-IR')}]`
+            });
+          }
+
+          // 3. Update current active user session if matching
+          try {
+            const currentSession = JSON.parse(localStorage.getItem('dastavval_user_session') || '{}');
+            if (currentSession && (currentSession.phone === req.phone || currentSession.id === req.userId)) {
+              const updatedSession = {
+                ...currentSession,
+                role: req.requestedRole,
+                isApproved: true,
+                isFactoryApproved: req.requestedRole === 'factory' ? true : currentSession.isFactoryApproved,
+                isRepresentativeApproved: req.requestedRole === 'representative' ? true : currentSession.isRepresentativeApproved,
+                badge: req.requestedRole === 'factory' ? 'vip' : 'gold',
+                isPendingRoleApproval: false,
+                pendingRole: undefined,
+                roleApprovalStatus: 'approved'
+              };
+              localStorage.setItem('dastavval_user_session', JSON.stringify(updatedSession));
+            }
+          } catch (e) {
+            console.warn("Session sync error:", e);
+          }
+
+          await loadCrmCustomers();
+          setSuccessMsg(`نقش ${req.requestedRoleTitle} برای ${req.userName || req.company} با موفقیت تایید و فعال گردید.`);
+        } catch (err: any) {
+          setErrorMsg(`خطا در تایید نقش: ${err.message || 'خطای نامشخص'}`);
+        }
+      }
+    );
+  };
+
+  const handleRejectRoleRequest = async (req: any) => {
+    const reason = prompt("علت عدم تایید یا کسری مدارک را وارد فرمایید:", "نقص در استعلام پروانه بهره‌برداری / عدم تطابق مدارک ثبت شرکت");
+    if (reason === null) return;
+
+    try {
+      const updatedReqs = roleRequests.map(r => r.id === req.id ? { ...r, status: 'rejected', rejectReason: reason, rejectedAt: new Date().toISOString() } : r);
+      setRoleRequests(updatedReqs);
+      localStorage.setItem('dastavval_role_requests', JSON.stringify(updatedReqs));
+
+      // Update current session if matching
+      try {
+        const currentSession = JSON.parse(localStorage.getItem('dastavval_user_session') || '{}');
+        if (currentSession && (currentSession.phone === req.phone || currentSession.id === req.userId)) {
+          const updatedSession = {
+            ...currentSession,
+            isPendingRoleApproval: false,
+            pendingRole: undefined,
+            roleApprovalStatus: 'rejected',
+            rejectReason: reason
+          };
+          localStorage.setItem('dastavval_user_session', JSON.stringify(updatedSession));
+        }
+      } catch (e) {
+        console.warn("Session sync error:", e);
+      }
+
+      alert("درخواست ارتقای نقش با ثبت دلیل رد گردید.");
+    } catch (err: any) {
+      alert(`خطا: ${err.message}`);
+    }
+  };
+
   const [crmSearch, setCrmSearch] = useState("");
   const [crmBadgeFilter, setCrmBadgeFilter] = useState("all");
   const [crmRoleFilter, setCrmRoleFilter] = useState<any>("all");
@@ -398,8 +501,161 @@ export default function AdminCRM({
         </div>
       </div>
 
-      {/* CRM Tools Bar */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+      {/* Navigation Tabs: Customers vs Role Requests */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+        <button
+          type="button"
+          onClick={() => setAdminViewTab('crm_list')}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+            adminViewTab === 'crm_list'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Users size={15} />
+          <span>مدیریت بنکداران و مشتریان</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+            adminViewTab === 'crm_list' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {toPersianNum(crmCustomers.length)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            refreshRoleRequests();
+            setAdminViewTab('role_requests');
+          }}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+            adminViewTab === 'role_requests'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <ShieldCheck size={15} />
+          <span>درخواست‌های تایید نقش (کارخانجات و نمایندگی‌ها)</span>
+          {roleRequests.filter(r => r.status === 'pending').length > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-amber-500 text-white animate-pulse">
+              {toPersianNum(roleRequests.filter(r => r.status === 'pending').length)} جدید
+            </span>
+          )}
+        </button>
+      </div>
+
+      {adminViewTab === 'role_requests' ? (
+        /* ROLE REQUESTS APPROVAL TABLE */
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs text-amber-900 font-bold">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={18} className="text-amber-700 shrink-0" />
+              <span>
+                بر اساس موازین شبکه دست‌اول، نقش‌های کارخانه تولیدی و عاملیت انحصاری تنها با استعلام و تایید مدیر فعال می‌شوند تا از جعل عنوان و کلاهبرداری جلوگیری شود.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={refreshRoleRequests}
+              className="px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-[11px] font-black hover:bg-amber-100 transition-colors cursor-pointer text-amber-950 shrink-0"
+            >
+              بروزرسانی لیست
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <table className="w-full text-right border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-4">متقاضی و شماره تماس</th>
+                  <th className="px-6 py-4">نقش درخواستی</th>
+                  <th className="px-6 py-4">شهرستان و استان</th>
+                  <th className="px-6 py-4">پروانه کسب / شناسه شرکت</th>
+                  <th className="px-6 py-4 text-center">وضعیت</th>
+                  <th className="px-6 py-4 text-center">عملیات ممیزی</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 text-xs">
+                {roleRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-bold">
+                      هیچ درخواست جدیدی برای ارتقای نقش در صف ممیزی وجود ندارد.
+                    </td>
+                  </tr>
+                ) : (
+                  roleRequests.map((req, idx) => (
+                    <tr key={req.id || idx} className="hover:bg-slate-50/40 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-black text-slate-900">{req.company || req.userName || 'نامشخص'}</div>
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">{toPersianNum(req.phone)}</div>
+                        <div className="text-[10px] text-slate-400 font-bold">{req.userName}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-xl text-[11px] font-black border inline-block ${
+                          req.requestedRole === 'factory'
+                            ? 'bg-blue-50 text-blue-800 border-blue-200'
+                            : 'bg-purple-50 text-purple-800 border-purple-200'
+                        }`}>
+                          {req.requestedRoleTitle || (req.requestedRole === 'factory' ? 'کارخانه تولیدی' : 'نمایندگی رسمی')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-700">{req.city || 'تهران'}</div>
+                        <div className="text-[10px] text-slate-400">{req.province || 'تهران'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {req.licenseNumber ? (
+                          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 inline-block">
+                            {req.licenseNumber}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">بدون پروانه ثبت‌شده</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border inline-block ${
+                          req.status === 'approved' 
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : req.status === 'rejected'
+                            ? 'bg-red-50 text-red-800 border-red-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'
+                        }`}>
+                          {req.status === 'approved' ? '✓ تایید شده' : req.status === 'rejected' ? '✕ رد شده' : '⏳ در انتظار ممیزی'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          {req.status !== 'approved' && (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveRoleRequest(req)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
+                            >
+                              <CheckCircle2 size={13} />
+                              <span>تایید نقش</span>
+                            </button>
+                          )}
+                          {req.status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => handleRejectRoleRequest(req)}
+                              className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-[11px] font-black transition-all cursor-pointer border border-red-200 active:scale-95"
+                            >
+                              رد
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* CRM Tools Bar */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-80">
             <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -593,6 +849,8 @@ export default function AdminCRM({
           </tbody>
         </table>
       </div>
+      </>
+      )}
 
       {/* CRM Modals Container (Integrated into sub-component) */}
       <AnimatePresence>

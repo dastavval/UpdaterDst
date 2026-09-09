@@ -217,10 +217,12 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     .filter(Boolean);
 
   /**
-   * Helper to parse inline tokens like [[product:PRD-1001|چیپس چی‌توز]]
+   * Helper to parse inline tokens like [[product:PRD-1001|چیپس چی‌توز]] or [[factory:fac-1|کارخانه]]
    */
   const renderInlineTokens = (text: string) => {
-    const tokenRegex = /\[\[([a-zA-Z0-9_-]+):?([^|\]]*)\|?([^\]]*)\]\]/g;
+    if (!text) return null;
+
+    const tokenRegex = /\[\[([\s\S]*?)\]\]/g;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -231,53 +233,71 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         parts.push(text.substring(lastIndex, matchIndex));
       }
 
-      const type = match[1];
-      const param1 = match[2];
-      const param2 = match[3];
-
-      let id = param1;
-      let label = param2 || param1;
-
-      if (!param2 && param1) {
-        label = param1;
-        id = param1;
+      const rawInner = match[1].trim();
+      
+      if (rawInner === 'toc') {
+        parts.push(renderTocBox(`inline-toc-${matchIndex}`));
+        lastIndex = tokenRegex.lastIndex;
+        continue;
       }
 
+      // Split by first colon
+      const colonIdx = rawInner.indexOf(':');
+      let type = rawInner.toLowerCase();
+      let rest = '';
+
+      if (colonIdx !== -1) {
+        type = rawInner.substring(0, colonIdx).trim().toLowerCase();
+        rest = rawInner.substring(colonIdx + 1).trim();
+      }
+
+      // Split rest by pipe |
+      const pipeIdx = rest.indexOf('|');
+      let id = rest;
+      let label = rest;
+
+      if (pipeIdx !== -1) {
+        id = rest.substring(0, pipeIdx).trim();
+        label = rest.substring(pipeIdx + 1).trim();
+      }
+
+      if (!label) label = id;
+
       if (type === 'product') {
-        const prod = products.find(p => String(p.id) === String(id) || (p as any).productCode === id);
+        const prod = products.find(p => String(p.id) === String(id) || (p as any).productCode === id || p.name === label);
         const priceDisplay = prod?.bulk_price || prod?.price 
           ? `${(prod.bulk_price || prod.price).toLocaleString('fa-IR')} تومان`
           : null;
 
         parts.push(
           <button
-            key={`inline-prod-${matchIndex}`}
+            key={`inline-prod-${matchIndex}-${id}`}
             type="button"
-            onClick={() => handleProductClick(id)}
-            title={`لینک داخلی سئو به محصول: ${prod?.name || label} ${priceDisplay ? '| قیمت عمده: ' + priceDisplay : ''}`}
-            className="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-black border border-emerald-500 px-2.5 py-0.5 rounded-lg text-xs mx-1 transition-all cursor-pointer shadow-xs group"
+            onClick={() => handleProductClick(prod?.id || id)}
+            title={`مشاهده محصول: ${prod?.name || label} ${priceDisplay ? '| قیمت: ' + priceDisplay : ''}`}
+            className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black border border-emerald-500 px-3 py-1 rounded-xl text-xs mx-1 my-0.5 transition-all cursor-pointer shadow-xs group active:scale-95"
           >
-            <ShoppingBag size={12} className="text-emerald-200 group-hover:scale-110 transition-transform" />
+            <ShoppingBag size={13} className="text-emerald-200 group-hover:scale-110 transition-transform" />
             <span>{label || prod?.name || "مشاهده محصول"}</span>
             {priceDisplay && (
-              <span className="bg-emerald-950/40 text-emerald-200 text-[10px] px-1.5 py-0.2 rounded font-extrabold mr-0.5">
+              <span className="bg-emerald-950/40 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded-lg font-extrabold mr-1">
                 {priceDisplay}
               </span>
             )}
-            <ArrowUpRight size={11} className="text-emerald-300" />
+            <ArrowUpRight size={12} className="text-emerald-300" />
           </button>
         );
       } else if (type === 'factory') {
         parts.push(
           <button
-            key={`inline-fac-${matchIndex}`}
+            key={`inline-fac-${matchIndex}-${id}`}
             type="button"
             onClick={() => handleFactoryClick(id)}
-            className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-950 border border-emerald-300 px-2.5 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs group hover:bg-emerald-200"
+            className="inline-flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 px-3 py-1 rounded-xl text-xs font-black mx-1 my-0.5 transition-colors cursor-pointer shadow-2xs group active:scale-95"
           >
-            <Building2 size={12} className="text-emerald-700 group-hover:scale-110 transition-transform" />
+            <Building2 size={13} className="text-teal-700 group-hover:scale-110 transition-transform" />
             <span>{label || "کارخانه همکار"}</span>
-            <ArrowUpRight size={11} className="text-emerald-700" />
+            <ArrowUpRight size={12} className="text-teal-700" />
           </button>
         );
       } else if (type === 'billboard') {
@@ -286,9 +306,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             key={`inline-bb-${matchIndex}`}
             type="button"
             onClick={() => onSwitchTab && onSwitchTab('billboard')}
-            className="inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 px-2.5 py-0.5 rounded-lg text-xs font-black mx-1 transition-colors cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 px-3 py-1 rounded-xl text-xs font-black mx-1 my-0.5 transition-colors cursor-pointer shadow-2xs active:scale-95"
           >
-            <Layers size={12} className="text-purple-700" />
+            <Layers size={13} className="text-purple-700" />
             <span>{label || "تالار کف بازار"}</span>
           </button>
         );
@@ -298,16 +318,16 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             key={`inline-cta-${matchIndex}`}
             type="button"
             onClick={() => onSwitchTab && onSwitchTab('order')}
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3 py-1 rounded-xl text-xs mx-1 my-1 transition-all cursor-pointer shadow-md shadow-emerald-600/20"
+            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3.5 py-1.5 rounded-xl text-xs mx-1 my-1 transition-all cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
           >
-            <ShoppingBag size={13} />
+            <ShoppingBag size={14} />
             <span>{label || "ثبت سفارش آنلاین"}</span>
           </button>
         );
       } else if (type === 'quote') {
         parts.push(
-          <span key={`inline-quote-${matchIndex}`} className="block my-3 p-3 bg-amber-50 border-r-4 border-amber-500 rounded-xl text-xs font-bold text-amber-950">
-            <Quote size={14} className="text-amber-600 inline ml-1" />
+          <span key={`inline-quote-${matchIndex}`} className="block my-3 p-3.5 bg-amber-50/90 border-r-4 border-amber-500 rounded-2xl text-xs font-bold text-amber-950 shadow-2xs">
+            <Quote size={15} className="text-amber-600 inline ml-1.5" />
             {label}
           </span>
         );

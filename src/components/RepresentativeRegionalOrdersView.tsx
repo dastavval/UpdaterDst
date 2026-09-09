@@ -23,7 +23,6 @@ import {
   Layers,
   Award
 } from "lucide-react";
-import IranProvinceOrdersMapWidget from "./IranProvinceOrdersMapWidget";
 import { 
   BarChart, 
   Bar, 
@@ -61,23 +60,34 @@ export default function RepresentativeRegionalOrdersView({
   const [statusFilter, setStatusFilter] = useState("all");
   const [regionFilter, setRegionFilter] = useState("all");
 
-  const repProvince = user?.province || user?.city || "تهران";
-  const activeMarkup = Number(user?.markupPercent || user?.commissionRate || markupPercent || 15);
+  const repCity = user?.city || "تهران";
+  const repProvince = user?.province || "خراسان رضوی";
+  const activeMarkup = Number(user?.markupPercent || user?.commissionRate || markupPercent || 5);
 
-  // Filter orders belonging to representative's region or assigned leads
+  // Filter orders strictly belonging to representative's registered city or linked by ID
   const regionalOrders = useMemo(() => {
     return (orders || []).filter(o => {
-      const addr = String(o.address || o.city || o.province || "").toLowerCase();
-      const matchesRegion = regionFilter === "all" || addr.includes(regionFilter.toLowerCase()) || addr.includes(repProvince.toLowerCase());
+      // Check if this order was specifically placed through this rep's catalog
+      const isLinkedByAffiliateId = o.affiliateRepId && (o.affiliateRepId === user?.id || o.affiliateRepId === user?.agentId);
+      
+      const orderCity = String(o.city || o.buyerCity || o.address || "").toLowerCase();
+      const targetCity = (repCity || "").toLowerCase();
+      
+      // Order must be from representative's city OR specifically linked to them via catalog
+      const isFromRepCity = targetCity ? orderCity.includes(targetCity) : false;
+      
+      const isRelevant = isLinkedByAffiliateId || isFromRepCity;
+
       const matchesSearch = searchTerm === "" || 
         String(o.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(o.trackingNumber || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(o.customerName || o.buyerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(o.phone || "").includes(searchTerm);
       
       const matchesStatus = statusFilter === "all" || o.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      return isRelevant && matchesSearch && matchesStatus;
     });
-  }, [orders, searchTerm, statusFilter, regionFilter, repProvince]);
+  }, [orders, searchTerm, statusFilter, repCity, user?.id, user?.agentId]);
 
   // Calculate commission metrics based on exact Markup percentage
   const analyticsData = useMemo(() => {
@@ -122,59 +132,56 @@ export default function RepresentativeRegionalOrdersView({
   return (
     <div className="space-y-6 text-slate-900 font-sans" dir="rtl">
       
-      {/* Top Banner Overview */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-emerald-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute left-0 bottom-0 opacity-10 pointer-events-none translate-x-10 translate-y-10">
-          <Award size={240} />
+      {/* Top Banner Overview (Creative White Theme) */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="absolute left-[-20px] bottom-[-20px] opacity-5 pointer-events-none text-emerald-900 rotate-12">
+          <Award size={200} />
         </div>
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] sm:text-xs font-black flex items-center gap-1.5 shadow-2xs">
                 <Coins size={14} />
                 پنل تخصصی پورسانت و سفارشات منطقه‌ای
               </span>
-              <span className="px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-mono font-bold flex items-center gap-1.5">
+              <span className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-[10px] sm:text-xs font-black flex items-center gap-1.5 shadow-2xs">
                 <Percent size={14} />
                 مارکآپ (Markup): {toPersianNum(activeMarkup)}٪
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-              گزارش مالی و عملیاتی نماینده انحصاری ({repProvince})
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+            <div>
+              <h1 className="text-xl sm:text-3xl font-black text-slate-900 leading-tight">
+                گزارش مالی و عملیاتی <span className="text-emerald-600">نماینده انحصاری</span>
+              </h1>
+              <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
+                <MapPin size={16} className="text-emerald-500" />
+                <span>منطقه تحت پوشش: {repProvince} - {repCity}</span>
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-loose">
               محاسبه مکانیزه پورسانت‌ها بر اساس نرخ دقیق مارکآپ عاملیت، نظارت بر وضعیت سفارشات محلی و تحلیل عملکرد توزیع در منطقه تحت پوشش.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 shrink-0">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 text-center">
-              <span className="text-xs text-emerald-300 font-bold block mb-1">کل حجم سفارشات منطقه</span>
-              <span className="text-lg sm:text-xl font-black font-mono text-white">
-                {toPersianNum(analyticsData.totalOrderVolume.toLocaleString())} <span className="text-xs font-normal">تومان</span>
-              </span>
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-600 text-white rounded-[2rem] p-5 sm:p-6 shadow-xl shadow-emerald-600/20 text-center space-y-1 min-w-[140px]">
+              <div className="text-[10px] font-black opacity-80 text-white/90">مجموع پورسانت مکتسبه</div>
+              <div className="text-lg sm:text-2xl font-black font-mono">
+                {toPersianNum(analyticsData.totalCommissionEarned.toLocaleString())}
+              </div>
+              <div className="text-[10px] font-bold">تومان</div>
             </div>
-            <div className="bg-emerald-500/20 backdrop-blur-md rounded-2xl p-4 border border-emerald-500/30 text-center">
-              <span className="text-xs text-emerald-200 font-bold block mb-1">مجموع پورسانت مکتسبه ({toPersianNum(activeMarkup)}٪)</span>
-              <span className="text-lg sm:text-xl font-black font-mono text-emerald-400">
-                {toPersianNum(analyticsData.totalCommissionEarned.toLocaleString())} <span className="text-xs font-normal">تومان</span>
-              </span>
+            <div className="bg-slate-900 text-white rounded-[2rem] p-5 sm:p-6 shadow-xl shadow-slate-900/20 text-center space-y-1 min-w-[140px]">
+              <div className="text-[10px] font-black opacity-80 text-white/90">کل حجم سفارشات منطقه</div>
+              <div className="text-lg sm:text-2xl font-black font-mono">
+                {toPersianNum(analyticsData.totalOrderVolume.toLocaleString())}
+              </div>
+              <div className="text-[10px] font-bold">تومان</div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* 31 Province Orders Distribution Map & Regional Coverage Management Widget */}
-      <IranProvinceOrdersMapWidget
-        orders={orders}
-        user={user}
-        onUpdateUser={onUpdateUser}
-        markupPercent={activeMarkup}
-        onSelectProvince={(provinceName) => {
-          setRegionFilter(provinceName);
-        }}
-      />
 
       {/* Analytics Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -323,7 +330,7 @@ export default function RepresentativeRegionalOrdersView({
                   return (
                     <tr key={`reg-ord-${ord.id || idx}`} className="hover:bg-slate-50/80 transition-all">
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                        #{ord.id ? String(ord.id).slice(-6) : `ORD-${1000 + idx}`}
+                        {ord.trackingNumber || (ord.id ? String(ord.id).slice(-6) : `ORD-${1000 + idx}`)}
                       </td>
                       <td className="py-3.5 px-4 font-bold text-slate-900">
                         {ord.customerName || ord.buyerName || "بنکداری محلی"}

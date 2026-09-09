@@ -1,4 +1,3 @@
-
 export interface AdItem {
   id: string;
   title: string;
@@ -23,31 +22,41 @@ export interface AdItem {
   isHotFireDeal?: boolean;
   publisherType?: "factory" | "individual" | "broker";
   creatorPhone?: string; // Links ad to a user account
+  creatorAvatar?: string; // Optional custom avatar of the advertiser
+  creatorName?: string; // Optional custom name of the advertiser
   specialPaymentStatus?: "none" | "pending" | "approved" | "rejected";
   specialReceiptUrl?: string;
   adminNote?: string;
   productCategory?: string;
+  city?: string;
+  province?: string;
+  ladderTimestamp?: number;
+  sponsoredUntil?: number;
+  isFloorMarket?: boolean;
+  user_id?: string;
+  isBarterAllowed?: boolean;
+  minOrderQty?: string;
 }
 
 export const getAdFallbackImage = (title: string, category: string): string => {
   const norm = title.toLowerCase();
   if (category === "equipment" || norm.includes("دستگاه") || norm.includes("تجهیزات") || norm.includes("ماشین")) {
-    return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600";
+    return "http://c102393.parspack.net/c102393/products/prd_100.webp";
   }
   if (norm.includes("روغن")) {
-    return "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=600";
+    return "http://c102393.parspack.net/c102393/products/prd_101.webp";
   }
   if (norm.includes("شکر") || norm.includes("قند")) {
-    return "https://images.unsplash.com/photo-1587735243615-c03f25aaff15?auto=format&fit=crop&q=80&w=600";
+    return "http://c102393.parspack.net/c102393/products/prd_102.webp";
   }
   if (norm.includes("نشاسته") || norm.includes("آرد") || norm.includes("گلوتن")) {
-    return "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=600";
+    return "http://c102393.parspack.net/c102393/products/prd_103.webp";
   }
   if (norm.includes("رب") || norm.includes("گوجه")) {
-    return "https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=600";
+    return "http://c102393.parspack.net/c102393/products/prd_104.webp";
   }
   if (norm.includes("نوشمک") || norm.includes("یخی") || norm.includes("شربت")) {
-    return "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=600";
+    return "http://c102393.parspack.net/c102393/products/prd_105.webp";
   }
-  return "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=600";
+  return "http://c102393.parspack.net/c102393/products/prd_1.webp";
 };

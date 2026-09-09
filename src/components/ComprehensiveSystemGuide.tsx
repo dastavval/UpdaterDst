@@ -239,7 +239,7 @@ export function ComprehensiveSystemGuide({ onSwitchTab, userBadge }: Comprehensi
             </div>
             
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 leading-tight">
-              راهنمای گام‌به‌گام کار با سامانه ملی دست اول
+              راهنمای گام‌به‌گام کار با سامانه دست اول
             </h1>
             
             <p className="text-xs sm:text-sm text-slate-600 font-bold leading-relaxed">

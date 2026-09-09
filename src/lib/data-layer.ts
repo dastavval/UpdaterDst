@@ -24,25 +24,22 @@ function loadCollection(path: string): any[] {
   
   if (typeof window !== "undefined") {
     try {
-      // Check for version change
+      // Check for version update without destructive key wipe
       const lastVersion = localStorage.getItem("app_db_version");
       if (lastVersion !== DATA_VERSION) {
-        // Clear all old keys
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith("app_db_")) {
-            localStorage.removeItem(key);
-          }
-        }
         localStorage.setItem("app_db_version", DATA_VERSION);
       }
 
       const raw = localStorage.getItem(getCollectionKey(path));
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          MEMORY_DB[path] = parsed;
-          return parsed;
+      if (raw !== null) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            MEMORY_DB[path] = parsed;
+            return parsed;
+          }
+        } catch (e) {
+          console.error("Error parsing JSON from localStorage for", path, e);
         }
       }
     } catch (e) {
