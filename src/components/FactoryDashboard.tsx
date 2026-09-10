@@ -122,6 +122,13 @@ export default function FactoryDashboard({
   const [productSuccess, setProductSuccess] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
 
+  // Sediment Modal State (درصد رسوب و اعمال روی نماینده)
+  const [sedimentModalProduct, setSedimentModalProduct] = useState<Product | null>(null);
+  const [sedimentModalDiscount, setSedimentModalDiscount] = useState<number>(20);
+  const [sedimentModalApplyToRep, setSedimentModalApplyToRep] = useState<boolean>(false);
+  const [sedimentModalQuantity, setSedimentModalQuantity] = useState<number>(50);
+  const [sedimentModalDescription, setSedimentModalDescription] = useState<string>("");
+
   // Filter products for this specific factory
   const currentFactoryName = sellerProfile?.name || "صنایع غذایی";
   
@@ -408,26 +415,54 @@ export default function FactoryDashboard({
   };
 
   const handleToggleSediment = async (p: Product) => {
+    if (!p.isSediment) {
+      // Open Sediment Config Modal to ask for percentage and representative discount rule
+      setSedimentModalProduct(p);
+      setSedimentModalDiscount(p.sedimentDiscountPercent || 20);
+      setSedimentModalApplyToRep(!!(p.applyToRepresentative || p.applyToRepForSediment));
+      setSedimentModalQuantity(p.sedimentQuantityCartons || p.stock_quantity_cartons || 50);
+      setSedimentModalDescription(p.sedimentDescription || `کالای رسوب‌کرده کارخانه با تخفیف نقدشوندگی`);
+      return;
+    }
+
     try {
-      const nextSediment = !p.isSediment;
-      const discount = p.sedimentDiscountPercent || 20;
-      const calcPrice = Math.round((p.bulk_price || p.price || 0) * (1 - discount / 100));
       const updatedFields: Partial<Product> = {
-        isSediment: nextSediment,
-        sedimentStatus: nextSediment ? 'approved' : 'none',
-        sedimentDiscountPercent: discount,
-        sedimentPrice: calcPrice,
-        sedimentQuantityCartons: p.sedimentQuantityCartons || p.stock_quantity_cartons || 50,
-        sedimentDuration: p.sedimentDuration || '۲ ماه دپو در انبار',
-        sedimentDescription: p.sedimentDescription || `کالای رسوب‌کرده کارخانه با تخفیف نقدشوندگی ${discount}٪`,
+        isSediment: false,
+        sedimentStatus: 'none',
         updated_at: new Date().toISOString()
       };
 
       await updateDoc(doc(db, "products", p.id), updatedFields);
-      window.dispatchEvent(new CustomEvent('dastavval_products_updated', { detail: { productId: p.id, isSediment: nextSediment } }));
+      window.dispatchEvent(new CustomEvent('dastavval_products_updated', { detail: { productId: p.id, isSediment: false } }));
       onRefreshProducts();
     } catch (e) {
       console.warn("Sediment toggle error:", e);
+    }
+  };
+
+  const handleSubmitSedimentModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sedimentModalProduct) return;
+    try {
+      const baseBulk = sedimentModalProduct.bulk_price || sedimentModalProduct.price || 10000;
+      const calcPrice = Math.round(baseBulk * (1 - sedimentModalDiscount / 100));
+      const updatedFields: Partial<Product> = {
+        isSediment: true,
+        sedimentStatus: 'approved',
+        sedimentDiscountPercent: Number(sedimentModalDiscount),
+        applyToRepresentative: sedimentModalApplyToRep,
+        applyToRepForSediment: sedimentModalApplyToRep,
+        sedimentPrice: calcPrice,
+        sedimentQuantityCartons: Number(sedimentModalQuantity),
+        sedimentDescription: sedimentModalDescription || `کالای رسوب‌کرده کارخانه با تخفیف ${sedimentModalDiscount}٪`,
+        updated_at: new Date().toISOString()
+      };
+      await updateDoc(doc(db, "products", sedimentModalProduct.id), updatedFields);
+      window.dispatchEvent(new CustomEvent('dastavval_products_updated', { detail: { productId: sedimentModalProduct.id, isSediment: true } }));
+      onRefreshProducts();
+      setSedimentModalProduct(null);
+    } catch (e) {
+      console.warn("Submit sediment modal error:", e);
     }
   };
 
@@ -930,6 +965,29 @@ export default function FactoryDashboard({
                               {p.disabled && <span className="bg-rose-100 text-rose-800 text-[9px] px-1.5 py-0.5 rounded-md mr-1.5 font-bold">غیرفعال 👁️‍🌫️</span>}
                             </div>
                             <div className="text-[10px] text-slate-400">{p.category} | حداقل: {Math.max(5, p.min_order_cartons || 5)} کارتن</div>
+
+                            {/* Quick Inline Percentage Adjuster (No scrolling needed) */}
+                            <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100">
+                              <span className="text-[10px] font-bold text-slate-500">تخفیف رسوب/مازاد:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="85"
+                                defaultValue={p.sedimentDiscountPercent || p.surplusDiscountPercent || 20}
+                                onBlur={async (e) => {
+                                  const val = Number(e.target.value);
+                                  await updateDoc(doc(db, "products", p.id), {
+                                    sedimentDiscountPercent: val,
+                                    surplusDiscountPercent: val,
+                                    updated_at: new Date().toISOString()
+                                  });
+                                  onRefreshProducts();
+                                }}
+                                className="w-14 px-1.5 py-0.5 bg-amber-50 text-amber-900 border border-amber-200 rounded font-black text-xs text-center focus:outline-none focus:border-amber-500 shadow-2xs"
+                                title="تغییر سریع درصد تخفیف بدون نیاز به رفتن به اول صفحه"
+                              />
+                              <span className="text-[10px] font-black text-amber-800">٪</span>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1391,6 +1449,96 @@ export default function FactoryDashboard({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sediment Modal */}
+      {sedimentModalProduct && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-black text-base text-slate-900">تنظیمات رسوب‌زدایی کالا</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{sedimentModalProduct.name}</p>
+              </div>
+              <button 
+                onClick={() => setSedimentModalProduct(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-black cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitSedimentModal} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1.5">درصد تخفیف رسوب‌زدایی (٪)</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="90" 
+                  value={sedimentModalDiscount}
+                  onChange={(e) => setSedimentModalDiscount(Number(e.target.value))}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:border-amber-500"
+                  required
+                />
+                <p className="text-[11px] text-slate-500 mt-1">این تخفیف از قیمت مشتریان کسر می‌گردد.</p>
+              </div>
+
+              <div className="bg-amber-50/60 border border-amber-200 p-4 rounded-2xl space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={sedimentModalApplyToRep}
+                    onChange={(e) => setSedimentModalApplyToRep(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs font-black text-slate-900">آیا این تخفیف رسوب روی قیمت نماینده (علاوه بر مشتری) نیز اعمال شود؟</span>
+                </label>
+                <p className="text-[11px] text-amber-800 pr-7 leading-relaxed">
+                  در صورت فعال‌سازی، نمایندگان نیز می‌توانند کالا را با اعمال این درصد تخفیف از قیمت پایه خریداری نمایند.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1.5">موجودی کارتن رسوب‌کرده</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={sedimentModalQuantity}
+                  onChange={(e) => setSedimentModalQuantity(Number(e.target.value))}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1.5">توضیحات یا علت رسوب انبار</label>
+                <textarea 
+                  rows={2}
+                  value={sedimentModalDescription}
+                  onChange={(e) => setSedimentModalDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-amber-500"
+                  placeholder="مثلا: دپو انبار شماره ۳، تحویل فوری و نقدی..."
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSedimentModalProduct(null)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black cursor-pointer transition-colors"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-lg shadow-amber-500/20 cursor-pointer transition-all"
+                >
+                  تایید و انتشار رسوب
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

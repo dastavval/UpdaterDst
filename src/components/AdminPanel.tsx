@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, LayoutDashboard, Settings, RefreshCw, ShoppingCart, 
   Users, Ticket, BookOpen, AlertCircle, Building2, Flame, Award, Boxes,
-  Menu, X, Code2, FileText
+  Menu, X, Code2, FileText, Zap
 } from 'lucide-react';
 import { Product, B2BConfig } from '../types';
 
@@ -341,20 +341,154 @@ export default function AdminPanel({
         await loadCallbackRequests();
       }
 
-      if (type === 'raw_material') {
-        const rawId = String(id).replace(/^raw_mat_/, '');
-        try {
-          const list = JSON.parse(localStorage.getItem("dastavval_raw_materials") || "[]");
-          const updated = list.map((m: any) => 
-            String(m.id) === String(rawId) 
-              ? { ...m, isVerified: action === 'approve', isPendingApproval: false, status: action === 'approve' ? 'approved' : 'rejected', rejectionReason: reason || null } 
-              : m
-          );
-          localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
-          const pending = JSON.parse(localStorage.getItem("dastavval_pending_raw_materials") || "[]");
-          const filteredPending = pending.filter((m: any) => String(m.id) !== String(rawId));
-          localStorage.setItem("dastavval_pending_raw_materials", JSON.stringify(filteredPending));
-        } catch (e) {}
+      // Update local storage and b2bConfig directly for older/previous source compatibility and instant publishing
+      try {
+        const targetIdStr = String(id).replace(/^(agency_req_|rep_list_|order_|safebuy_|billboard_|barter_|callback_|ticket_|ad_|prod_|raw_mat_|raw_order_|capacity_|fac_reg_)/, '');
+        
+        if (type === 'raw_material') {
+          const rawId = String(id).replace(/^raw_mat_/, '');
+          try {
+            const list = JSON.parse(localStorage.getItem("dastavval_raw_materials") || "[]");
+            const updated = list.map((m: any) => 
+              String(m.id) === String(rawId) || String(m.id) === targetIdStr
+                ? { ...m, isVerified: action === 'approve', isPendingApproval: false, status: action === 'approve' ? 'approved' : 'rejected', rejectionReason: reason || null } 
+                : m
+            );
+            localStorage.setItem("dastavval_raw_materials", JSON.stringify(updated));
+            const pending = JSON.parse(localStorage.getItem("dastavval_pending_raw_materials") || "[]");
+            const filteredPending = pending.filter((m: any) => String(m.id) !== String(rawId) && String(m.id) !== targetIdStr);
+            localStorage.setItem("dastavval_pending_raw_materials", JSON.stringify(filteredPending));
+          } catch (e) {}
+
+          if (b2bConfig) {
+            const updatedRaw = (b2bConfig.rawMaterialAds || []).map((m: any) =>
+              String(m.id) === String(rawId) || String(m.id) === targetIdStr
+                ? { ...m, isVerified: action === 'approve', isPendingApproval: false, status: action === 'approve' ? 'approved' : 'rejected', rejectionReason: reason || null }
+                : m
+            );
+            b2bConfig.rawMaterialAds = updatedRaw;
+          }
+        }
+
+        if (type === 'ad' || type === 'billboard_ad' || type === 'sponsored') {
+          const adId = String(id).replace(/^(ad_|billboard_)/, '');
+          if (b2bConfig) {
+            const updatedAds = (b2bConfig.sponsoredAds || []).map((ad: any) => 
+              String(ad.id) === adId || String(ad.id) === String(id) || String(ad.id) === targetIdStr
+                ? { ...ad, status: action === 'approve' ? 'approved' : 'rejected', isApproved: action === 'approve', isPending: false }
+                : ad
+            );
+            b2bConfig.sponsoredAds = updatedAds;
+          }
+          try {
+            const list = JSON.parse(localStorage.getItem("dastavval_sponsored_ads_v2") || "[]");
+            const updated = list.map((ad: any) => 
+              String(ad.id) === adId || String(ad.id) === String(id) || String(ad.id) === targetIdStr
+                ? { ...ad, status: action === 'approve' ? 'approved' : 'rejected', isApproved: action === 'approve', isPending: false }
+                : ad
+            );
+            localStorage.setItem("dastavval_sponsored_ads_v2", JSON.stringify(updated));
+          } catch (e) {}
+        }
+
+        if (type === 'barter' || type === 'barter_deal') {
+          const barterId = String(id).replace(/^barter_/, '');
+          if (b2bConfig) {
+            const updatedBarters = (b2bConfig.barterDeals || []).map((b: any) => 
+              String(b.id) === barterId || String(b.id) === String(id) || String(b.id) === targetIdStr
+                ? { ...b, status: action === 'approve' ? 'approved' : 'rejected' }
+                : b
+            );
+            b2bConfig.barterDeals = updatedBarters;
+          }
+        }
+
+        if (type === 'safeBuy' || type === 'safe_buy') {
+          const sbId = String(id).replace(/^safebuy_/, '');
+          if (b2bConfig) {
+            const updatedSbs = (b2bConfig.safeBuyRequests || []).map((sb: any) => 
+              String(sb.id) === sbId || String(sb.id) === String(id) || String(sb.id) === targetIdStr
+                ? { ...sb, status: action === 'approve' ? 'approved' : 'rejected' }
+                : sb
+            );
+            b2bConfig.safeBuyRequests = updatedSbs;
+          }
+        }
+
+        if (type === 'capacityAd' || type === 'capacity_ad') {
+          const capId = String(id).replace(/^capacity_/, '');
+          if (b2bConfig) {
+            const updatedCaps = (b2bConfig.capacityAds || []).map((cap: any) => 
+              String(cap.id) === capId || String(cap.id) === String(id) || String(cap.id) === targetIdStr
+                ? { ...cap, status: action === 'approve' ? 'approved' : 'rejected', isVerified: action === 'approve', isPending: false }
+                : cap
+            );
+            b2bConfig.capacityAds = updatedCaps;
+          }
+          try {
+            const list = JSON.parse(localStorage.getItem("dastavval_capacity_ads") || "[]");
+            const updated = list.map((cap: any) => 
+              String(cap.id) === capId || String(cap.id) === String(id) || String(cap.id) === targetIdStr
+                ? { ...cap, status: action === 'approve' ? 'approved' : 'rejected', isVerified: action === 'approve', isPending: false }
+                : cap
+            );
+            localStorage.setItem("dastavval_capacity_ads", JSON.stringify(updated));
+          } catch (e) {}
+        }
+
+        if (type === 'representative' || type === 'dealership') {
+          const repId = String(id).replace(/^(agency_req_|rep_list_)/, '');
+          if (b2bConfig) {
+            const updatedReps = (b2bConfig.representatives || []).map((rep: any) => 
+              String(rep.id) === repId || String(rep.id) === String(id) || String(rep.id) === targetIdStr || String(rep.phone) === repId
+                ? { ...rep, isApproved: action === 'approve', status: action === 'approve' ? 'approved' : 'rejected', badge: badge || 'نماینده رسمی' }
+                : rep
+            );
+            b2bConfig.representatives = updatedReps;
+          }
+        }
+
+        if (type === 'supplier' || type === 'factory_registration') {
+          const supId = String(id).replace(/^fac_reg_/, '');
+          if (b2bConfig) {
+            const updatedSups = (b2bConfig.factories || []).map((f: any) => 
+              String(f.id) === supId || String(f.id) === String(id) || String(f.id) === targetIdStr
+                ? { ...f, status: action === 'approve' ? 'active' : 'suspended', isActive: action === 'approve' }
+                : f
+            );
+            b2bConfig.factories = updatedSups;
+          }
+          try {
+            const list = JSON.parse(localStorage.getItem("dastavval_factories") || "[]");
+            const updated = list.map((f: any) => 
+              String(f.id) === supId || String(f.id) === String(id) || String(f.id) === targetIdStr
+                ? { ...f, status: action === 'approve' ? 'active' : 'suspended', isActive: action === 'approve' }
+                : f
+            );
+            localStorage.setItem("dastavval_factories", JSON.stringify(updated));
+          } catch (e) {}
+        }
+
+        if (type === 'product' || type === 'factory_product') {
+          const prodId = String(id).replace(/^prod_/, '');
+          try {
+            const list = JSON.parse(localStorage.getItem("dastavval_products") || "[]");
+            const updated = list.map((p: any) => 
+              String(p.id) === prodId || String(p.id) === String(id) || String(p.id) === targetIdStr
+                ? { ...p, isApproved: action === 'approve', disabled: action !== 'approve', approvalStatus: action === 'approve' ? 'approved' : 'rejected' }
+                : p
+            );
+            localStorage.setItem("dastavval_products", JSON.stringify(updated));
+          } catch (e) {}
+        }
+
+        // Save updated b2bConfig back to localStorage and trigger state updates
+        if (b2bConfig && onUpdateB2bConfig) {
+          localStorage.setItem("dastavval_b2b_config", JSON.stringify(b2bConfig));
+          await onUpdateB2bConfig(b2bConfig);
+        }
+      } catch (e) {
+        console.error("Local sync error inside handleApprovalAction:", e);
       }
 
       const res = await fetch('/api/v1/dev/approvals', {
@@ -524,8 +658,8 @@ export default function AdminPanel({
           <div className="pt-4 pb-2">
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider px-3">زیرساخت ابری و سیستم</span>
           </div>
-          <button onClick={() => handleTabChange("json_tester")} className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-black transition-all ${activeTab === "json_tester" ? "bg-emerald-600 text-white shadow-lg ring-2 ring-emerald-400" : "bg-emerald-950/20 text-emerald-400 hover:bg-slate-800"}`}>
-            <Code2 size={18} /> تست APIs، کش و لینک‌ها
+          <button onClick={() => handleTabChange("json_tester")} className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-black transition-all ${activeTab === "json_tester" ? "bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400" : "bg-indigo-950/20 text-indigo-400 hover:bg-slate-800"}`}>
+            <Zap size={18} className="text-indigo-400" /> 🧹 پاکسازی کش و افزایش سرعت
           </button>
           
           {/* THE REQUESTED CONSOLIDATED CLOUD HUB */}

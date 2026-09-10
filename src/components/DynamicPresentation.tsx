@@ -572,7 +572,14 @@ export default function DynamicPresentation({
         user={user}
         userBadge={userBadge}
         b2bConfig={b2bConfig}
-        onOrderClick={() => setActiveTab?.('order')}
+        onOrderClick={(mode) => {
+          setActiveTab?.('order');
+          if (mode) {
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('set-order-special-filter', { detail: mode }));
+            }, 50);
+          }
+        }}
         onFactoryClick={() => setActiveTab?.('factories')}
         onBillboardClick={() => setActiveTab?.('billboard')}
         onAgencyClick={() => setActiveTab?.('agency')}

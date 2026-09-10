@@ -170,16 +170,39 @@ export function getProductRolePricing(
     else if (userBadge === 'admin') badgeDiscountPercent = 0; // 0% for Admin to display standard prices clearly
   }
 
-  // 1. Calculate Base Wholesale Unit Price based on Role and Config
+  // 1. Calculate Base Wholesale Unit Price based on Role, Sediment/Surplus Rules, and Config
   const customerMarkupMultiplier = 1 + (config.customerMarkupPercent / 100);
-  let baseUnitWholesale = floorFactoryUnitPrice;
+  
+  let effectiveFloorFactory = floorFactoryUnitPrice;
+  let effectiveCustomerPrice = Math.round(floorFactoryUnitPrice * customerMarkupMultiplier);
+
+  const isSedimentActive = product.isSediment && product.sedimentStatus === 'approved';
+  const isSurplusActive = product.isSurplus && product.surplusStatus === 'approved';
+  
+  const clearanceDiscountPercent = isSedimentActive 
+    ? (product.sedimentDiscountPercent || 20) 
+    : (isSurplusActive ? (product.surplusDiscountPercent || 22) : 0);
+
+  const applyToRep = !!(product.applyToRepresentative || product.applyToRepForSediment || product.applyToRepForSurplus);
+
+  if (clearanceDiscountPercent > 0) {
+    // For customers, discount applies to customer price
+    effectiveCustomerPrice = Math.round(effectiveCustomerPrice * (1 - clearanceDiscountPercent / 100));
+    
+    // For representatives, apply only if configured per product
+    if (applyToRep) {
+      effectiveFloorFactory = Math.round(effectiveFloorFactory * (1 - clearanceDiscountPercent / 100));
+    }
+  }
+
+  let baseUnitWholesale = effectiveFloorFactory;
 
   if (isRepresentative || isFactory) {
-    // Representatives and Factories buy at exact Catalog Floor Price
-    baseUnitWholesale = floorFactoryUnitPrice;
+    // Representatives and Factories buy at effective floor price
+    baseUnitWholesale = effectiveFloorFactory;
   } else {
-    // Customers, Marketers, and Admins buy/view at Floor Price + Site Customer Markup % (e.g. 20%)
-    baseUnitWholesale = Math.round(floorFactoryUnitPrice * customerMarkupMultiplier);
+    // Customers, Marketers, and Admins buy/view at effective customer price
+    baseUnitWholesale = effectiveCustomerPrice;
   }
 
   // Apply badge discount on the calculated price

@@ -1,6 +1,24 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
   <head>
+    <!-- Suppress harmless Vite HMR / WebSocket connection rejections in preview sandbox -->
+    <script>
+      window.addEventListener('error', function(e) {
+        if (e && e.message && (e.message.includes('WebSocket') || e.message.includes('ws://') || e.message.includes('wss://') || e.message.includes('failed to connect'))) {
+          e.preventDefault();
+          e.stopPropagation();
+          return true;
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        const reason = e && e.reason ? String(e.reason) : '';
+        if (reason.includes('WebSocket') || reason.includes('closed without opened') || reason.includes('failed to connect') || reason.includes('ws://') || reason.includes('HMR')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    </script>
+
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />

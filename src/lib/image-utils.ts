@@ -4,6 +4,37 @@ export function cleanUnitName(unitStr?: string): string {
   return cleaned || "عدد";
 }
 
+// Change this flag to true in the future when you bind the custom domain 'dastavval.com' to your ParsPack bucket!
+const USE_CUSTOM_DOMAIN_FOR_BUCKET = false;
+
+/**
+ * Detects the runtime environment and returns the optimal base URL for storage:
+ * - If running in Google AI Studio dev previews/localhost: returns relative/active host path
+ * - If running in the production host (live): 
+ *   - If USE_CUSTOM_DOMAIN_FOR_BUCKET is true, returns 'https://dastavval.com/storage'
+ *   - If USE_CUSTOM_DOMAIN_FOR_BUCKET is false, returns direct bucket link 'https://c102393.parspack.net/c102393'
+ */
+export function getStorageUrlPrefix(): string {
+  if (typeof window === 'undefined') {
+    return USE_CUSTOM_DOMAIN_FOR_BUCKET 
+      ? "https://dastavval.com/storage" 
+      : "https://c102393.parspack.net/c102393";
+  }
+  const hostname = window.location.hostname;
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.includes("run.app") ||
+    hostname.includes("cluster.local") ||
+    hostname.includes("web-")
+  ) {
+    return `${window.location.origin}/storage`;
+  }
+  return USE_CUSTOM_DOMAIN_FOR_BUCKET 
+    ? "https://dastavval.com/storage" 
+    : "https://c102393.parspack.net/c102393";
+}
+
 /**
  * Extracts the direct original source URL from a proxied or raw image string.
  * This is crucial for offline standalone catalogs and downloads where relative
@@ -29,7 +60,29 @@ export function getRealImageDirectUrl(rawUrl?: string): string {
   }
 
   if (url.startsWith("//")) {
-    return "https:" + url;
+    url = "https:" + url;
+  }
+
+  // Convert ParsPack CDN and storage bucket links directly to our official domain's proxy endpoint on dastavval.com / active host
+  if (url.includes("parspack.net") || url.includes("parsstorage.com")) {
+    const decodedUrl = decodeURIComponent(url);
+    const storagePrefix = getStorageUrlPrefix();
+    const s3Regex = /(?:parspack\.net|parsstorage\.com)\/c102393\/(.+)$/i;
+    const match = decodedUrl.match(s3Regex);
+    if (match && match[1]) {
+      const cleanKey = match[1].replace(/^\/+/, "");
+      url = `${storagePrefix}/${cleanKey}`;
+    } else {
+      const simpleRegex = /(?:parspack\.net|parsstorage\.com)\/(.+)$/i;
+      const match2 = decodedUrl.match(simpleRegex);
+      if (match2 && match2[1]) {
+        let cleanKey = match2[1].replace(/^\/+/, "");
+        if (cleanKey.startsWith("c102393/")) {
+          cleanKey = cleanKey.replace(/^c102393\//i, "");
+        }
+        url = `${storagePrefix}/${cleanKey}`;
+      }
+    }
   }
 
   return url;
@@ -104,7 +157,8 @@ export function getDisplayImageUrl(rawUrl?: string, fallbackTitle?: string, fall
   
   // Force all images to be served entirely from the official ParsPack bucket
   if (url.includes("unsplash.com")) {
-    url = "http://c102393.parspack.net/c102393/products/prd_1.webp";
+    const storagePrefix = getStorageUrlPrefix();
+    url = `${storagePrefix}/products/prd_1.webp`;
   }
 
   // If it's already a proxied URL, unwrap to direct CDN URL
@@ -120,9 +174,32 @@ export function getDisplayImageUrl(rawUrl?: string, fallbackTitle?: string, fall
     }
   }
 
+  // Convert ParsPack CDN and storage bucket links directly to our official domain's proxy endpoint on dastavval.com
+  if (url.includes("parspack.net") || url.includes("parsstorage.com")) {
+    const decodedUrl = decodeURIComponent(url);
+    const storagePrefix = getStorageUrlPrefix();
+    const s3Regex = /(?:parspack\.net|parsstorage\.com)\/c102393\/(.+)$/i;
+    const match = decodedUrl.match(s3Regex);
+    if (match && match[1]) {
+      const cleanKey = match[1].replace(/^\/+/, "");
+      url = `${storagePrefix}/${cleanKey}`;
+    } else {
+      const simpleRegex = /(?:parspack\.net|parsstorage\.com)\/(.+)$/i;
+      const match2 = decodedUrl.match(simpleRegex);
+      if (match2 && match2[1]) {
+        let cleanKey = match2[1].replace(/^\/+/, "");
+        if (cleanKey.startsWith("c102393/")) {
+          cleanKey = cleanKey.replace(/^c102393\//i, "");
+        }
+        url = `${storagePrefix}/${cleanKey}`;
+      }
+    }
+  }
+
   // Upgrade http to https for ParsPack CDN
   if (url.startsWith("http://c102393.parspack.net")) {
-    url = url.replace("http://c102393.parspack.net", "https://c102393.parspack.net");
+    const storagePrefix = getStorageUrlPrefix();
+    url = url.replace("http://c102393.parspack.net", storagePrefix);
   } else if (url.startsWith("http://") && (url.includes("parspack.net") || url.includes("parsstorage.com"))) {
     url = url.replace("http://", "https://");
   }

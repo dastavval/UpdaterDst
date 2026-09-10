@@ -399,6 +399,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("همه");
   const [selectedBrand, setSelectedBrand] = useState("همه");
   const [searchQuery, setSearchQuery] = useState("");
+  const [specialFilter, setSpecialFilter] = useState<'none' | 'special' | 'sediment' | 'surplus'>('none');
   const [hideOutOfStock, setHideOutOfStock] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -727,6 +728,36 @@ export default function App() {
       updatePageSEO(SEO_TAB_CONFIGS[activeTab]);
     }
   }, [activeTab, activeCategory, selectedDetailProduct]);
+
+  // Listen for special filter events from the Hero component
+  useEffect(() => {
+    const handleSetSpecialFilter = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const mode = customEvent.detail;
+      if (mode === 'kaf_bazaar' || mode === 'special') {
+        setSpecialFilter('special');
+      } else if (mode === 'sediment') {
+        setSpecialFilter('sediment');
+      } else if (mode === 'surplus') {
+        setSpecialFilter('surplus');
+      } else {
+        setSpecialFilter('none');
+      }
+      
+      // Auto-scroll to the top of the order section
+      setTimeout(() => {
+        const bannerElement = document.getElementById("unified-agency-platform-banner");
+        if (bannerElement) {
+          bannerElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    };
+
+    window.addEventListener('set-order-special-filter', handleSetSpecialFilter);
+    return () => {
+      window.removeEventListener('set-order-special-filter', handleSetSpecialFilter);
+    };
+  }, []);
 
   // Update favicon and Apple Touch Icon when logoUrl changes
   useEffect(() => {
@@ -2404,6 +2435,28 @@ export default function App() {
     });
   }, [products, userRole]);
 
+  // Smart Caching & Memoized Computation System (سیستم کش‌گذاری هوشمند محصولات و پردازش‌های ویژه)
+  const memoizedProductCache = useMemo(() => {
+    const cacheMap = new Map<string, Product>();
+    products.forEach(p => {
+      if (p && p.id) cacheMap.set(p.id, p);
+    });
+    return cacheMap;
+  }, [products]);
+
+  const memoizedSpecialOffers = useMemo(() => {
+    return activeProducts.filter(p => p.discount_percent || p.isHotFireDeal || p.isLiquid || p.isSurplus || p.isSediment);
+  }, [activeProducts]);
+
+  const memoizedAds = useMemo(() => {
+    const list = b2bConfig?.ads || [];
+    return list.filter((ad: any) => ad.status === 'approved' && !(ad.id && String(ad.id).startsWith("ad-init-")));
+  }, [b2bConfig?.ads]);
+
+  const memoizedRawMaterials = useMemo(() => {
+    return activeProducts.filter(p => p.category === 'materials' || p.category === 'raw' || (p as any).isRawMaterial);
+  }, [activeProducts]);
+
   const filteredProducts = useMemo(() => {
     return activeProducts.filter(product => {
       // Filter out-of-stock products if hideOutOfStock is enabled
@@ -2427,7 +2480,24 @@ export default function App() {
         normalizeStr(product.description || "").includes(q) ||
         normalizeStr((product as any).factory_name || "").includes(q);
         
-      return matchesCategory && matchesBrand && matchesSearch;
+      // Apply Special Filter (ویژه / رسوب / مازاد)
+      let matchesSpecial = true;
+      if (specialFilter === 'special') {
+        matchesSpecial = (product as any).isFloorMarket === true || 
+          (product as any).isKafBazar === true || 
+          (product as any).isKafBazaar === true || 
+          (product as any).isSpecial === true || 
+          (product as any).isFeatured === true;
+      } else if (specialFilter === 'sediment') {
+        matchesSpecial = (product as any).isSediment === true || 
+          (product as any).isLiquid === true || 
+          (typeof (product as any).sedimentDiscountPercent !== 'undefined' && Number((product as any).sedimentDiscountPercent) > 0);
+      } else if (specialFilter === 'surplus') {
+        matchesSpecial = (product as any).isSurplus === true || 
+          (typeof (product as any).surplusDiscountPercent !== 'undefined' && Number((product as any).surplusDiscountPercent) > 0);
+      }
+
+      return matchesCategory && matchesBrand && matchesSearch && matchesSpecial;
     }).sort((a, b) => {
       // Custom Sorting Options
       if (sortBy === 'price-asc') {
@@ -2477,7 +2547,7 @@ export default function App() {
       const hashB = ((b.id ? String(b.id).charCodeAt(0) : 0) + (b.name ? b.name.charCodeAt(0) : 0) + rotationOffset) % 100;
       return hashB - hashA;
     });
-  }, [activeProducts, activeCategory, selectedBrand, searchQuery, sortBy, rotationOffset, hideOutOfStock, viewMode, activeTab]);
+  }, [activeProducts, activeCategory, selectedBrand, searchQuery, sortBy, rotationOffset, hideOutOfStock, viewMode, activeTab, specialFilter]);
 
   const getBadgeDetails = (badge: string) => {
     switch(badge) {
@@ -3309,6 +3379,37 @@ export default function App() {
                     )}
                   </AnimatePresence>
                 </div>
+
+                  {/* Active Special Filter Badge indicator */}
+                  {specialFilter !== 'none' && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between gap-3 shadow-3xs"
+                      dir="rtl"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">
+                          {specialFilter === 'special' ? '⭐️' : specialFilter === 'sediment' ? '📦' : '🔥'}
+                        </span>
+                        <div className="text-right">
+                          <span className="text-xs font-black text-slate-800">
+                            در حال مشاهده محصولات: <strong className="text-emerald-950 text-xs font-black">{specialFilter === 'special' ? 'کالاهای ویژه' : specialFilter === 'sediment' ? 'بارهای رسوب انبار کارخانجات' : 'بارهای مازاد تولید'}</strong>
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-bold block mt-0.5">
+                            تعداد کالاهای موجود در این لیست: {toPersianNum(filteredProducts.length)} کالا
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSpecialFilter('none')}
+                        className="bg-white hover:bg-slate-100 text-slate-700 text-[10px] font-black px-2.5 py-1 rounded-lg border border-slate-200 transition-all cursor-pointer shadow-3xs"
+                      >
+                        نمایش همه کالاها ✕
+                      </button>
+                    </motion.div>
+                  )}
 
                   {/* Products catalog list */}
                   {loading ? (

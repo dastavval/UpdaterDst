@@ -2674,6 +2674,25 @@ app.get("/api/storage/proxy-download", async (req, res) => {
     finalUrl = "http://" + finalUrl;
   }
 
+  // SECURE URL FILTERING FOR PROXIED DOWNLOADS:
+  const lowerUrl = finalUrl.toLowerCase();
+  if (
+    lowerUrl.includes("/backups/") || 
+    lowerUrl.includes("/data/") || 
+    lowerUrl.includes("backups%2f") || 
+    lowerUrl.includes("data%2f")
+  ) {
+    console.warn(`[Security Block]: Restricted folder download blocked for URL: ${finalUrl}`);
+    return res.status(403).send("دسترسی به این فایل به دلایل امنیتی مسدود شده است.");
+  }
+
+  const forbiddenExtensions = [".zip", ".json", ".sql", ".tar", ".gz", ".db", ".env", ".yml", ".yaml", ".conf"];
+  const hasForbiddenExtension = forbiddenExtensions.some(ext => lowerUrl.split('?')[0].endsWith(ext));
+  if (hasForbiddenExtension) {
+    console.warn(`[Security Block]: Restricted file extension download blocked for URL: ${finalUrl}`);
+    return res.status(403).send("دانلود فایل با این پسوند مسدود شده است.");
+  }
+
   const defaultFileName = finalUrl.split("/").pop() || "dastavval-catalog.pdf";
   const filename = customFileName || defaultFileName;
 
@@ -3113,8 +3132,8 @@ app.post("/api/storage/upload", async (req, res) => {
     }
 
     const cfg = sanitizeStorageConfig();
-    let directUrl = `/uploads/${timestamp}-${cleanFileName}`;
-    let proxyUrl = `/api/storage/file/${encodeURIComponent(objectKey)}`;
+    let directUrl = `https://dastavval.com/storage/${objectKey}`;
+    let proxyUrl = `https://dastavval.com/storage/${objectKey}`;
     let s3Success = false;
 
     // Attempt remote S3 upload with timeout
@@ -3132,8 +3151,8 @@ app.post("/api/storage/upload", async (req, res) => {
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 15000))
         ]);
         s3Success = true;
-        const publicBase = (b2bConfig.storagePublicUrl || `http://${cfg.endpointRaw}/${cfg.bucket}`).replace(/\/+$/, "");
-        directUrl = `${publicBase}/${objectKey}`;
+        directUrl = `https://dastavval.com/storage/${objectKey}`;
+        proxyUrl = `https://dastavval.com/storage/${objectKey}`;
       } catch (s3Err: any) {
         console.warn("[ParsPack S3 Storage]: Using local fast cache due to:", s3Err.message || s3Err);
       }
@@ -4661,8 +4680,35 @@ app.post("/api/admin/set-primary-domain", async (req, res) => {
 
 // Universal HTTPS Bucket & Storage File Delivery via Primary Domain
 app.get(["/storage/:path(*)", "/api/bucket/:path(*)"], async (req, res) => {
-  const targetPath = (req.params.path || "").trim();
+  let targetPath = (req.params.path || "").trim();
   if (!targetPath) return res.status(400).send("Path is required");
+
+  // Strip bucket prefix if accidentally passed (prevent c102393/c102393 double-nesting)
+  if (targetPath.startsWith("c102393/") || targetPath.startsWith("c102393%2F")) {
+    targetPath = targetPath.replace(/^c102393(?:\/|%2F)/i, "");
+  }
+
+  // SECURE PATH FILTERING & PROTECTION:
+  // Strictly prevent access to backups/ and data/ folders, as well as sensitive file extensions (zip, json, sql, tar, gz, db, etc.)
+  const lowerPath = targetPath.toLowerCase();
+  if (
+    lowerPath.startsWith("backups/") || 
+    lowerPath.includes("/backups/") || 
+    lowerPath.startsWith("data/") || 
+    lowerPath.includes("/data/") ||
+    lowerPath.includes("backups%2f") ||
+    lowerPath.includes("data%2f")
+  ) {
+    console.warn(`[Security Block]: Restricted storage folder access blocked for path: ${targetPath}`);
+    return res.status(403).json({ error: "دسترسی به این مسیر به دلایل امنیتی مسدود شده است." });
+  }
+
+  const forbiddenExtensions = [".zip", ".json", ".sql", ".tar", ".gz", ".db", ".env", ".yml", ".yaml", ".conf"];
+  const hasForbiddenExtension = forbiddenExtensions.some(ext => lowerPath.endsWith(ext));
+  if (hasForbiddenExtension) {
+    console.warn(`[Security Block]: Restricted file extension access blocked for path: ${targetPath}`);
+    return res.status(403).json({ error: "دسترسی به فایل با این پسوند مسدود شده است." });
+  }
 
   // Local filesystem check
   const localCandidates = [
@@ -10648,7 +10694,7 @@ app.post("/api/db/maintenance/backup", async (req, res) => {
     const fileName = `manual-full-backup-${timestamp}.zip`;
     const objectKey = `backups/${fileName}`;
 
-    const client = getParsPackS3Client();
+    const client = getParsPackS3Client(undefined, 60000);
 
     // 1. Upload timestamped copy
     await client.send(new PutObjectCommand({
@@ -11600,13 +11646,7 @@ app.post("/api/loyalty/redeem", (req, res) => {
 });
 
 function getCanonicalBaseUrl(req?: express.Request): string {
-  if (!req) return "https://dastavval.com";
-  const rawHost = req.get("x-forwarded-host") || req.get("host") || "";
-  if (!rawHost || rawHost.includes("localhost") || rawHost.includes("127.0.0.1") || rawHost.includes("run.app") || rawHost.includes("cluster.local")) {
-    return "https://dastavval.com";
-  }
-  const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "https";
-  return `${protocol}://${rawHost}`;
+  return "https://dastavval.com";
 }
 
 function injectDynamicSeoMeta(html: string, req: express.Request): string {
@@ -11627,8 +11667,38 @@ function injectDynamicSeoMeta(html: string, req: express.Request): string {
       }
     }
 
+    let factoryId: string | null = null;
+    let articleId: string | null = null;
+    let adId: string | null = null;
+
+    if (req.query.factory) {
+      factoryId = String(req.query.factory).trim();
+    } else {
+      const factMatch = req.path.match(/^\/(?:factory|supplier|company)\/([^/?#]+)/i);
+      if (factMatch) {
+        factoryId = decodeURIComponent(factMatch[1] || "").trim();
+      }
+    }
+
+    if (req.query.article) {
+      articleId = String(req.query.article).trim();
+    } else {
+      const artMatch = req.path.match(/^\/(?:article|blog|news)\/([^/?#]+)/i);
+      if (artMatch) {
+        articleId = decodeURIComponent(artMatch[1] || "").trim();
+      }
+    }
+
+    if (req.query.ad) {
+      adId = String(req.query.ad).trim();
+    } else {
+      const adMatch = req.path.match(/^\/(?:ad|billboard)\/([^/?#]+)/i);
+      if (adMatch) {
+        adId = decodeURIComponent(adMatch[1] || "").trim();
+      }
+    }
+
     const categoryName = (req.query.category as string) || null;
-    const articleId = (req.query.article as string) || null;
     const tabName = (req.query.tab as string) || null;
 
     const baseUrl = getCanonicalBaseUrl(req);
@@ -11770,6 +11840,71 @@ function injectDynamicSeoMeta(html: string, req: express.Request): string {
     <meta property="product:price:currency" content="IRT" />
     <meta property="product:availability" content="${prodAvailability === 'instock' ? 'in stock' : 'out of stock'}" />
 `;
+      }
+    } else if (factoryId) {
+      const config = b2bConfig as any;
+      const factoriesList = config.factories || [];
+      const item = factoriesList.find((f: any) => String(f.id) === String(factoryId) || String(f.name).includes(factoryId || ""));
+      if (item) {
+        pageTitle = `کارخانه صنایع غذایی ${item.name} | تولیدکننده دست اول و مرجع کاتالوگ قیمت`;
+        metaDesc = `مشاهده کاتالوگ رسمی، محصولات عمده، برندهای تحت پوشش و استعلام قیمت روز از کارخانه ${item.name} واقع در ${item.city || item.province || "ایران"}. تامین مستقیم بدون واسطه در سامانه دست اول.`;
+        if (item.logo || item.image) ogImage = getCleanDirectImageUrl(item.logo || item.image, baseUrl);
+        
+        const factorySchema = {
+          "@context": "https://schema.org",
+          "@type": "ManufacturingBusiness",
+          "name": item.name,
+          "image": [ogImage],
+          "description": metaDesc,
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": item.city || "تهران",
+            "addressRegion": item.province || "تهران",
+            "addressCountry": "IR"
+          }
+        };
+        jsonLdScripts.push(factorySchema);
+      } else {
+        pageTitle = `کارخانجات و تولیدکنندگان همکار | سامانه سراسری دست اول`;
+        metaDesc = `لیست کارخانجات، شرکت‌های تولیدی صنایع غذایی، بهداشتی و ملزومات بسته‌بندی در سامانه دست اول. خرید بدون واسطه با قیمت مصوب هیات مدیره.`;
+      }
+    } else if (articleId) {
+      const config = b2bConfig as any;
+      const articlesList = config.articles || [];
+      const item = articlesList.find((a: any) => String(a.id) === String(articleId) || String(a.title).includes(articleId || ""));
+      if (item) {
+        pageTitle = `${item.title} | اخبار و مقالات بازار صنایع غذایی - دست اول`;
+        metaDesc = `${item.summary || (item.content ? item.content.slice(0, 150) + '...' : 'آخرین مقالات و تحلیل‌های تخصصی بازار صنایع غذایی و خرید عمده را در دست اول بخوانید.')}`;
+        if (item.image || item.imageUrl) ogImage = getCleanDirectImageUrl(item.image || item.imageUrl, baseUrl);
+
+        const articleSchema = {
+          "@context": "https://schema.org",
+          "@type": "NewsArticle",
+          "headline": item.title,
+          "image": [ogImage],
+          "datePublished": item.createdAt || new Date().toISOString(),
+          "description": metaDesc,
+          "author": {
+            "@type": "Organization",
+            "name": "شورای تحریریه دست اول"
+          }
+        };
+        jsonLdScripts.push(articleSchema);
+      } else {
+        pageTitle = `مقالات تخصصی و اخبار صنعت غذا | دست اول`;
+        metaDesc = `آخرین اخبار صنعت مواد غذایی، قیمت گندم، شکر، روغن، ملزومات تولید، مقالات راهنمای خرید عمده و تحلیل بازار B2B در سامانه دست اول.`;
+      }
+    } else if (adId) {
+      const config = b2bConfig as any;
+      const allAds = [...(config.sponsoredAds || []), ...(config.capacityAds || []), ...(config.barterDeals || [])];
+      const item = allAds.find((a: any) => String(a.id) === String(adId) || String(a.title).includes(adId || ""));
+      if (item) {
+        pageTitle = `فرصت معاملاتی: ${item.title} | بیلبورد و تالار معاملات دست اول`;
+        metaDesc = `اطلاعات کامل آگهی صنعتی «${item.title}» ثبت شده توسط ${item.factoryName || 'کارخانجات همکار'}. شرایط معامله، تناژ، وضعیت تهاتر و نحوه تسویه مستقیم بدون واسطه.`;
+        if (item.image || item.imageUrl) ogImage = getCleanDirectImageUrl(item.image || item.imageUrl, baseUrl);
+      } else {
+        pageTitle = `تالار آگهی‌ها و ظرفیت‌های خالی تولید | دست اول`;
+        metaDesc = `مشاهده آگهی‌های بیلبوردی، فروش زیر قیمت تسویه انبار، مازاد بار کارخانجات و فرصت‌های تولید کارمزدی در سامانه سراسری دست اول.`;
       }
     } else if (categoryName) {
       pageTitle = `خرید عمده ${categoryName} | لیست قیمت کارخانه - دست اول`;

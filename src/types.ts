@@ -76,6 +76,9 @@ export interface Product {
   sedimentDuration?: string; // مدت زمان دپو در انبار
   shelfLifeRemaining?: string; // زمان باقی‌مانده تا انقضا (مثلاً ۶ ماه تا انقضا)
   sedimentDescription?: string; // توضیحات بار رسوب‌کرده
+  applyToRepresentative?: boolean; // آیا تخفیف روی قیمت نماینده هم لحاظ شود؟
+  applyToRepForSediment?: boolean;
+  applyToRepForSurplus?: boolean;
   boostScore?: number;
   disabled?: boolean; // New: to disable product from being listed
   chequeAllowed?: boolean; // New: whether cheque payment is allowed

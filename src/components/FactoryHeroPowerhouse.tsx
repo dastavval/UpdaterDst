@@ -29,7 +29,7 @@ import { getProductRolePricing } from '../lib/pricing';
 
 interface FactoryHeroPowerhouseProps {
   products?: Product[];
-  onOrderClick?: () => void;
+  onOrderClick?: (mode?: 'kaf_bazaar' | 'sediment' | 'surplus') => void;
   onFactoryClick?: () => void;
   onBillboardClick?: () => void;
   onAgencyClick?: () => void;
@@ -61,38 +61,15 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
   const thumbnailsRef = useRef<HTMLDivElement>(null);
 
   const modeTheme = useMemo(() => {
-    switch (activeMode) {
-      case 'kaf_bazaar':
-        return {
-          primary: 'from-rose-600 to-amber-600',
-          text: 'text-rose-600',
-          bg: 'bg-rose-50',
-          border: 'border-rose-200/60',
-          lightText: 'text-rose-800',
-          accentBg: 'bg-rose-100/80',
-          buttonBg: 'bg-rose-600 hover:bg-rose-700',
-        };
-      case 'sediment':
-        return {
-          primary: 'from-amber-500 to-orange-600',
-          text: 'text-amber-600',
-          bg: 'bg-amber-50',
-          border: 'border-amber-200/60',
-          lightText: 'text-amber-800',
-          accentBg: 'bg-amber-100/80',
-          buttonBg: 'bg-amber-600 hover:bg-amber-700',
-        };
-      case 'surplus':
-        return {
-          primary: 'from-blue-600 to-indigo-600',
-          text: 'text-blue-600',
-          bg: 'bg-blue-50',
-          border: 'border-blue-200/60',
-          lightText: 'text-blue-800',
-          accentBg: 'bg-blue-100/80',
-          buttonBg: 'bg-blue-600 hover:bg-blue-700',
-        };
-    }
+    return {
+      primary: 'bg-emerald-600',
+      text: 'text-emerald-700',
+      bg: 'bg-emerald-50/70',
+      border: 'border-emerald-200/80',
+      lightText: 'text-emerald-900',
+      accentBg: 'bg-emerald-100/80',
+      buttonBg: 'bg-emerald-600 hover:bg-emerald-700',
+    };
   }, [activeMode]);
 
   useEffect(() => {
@@ -353,9 +330,9 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
             </div>
           </div>
           
-          {/* Unified 3 Options in Exact Order: 1. کف بازار, 2. رسوب, 3. مازاد */}
+          {/* Unified 3 Options in Exact Order: 1. ویژه, 2. رسوب, 3. مازاد */}
           <div className="grid grid-cols-3 gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200/70 w-full lg:w-auto shrink-0">
-            {/* 1. کف بازار */}
+            {/* 1. ویژه */}
             <button
               onClick={() => { setActiveMode('kaf_bazaar'); setSelectedIndex(0); }}
               className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
@@ -364,8 +341,8 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
               }`}
             >
-              <Flame size={13} className="text-rose-600 shrink-0" />
-              <span>کف بازار ({toPersianNum(kafBazaarList.length)})</span>
+              <Sparkles size={13} className="text-rose-600 shrink-0" />
+              <span>ویژه ({toPersianNum(kafBazaarList.length)})</span>
             </button>
 
             {/* 2. رسوب */}
@@ -413,7 +390,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                 
                 {/* Top Badge Tag Bar above Image */}
                 <div className="w-full flex items-center justify-between gap-1">
-                  <span className={`bg-gradient-to-r ${modeTheme.primary} text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-3xs flex items-center gap-1 shrink-0`}>
+                  <span className={`${modeTheme.primary} text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-2xs flex items-center gap-1 shrink-0`}>
                     <Percent size={10} className="text-white/80" />
                     <span>{toPersianNum(currentProduct.discountPercent || 30)}٪ سود</span>
                   </span>
@@ -422,15 +399,15 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                   </span>
                 </div>
 
-                {/* Perfect Square Image Container */}
+                {/* Perfect Square Image Container - Frameless & Larger */}
                 <div 
                   onClick={() => setPreviewImage(currentProduct.imageUrl || currentProduct.image_url)}
-                  className="aspect-square w-full max-w-[210px] sm:max-w-[240px] flex items-center justify-center p-2 cursor-pointer relative bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs group"
+                  className="aspect-square w-full max-w-[320px] sm:max-w-[360px] lg:max-w-[400px] mx-auto flex items-center justify-center p-0.5 cursor-pointer relative bg-transparent rounded-none border-0 overflow-hidden group"
                 >
                   <ProductImage 
                     src={currentProduct.imageUrl || currentProduct.image_url} 
                     alt={currentProduct.name}
-                    className="w-full h-full object-contain group-hover:scale-105 transition-all duration-200"
+                    className="w-full h-full object-contain scale-[1.12] sm:scale-[1.15] group-hover:scale-125 transition-all duration-300 drop-shadow-xl"
                   />
 
                   {/* Hover Quick Action */}
@@ -519,11 +496,17 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
                   </button>
 
                   <button
-                    onClick={onBillboardClick}
+                    onClick={() => onOrderClick?.(activeMode)}
                     className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs whitespace-nowrap"
                   >
-                    <TrendingDown size={14} className="text-slate-500" />
-                    <span>تالار بارهای زیر قیمت</span>
+                    <ArrowUpRight size={14} className="text-emerald-600" />
+                    <span>
+                      {activeMode === 'kaf_bazaar' 
+                        ? "مشاهده بارهای ویژه" 
+                        : activeMode === 'sediment' 
+                          ? "لیست کامل بارهای رسوب" 
+                          : "لیست کامل بارهای مازاد"}
+                    </span>
                   </button>
                 </div>
 
@@ -540,7 +523,7 @@ export const FactoryHeroPowerhouse: React.FC<FactoryHeroPowerhouseProps> = ({
               <span>سایر بارهای فعال:</span>
             </span>
             <button 
-              onClick={onOrderClick}
+              onClick={() => onOrderClick?.(activeMode)}
               className="text-[10px] sm:text-xs text-emerald-700 hover:text-emerald-800 font-black flex items-center gap-0.5 cursor-pointer"
             >
               <span>مشاهده همه</span>

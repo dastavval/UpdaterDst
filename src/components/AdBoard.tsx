@@ -568,8 +568,8 @@ export default function AdBoard({
     return String(num).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[parseInt(d, 10)]);
   };
 
-  // Filtering Logic: Include all active factory products for robust Floor Market availability
-  const rawKafProducts = (products || []).filter(p => !p.disabled);
+  // Filtering Logic: Strictly respect whether isKafBazaar or isFloorMarket is selected on the product
+  const rawKafProducts = (products || []).filter(p => !p.disabled && (p.isKafBazaar === true || p.isFloorMarket === true || p.category === 'under_market'));
   const effectiveKafProducts = rawKafProducts;
 
   const allOpportunities = [
